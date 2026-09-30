@@ -22,6 +22,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Configurar Gradle
+        uses: gradle/actions/setup-gradle@v3
+
       - name: Localizar e Extrair Arquivo ZIP
         run: |
           ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
@@ -33,18 +36,99 @@ jobs:
           mkdir -p build_area
           unzip -o "$ZIP_FILE" -d build_area
 
-      - name: Executar Build com Gradle
+      - name: Preparar Estrutura e Executar Build
         run: |
-          GRADLEW_PATH=$(find build_area -name "gradlew" | head -n 1)
-          if [ -z "$GRADLEW_PATH" ]; then
-            echo "Arquivo gradlew nao foi encontrado dentro do projeto!"
+          SRC_DIR=$(find build_area -type d -name "src" | head -n 1)
+          if [ -z "$SRC_DIR" ]; then
+            echo "Pasta src nao foi encontrada dentro do arquivo ZIP!"
             exit 1
           fi
-          PROJECT_DIR=$(dirname "$GRADLEW_PATH")
-          echo "Diretorio do projeto: $PROJECT_DIR"
+          
+          PROJECT_DIR=$(dirname "$SRC_DIR")
           cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew build --no-daemon
+          echo "Diretorio do projeto identificado: $PROJECT_DIR"
+
+          # Garantir settings.gradle com repositorio Maven do Minecraft Forge
+          cat << 'EOF' > settings.gradle
+pluginManagement {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+rootProject.name = 'mod'
+EOF
+
+          # Garantir build.gradle Forge 1.20.1 + GeckoLib
+          if [ ! -f "build.gradle" ]; then
+            echo "build.gradle nao encontrado. Criando build.gradle automatico..."
+            cat << 'EOF' > build.gradle
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+}
+
+group = 'com.mod'
+version = '1.0.0'
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+        }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.minecraftforge.net/' }
+    maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+    maven { url 'https://cursemaven.com' }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.2.0'
+    implementation 'software.bernie.geckolib:geckolib-forge-1.20.1:4.4.4'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+EOF
+          fi
+
+          # Garantir mods.toml se estiver ausente
+          if [ ! -f "src/main/resources/META-INF/mods.toml" ]; then
+            mkdir -p src/main/resources/META-INF
+            cat << 'EOF' > src/main/resources/META-INF/mods.toml
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="froggydude"
+version="1.0.0"
+displayName="Froggy Dude Mod"
+description="Mod compilado via Forge Compiler Mobile"
+EOF
+          fi
+
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew build --no-daemon
+          else
+            echo "Executavel gradlew nao encontrado. Compilando via Gradle do sistema..."
+            gradle build --no-daemon
+          fi
 
       - name: Disponibilizar o .jar Compilado
         uses: actions/upload-artifact@v4
