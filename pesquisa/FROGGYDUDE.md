@@ -141,6 +141,33 @@ Levantado dos vídeos e de ~600 comentários (as minutagens são do vídeo citad
 
 ---
 
+## 4.1 O que ele faz com cada adversário
+
+Montado a partir de ~3 mil comentários com minutagem, já que o YouTube não deixa
+baixar os vídeos daqui. Onde os fãs discordam, está marcado.
+
+| Adversário | O que ele faz | Resultado |
+|---|---|---|
+| **Grox** (Manhunt RABIES, 18/06) | Persegue gritando "COME HERE GROX, I WANNA EAT YOU" e "GIVE ME YOUR BODY". Grox atira e joga ele na lava, e não adianta nada. Come os aldeões da vila (4:06), o portal do Nether (3:50) e ferro (1:30). "Eating mobs... HEALS ME!" Pede "I WANT THAT SKELETON BODY" (4:48) | **Come o corpo do Grox** e sobra só a cabeça, ainda falando ("DEAR GOD... I'm cooked", 5:51). Grox acorda achando que foi sonho, e o Froggy diz: "it's okay, go back to sleep" (5:59) |
+| **Verity** (04/07) | "I'm gonna bite your balls." Verity vira monstro e o Froggy adora: "TURN BACK INTO A MONSTER, THAT WAS WAY TASTIER", "I CAN SMELL THE FEAR IN YOU. TIME TO EAT" (2:50) | **Come o Verity.** Comentário fixado dele: "Verity tasted pretty good in the end!" |
+| **Macaco** (12/07) | O macaco estava matando todo mundo no servidor e chamam o Froggy. Ele **quebra as costas** com estalo (1:30) pra se transformar, flutua sobre a água, leva o macaco pra água, faz o ritual da "terceira fase" (3:29) e solta "I alone am the hungry one" | **Come o macaco** ("TASTY MONKEY", 4:10). Os fãs dizem que foi a única vez que ele *salvou* os jogadores |
+| **Parallax** (10/08) | A entidade é rápida e quase invencível. **Primeira vez que ele sente medo e foge** ("strategic retreat"). Usa a língua pra se balançar tipo Homem-Aranha (8:13) e monta um plano | **Joga o Parallax no void** (8:21). Ganhou na esperteza, não na força. Um fã (que levou coração do Froggy) diz que a entidade sobrevivia a ser comida porque regenerava mais rápido do que ele digeria |
+| **FroggyDoom** (26/08) | Briga com o clone vermelho ("GIVE ME YOUR BODY", 1:28). No meio da luta os dois **geram 6 filhotes** (4:40–7:28). O azulzinho fala "I'm a baby by the way" e sai nadando | **Primeira derrota: FroggyDoom mata ele** (8:08, "THERE CAN ONLY BE ONE") |
+| **AJTHEBOLD** (25/09) | Arrasta pra água (2:15), lambe, sobe no AJ pra morder, **come um braço** (7:06), "you taste like mustard" (8:48), vira um **monstro tipo Hulk** (9:12) e se cura. O AJ desmonta ele, mas **a língua puxa as partes do corpo de volta** | **AJ vence** (~14:35), mas o Froggy sobrevive e volta no fim |
+| **Ultimate Froggy** (fim do FULL MOVIE, 43:10) | Aparece como o próximo chefe | Gancho pra próxima temporada. Pelos comentários, nem a raiva derruba ele (não confirmado) |
+| **Jogadores comuns** (10v1, sobrevivência, short do horror mod) | Come todo mundo, **até quem está no criativo**. Entra em casa, aparece na janela, arremessa gente "pra órbita" (2:46), **obriga a vítima a comer o amigo**. Come panda (1:51), blaze (6:02) e piglin (6:51), bebe lava, atravessa lava, **voa "amaldiçoado"** (10v1, 7:26). No fim "come" gente na vida real (cena gravada com atores) | Ninguém escapa |
+
+**O padrão (o "modus operandi")**, que é o que vale virar IA:
+1. **Caça**: aparece parado longe ou na janela, "I SEE YOU", corre de quatro e pelas paredes.
+2. **Captura**: bote que derruba, língua que puxa, arrasta pra água.
+3. **Devora**: come vivo, pedaço por pedaço ("give me your body"). Às vezes sobra a cabeça.
+4. **Fica mais forte comendo**: comer cura, blaze dá power-up, lava é bebida.
+5. **Não morre**: lava não mata, ele volta, a língua recola o corpo.
+6. **Quando aperta, transforma**: quebra as costas, contorce, gira a cabeça, vira monstro e até voa.
+7. **Só perde pra quem é igual ou maior** (FroggyDoom, AJ) **ou foge e volta com um plano** (Parallax).
+
+---
+
 ## 5. Existe mod do FroggyDude pra baixar?
 
 **Não.** Os vídeos são filmes editados. Coisas que existem:
