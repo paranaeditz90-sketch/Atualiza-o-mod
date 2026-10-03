@@ -1,141 +1,52 @@
-name: Compilar Mod Forge (.zip)
+name: Compilar Froggydude (.jar)
 
+# Roda a cada push que mexe no mod (em qualquer branch) e também pelo botão
+# "Run workflow" na aba Actions.
 on:
   push:
     paths:
-      - '**.zip'
+      - 'froggydude-mod/**'
       - '.github/workflows/**'
   workflow_dispatch:
 
 jobs:
   build:
-    name: Compilar Projeto Java 17
+    name: Compilar com Java 17
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: froggydude-mod
 
     steps:
-      - name: Baixar codigo do repositorio
+      - name: Baixar o código
         uses: actions/checkout@v4
 
-      - name: Configurar Java 17 (Forge 1.20.1)
+      - name: Instalar Java 17 (Forge 1.20.1)
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Configurar Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Preparar Gradle (com cache)
+        uses: gradle/actions/setup-gradle@v4
 
-      - name: Localizar e Extrair Arquivo ZIP
+      - name: Compilar
         run: |
-          ZIP_FILE=$(find . -maxdepth 2 -name "*.zip" | head -n 1)
-          if [ -z "$ZIP_FILE" ]; then
-            echo "Nenhum arquivo .zip foi encontrado na raiz!"
-            exit 1
-          fi
-          echo "Arquivo zip encontrado: $ZIP_FILE"
-          mkdir -p build_area
-          unzip -o "$ZIP_FILE" -d build_area
+          chmod +x gradlew
+          ./gradlew build --no-daemon
 
-      - name: Preparar Estrutura e Executar Build
+      - name: Juntar o mod e o GeckoLib numa pasta "mods"
         run: |
-          SRC_DIR=$(find build_area -type d -name "src" | head -n 1)
-          if [ -z "$SRC_DIR" ]; then
-            echo "Pasta src nao foi encontrada dentro do arquivo ZIP!"
-            exit 1
-          fi
-          
-          PROJECT_DIR=$(dirname "$SRC_DIR")
-          cd "$PROJECT_DIR"
-          echo "Diretorio do projeto identificado: $PROJECT_DIR"
+          GECKO_VERSION=$(grep '^geckolib_version=' gradle.properties | cut -d= -f2)
+          mkdir -p ../mods
+          cp build/libs/froggydude-*.jar ../mods/
+          curl -fsSL -o "../mods/geckolib-forge-1.20.1-${GECKO_VERSION}.jar" \
+            "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/software/bernie/geckolib/geckolib-forge-1.20.1/${GECKO_VERSION}/geckolib-forge-1.20.1-${GECKO_VERSION}.jar"
+          ls -la ../mods
 
-          # Garantir settings.gradle com repositorio Maven do Minecraft Forge
-          cat << 'EOF' > settings.gradle
-pluginManagement {
-    repositories {
-        maven { url = 'https://maven.minecraftforge.net' }
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
-rootProject.name = 'mod'
-EOF
-
-          # Garantir build.gradle Forge 1.20.1 + GeckoLib
-          if [ ! -f "build.gradle" ]; then
-            echo "build.gradle nao encontrado. Criando build.gradle automatico..."
-            cat << 'EOF' > build.gradle
-plugins {
-    id 'eclipse'
-    id 'idea'
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
-}
-
-group = 'com.mod'
-version = '1.0.0'
-
-java {
-    toolchain.languageVersion = JavaLanguageVersion.of(17)
-}
-
-minecraft {
-    mappings channel: 'official', version: '1.20.1'
-    runs {
-        client {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-        }
-    }
-}
-
-repositories {
-    mavenCentral()
-    maven { url 'https://maven.minecraftforge.net/' }
-    maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
-    maven { url 'https://cursemaven.com' }
-}
-
-dependencies {
-    minecraft 'net.minecraftforge:forge:1.20.1-47.2.0'
-    implementation 'software.bernie.geckolib:geckolib-forge-1.20.1:4.4.4'
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
-EOF
-          fi
-
-          # Garantir mods.toml se estiver ausente
-          if [ ! -f "src/main/resources/META-INF/mods.toml" ]; then
-            mkdir -p src/main/resources/META-INF
-            cat << 'EOF' > src/main/resources/META-INF/mods.toml
-modLoader="javafml"
-loaderVersion="[47,)"
-license="MIT"
-
-[[mods]]
-modId="froggydude"
-version="1.0.0"
-displayName="Froggy Dude Mod"
-description="Mod compilado via Forge Compiler Mobile"
-EOF
-          fi
-
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew build --no-daemon
-          else
-            echo "Executavel gradlew nao encontrado. Compilando via Gradle do sistema..."
-            gradle build --no-daemon
-          fi
-
-      - name: Disponibilizar o .jar Compilado
+      - name: Disponibilizar os .jar (aba Actions > esta execução > Artifacts)
         uses: actions/upload-artifact@v4
         with:
-          name: mod-compilado-jar
-          path: |
-            build_area/**/build/libs/*.jar
-            !build_area/**/build/libs/*-sources.jar
-            !build_area/**/build/libs/*-shadow.jar
-            !build_area/**/build/libs/*-dev.jar
+          name: froggydude-mods
+          path: mods/*.jar
+          if-no-files-found: error
