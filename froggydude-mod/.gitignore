@@ -24,3 +24,6 @@ run-data
 
 # Files from Forge MDK
 forge*changelog.txt
+
+# poses de teste geradas localmente
+src/main/resources/assets/froggydude/animations/froggydude_debug.animation.json

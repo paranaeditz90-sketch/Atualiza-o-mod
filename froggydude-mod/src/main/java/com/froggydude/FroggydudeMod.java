@@ -19,7 +19,7 @@ public class FroggydudeMod {
     public FroggydudeMod() {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ModEntityTypes.register(modBus);
-        // ModSounds.register(modBus); // entra na Parte 2 (grito da fase 2)
+        ModSounds.register(modBus);
         modBus.addListener(this::commonSetup);
     }
 

@@ -1,3 +1,15 @@
 {
-  "entity.froggydude.froggydude": "Froggydude"
+  "entity.froggydude.froggydude": "Froggydude",
+  "subtitles.froggydude.ambient": "FroggyDude coaxa",
+  "subtitles.froggydude.hunt": "FroggyDude te viu",
+  "subtitles.froggydude.hurt": "FroggyDude apanha",
+  "subtitles.froggydude.love_pain": "FroggyDude: \"I love pain\"",
+  "subtitles.froggydude.death": "FroggyDude morre",
+  "subtitles.froggydude.scream": "FroggyDude grita",
+  "subtitles.froggydude.bite": "Mordida",
+  "subtitles.froggydude.eat": "FroggyDude devora",
+  "subtitles.froggydude.tongue": "Língua estala",
+  "subtitles.froggydude.taste": "FroggyDude te prova",
+  "subtitles.froggydude.leap": "FroggyDude salta",
+  "subtitles.froggydude.pin": "FroggyDude em cima de você"
 }

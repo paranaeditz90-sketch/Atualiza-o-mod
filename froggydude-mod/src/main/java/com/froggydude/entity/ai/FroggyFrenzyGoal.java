@@ -34,7 +34,7 @@ public class FroggyFrenzyGoal extends Goal {
     public boolean canUse() {
         LivingEntity target = froggy.getTarget();
         if (target == null || !target.isAlive()) return false;
-        if (froggy.getFroggyState().isAttack() || froggy.isVulnerableState()) return false;
+        if (froggy.getFroggyState().isCombatAction() || froggy.isVulnerableState()) return false;
         if (froggy.isFrenzyActive() || froggy.isFrenzyTired()) return false;
 
         if (froggy.shouldStartPhase2()) return true;

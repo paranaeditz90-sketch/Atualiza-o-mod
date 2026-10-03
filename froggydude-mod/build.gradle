@@ -40,6 +40,9 @@ minecraft {
             if (project.hasProperty('quickWorld')) {
                 args '--quickPlaySingleplayer', project.property('quickWorld')
             }
+            if (project.hasProperty('froggyDebug')) {
+                property 'froggydude.debug', 'true'
+            }
         }
 
         server {

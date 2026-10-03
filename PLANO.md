@@ -11,17 +11,22 @@ Legenda: ✅ feito · 🔜 próxima · ⏳ depois · ❓ depende de resposta tua
 
 ---
 
-## 0. Onde estamos (Parte 1 ✅)
+## 0. Onde estamos
 
-- Compila no GitHub Actions e gera o `.jar` com o GeckoLib junto.
-- Testado aqui num servidor e num cliente de verdade:
-  - ele nasce;
-  - revida quando apanha (matou o zumbi que bateu nele e deixou o porco em paz);
-  - renderiza com a **skin real**;
-  - o sangue muda com a vida.
-- **Ainda não testado com jogador:** língua, pulos, prender no chão e tremor de tela. É isso que tu testa agora.
+**Parte 1 ✅ (combate básico):** compila no GitHub e foi testada no jogo.
 
----
+**Parte 2 ✅ (animações e sons, a prioridade que tu pediu):**
+- **Corrida igual à dele.** A "corrida de quatro" dele nos vídeos é uma sequência de **saltos de sapo**: agacha encolhido, impulso em diagonal, plana deitado (pernas esticadas pra trás, braços pra frente), cai nas mãos, junta as pernas e salta de novo. De longe ele persegue assim; de perto, galopa de quatro. A troca entre andar e correr não pisca mais.
+- **Bote e salto alto refeitos** pela referência. Quando acerta, **ele te derruba**: tu fica deitado no chão, sem andar, com a câmera **presa na cara dele**, que fica por cima de ti mordendo e rasgando. Se tu acertar uma pancada forte nele, ele é jogado pra trás e te solta.
+- **A cabeça dele te encara** (antes ela nunca virava pro alvo).
+- **A língua mira no peito** de quem ele ataca e tem o comprimento exato da distância. Antes ela saía reta e passava por cima da cabeça.
+- **A câmera treme de verdade.** Nada de inclinar a tela pro lado e voltar.
+- **Sangue em respingos vermelhos** no ponto da mordida, no lugar dos coraçõezinhos.
+- **Sons:** 12 eventos (ribbit, caça, dor, "I love pain", morte, mordida, comendo, estalo da língua, provar, salto, montado, grito).
+  - O mod vem com sons de reserva do Minecraft (sapo e ravager com outro tom).
+  - A **voz original dele** vem num **pacote de recursos separado**, que não vai pro GitHub porque o repositório é público.
+
+Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de vista de quem é atacado.
 
 ## 1. A arquitetura (o contrato)
 
@@ -54,7 +59,7 @@ completa a tabela.
 
 ---
 
-## 2. Skins por evento (Parte 3)
+## 2. Skins por evento (Parte 4)
 
 Hoje a skin é uma imagem inteira trocada por vida (16 PNGs). Não escala:
 "queimado **e** comeu **e** gritando" viraria dezenas de arquivos.
@@ -86,7 +91,7 @@ de costas pra ti. Se tu chegar perto, ele vira a cabeça 180°.
 
 ---
 
-## 3. Animações (Parte 4)
+## 3. Animações (corrida e bote na Parte 2 ✅, o resto na Parte 5)
 
 Todas no Blockbench (formato GeckoLib), com os nomes de osso que já existem.
 Agora eu consigo **abrir o jogo aqui e fotografar cada pose** antes de te
@@ -103,17 +108,17 @@ mandar, então não vai mais animação às cegas.
 
 ---
 
-## 4. Habilidades (Parte 5)
+## 4. Habilidades (Parte 6)
 
 - **Movimento:** corrida de quatro, subir parede (igual aranha), nadar rápido, quebrar vidro, abrir porta de madeira, pular cerca.
-- **Língua:** chicote, agarrar, capturar e **provar o gosto** (dá a marca de faro, seção 5.3). Também **arranca o item da mão** (escudo, arco, totem da mão secundária).
-- **Comer:** come o que prende (mob ou jogador), **cura** e ganha buff conforme o que comeu (blaze = resistência ao fogo e força, carne = vida, aldeão = velocidade).
+- **Língua:** chicote, agarrar, capturar e **provar o gosto** (dá a marca de faro, seção 5.3). Também **arranca o item da mão**: escudo, arco, totem da mão secundária e, **principalmente, arma de mod de armas** (regra tua). Em vez de banir quem usa mod de armas, ele rouba a arma com a língua.
+- **Comer (regra tua):** **é o único jeito de ele recuperar vida.** Não tem regeneração natural. Comendo, ele cura e as feridas dele na skin vão sumindo junto com a vida que volta. O sangue de quem ele comeu continua no terno até ele lavar na água. Também ganha buff conforme o que comeu (blaze = resistência ao fogo e força, carne = vida, aldeão = velocidade).
 - **Imortal-ish:** a lava cura ele em vez de machucar. Ao "morrer" pela primeira vez, finge de morto e **volta**. A morte de verdade só vem na segunda vez, ou pelo void (é assim que o Parallax perdeu).
 - **Arrancar o braço do jogador:** seção 6.
 
 ---
 
-## 5. Inteligência (Parte 6)
+## 5. Inteligência (Parte 7)
 
 Não é "IA que aprende" no sentido de rede neural. Isso seria pior e mais
 lento. É **memória + estatística + regras**, que é o que dá a sensação de
@@ -181,7 +186,7 @@ Ele **nunca repete** o mesmo susto em sequência, e guarda o que já te assustou
 
 ---
 
-## 6. O braço arrancado (Parte 5)
+## 6. O braço arrancado (Parte 6)
 
 - **Quando:** ataque especial `arm_rip`, só com tu preso no chão (bote ou captura) e com vida baixa. Nunca do nada.
 - **Qual:** o da **mão secundária** (o esquerdo, ou o direito se tu joga canhoto).
@@ -195,7 +200,7 @@ Ele **nunca repete** o mesmo susto em sequência, e guarda o que já te assustou
 
 ---
 
-## 7. Anti-trapaça e a invasão (Parte 7)
+## 7. Anti-trapaça e a invasão (Parte 8)
 
 Inspirado no fim de **"How many days can you survive against me?"** (6:42–7:50):
 - o último jogador trapaceia e vai pro criativo;
@@ -223,41 +228,51 @@ Inspirado no fim de **"How many days can you survive against me?"** (6:42–7:50
    - Jumpscare, som de rasgo.
 3. **Banimento:** tela de desconexão estilo boletim de ocorrência ("Jogador X encontrado morto em casa. Porta destrancada. Polícia investiga."). O mundo grava tua conta como banida e te expulsa toda vez que tu tentar entrar.
 
+**Modo desenvolvedor pelo nome do mundo (ideia tua):** se o nome do mundo tiver **`-dev`** (ex.: `teste-dev`), o anti-trapaça fica desligado **só naquele mundo**: sem aviso, sem invasão e sem banimento. Os outros mundos funcionam normal. Assim tu testa com comandos sem mexer em config.
+
+**Mod de armas não dá ban:** ele arranca a arma com a língua (seção 4). Ban é pra trapaça de verdade (criativo, comandos, voar, Viltrumita...).
+
 **Travas de segurança (não negociáveis):**
 - **Nunca apaga mundo, arquivo ou nada fora do jogo.** O banimento é um registro dentro do save, que dá pra desfazer.
 - **Perdão:** opção `perdoar = true` no arquivo de config. Na próxima entrada, o ban some.
-- **Modo desenvolvedor:** `anti_trapaca = false` no config. **Sem isso, tu vai se banir testando o mod com /summon.**
+- **Modo desenvolvedor:** mundo com `-dev` no nome (acima). Também fica a opção `anti_trapaca = false` no config, pra desligar em todos os mundos.
 
 ---
 
 ## 8. Ordem das partes
 
-| Parte | O quê | Por que nessa ordem | Entrega |
-|---|---|---|---|
-| 1 ✅ | Combate básico | | `.jar` pra testar |
-| 2 🔜 | **Fundação:** contrato completo dos estados, sons (com `sounds.json`, que hoje crasha se ligar o frenesi), arquivo de config, comando de debug `/froggydude` (forçar estado, ver memória, perdoar) | Sem isso, cada parte nova quebra a anterior | `.jar` + prints das poses |
-| 3 | **Skins em camadas** + regras evento → skin | A arte já existe (31 skins). É independente da IA | `.jar` + prints de cada combinação |
-| 4 | **Animações** (lista da seção 3) | Depende do contrato | `.jar` + prints de cada animação |
-| 5 | **Habilidades** + braço arrancado | Depende das animações | `.jar` |
-| 6 | **Inteligência:** percepção, faro, memória, decisão, diretor | Orquestra tudo que veio antes | `.jar` |
-| 7 | **Terror + anti-trapaça + invasão** | É o diretor usando todas as peças | `.jar` |
-| 8 | Extras: FroggyDoom, filhotes, Ultimate Froggy | Só com o resto sólido | `.jar` |
+Tu pediu animação e som primeiro, e fez sentido: era o que mais destoava dos vídeos.
 
-Cada parte termina com: compilou no GitHub, testei aqui no servidor e no
-cliente, te mando os prints e o `.jar`. Tu testa no Zalith e me fala.
+| Parte | O quê | Situação |
+|---|---|---|
+| 1 | Combate básico | ✅ |
+| 2 | **Animações de corrida/bote + sons + câmera + língua** | ✅ esta entrega |
+| 3 | **Fundação:** config, mundo `-dev`, comando `/froggydude`, contrato completo dos estados | 🔜 |
+| 4 | **Skins em camadas** + regras evento → skin (comer suja a frente, lava carboniza, água lava) | |
+| 5 | **Resto das animações** (parede, nadar, espiar janela, bater na porta, giro de cabeça, estalo de costas, lavar sangue) | |
+| 6 | **Habilidades:** subir parede, nadar e arrastar pra água, comer pra curar, ressuscitar, roubar item com a língua, arrancar braço | |
+| 7 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | |
+| 8 | **Terror + anti-trapaça + invasão** | |
+| 9 | Extras: FroggyDoom, filhotes, Ultimate Froggy, como ele aparece no mundo | |
 
----
+Cada parte termina igual: compila no GitHub, eu testo aqui num cliente de
+verdade (gravando a tela), te mando o `.jar` e o vídeo, tu testa no Zalith.
 
-## 9. Perguntas que mudam o código ❓
+## 9. Respostas e o que ainda falta decidir
 
-1. **O braço volta?**
-   - (a) Volta quando tu morre.
-   - (b) Volta com um item caro (ex.: maçã dourada encantada).
-   - (c) Nunca volta naquele mundo.
+**Já decidido:**
+- **Um FroggyDude por mundo.** Persistente, e volta depois de morrer.
+- **Por enquanto ele só aparece por `/summon`.** O jeito de nascer no mundo fica pra Parte 9.
+- **Só comendo ele recupera vida e limpa as feridas da skin.**
+- **Voz original:** feita (pacote de voz separado, ver seção 0).
+- **Mod de armas:** ele rouba a arma com a língua.
+- **Modo dev:** mundo com `-dev` no nome.
 
-   Eu iria de (a) ou (b). Com (c), o mundo vira castigo e tu larga em uma semana.
-2. **Sangramento:** para sozinho depois de um tempo, ou precisa de algo (comer, enfaixar com lã/papel)?
-3. **Quantos FroggyDudes?** Eu defendo **um só por mundo**, persistente, que volta depois de morrer. É o que faz a memória e o aprendizado fazerem sentido: é *ele* que te conhece. Com vários, cada um começa do zero e ele vira mob comum.
-4. **Como ele aparece?** Depois de X dias de mundo, na primeira noite de lua cheia, ou quando tu comer carne de sapo? (Essa última é minha favorita.)
-5. **Voz:** tu vai gravar as falas ("ribbit", "bark bark", "I SEE YOU", risada, grito), ou uso sons do jogo distorcidos por enquanto? Pra uso pessoal, decide tu. Pra publicar, áudio dele só com autorização dele.
-6. **Trapaça:** a lista da seção 7 tá boa? Tem mais algum mod de trapaça além do Viltrumita?
+**Ainda em aberto ❓** (o braço e o sangramento ainda não existem no mod, por isso tu não viu nada no teste; a pergunta é como eles vão funcionar quando eu fizer):
+1. **Quando ele arrancar teu braço esquerdo, ele volta?**
+   - (a) volta quando tu morre;
+   - (b) volta com um item caro;
+   - (c) nunca volta naquele mundo.
+
+   Eu iria de (a).
+2. **O sangramento do braço arrancado** para sozinho com o tempo, ou tu precisa estancar (comer, enfaixar com lã/papel)?

@@ -8,13 +8,12 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 /**
- * Canal de rede do mod. Se seu mod já tem um SimpleChannel, use o seu e
- * apague este: só copie a linha do registerMessage pra lá.
- * Chame ModNetwork.register() no setup comum do mod (FMLCommonSetupEvent).
+ * Canal de rede do mod. Chame ModNetwork.register() no setup comum do mod
+ * (FMLCommonSetupEvent).
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "1";
+    private static final String PROTOCOL = "2";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -30,12 +29,24 @@ public final class ModNetwork {
 
     /** Só treme a câmera. */
     public static void sendShake(ServerPlayer player, float intensity, int durationTicks) {
-        sendEffects(player, intensity, durationTicks, 0);
+        send(player, new FroggyShakePacket(intensity, durationTicks, 0, -1));
     }
 
-    /** Treme a câmera e prende o jogador por pinTicks (0 = não prende). */
-    public static void sendEffects(ServerPlayer player, float intensity, int durationTicks, int pinTicks) {
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
-                new FroggyShakePacket(intensity, durationTicks, pinTicks));
+    /**
+     * Treme a câmera e prende o jogador por pinTicks (0 = não prende).
+     * pinnerId é o Froggy que está em cima: a câmera vira pro rosto dele.
+     */
+    public static void sendEffects(ServerPlayer player, float intensity, int durationTicks,
+                                   int pinTicks, int pinnerId) {
+        send(player, new FroggyShakePacket(intensity, durationTicks, pinTicks, pinnerId));
+    }
+
+    /** Solta o jogador antes do tempo (Froggy derrubado, morto ou longe). */
+    public static void sendRelease(ServerPlayer player) {
+        send(player, new FroggyShakePacket(0F, 0, FroggyShakePacket.RELEASE, -1));
+    }
+
+    private static void send(ServerPlayer player, FroggyShakePacket packet) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
     }
 }
