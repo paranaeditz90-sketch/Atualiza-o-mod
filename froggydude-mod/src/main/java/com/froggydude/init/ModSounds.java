@@ -16,9 +16,9 @@ public class ModSounds {
     public static final DeferredRegister<SoundEvent> SOUNDS =
             DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, ModEntityTypes.MOD_ID);
 
-    /** Parado/andando: ribbit, latido, risadinha. */
+    /** Parado/andando: ribbit, "wibbit", risada. */
     public static final RegistryObject<SoundEvent> AMBIENT = register("froggydude.ambient");
-    /** Quando ele te vê pela primeira vez ("I SEE YOU", risada). */
+    /** Quando ele te acha ("I'm hungry", "you can't run, you can't hide"). */
     public static final RegistryObject<SoundEvent> HUNT = register("froggydude.hunt");
     /** Apanhou: grunhido curto. */
     public static final RegistryObject<SoundEvent> HURT = register("froggydude.hurt");

@@ -194,7 +194,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return 160; // um ribbit a cada ~8 s em média
     }
 
-    /** Quando acha uma vítima nova: "I SEE YOU". */
+    /** Quando acha uma vítima nova: som de caça (froggydude.hunt). */
     @Override
     public void setTarget(@Nullable LivingEntity target) {
         LivingEntity old = this.getTarget();
