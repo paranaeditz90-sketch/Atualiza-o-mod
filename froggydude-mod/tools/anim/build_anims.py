@@ -297,22 +297,8 @@ ANIMS["crouch_idle"] = animation(1.2, [
     (1.20, quad(**QUAD_STAND)),
 ], True)
 
-# Salto de sapo da perseguição. Sincronizado com o servidor:
-# impulso no tick 5 (0,25 s), 12 ticks no ar, cai no tick ~17 (0,85 s).
-ANIMS["leap"] = animation(1.2, [
-    (0.00, crouch()),
-    (0.15, crouch(root_y=-8.5, waist=62, head=-58, arms=-56, legs=leg_back(-8.5))),  # carrega (encolhe)
-    (0.25, pose(root_y=-2, waist=46, head=-40, arms=-92, legs=36, arm_spread=4)),   # impulso (ref 1,3 s)
-    (0.40, pose(root_y=0, waist=60, head=-54, arms=-105, legs=52, arm_spread=4)),   # subindo (ref 1,6 s)
-    (0.60, pose(root_y=0, waist=84, head=-76, arms=-118, legs=90, arm_spread=4)),   # planando (ref 1,9 s)
-    (0.78, pose(root_y=0, waist=96, head=-84, arms=-108, legs=102, arm_spread=6)),  # nariz pra baixo
-    (0.86, pose(root_y=-2, waist=100, head=-84, arms=-100, legs=108, arm_spread=8)),  # cai nas mãos (ref 2,4 s)
-    (1.00, crouch(root_y=-6, waist=70, head=-64, arms=-84, legs=leg_back(-6))),  # pernas vêm por baixo
-    (1.20, crouch()),
-], "hold_on_last_frame")
-
-# Bote baixo que derruba: igual ao salto, mas os braços vão pra frente pra
-# agarrar e ele cai montado na vítima. Impulso no tick 4, impacto no ~15.
+# Bote baixo que derruba: salta rente ao chão com os braços pra frente pra
+# agarrar e cai montado na vítima. Impulso no tick 4, impacto no ~15.
 # Cabeça olhando pro rosto da vítima (deitada a ~2 blocos): o rosto dele aponta
 # uns 23 graus pra baixo, então quem está preso vê a CARA dele, não o topo da coroa.
 # (v0.3.4) Medido com tools/anim/check_poses.py: a pose antiga (quadril 9 px abaixo e
@@ -683,7 +669,6 @@ def main():
             "tongue_capture": [0.2, 0.6, 1.05],
             "feed": [0.22, 0.52],
             "climb": [0.0, 0.25],
-            "leap": [0.0, 0.15, 0.25, 0.4, 0.6, 0.78, 0.86, 1.0],
             "jump_pin": [0.2, 0.45, 0.68, 0.76, 1.0],
             "high_jump": [0.2, 0.3, 0.55, 0.75, 0.95, 1.1],
             "pin_hold": [0.0, 0.5],

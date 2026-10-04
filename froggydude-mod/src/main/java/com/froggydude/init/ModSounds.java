@@ -1,11 +1,15 @@
 package com.froggydude.init;
 
+import com.froggydude.entity.voice.VoiceLine;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
  * Sons do Froggy. Os arquivos .ogg ficam em assets/froggydude/sounds/ e a
@@ -52,6 +56,18 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> CHEW = register("froggydude.chew");
     /** As patadas do galope de quatro (junto com o passo do bloco do chão). */
     public static final RegistryObject<SoundEvent> GALLOP = register("froggydude.gallop");
+
+    /**
+     * Uma fala por som (froggydude.voice.&lt;clipe&gt;), pra tocar na ordem dos vídeos
+     * (entity/voice). Sem o pacote de voz, cada uma cai no som de reserva da categoria.
+     */
+    public static final Map<VoiceLine, RegistryObject<SoundEvent>> VOICE = new EnumMap<>(VoiceLine.class);
+
+    static {
+        for (VoiceLine line : VoiceLine.values()) {
+            VOICE.put(line, register(line.soundName()));
+        }
+    }
 
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name,

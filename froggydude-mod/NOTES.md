@@ -1,25 +1,32 @@
-# Froggydude - Parte 3: combate completo (v0.3.4)
+# Froggydude - Parte 4: manhunt, cérebro e anti-trapaça (v0.3.5)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
 
 - Parte 1 ✅ combate básico.
-- Parte 2 ✅ corrida de salto de sapo, bote que derruba, câmera, língua, sons.
-- Parte 3 ✅ (esta) tamanho de jogador, pulinhos com velocidade variável
-  (matar x apavorar), esmagamento, pulo do céu, devorar mais longo, língua em
-  pirâmide e mais rara, braço arrancado e comido, sangramento, fase 2.
+- Parte 2 ✅ corrida, bote que derruba, câmera, língua, sons.
+- Parte 3 ✅ combate completo (esmagamento, pulo do céu, braço, fase 2...).
+- Parte 4 ✅ (esta) config, mundo `-dev`, comando `/froggydude`, um FroggyDude
+  por mundo, manhunt (speedrun ou sobrevivência), falas na ordem dos vídeos,
+  e já um pedaço das Partes 8 e 9: o cérebro que aprende e o anti-trapaça
+  com a invasão do 911.
 
-O que testar agora (v0.3.4):
-1) Anda pra cima dele: ele NÃO recua - avança junto e te derruba (bote ou trombada).
-2) Ele te encara de frente nos ataques; a língua sai na tua direção (não pro lado).
-3) Sobe numa torre de terra e fica na beirada: ele escala atrás (não precisa ficar no meio).
-4) Galope de 4 rápido (0,25 s por passada, ~10 blocos/s caçando).
-5) Fase 2: estala, dobra com o topo da cabeça pra frente, balança, sobe rápido, trava
-   torto (ombro direito pra cima, tronco pra trás, perna esquerda na frente, cabeça
-   quebrada pra trás olhando pra cima de lado); aí grita e corre em pé, todo torto.
-6) Braço arrancado: depois do tranco ele SACODE teu braço na boca (rápido) e a cada
-   mordida sacode de novo, jorrando cubinhos vermelhos (sem névoa/pó).
-7) Preso embaixo dele, o sangue não tampa tua tela.
+O que testar agora (v0.3.5):
+1) Galope a ~15 blocos/s (o do original), sem o salto de sapo no meio da
+   perseguição; fase 2 ainda mais rápida (~19 b/s).
+2) Sangue: os cubinhos caem pesado e saem em bem mais quantidade.
+3) Falas: cada situação tem a sequência dos vídeos ("Hey, humans!" -> "I'm
+   hungry" -> "I wanna eat you"...; derrubou: "Give me your body!", montado:
+   "Stay on the ground", "You are mine"...). A sequência continua de onde parou,
+   inclusive depois dele morrer (fica salva no mundo).
+4) `/froggydude manhunt speedrun` (ou `sobrevivencia 3`): título, vantagem com
+   contagem, "CORRE", e ele vem. Te pegou: "O FROGGYDUDE VENCEU", ele come e vai
+   embora. Matou o dragão (ou passaram os dias): ele morre gritando "no, no, noooo".
+5) Num mundo com `-dev` no nome: o chat conta o que o cérebro aprendeu a cada
+   caçada; `/froggydude cerebro` mostra o que ele sabe de ti.
+6) Num mundo SEM `-dev`, com manhunt rolando: `/gamemode creative` -> "I SEE YOU";
+   mais uma trapaça (ex.: `/give`) -> invasão. Pra ver a invasão sem banir:
+   `/froggydude trapaca testar` (as tochas por perto apagam de verdade).
 
 ## O que tem no pacote
 Código (src/main/java/com/froggydude):
@@ -40,18 +47,32 @@ Código (src/main/java/com/froggydude):
   ArmStatePacket e ClientArmState (quem está sem braço)
 - event/ModForgeEvents.java - tick do jogador preso/sem braço, tecla F,
   braço que volta na morte (e não volta saindo do End)
+- event/FroggyServerEvents.java - Parte 4: um por mundo, manhunt, anti-trapaça,
+  comando, banimento no login, aviso de mundo -dev
+- entity/voice/ - VoiceLine (cada fala), VoiceSituation (situação -> sequência
+  dos vídeos), FroggyVoice (em que fala de cada situação ele está)
+- brain/ - o cérebro que aprende (FroggyBrain, PlayerMemory, Strategy, Style, Engagement)
+- world/ - FroggyWorldData (data/froggydude.dat no save), FroggyKeeper (um por
+  mundo, onde ele aparece), Manhunt e ManhuntMode
+- anticheat/ - AntiCheat (aviso/advertências) e Invasion (a sequência do 911)
+- command/FroggyCommand.java - `/froggydude`
+- config/FroggyConfig.java - `config/froggydude-common.toml`
 - init/ - registro da entidade, atributos e sons
 
 Recursos (src/main/resources/assets/froggydude):
 - geo/froggydude.geo.json - modelo no formato de jogador (skin 64x64)
 - animations/froggydude.animation.json - animações (corrida, salto, bote e
   montado são geradas por tools/anim/build_anims.py, veja abaixo)
-- sounds.json - 18 sons, com sons de reserva do Minecraft (a voz original
-  vem no pacote de recursos FroggyDude-Voz.zip, que não fica no GitHub)
+- sounds.json - 19 sons de categoria + 38 falas (froggydude.voice.*), com sons
+  de reserva do Minecraft (a voz original vem no pacote de recursos
+  FroggyDude-Voz.zip, que não fica no GitHub)
 - textures/entity/arm_stump.png - toco do braço arrancado
 - textures/entity/froggydude_<variante>_0..3.png - skins reais do FroggyDude
   (histórico dele no laby.net / NameMC), escolha provisória. Veja "Texturas"
-- lang/ - nome da entidade e legendas dos sons
+- lang/ - nome da entidade, legendas dos sons (cada fala tem a sua) e textos
+  do manhunt/invasão
+Dados (src/main/resources/data): o tipo de dano `froggydude:devoured` (a morte
+da invasão: ignora totem, armadura e invencibilidade) e as tags dele.
 
 tools/prepare_skins.py - prepara as skins do NameMC (veja "Texturas")
 tools/anim/build_anims.py - gera as animações de locomoção, bote, esmagamento,
@@ -157,7 +178,7 @@ cabeça tombar de lado e pra cima/baixo do nada (o bug dos "tiques" da 0.3.1).
 O RandomLookAroundGoal (olhar pros lados sem motivo) também saiu.
 
 ### Testar animação sem lutar (NBT de teste)
-- `{DebugAnim:"leap"}` toca uma animação em loop. Com o
+- `{DebugAnim:"run"}` toca uma animação em loop. Com o
   `python tools/anim/build_anims.py --debug`, nomes `dbg_<anim>_<tempo>`
   dão a pose congelada (arquivo local, fica fora do git).
 - `{DebugHunt:1b}` faz ele caçar o porco mais perto (pra ver de lado).
@@ -170,7 +191,7 @@ O RandomLookAroundGoal (olhar pros lados sem motivo) também saiu.
 - `{DebugHeldArm:1b}` põe o braço do jogador mais perto na boca dele;
   `{DebugArmless:1b}` arranca o braço do jogador mais perto (sobrevivência).
 - `./gradlew runClient -PquickWorld=<mundo> -PfroggyDebug=1` liga logs
-  `[FROGGYDEBUG]` (pouso dos pulos, jogador preso).
+  `[FROGGYDEBUG]` (pouso dos pulos, jogador preso, cada fala que ele diz).
 
 ## Texturas (skins reais do FroggyDude)
 O modelo é o de jogador com braços de 4 px (skin "clássica"), 64x64.
@@ -252,18 +273,103 @@ toma dano de queda se soltar da parede.
 - O dano das mordidas montado não empurra (senão a vítima escorregava pra
   fora e o "preso" acabava antes da hora).
 
-## Sons
-19 eventos em `sounds.json`: ambient (ribbit), hunt (quando te acha),
-hurt, love_pain ("I love pain"), death, scream (contorção da fase 2), pain
-(gemidos na fase 2, "freaking spicy"), bite, eat, chew (mastigando o braço),
-tongue (estalo), taste, leap, pin (montado), smash (soco), sky_land (baque do
-pulo do céu), rip (braço arrancado), crack (ossos estalando na contorção) e gallop (as patadas do galope). O mod usa sons do Minecraft como
-reserva. O pacote de recursos `FroggyDude-Voz.zip` (fora do GitHub, porque o
-repositório é público) troca as falas pela voz original dele.
+## Sons e falas
+19 eventos de categoria em `sounds.json`: ambient (ribbit), hunt, hurt,
+love_pain, death, scream (contorção da fase 2), pain (gemidos na fase 2), bite,
+eat, chew (mastigando), tongue (estalo), taste, leap, pin, smash (soco),
+sky_land (baque do pulo do céu), rip (braço arrancado), crack (ossos) e gallop.
+
+E 38 falas, cada uma com o seu som (`froggydude.voice.<clipe>`), que o mod
+escolhe NA ORDEM DOS VÍDEOS (entity/voice/VoiceSituation, com o tempo de cada
+fala nas legendas dos vídeos do arco da raiva):
+- avistou: "Hey, humans!" (só a 1ª vez), "I'm hungry", "I wanna eat you", "Come
+  here, I want to eat you and digest you", "I'm very hungry", "I want your flesh";
+- fugindo dele: "Get back here!", "You can run but you can't hide", "You will
+  become my food", "I never lose my prey";
+- subiu na torre e ele chegou: "You thought you could escape me?"; achou de
+  novo quem sumiu: a risadinha;
+- língua: pegou "I like the way you taste", desviaram "You're scared of my tongue";
+- apanhando: "I love pain" (4 versões); derrubou: "Give me your body!";
+  montado: "Stay on the ground", "You are mine", "I'm going to bite your balls";
+  com a vítima quase morta: "I'll be the last thing you see";
+- comendo: "Mmmm", "That was so delicious", "Very delicious"..., depois "I want
+  more food"/"Who's next?"; braço: "I love the taste of humans"; panda: a fala
+  do panda; bicho estranho: "Exotic meat"; blaze: "Freaking spicy!";
+- morrendo: "No, no, noooo", "NOOOOO".
+Não fala por cima de outra (espera o clipe acabar); derrubando alguém ele
+corta a fala de antes. A posição de cada sequência fica no save
+(data/froggydude.dat) e `/froggydude falas reiniciar` volta tudo pro começo.
+Sem o pacote de voz, cada fala toca o som de reserva da categoria; a legenda
+(se ligada) mostra o texto da fala.
+
+## Manhunt (Parte 4)
+`/froggydude manhunt speedrun`, `/froggydude manhunt sobrevivencia [dias]`,
+`/froggydude manhunt iniciar` (o modo do config) e `/froggydude manhunt parar`.
+- Ele aparece na tua frente, parado, te encarando durante a vantagem
+  (`vantagem_segundos`, padrão 30) com contagem na tela; aí "CORRE".
+- Speedrun: matou o Ender Dragon, tu vence. Sobrevivência: conta pelo tempo de
+  jogo (dormir pula a noite, mas não pula os dias do manhunt).
+- Te pegou: ele vence, come, fica uns segundos e vai embora.
+- Morreu no meio: volta depois de `volta_segundos` (padrão 60), fora da tua vista.
+- Foi pro Nether/End: depois de ~20 s ele vai atrás. Muito longe (72+ blocos):
+  ele reaparece a ~30-44 blocos, sem tu ver (faro).
+
+## Cérebro que aprende (começo da Parte 8)
+Pequeno, offline, dentro do mod, e salvo no mundo (data/froggydude.dat).
+- Observa o teu estilo: foge correndo, sobe em torre, briga de perto, atira
+  de longe, se esconde (com esquecimento: se tu muda, ele acompanha).
+- Escolhe COMO começar cada caçada: apavorar (segue de longe e encara), caçar
+  direto, ou cercar por trás (vai pra trás de onde tu está olhando). É um
+  bandido contextual: pra cada estilo teu, a média de recompensa de cada
+  estratégia + bônus de curiosidade (UCB) pro que testou pouco, e otimismo
+  pro que nunca testou.
+- Recompensa: dano causado, derrubadas, matar (muito), menos o dano que tomou,
+  a vítima escapar (sumiu 1 min), ele morrer, e o tempo gasto.
+- Ataques: amostragem de Thompson - acertos/erros de cada ataque contra TI;
+  quem sempre desvia da língua vê menos língua.
+- No manhunt: speedrun - quanto mais perto do dragão (Nether, End, olho do
+  End), mais direto ele vem; sobrevivência - de noite e no último dia também.
+- `/froggydude cerebro [jogador]` mostra o que ele aprendeu;
+  `/froggydude esquecer <jogador>` apaga. Em mundo `-dev`, o chat conta cada
+  caçada ("caçada contra LM: cercar por trás, killed, recompensa +10.0").
+
+## Anti-trapaça e a invasão (começo da Parte 9)
+Só com manhunt rodando, `anti_trapaca.ligado = true` e mundo SEM `-dev`.
+- Conta como trapaça: ir pro criativo/espectador, comandos de trapaça (`/give`,
+  `/tp`, `/effect`, `/kill`, `/time`, `/locate`...), voar no sobrevivência,
+  Resistência V+, e o mod Viltrumita (viltrumitecore) carregado.
+- 1ª vez: tela escura um instante, `<FroggyDude> I SEE YOU, nome` e ele parado
+  te olhando (pela janela, se tiver vidro).
+- 2ª vez: a invasão ("How many days can you survive against me?", 6:42-7:50):
+  tira o criativo e o voo, vira meia-noite, as tochas da casa apagam uma a uma,
+  três batidas na porta, a porta abre, a ligação pro 911 no chat, ele aparece
+  atrás de ti, derruba, arranca o braço e acabou ("foi encontrado morto em casa.
+  A porta estava destrancada."). Depois, o boletim de ocorrência e o banimento.
+  Durante a invasão comandos e troca de modo de jogo não funcionam; sair do
+  jogo no meio não salva (o banimento vale igual).
+- Banimento: só um registro dentro do save (nada fora do jogo é apagado). Pra
+  perdoar: `perdoar = true` no config (na próxima entrada o ban some; depois
+  volta pra false), ou `/froggydude perdoar <jogador>` por outro OP.
+- `/froggydude trapaca testar [jogador]`: a invasão inteira, sem banimento.
+
+## Config (`config/froggydude-common.toml`)
+- `anti_trapaca.ligado` (true), `anti_trapaca.perdoar` (false)
+- `manhunt.modo` (SPEEDRUN/SOBREVIVENCIA), `manhunt.dias` (5),
+  `manhunt.vantagem_segundos` (30), `manhunt.volta_segundos` (60)
+- `froggydude.caca_blocos_por_segundo` (15; um jogador correndo faz ~5,6)
+
+## Um FroggyDude por mundo e o mundo `-dev`
+- Só existe um: o último a nascer fica (o `/summon` ou `/froggydude invocar`
+  "chama" ele pra perto e o antigo some); um antigo que aparece ao carregar um
+  pedaço do mapa some sozinho.
+- Mundo com `-dev` no nome (ou na pasta): anti-trapaça desligado só ali, e o
+  cérebro conta no chat o que aprende. Ao entrar, aparece um aviso.
+- `/froggydude info`: modo do mundo, onde ele está, vida, estado, estratégia
+  da caçada e o manhunt. `/froggydude fase2` força a fase 2.
 
 ## O que ainda não existe
-Veja `../PLANO.md`: mundo `-dev`/config/comando (Parte 4), skins por evento,
-resto das animações, habilidades (parede, água, roubar arma com a língua),
-inteligência de verdade (hoje "matar x apavorar" é sorteio), terror e
-anti-trapaça. (Escalar parede já existe.) Um Froggy por mundo também ainda não é forçado. Spawn egg e loot table também não existem.
+Veja `../PLANO.md`: skins por evento, resto das animações, habilidades (água,
+roubar arma com a língua), o resto da inteligência (faro de rastro, rotina da
+base, diretor de tensão), o resto do terror, e como ele aparece no mundo sem
+comando (Parte 10). Spawn egg e loot table também não existem.
 Os números de dano, alcance, duração e cooldown ainda são ponto de partida.

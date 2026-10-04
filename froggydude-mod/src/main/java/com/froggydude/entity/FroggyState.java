@@ -22,8 +22,6 @@ public enum FroggyState {
      * torto depois disso quem decide é a FroggyFrenzyGoal.
      */
     CONTORTING(44),
-    /** Salto de sapo na perseguição: agacha, voa rente ao chão, cai nas mãos. */
-    LEAP(24),
     /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */
     PIN_HOLD(100),
     /** Esmagamento: em pé por cima da vítima derrubada, desce os dois punhos juntos (vs AJ, 0:57). */
@@ -57,8 +55,8 @@ public enum FroggyState {
         return this == PIN_HOLD || this == SMASH || this == ARM_RIP;
     }
 
-    /** Qualquer ação conduzida pela Goal de combate (ataques, salto, montado, braço). */
+    /** Qualquer ação conduzida pela Goal de combate (ataques, montado, braço). */
     public boolean isCombatAction() {
-        return isAttack() || isOnVictim() || this == LEAP || this == ARM_EAT;
+        return isAttack() || isOnVictim() || this == ARM_EAT;
     }
 }

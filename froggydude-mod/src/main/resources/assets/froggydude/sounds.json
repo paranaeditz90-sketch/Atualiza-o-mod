@@ -460,5 +460,347 @@
         "volume": 0.9
       }
     ]
+  },
+  "froggydude.voice.hunt_hey_humans": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_hey_humans"
+  },
+  "froggydude.voice.hunt_im_hungry": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_im_hungry"
+  },
+  "froggydude.voice.hunt_wanna_eat_you": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_wanna_eat_you"
+  },
+  "froggydude.voice.hunt_come_here_eat_digest": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_come_here_eat_digest"
+  },
+  "froggydude.voice.hunt_very_hungry": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_very_hungry"
+  },
+  "froggydude.voice.hunt_want_your_flesh": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_want_your_flesh"
+  },
+  "froggydude.voice.hunt_get_back_here": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_get_back_here"
+  },
+  "froggydude.voice.hunt_cant_run_cant_hide": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_cant_run_cant_hide"
+  },
+  "froggydude.voice.hunt_become_food": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_become_food"
+  },
+  "froggydude.voice.hunt_never_lose_prey": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_never_lose_prey"
+  },
+  "froggydude.voice.hunt_you_think_escape": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_you_think_escape"
+  },
+  "froggydude.voice.ambient_laugh": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.ambient",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.ambient_laugh"
+  },
+  "froggydude.voice.taste_like_the_way_you_taste": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.taste",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.taste_like_the_way_you_taste"
+  },
+  "froggydude.voice.taste_scared_of_my_tongue": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.taste",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.taste_scared_of_my_tongue"
+  },
+  "froggydude.voice.hurt_love_pain_1": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.love_pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hurt_love_pain_1"
+  },
+  "froggydude.voice.hurt_love_pain_2": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.love_pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hurt_love_pain_2"
+  },
+  "froggydude.voice.hurt_love_pain_3": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.love_pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hurt_love_pain_3"
+  },
+  "froggydude.voice.hurt_love_pain_4": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.love_pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hurt_love_pain_4"
+  },
+  "froggydude.voice.pin_give_me_your_body_1": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pin",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pin_give_me_your_body_1"
+  },
+  "froggydude.voice.pin_give_me_your_body_2": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pin",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pin_give_me_your_body_2"
+  },
+  "froggydude.voice.pin_stay_on_ground": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pin",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pin_stay_on_ground"
+  },
+  "froggydude.voice.pin_you_are_mine": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pin",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pin_you_are_mine"
+  },
+  "froggydude.voice.pin_bite_your_balls": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pin",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pin_bite_your_balls"
+  },
+  "froggydude.voice.pin_last_thing_you_see_1": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pin",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pin_last_thing_you_see_1"
+  },
+  "froggydude.voice.eat_mmmm": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_mmmm"
+  },
+  "froggydude.voice.eat_that_was_delicious": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_that_was_delicious"
+  },
+  "froggydude.voice.eat_very_delicious": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_very_delicious"
+  },
+  "froggydude.voice.eat_so_freaking_delicious": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_so_freaking_delicious"
+  },
+  "froggydude.voice.eat_taste_so_good": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_taste_so_good"
+  },
+  "froggydude.voice.eat_really_good": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_really_good"
+  },
+  "froggydude.voice.eat_want_more": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_want_more"
+  },
+  "froggydude.voice.hunt_whos_next": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_whos_next"
+  },
+  "froggydude.voice.eat_love_taste_humans": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_love_taste_humans"
+  },
+  "froggydude.voice.eat_exotic_meat": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_exotic_meat"
+  },
+  "froggydude.voice.eat_panda_delicious": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.eat",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.eat_panda_delicious"
+  },
+  "froggydude.voice.pain_freaking_spicy": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pain_freaking_spicy"
+  },
+  "froggydude.voice.death_no_no_nooo": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.death",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.death_no_no_nooo"
+  },
+  "froggydude.voice.death_nooooo": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.death",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.death_nooooo"
   }
 }

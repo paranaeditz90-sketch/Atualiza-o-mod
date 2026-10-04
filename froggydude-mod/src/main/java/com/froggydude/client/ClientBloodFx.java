@@ -82,13 +82,15 @@ public class ClientBloodFx {
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) return;
         RandomSource r = level.random;
-        for (int i = 0; i < count; i++) {
+        // em abundância (v0.3.5): 1,6x os pedaços que o servidor pediu
+        int n = Math.round(count * 1.6F);
+        for (int i = 0; i < n; i++) {
             double speed = power * (0.45D + r.nextDouble() * 0.9D);
             double spread = power * 0.38D;
             level.addParticle(ModParticles.BLOOD.get(),
                     x + r.nextGaussian() * 0.06D, y + r.nextGaussian() * 0.06D, z + r.nextGaussian() * 0.06D,
                     dx * speed + r.nextGaussian() * spread,
-                    dy * speed + r.nextGaussian() * spread + 0.04D,
+                    dy * speed + r.nextGaussian() * spread + 0.02D,
                     dz * speed + r.nextGaussian() * spread);
         }
     }

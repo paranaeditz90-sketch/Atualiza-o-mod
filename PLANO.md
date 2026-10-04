@@ -65,6 +65,15 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Braço arrancado igual à zebra:** sacode o braço na boca rápido (2,5x por segundo) depois de arrancar e a cada mordida, com jorro de cubinhos vermelhos (saiu a névoa/pó vermelho).
 - **Sangue não tampa mais a tela** de quem está preso embaixo dele.
 
+**Parte 4 ✅ (v0.3.5) - fundação + manhunt, e o começo das Partes 8 e 9:**
+- **Corrida na velocidade do original:** galope a ~15 blocos/s (RACING A CHEETAH), fase 2 a ~19. Saiu o salto de sapo da perseguição (ele cobria 7,5 blocos em 1,2 s, mais devagar que o galope: era o "sapo pulando, bem lento").
+- **Sangue** cai mais pesado (gravidade 1,5) e sai 1,6x mais.
+- **Falas na ordem dos vídeos:** 38 falas, cada uma com seu som; cada situação (avistou, fugindo, língua, derrubou, montado, comeu, morrendo...) tem a sequência tirada das legendas dos vídeos, e ela continua de onde parou (salva no mundo).
+- **Config** (`config/froggydude-common.toml`), **mundo `-dev`**, **comando `/froggydude`** (invocar, info, manhunt, fase2, cerebro, esquecer, falas, trapaca testar, perdoar) e **um FroggyDude por mundo**.
+- **Manhunt, os dois modos** (decisão do LM): speedrun (matar o dragão antes dele te pegar) e sobrevivência (X dias). Vantagem com contagem, ele te segue pro Nether/End, volta depois de morrer, some quando vence.
+- **Cérebro que aprende** (escolha do LM): por jogador, salvo no mundo; aprende teu estilo, qual estratégia de caçada funciona contra ele (apavorar / direto / cercar por trás) e quais ataques te acertam.
+- **Anti-trapaça + invasão do 911** (seção 7), com `-dev` desligando e `/froggydude trapaca testar` pra ver sem banir.
+
 ## 1. A arquitetura (o contrato)
 
 ```
@@ -286,12 +295,12 @@ Tu pediu animação e som primeiro, e fez sentido: era o que mais destoava dos v
 | 1 | Combate básico | ✅ |
 | 2 | **Animações de corrida/bote + sons + câmera + língua** | ✅ |
 | 3 | **Combate completo:** tamanho de jogador, pulinhos com velocidade variável, esmagamento, pulo do céu, devorar mais longo, língua em pirâmide e mais rara, braço arrancado e comido, sangramento, fase 2 | ✅ esta entrega |
-| 4 | **Fundação:** config, mundo `-dev`, comando `/froggydude`, contrato completo dos estados | 🔜 |
+| 4 | **Fundação:** config, mundo `-dev`, comando `/froggydude`, um por mundo, manhunt (2 modos), falas na ordem | ✅ v0.3.5 (+ cérebro e anti-trapaça adiantados) |
 | 5 | **Skins em camadas** + regras evento → skin (comer suja a frente, lava carboniza, água lava) | |
 | 6 | **Resto das animações** (parede, nadar, espiar janela, bater na porta, giro de cabeça, estalo de costas, lavar sangue) | |
 | 7 | **Habilidades:** subir parede, nadar e arrastar pra água, comer pra curar, ressuscitar, roubar item com a língua | |
-| 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | |
-| 9 | **Terror + anti-trapaça + invasão** | |
+| 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | 🟡 memória por jogador + decisão que aprende (v0.3.5); falta faro, rotina, diretor |
+| 9 | **Terror + anti-trapaça + invasão** | 🟡 anti-trapaça e invasão do 911 (v0.3.5) |
 | 10 | Extras: FroggyDoom, filhotes, Ultimate Froggy, como ele aparece no mundo | |
 
 Cada parte termina igual: compila no GitHub, eu testo aqui num cliente de
@@ -309,6 +318,9 @@ verdade (gravando a tela), te mando o `.jar` e o vídeo, tu testa no Zalith.
 
 - **Braço:** volta quando tu morre (a). Sangramento contínuo, sem estancar, com animação dele comendo o braço (feito na Parte 3).
 
+- **Manhunt:** os dois modos, configurável (speedrun e sobrevivência), feito na v0.3.5.
+- **IA:** o cérebro que aprende (por jogador, offline, salvo no mundo), começo feito na v0.3.5.
+- **Anti-trapaça:** só vale com manhunt rodando (senão ia banir quem só usa `/gamemode` construindo).
+
 **Ainda em aberto ❓:**
-- **A proposta é Manhunt, não "terror"** (correção do LM): os vídeos mostram uma caçada, corrida contra o tempo antes de matar, tipo o Speedrun do Dream. Vamos conversar sobre isso em breve e isso pode mudar a IA (Parte 8) e o diretor de tensão (5.5).
-- Depois disso, a Parte 4 (mundo `-dev`, config e comando).
+- **O resto do Manhunt** (o LM disse que ainda vamos conversar): como ele aparece no mundo sem comando, se vale pra vários jogadores ao mesmo tempo (hoje: pegou um, acabou), e o equilíbrio. A 15 blocos/s ninguém escapa correndo em linha reta; o que salva é torre, água, porta e cabeça.

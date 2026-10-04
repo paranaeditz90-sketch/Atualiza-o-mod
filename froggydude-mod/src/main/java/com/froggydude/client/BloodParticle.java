@@ -23,7 +23,9 @@ public class BloodParticle extends TextureSheetParticle {
         this.xd = vx;
         this.yd = vy;
         this.zd = vz;
-        this.gravity = 0.9F;
+        // pesado (v0.3.5, LM: "deveriam cair mais com a gravidade"): 0,06 b/t² - o
+        // dobro de um item caindo - então o jato faz arco curto e despenca
+        this.gravity = 1.5F;
         this.friction = 0.97F;
         this.hasPhysics = true;
         this.lifetime = 50 + this.random.nextInt(60);

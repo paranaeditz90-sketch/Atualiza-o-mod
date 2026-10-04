@@ -1,17 +1,30 @@
 package com.froggydude.entity;
 
+import com.froggydude.brain.Engagement;
+import com.froggydude.brain.FroggyBrain;
+import com.froggydude.brain.PlayerMemory;
+import com.froggydude.brain.Strategy;
+import com.froggydude.brain.Style;
 import com.froggydude.entity.ai.FroggyCombatGoal;
 import com.froggydude.entity.ai.FroggyFeedGoal;
 import com.froggydude.entity.ai.FroggyFrenzyGoal;
+import com.froggydude.entity.voice.VoiceLine;
+import com.froggydude.entity.voice.VoiceSituation;
+import com.froggydude.init.ModEntityTypes;
 import com.froggydude.init.ModParticles;
 import com.froggydude.init.ModSounds;
 import com.froggydude.player.ArmLoss;
+import com.froggydude.world.FroggyKeeper;
+import com.froggydude.world.FroggyWorldData;
+import com.froggydude.world.Manhunt;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -113,11 +126,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
 
     /**
-     * Fase 2: a corrida desesperada do short (atravessa ~15 blocos em menos de 1 s):
-     * 0,28 x 2,1 = 0,59 -> 0,75 bloco/tick (15 blocos/s, medido no servidor), quase
-     * 3 vezes um jogador correndo.
+     * Fase 2: a corrida desesperada do short (atravessa ~15 blocos em menos de 1 s),
+     * mais rápida que o galope da caçada: 0,28 x 2,37 = 0,66 -> ~0,95 bloco/tick
+     * (~19 blocos/s; a velocidade real cresce ~2,15 x atributo^2).
      */
-    private static final double FRENZY_SPEED_BONUS = 1.1D;
+    private static final double FRENZY_SPEED_BONUS = 1.37D;
     public static final int FRENZY_TICKS = 600; // 30 segundos
 
     private static final UUID FRENZY_SPEED_ID = UUID.fromString("6f3a2e6a-6b9e-4e9a-8f9a-6b6a1a2f9e11");
@@ -142,6 +155,29 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int movingHold = 0;
     private int pinnedVictimId = -1;
     private int vocalCooldown = 0;
+    /** A fala tocando agora (pra cortar quando precisa falar outra por cima). */
+    @Nullable
+    private VoiceLine speakingLine;
+    /** Fala esperando a vez (ex.: "who's next?" depois de "that was so delicious"). */
+    @Nullable
+    private VoiceSituation pendingSpeech;
+    private int pendingSpeechTicks;
+    /** Quem ele caçava e quando perdeu de vista (pra rir quando acha de novo). */
+    @Nullable
+    private UUID lastPreyId;
+    private int preyLostAt = Integer.MIN_VALUE / 2;
+    /** Altura onde começou a subir a parede (NaN = não está subindo). */
+    private double climbStartY = Double.NaN;
+    /** A caçada em andamento (o cérebro avalia quando ela acaba). */
+    @Nullable
+    private Engagement engagement;
+    /** Parado, sem IA (vantagem do manhunt, aviso do anti-trapaça, invasão). */
+    private int holdTicks = 0;
+    @Nullable
+    private UUID holdLookAt;
+    /** Venceu o manhunt: fica um tempo parado e some (ticks restantes; 0 = não). */
+    private int leaveTicks = 0;
+    private FroggyCombatGoal combatGoal;
     /** Teste: NBT "DebugHunt" faz ele caçar o porco mais perto (pra filmar de lado). */
     private boolean debugHunt = false;
     /** Teste: NBT "DebugAttack" (ex.: "HIGH_JUMP") faz ele só usar esse ataque. */
@@ -156,8 +192,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private boolean debugStalk = false;
     /** Teste: NBT "DebugPhase2In" (ticks) - entra na fase 2 depois desse tempo (pra filmar do começo). */
     private int debugPhase2In = 0;
-    /** Teste: NBT "DebugNoLeap" - persegue só galopando, sem os saltos de sapo (pra filmar o galope). */
-    private boolean debugNoLeap = false;
     /** "Apavorar" em vez de "matar": segue de longe, encara, não ataca (ticks restantes). */
     private int stalkTicks = 0;
     /** Comeu blaze: entra na fase 2 assim que der. */
@@ -218,7 +252,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // 1: fase 2 (contorção + grito + 30 s correndo mais que um jogador)
         this.goalSelector.addGoal(1, new FroggyFrenzyGoal(this));
         // 2: cérebro de combate - só ataca quando tem certeza que acerta
-        this.goalSelector.addGoal(2, new FroggyCombatGoal(this));
+        this.combatGoal = new FroggyCombatGoal(this);
+        this.goalSelector.addGoal(2, combatGoal);
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         // sem RandomLookAroundGoal: ele virava a cabeça pros lados do nada (parecia tique).
         // Só encara quem estiver perto.
@@ -253,16 +288,35 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Na maioria das vezes grunhe; às vezes, se não está falando, solta "I love pain". */
     @Override
     protected void playHurtSound(DamageSource source) {
-        if (vocalCooldown <= 0 && this.getRandom().nextFloat() < 0.35F) {
-            vocalize(ModSounds.LOVE_PAIN.get(), 1.6F);
-        } else {
+        if (vocalCooldown > 0 || this.getRandom().nextFloat() >= 0.35F || !speak(VoiceSituation.PAIN)) {
             super.playHurtSound(source);
         }
     }
 
+    /** Morrendo: "no, no, noooo" (corta o que estiver falando). */
     @Override
     protected SoundEvent getDeathSound() {
+        if (this.level() instanceof ServerLevel server) {
+            stopSpeaking(server);
+            return ModSounds.VOICE.get(nextLine(server, VoiceSituation.DEATH)).get();
+        }
         return ModSounds.DEATH.get();
+    }
+
+    /**
+     * Matou alguém: "that was so delicious", e às vezes "I want more food" depois.
+     * (É aqui e não no killedEntity: a morte do jogador, ServerPlayer.die, não
+     * chama o killedEntity de quem matou - só o awardKillScore.)
+     */
+    @Override
+    public void awardKillScore(Entity killed, int score, DamageSource source) {
+        super.awardKillScore(killed, score, source);
+        if (this.level().isClientSide) return;
+        if (engagement != null && killed.getUUID().equals(engagement.player)) endEngagement(FroggyBrain.Outcome.KILLED);
+        if (killed instanceof Player) {
+            speak(VoiceSituation.ATE, true);
+            if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
+        }
     }
 
     @Override
@@ -275,14 +329,190 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void setTarget(@Nullable LivingEntity target) {
         LivingEntity old = this.getTarget();
         super.setTarget(target);
-        if (target instanceof Player && old != target && !this.level().isClientSide) {
-            vocalize(ModSounds.HUNT.get(), 2.0F);
-            // metade das vezes ele não ataca de cara: segue de longe e encara
-            // (com a vítima lá em cima de uma torre ele não fica olhando: sobe)
-            boolean up = target.getY() - this.getY() > 2.5D;
-            if (debugStalk || (!up && debugAttack == null && this.getLastHurtByMob() != target && this.getRandom().nextBoolean())) {
-                startStalking(160 + this.getRandom().nextInt(140));
+        if (this.level().isClientSide) return;
+        if (old instanceof Player && old != target) {
+            lastPreyId = old.getUUID();
+            preyLostAt = this.tickCount;
+            if (engagement != null && engagement.player.equals(old.getUUID())) engagement.lostAt = this.tickCount;
+        }
+        if (target instanceof Player && old != target) {
+            // a mesma presa de antes: se sumiu por uns segundos e ele achou de novo,
+            // dá a risadinha (origem 4:21); se é outra ou faz tempo, é uma caçada nova
+            int lost = this.tickCount - preyLostAt;
+            boolean same = target.getUUID().equals(lastPreyId);
+            if (same && lost >= 60 && lost < 2400) {
+                speak(VoiceSituation.FOUND);
+            } else if (!same || lost >= 2400) {
+                speak(VoiceSituation.SPOT);
             }
+            if (engagement != null && engagement.player.equals(target.getUUID())) {
+                engagement.lostAt = -1; // achou de novo: continua a mesma caçada
+            } else {
+                if (engagement != null) endEngagement(FroggyBrain.Outcome.ONGOING_SWITCH);
+                beginEngagement((Player) target);
+            }
+        }
+    }
+
+    // ---------------- cérebro (brain/): escolhe a estratégia e aprende com o resultado ----------------
+
+    /**
+     * Caçada nova: o cérebro escolhe como começar pelo que aprendeu desse
+     * jogador (apavorar, caçar direto ou cercar por trás). Com a vítima lá em
+     * cima de uma torre ele não fica olhando: sobe.
+     */
+    private void beginEngagement(Player target) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        FroggyWorldData data = FroggyWorldData.get(server);
+        PlayerMemory m = data.brain.memory(target.getUUID(), target.getScoreboardName());
+        m.hunts++;
+        float[] bias = target instanceof ServerPlayer sp ? Manhunt.bias(sp) : null;
+        Strategy s = debugStalk ? Strategy.STALK : data.brain.choose(m, bias, this.getRandom());
+        boolean up = target.getY() - this.getY() > 2.5D;
+        if (s == Strategy.STALK && !debugStalk && (up || debugAttack != null || this.getLastHurtByMob() == target)) {
+            s = Strategy.RUSH;
+        }
+        engagement = new Engagement(target.getUUID(), m.dominantStyle(), s, this.tickCount);
+        if (s == Strategy.STALK) startStalking(160 + this.getRandom().nextInt(140));
+        data.setDirty();
+    }
+
+    /** Acabou a caçada: calcula a recompensa e o cérebro aprende. */
+    private void endEngagement(FroggyBrain.Outcome outcome) {
+        Engagement e = engagement;
+        engagement = null;
+        if (e == null || !(this.level() instanceof ServerLevel server)) return;
+        FroggyWorldData data = FroggyWorldData.get(server);
+        PlayerMemory m = data.brain.find(e.player);
+        if (m == null) return;
+        float reward = FroggyBrain.reward(e.dealt, e.taken, e.pins, outcome, this.tickCount - e.startTick);
+        data.brain.learn(m, e.context, e.strategy, reward);
+        switch (outcome) {
+            case KILLED -> m.kills++;
+            case ESCAPED -> m.escapes++;
+            case FROGGY_DIED -> m.froggyDeaths++;
+            default -> {
+            }
+        }
+        data.setDirty();
+        if (FroggyWorldData.isDev(server.getServer())) {
+            // mundo -dev: conta no chat o que aprendeu (pra dar pra ver ele aprendendo)
+            String msg = String.format(java.util.Locale.ROOT, "[cérebro] caçada contra %s: %s, %s, recompensa %+.1f -> %s vale %+.1f",
+                    m.name, e.strategy.label, outcome.name().toLowerCase(java.util.Locale.ROOT), reward, e.strategy.label,
+                    m.q[e.context.ordinal()][e.strategy.ordinal()]);
+            for (ServerPlayer p : server.players()) {
+                p.sendSystemMessage(net.minecraft.network.chat.Component.literal(msg)
+                        .withStyle(net.minecraft.ChatFormatting.DARK_AQUA));
+            }
+        }
+    }
+
+    @Nullable
+    private PlayerMemory memoryOf(LivingEntity target) {
+        if (!(target instanceof Player) || !(this.level() instanceof ServerLevel server)) return null;
+        return FroggyWorldData.get(server).brain.memory(target.getUUID(), target.getScoreboardName());
+    }
+
+    /** A estratégia da caçada de agora (null = sem caçada). */
+    @Nullable
+    public Strategy getStrategy() {
+        return engagement == null ? null : engagement.strategy;
+    }
+
+    /** Taxa de acerto plausível desse ataque contra esse alvo (Thompson; 0,5 = não sabe). */
+    public float attackHitChance(LivingEntity target, FroggyState attack) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return 0.5F;
+        return FroggyWorldData.get((ServerLevel) this.level()).brain.sampleHitRate(m, attack.name(), this.getRandom());
+    }
+
+    public void recordAttack(LivingEntity target, FroggyState attack, boolean hit) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return;
+        FroggyWorldData data = FroggyWorldData.get((ServerLevel) this.level());
+        data.brain.recordAttack(m, attack.name(), hit);
+        data.setDirty();
+    }
+
+    public void observe(LivingEntity target, Style style, float amount) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return;
+        m.observe(style, amount);
+        FroggyWorldData.get((ServerLevel) this.level()).setDirty();
+    }
+
+    public void onDealtDamage(LivingEntity target, float amount) {
+        if (engagement != null && target.getUUID().equals(engagement.player)) engagement.dealt += amount;
+    }
+
+    public void onPinnedVictim(LivingEntity target) {
+        if (engagement != null && target.getUUID().equals(engagement.player)) engagement.pins++;
+    }
+
+    // ---------------- Parte 4: parado, invasão, fim do manhunt ----------------
+
+    /**
+     * Fica parado, sem IA, encarando {@code lookAt} (a vantagem do manhunt, o
+     * aviso do anti-trapaça, esperando lá fora na invasão). 0 = solta.
+     */
+    public void holdStill(int ticks, @Nullable Player lookAt) {
+        holdTicks = Math.max(0, ticks);
+        leaveTicks = 0; // manhunt novo, aviso, invasão: não vai mais embora
+        holdLookAt = lookAt == null ? null : lookAt.getUUID();
+        if (holdTicks > 0) {
+            this.goalSelector.getRunningGoals().forEach(net.minecraft.world.entity.ai.goal.WrappedGoal::stop);
+            this.getNavigation().stop();
+            this.setTarget(null);
+            stopStalking();
+            setFroggyState(FroggyState.IDLE);
+        }
+    }
+
+    public boolean isHolding() {
+        return holdTicks > 0;
+    }
+
+    @Override
+    protected boolean isImmobile() {
+        return super.isImmobile() || holdTicks > 0;
+    }
+
+    /** Invasão: aparece atrás de ti e derruba. */
+    public void invadePin(ServerPlayer victim) {
+        holdTicks = 0;
+        lastPreyId = victim.getUUID(); // sem "hey, humans!" aqui: ele já te conhece
+        preyLostAt = this.tickCount;
+        this.setTarget(victim);
+        this.faceTarget(victim);
+        combatGoal.forcePin(victim);
+    }
+
+    /** Invasão: arranca o braço de quem está no chão. */
+    public void invadeRipArm(ServerPlayer victim) {
+        if (victim.isAlive()) combatGoal.forceArmRip(victim);
+    }
+
+    /**
+     * Venceu o manhunt: fica parado ali uns segundos (comendo, se gabando) e vai
+     * embora. Antes ele continuava caçando e matava de novo quem renascia.
+     */
+    public void leaveAfterWin(int ticks) {
+        holdStill(ticks, null);
+        leaveTicks = ticks;
+    }
+
+    /** Perdeu o manhunt (dragão morto / dias passaram): "no, no, noooo" e cai. */
+    public void loseManhunt() {
+        holdTicks = 0;
+        this.hurt(this.damageSources().genericKill(), Float.MAX_VALUE);
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        super.die(source);
+        if (!this.level().isClientSide) {
+            endEngagement(FroggyBrain.Outcome.FROGGY_DIED);
+            FroggyKeeper.onDeath(this);
         }
     }
 
@@ -377,10 +607,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Nullable
     public FroggyState getDebugAttack() {
         return debugAttack;
-    }
-
-    public boolean isDebugNoLeap() {
-        return debugNoLeap;
     }
 
     public String getDebugAnim() {
@@ -504,12 +730,70 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     // ---------------- sons dos golpes (chamados pelas Goals) ----------------
 
-    /** Fala/grita, mas não por cima de outra fala (evita encavalar a voz). */
+    /** Grunhe/geme (som de categoria), mas não por cima de outra fala (evita encavalar a voz). */
     public void vocalize(SoundEvent sound, float volume) {
         if (vocalCooldown > 0) return;
         this.playSound(sound, volume, 0.95F + this.getRandom().nextFloat() * 0.1F);
         vocalCooldown = 30;
+        speakingLine = null;
         openMouth(22);
+    }
+
+    // ---------------- falas (na ordem dos vídeos, ver entity/voice) ----------------
+
+    public boolean speak(VoiceSituation situation) {
+        return speak(situation, false);
+    }
+
+    /**
+     * Diz a PRÓXIMA fala dessa situação na sequência dos vídeos (a fila fica no
+     * mundo, então continua de onde parou mesmo depois dele morrer e voltar).
+     * Não fala por cima de outra; com {@code interrupt}, corta a que está tocando
+     * (derrubou alguém: o "give me your body" não espera o "I'm hungry" acabar).
+     */
+    public boolean speak(VoiceSituation situation, boolean interrupt) {
+        if (!(this.level() instanceof ServerLevel server)) return false;
+        if (vocalCooldown > 0) {
+            if (!interrupt) return false;
+            stopSpeaking(server);
+        }
+        VoiceLine line = nextLine(server, situation);
+        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] fala " + situation + ": " + line.clip);
+        this.playSound(ModSounds.VOICE.get(line).get(), situation.volume(), 1.0F);
+        speakingLine = line;
+        vocalCooldown = line.ticks + 10;
+        openMouth(Math.min(line.ticks, 30));
+        return true;
+    }
+
+    /** Fala depois que terminar a de agora (espera até ~6 s; depois desiste). */
+    public void speakAfter(VoiceSituation situation, int delayTicks) {
+        pendingSpeech = situation;
+        pendingSpeechTicks = delayTicks;
+    }
+
+    public boolean isSpeaking() {
+        return vocalCooldown > 0;
+    }
+
+    private static VoiceLine nextLine(ServerLevel server, VoiceSituation situation) {
+        FroggyWorldData data = FroggyWorldData.get(server);
+        VoiceLine line = data.voice.peek(situation);
+        data.voice.advance(situation);
+        data.setDirty();
+        return line;
+    }
+
+    /** Cala a fala que está tocando, pra quem está por perto. */
+    private void stopSpeaking(ServerLevel server) {
+        if (speakingLine == null) return;
+        ClientboundStopSoundPacket stop = new ClientboundStopSoundPacket(
+                new ResourceLocation(ModEntityTypes.MOD_ID, speakingLine.soundName()), this.getSoundSource());
+        for (ServerPlayer p : server.players()) {
+            if (p.distanceToSqr(this) < 96.0D * 96.0D) p.connection.send(stop);
+        }
+        speakingLine = null;
+        vocalCooldown = 0;
     }
 
     public void onBiteHit() {
@@ -522,16 +806,23 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.playSound(ModSounds.TONGUE.get(), 1.3F, 0.9F + this.getRandom().nextFloat() * 0.2F);
     }
 
+    /** A língua pegou: "I like the way you taste". */
     public void onTongueTaste() {
-        if (this.getRandom().nextInt(3) == 0) vocalize(ModSounds.TASTE.get(), 1.2F);
+        if (this.getRandom().nextBoolean()) speak(VoiceSituation.TONGUE_HIT);
+    }
+
+    /** Desviaram da língua: "you're scared of my tongue, aren't you?" (worthy 5:44). */
+    public void onTongueMiss() {
+        if (this.getRandom().nextInt(3) == 0) speak(VoiceSituation.TONGUE_DODGED);
     }
 
     public void onLeapLaunch() {
         if (this.getRandom().nextInt(3) == 0) vocalize(ModSounds.LEAP.get(), 1.0F);
     }
 
+    /** Derrubou: "give me your body!" na hora, cortando o que estivesse falando. */
     public void onPinStart() {
-        vocalize(ModSounds.PIN.get(), 1.4F);
+        speak(VoiceSituation.PIN, true);
     }
 
     /** Cada soco do esmagamento. */
@@ -694,6 +985,28 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
         stateTicks++;
         if (stalkTicks > 0) stalkTicks--;
+        if (leaveTicks > 0 && --leaveTicks == 0) {
+            if (this.level() instanceof ServerLevel server) {
+                server.sendParticles(ParticleTypes.POOF, this.getX(), this.getY() + 1.0D, this.getZ(), 30, 0.4D, 0.8D, 0.4D, 0.02D);
+                FroggyWorldData data = FroggyWorldData.get(server);
+                if (this.getUUID().equals(data.froggyId)) {
+                    data.froggyAlive = false;
+                    data.setDirty();
+                }
+            }
+            this.discard();
+            return;
+        }
+        if (holdTicks > 0) {
+            holdTicks--;
+            if (getFroggyState() != FroggyState.IDLE && !isFrenzyActive()) setFroggyState(FroggyState.IDLE);
+            this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
+            Player look = holdLookAt == null ? null : this.level().getPlayerByUUID(holdLookAt);
+            if (look != null) faceTarget(look);
+        }
+        if (engagement != null && engagement.lostAt >= 0 && this.tickCount - engagement.lostAt > 1200) {
+            endEngagement(FroggyBrain.Outcome.ESCAPED); // sumiu por 1 minuto: escapou
+        }
         if (mouthOpenTicks > 0 && --mouthOpenTicks == 0) this.entityData.set(DATA_MOUTH_OPEN, false);
         if (goreSoak > 0F) {
             // a água lava rápido; fora dela o sangue vai secando e saindo devagar (~6 min por nível)
@@ -704,7 +1017,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (frenzyCooldown > 0) frenzyCooldown--;
         if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;
-        if (vocalCooldown > 0) vocalCooldown--;
+        if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
+        if (pendingSpeech != null) {
+            if (--pendingSpeechTicks <= 0 && vocalCooldown <= 0) {
+                speak(pendingSpeech);
+                pendingSpeech = null;
+            } else if (pendingSpeechTicks < -120) {
+                pendingSpeech = null;
+            }
+        }
         if (debugHunt && this.getTarget() == null && this.tickCount > 80 && this.tickCount % 10 == 0) {
             this.level().getEntitiesOfClass(net.minecraft.world.entity.animal.Pig.class,
                     this.getBoundingBox().inflate(48.0D)).stream().findFirst().ifPresent(this::setTarget);
@@ -729,6 +1050,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         boolean wall = this.horizontalCollision || (isClimbing() && !this.onGround() && touchingWall());
         boolean climb = wall && (now == FroggyState.CHASE || now == FroggyState.IDLE || now == FroggyState.BITE);
         if (climb != isClimbing()) this.entityData.set(DATA_CLIMBING, climb);
+        if (climb && Double.isNaN(climbStartY)) climbStartY = this.getY();
+        if (!climb && !Double.isNaN(climbStartY) && this.onGround()) {
+            // subiu atrás de quem achou que estava a salvo lá em cima (vs Grox, 3:24)
+            if (this.getY() - climbStartY >= 3.0D && this.getTarget() instanceof Player p && this.distanceTo(p) < 5.0F) {
+                speak(VoiceSituation.CAUGHT_UP, true);
+            }
+            climbStartY = Double.NaN;
+        }
         if (climb) noFallTicks = Math.max(noFallTicks, 40); // se soltar da parede, cai em pé
 
         if (frenzyTicksLeft > 0) {
@@ -860,8 +1189,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             // galope (0,25 s por passada) e corrida da fase 2 (0,3 s por ciclo) na velocidade 1.
             // A cadência quase não muda com a velocidade (cachorro/guepardo galopando: o que
             // cresce é o tamanho da passada) - assim a passada fica longa como na referência
-            if (isFrenzyActive()) return Mth.clamp(0.45D + clientGroundSpeed * 0.75D, 0.5D, 1.3D);
-            return Mth.clamp(0.35D + clientGroundSpeed * 1.1D, 0.45D, 1.25D);
+            // (a 0,75 b/t o galope fica em ~1,0: passada de ~3,7 blocos, a do guepardo;
+            // a 0,95 b/t da fase 2, ciclo de ~4,8 ticks e passada de ~4,5)
+            if (isFrenzyActive()) return Mth.clamp(0.5D + clientGroundSpeed * 0.8D, 0.5D, 1.4D);
+            return Mth.clamp(0.3D + clientGroundSpeed * 0.95D, 0.45D, 1.3D);
         }
         return Mth.clamp(clientGroundSpeed * 12.5D, 0.5D, 1.6D);
     }
@@ -919,9 +1250,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             return false;
         }
 
+        float before = this.getHealth();
         boolean hurt = super.hurt(source, amount);
-        if (hurt && source.getEntity() instanceof Player) {
+        if (hurt && source.getEntity() instanceof Player attacker) {
             stopStalking(); // mexeu com ele: acabou o "só olhando"
+            if (engagement != null && attacker.getUUID().equals(engagement.player)) {
+                engagement.taken += Math.max(0F, before - this.getHealth());
+            }
+            // de perto (espada, machado, soco) ou de longe (arco, besta, tridente)
+            observe(attacker, source.getDirectEntity() == attacker ? Style.MELEE : Style.RANGED, 2.0F);
         }
         boolean beforeRip = state != FroggyState.ARM_RIP || stateTicks < 22;
         if (hurt && state.isOnVictim() && beforeRip && amount >= 5.0F
@@ -964,7 +1301,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugArmless) tag.putBoolean("DebugArmless", true);
         if (debugStalk) tag.putBoolean("DebugStalk", true);
         if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
-        if (debugNoLeap) tag.putBoolean("DebugNoLeap", true);
     }
 
     @Override
@@ -982,7 +1318,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.debugArmless = tag.getBoolean("DebugArmless");
         this.debugStalk = tag.getBoolean("DebugStalk");
         this.debugPhase2In = tag.getInt("DebugPhase2In");
-        this.debugNoLeap = tag.getBoolean("DebugNoLeap");
         this.debugAttack = null;
         for (FroggyState st : FroggyState.values()) {
             if (st.name().equals(tag.getString("DebugAttack"))) this.debugAttack = st;
@@ -1033,8 +1368,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             RawAnimation.begin().then("jump_pin", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_HIGH_JUMP =
             RawAnimation.begin().then("high_jump", Animation.LoopType.HOLD_ON_LAST_FRAME);
-    private static final RawAnimation ANIM_LEAP =
-            RawAnimation.begin().then("leap", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_PIN_HOLD = RawAnimation.begin().thenLoop("pin_hold");
     // fase 2: dobra (contort) e fica curvado com a cabeça girando (contort_hold) até o servidor mandar gritar.
     // São duas animações separadas (e não uma fila "then...thenLoop"): na fila o GeckoLib
@@ -1093,8 +1426,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                         ? ANIM_CONTORT : ANIM_CONTORT_HOLD);
             case ROAR:
                 return state.setAndContinue(ANIM_ROAR);
-            case LEAP:
-                return state.setAndContinue(ANIM_LEAP);
             case PIN_HOLD:
                 return state.setAndContinue(ANIM_PIN_HOLD);
             case SMASH:
@@ -1214,13 +1545,35 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         spawnBlood(victim, 25);
         bloodBurst(victim.position().add(0, victim.getBbHeight() * 0.5D, 0), new Vec3(0, 1, 0), 70, 0.45F, 2.2F);
         addGore(1.2F);
-        this.playSound(ModSounds.EAT.get(), 1.4F, 1.0F);
+        this.playSound(ModSounds.CHEW.get(), 1.4F, 1.0F);
         victim.hurt(this.damageSources().mobAttack(this), Float.MAX_VALUE / 2F);
         this.heal((float) (this.getMaxHealth() * 0.20D));
         if (victim instanceof net.minecraft.world.entity.monster.Blaze) {
+            speak(VoiceSituation.SPICY, true);
             requestPhase2(); // "freaking spicy"
         } else {
             setSkinVariant(SkinVariant.FED);
+            speak(afterMeal(victim), true);
+            if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
         }
+    }
+
+    /**
+     * O que ele diz depois de comer: o panda tem a fala dele (1:51), bicho
+     * esquisito é "exotic meat"; gente e bicho de fazenda, "that was so delicious".
+     */
+    private static VoiceSituation afterMeal(LivingEntity victim) {
+        if (victim instanceof net.minecraft.world.entity.animal.Panda) return VoiceSituation.ATE_PANDA;
+        if (victim instanceof net.minecraft.world.entity.npc.AbstractVillager
+                || victim instanceof net.minecraft.world.entity.monster.AbstractIllager
+                || victim instanceof net.minecraft.world.entity.monster.Witch
+                || victim instanceof net.minecraft.world.entity.animal.Cow
+                || victim instanceof net.minecraft.world.entity.animal.Pig
+                || victim instanceof net.minecraft.world.entity.animal.Sheep
+                || victim instanceof net.minecraft.world.entity.animal.Chicken
+                || victim instanceof net.minecraft.world.entity.animal.Rabbit) {
+            return VoiceSituation.ATE;
+        }
+        return VoiceSituation.ATE_ODD;
     }
 }
