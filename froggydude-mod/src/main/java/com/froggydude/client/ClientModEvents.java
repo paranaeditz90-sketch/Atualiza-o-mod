@@ -13,4 +13,10 @@ public class ClientModEvents {
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntityTypes.FROGGYDUDE.get(), FroggydudeRenderer::new);
     }
+
+    /** Jogador sem o braço esquerdo: troca a armadura e põe o toco no ombro. */
+    @SubscribeEvent
+    public static void addLayers(EntityRenderersEvent.AddLayers event) {
+        ArmlessRendering.addLayers(event);
+    }
 }

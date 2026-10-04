@@ -4,6 +4,7 @@ import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.monster.Blaze;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
@@ -17,6 +18,9 @@ import java.util.List;
  * próximo (de preferência já ferido) e corre até ele, derruba e devora pra
  * recuperar vida. Se apanhar durante a refeição, larga tudo e revida na
  * hora (ver FroggydudeEntity#hurt).
+ *
+ * Blaze é diferente: ele vai atrás de blaze sempre que vê um, com ou sem fome.
+ * Comer blaze arde ("freaking spicy") e joga ele direto na fase 2.
  */
 public class FroggyFeedGoal extends Goal {
 
@@ -37,7 +41,15 @@ public class FroggyFeedGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (!froggy.isLowHealth() || froggy.getFeedSearchCooldown() > 0) return false;
+        if (froggy.getFroggyState().isCombatAction() || froggy.isFrenzyActive()) return false;
+        if (froggy.getFeedSearchCooldown() > 0) return false;
+
+        LivingEntity blaze = findBlaze();
+        if (blaze != null) {
+            froggy.setFeedTarget(blaze);
+            return true;
+        }
+        if (!froggy.isLowHealth()) return false;
 
         LivingEntity victim = findVictim();
         if (victim == null) {
@@ -87,13 +99,19 @@ public class FroggyFeedGoal extends Goal {
         froggy.getLookControl().setLookAt(victim, 30F, 30F);
         froggy.getNavigation().moveTo(victim, 1.3D);
 
-        if (froggy.distanceTo(victim) <= 2.2D) {
+        if (froggy.distanceTo(victim) <= (victim instanceof Blaze ? 2.8D : 2.2D)) {
             // derruba e começa a devorar
             froggy.faceTarget(victim);
             victim.hurt(froggy.damageSources().mobAttack(froggy), 4.0F);
             froggy.setFroggyState(FroggyState.FEEDING);
             froggy.getNavigation().stop();
         }
+    }
+
+    private LivingEntity findBlaze() {
+        AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS, 6.0D, SEARCH_RADIUS);
+        return froggy.level().getEntitiesOfClass(Blaze.class, area, e -> e.isAlive() && froggy.hasLineOfSight(e))
+                .stream().min(Comparator.comparingDouble(froggy::distanceTo)).orElse(null);
     }
 
     private LivingEntity findVictim() {

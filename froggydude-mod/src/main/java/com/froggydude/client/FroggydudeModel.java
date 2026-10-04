@@ -25,7 +25,8 @@ import java.util.Map;
  *
  * Língua: as animações esticam o osso "tongue" de 0 até 100 (100 = 100%). Aqui
  * o valor vira o comprimento real (entidade.getTongueLength(), em blocos), pra
- * língua sempre chegar até o alvo.
+ * língua sempre chegar até o alvo. O osso não tem cubo: o renderer desenha uma
+ * pirâmide (grossa na boca, fina na ponta) no lugar dele.
  */
 public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
 
@@ -38,7 +39,6 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
             new ResourceLocation(ModEntityTypes.MOD_ID, "animations/froggydude_debug.animation.json");
 
     private static final float TONGUE_ANIM_PEAK = 100F;
-    private static final float RENDER_SCALE = 1.15F; // igual ao withScale do renderer
 
     private static final Map<ResourceLocation, Boolean> EXISTS = new HashMap<>();
 
@@ -64,10 +64,15 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
         // a cabeça encara o alvo: soma o olhar à pose da animação
         CoreGeoBone head = getAnimationProcessor().getBone("head");
         EntityModelData data = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
-        if (head != null && data != null && !animatable.getDebugAnim().startsWith("dbg_")) {
-            // montado, a pose já aponta a cara pro rosto da vítima: somar o olhar
-            // de novo faria ele olhar pro chão (e a vítima só veria a coroa)
-            if (animatable.getFroggyState() != FroggyState.PIN_HOLD) {
+        FroggyState state = animatable.getFroggyState();
+        boolean posed = state == FroggyState.PIN_HOLD || state == FroggyState.SMASH
+                || state == FroggyState.ARM_RIP || state == FroggyState.ARM_EAT;
+        if (head != null && data != null && !animatable.getDebugAnim().startsWith("dbg_")
+                && state != FroggyState.CONTORTING) {
+            // em cima da vítima (ou comendo), a pose já aponta a cara pro lugar
+            // certo: somar o olhar de novo faria ele olhar pro chão (e a vítima
+            // só veria a coroa)
+            if (!posed) {
                 head.setRotX(head.getRotX() + data.headPitch() * Mth.DEG_TO_RAD);
             }
             head.setRotY(head.getRotY() + data.netHeadYaw() * Mth.DEG_TO_RAD);
@@ -76,7 +81,8 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
         CoreGeoBone tongue = getAnimationProcessor().getBone("tongue");
         if (tongue == null) return;
         float fraction = tongue.getScaleZ() / TONGUE_ANIM_PEAK;
-        float lengthPx = animatable.getTongueLength() * 16F / RENDER_SCALE;
+        float blocks = animatable.getDebugAnim().startsWith("tongue_") ? 4.0F : animatable.getTongueLength();
+        float lengthPx = blocks * 16F / FroggydudeEntity.MODEL_SCALE;
         tongue.setScaleZ(fraction * lengthPx);
     }
 

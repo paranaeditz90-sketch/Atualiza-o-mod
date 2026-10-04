@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "2";
+    private static final String PROTOCOL = "3";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -25,6 +25,8 @@ public final class ModNetwork {
     public static void register() {
         CHANNEL.registerMessage(0, FroggyShakePacket.class,
                 FroggyShakePacket::encode, FroggyShakePacket::decode, FroggyShakePacket::handle);
+        CHANNEL.registerMessage(1, ArmStatePacket.class,
+                ArmStatePacket::encode, ArmStatePacket::decode, ArmStatePacket::handle);
     }
 
     /** Só treme a câmera. */
@@ -44,6 +46,17 @@ public final class ModNetwork {
     /** Solta o jogador antes do tempo (Froggy derrubado, morto ou longe). */
     public static void sendRelease(ServerPlayer player) {
         send(player, new FroggyShakePacket(0F, 0, FroggyShakePacket.RELEASE, -1));
+    }
+
+    /** Avisa o próprio jogador e quem está vendo ele que o braço esquerdo foi arrancado (ou voltou). */
+    public static void sendArmState(ServerPlayer player, boolean armless) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player),
+                new ArmStatePacket(player.getId(), armless));
+    }
+
+    /** Conta pra um jogador como está o braço de outro (quando ele aparece na tela). */
+    public static void sendArmStateTo(ServerPlayer receiver, int playerId, boolean armless) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> receiver), new ArmStatePacket(playerId, armless));
     }
 
     private static void send(ServerPlayer player, FroggyShakePacket packet) {

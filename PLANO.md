@@ -28,6 +28,17 @@ Legenda: ✅ feito · 🔜 próxima · ⏳ depois · ❓ depende de resposta tua
 
 Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de vista de quem é atacado.
 
+**Parte 3 ✅ (o resto do combate dos vídeos):**
+- **Tamanho de jogador** (1,05x), hitbox junto.
+- **Corrida de perto = pulinhos de sapo** (vs AJ, 0:32), e a velocidade da animação acompanha a velocidade real: **caçando pra matar** ele galopa rápido (~5,4 m/s); **apavorando** ele vem devagar, para a uns 12 blocos e fica encarando; na **fase 2** dispara (~8 m/s).
+- **Esmagamento** (vs AJ, 0:57): derruba, fica em pé por cima e desce os dois punhos juntos, 4 socos.
+- **Pulo do céu** (vs AJ, 0:56): sobe ~12 blocos, some, cai em cima e emenda o esmagamento.
+- **Devorar** dura 5 s (era 2,5 s), uma mordida por segundo. Comer mob também ficou mais longo (6 s).
+- **Língua** fina em pirâmide (grossa na boca, ponta fina), como no vídeo, e bem mais rara (descanso de 8 a 13 s entre usos).
+- **Braço arrancado** (vs AJ, 2:18-2:23): a língua puxa de volta, ele monta, arranca o braço esquerdo, levanta com ele na boca, mastiga, engole e esfrega a barriga. Tu é solto na hora do arranco e pode fugir enquanto ele come.
+- **Sem braço:** braço some do modelo (e a manga da armadura), toco com osso no ombro, sem mão secundária (nem tecla F), 3 corações a menos, sangramento sem parar e sem estancar (tira vida devagar, até 3 corações), e o faro dele te acha a 64 blocos. O braço volta quando tu morre.
+- **Fase 2** (vídeo "I'm the horror mod" + manhunt dos blazes): contorção com a cabeça girando, grito, 30 s mais rápido que um jogador, gemendo de dor. Liga quando ele come blaze ou cai abaixo de 55% de vida.
+
 ## 1. A arquitetura (o contrato)
 
 ```
@@ -59,7 +70,7 @@ completa a tabela.
 
 ---
 
-## 2. Skins por evento (Parte 4)
+## 2. Skins por evento (Parte 5)
 
 Hoje a skin é uma imagem inteira trocada por vida (16 PNGs). Não escala:
 "queimado **e** comeu **e** gritando" viraria dezenas de arquivos.
@@ -91,7 +102,7 @@ de costas pra ti. Se tu chegar perto, ele vira a cabeça 180°.
 
 ---
 
-## 3. Animações (corrida e bote na Parte 2 ✅, o resto na Parte 5)
+## 3. Animações (corrida e bote na Parte 2 ✅, o resto na Parte 6)
 
 Todas no Blockbench (formato GeckoLib), com os nomes de osso que já existem.
 Agora eu consigo **abrir o jogo aqui e fotografar cada pose** antes de te
@@ -108,17 +119,17 @@ mandar, então não vai mais animação às cegas.
 
 ---
 
-## 4. Habilidades (Parte 6)
+## 4. Habilidades (Parte 7)
 
 - **Movimento:** corrida de quatro, subir parede (igual aranha), nadar rápido, quebrar vidro, abrir porta de madeira, pular cerca.
 - **Língua:** chicote, agarrar, capturar e **provar o gosto** (dá a marca de faro, seção 5.3). Também **arranca o item da mão**: escudo, arco, totem da mão secundária e, **principalmente, arma de mod de armas** (regra tua). Em vez de banir quem usa mod de armas, ele rouba a arma com a língua.
 - **Comer (regra tua):** **é o único jeito de ele recuperar vida.** Não tem regeneração natural. Comendo, ele cura e as feridas dele na skin vão sumindo junto com a vida que volta. O sangue de quem ele comeu continua no terno até ele lavar na água. Também ganha buff conforme o que comeu (blaze = resistência ao fogo e força, carne = vida, aldeão = velocidade).
 - **Imortal-ish:** a lava cura ele em vez de machucar. Ao "morrer" pela primeira vez, finge de morto e **volta**. A morte de verdade só vem na segunda vez, ou pelo void (é assim que o Parallax perdeu).
-- **Arrancar o braço do jogador:** seção 6.
+- **Arrancar o braço do jogador:** feito na Parte 3 (seção 6).
 
 ---
 
-## 5. Inteligência (Parte 7)
+## 5. Inteligência (Parte 8)
 
 Não é "IA que aprende" no sentido de rede neural. Isso seria pior e mais
 lento. É **memória + estatística + regras**, que é o que dá a sensação de
@@ -186,21 +197,22 @@ Ele **nunca repete** o mesmo susto em sequência, e guarda o que já te assustou
 
 ---
 
-## 6. O braço arrancado (Parte 6)
+## 6. O braço arrancado (Parte 3 ✅)
 
-- **Quando:** ataque especial `arm_rip`, só com tu preso no chão (bote ou captura) e com vida baixa. Nunca do nada.
-- **Qual:** o da **mão secundária** (o esquerdo, ou o direito se tu joga canhoto).
+- **Quando:** a língua de captura te puxa de volta (metade das vezes ele arranca em vez de morder), ou no meio do "devorar" (1 em 3). Só jogador, nunca no criativo.
+- **Qual:** o esquerdo.
 - **Efeitos:**
-  - perde o espaço da mão secundária: o que estiver ali cai no chão (escudo, totem, tocha) e não dá pra trocar com F;
-  - **sangramento:** dano a cada poucos segundos e partículas de sangue até estancar ❓;
-  - **vida máxima reduzida** (proposta: −3 corações) ❓;
-  - **faro:** ele te sente a ~160 blocos (seção 5.3);
-  - **visual:** o braço some do teu personagem (1ª e 3ª pessoa) e fica o toco ensanguentado.
-- **Volta?** ❓ (pergunta 1)
+  - sem mão secundária: o que estiver ali vai pro inventário (ou cai) e a tecla F não funciona;
+  - **sangramento contínuo, impossível de estancar:** esguicho no ritmo do coração, gotas caindo, e 1 de vida a cada 8 s até sobrar 3 corações;
+  - **vida máxima −3 corações**;
+  - **faro:** ele te acha a 64 blocos, sem precisar te ver;
+  - **visual:** o braço some do teu personagem (1ª e 3ª pessoa, inclusive a manga da armadura) e fica o toco com o osso.
+- **Ele come o braço:** com a tua skin, atravessado na boca, encurtando a cada mordida. Cura 15% e suja a boca dele.
+- **Volta?** Só quando tu morre.
 
 ---
 
-## 7. Anti-trapaça e a invasão (Parte 8)
+## 7. Anti-trapaça e a invasão (Parte 9)
 
 Inspirado no fim de **"How many days can you survive against me?"** (6:42–7:50):
 - o último jogador trapaceia e vai pro criativo;
@@ -241,19 +253,20 @@ Inspirado no fim de **"How many days can you survive against me?"** (6:42–7:50
 
 ## 8. Ordem das partes
 
-Tu pediu animação e som primeiro, e fez sentido: era o que mais destoava dos vídeos.
+Tu pediu animação e som primeiro, e fez sentido: era o que mais destoava dos vídeos. Depois veio o resto do combate dos vídeos (esmagamento, pulo do céu, braço, fase 2) antes da fundação.
 
 | Parte | O quê | Situação |
 |---|---|---|
 | 1 | Combate básico | ✅ |
-| 2 | **Animações de corrida/bote + sons + câmera + língua** | ✅ esta entrega |
-| 3 | **Fundação:** config, mundo `-dev`, comando `/froggydude`, contrato completo dos estados | 🔜 |
-| 4 | **Skins em camadas** + regras evento → skin (comer suja a frente, lava carboniza, água lava) | |
-| 5 | **Resto das animações** (parede, nadar, espiar janela, bater na porta, giro de cabeça, estalo de costas, lavar sangue) | |
-| 6 | **Habilidades:** subir parede, nadar e arrastar pra água, comer pra curar, ressuscitar, roubar item com a língua, arrancar braço | |
-| 7 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | |
-| 8 | **Terror + anti-trapaça + invasão** | |
-| 9 | Extras: FroggyDoom, filhotes, Ultimate Froggy, como ele aparece no mundo | |
+| 2 | **Animações de corrida/bote + sons + câmera + língua** | ✅ |
+| 3 | **Combate completo:** tamanho de jogador, pulinhos com velocidade variável, esmagamento, pulo do céu, devorar mais longo, língua em pirâmide e mais rara, braço arrancado e comido, sangramento, fase 2 | ✅ esta entrega |
+| 4 | **Fundação:** config, mundo `-dev`, comando `/froggydude`, contrato completo dos estados | 🔜 |
+| 5 | **Skins em camadas** + regras evento → skin (comer suja a frente, lava carboniza, água lava) | |
+| 6 | **Resto das animações** (parede, nadar, espiar janela, bater na porta, giro de cabeça, estalo de costas, lavar sangue) | |
+| 7 | **Habilidades:** subir parede, nadar e arrastar pra água, comer pra curar, ressuscitar, roubar item com a língua | |
+| 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | |
+| 9 | **Terror + anti-trapaça + invasão** | |
+| 10 | Extras: FroggyDoom, filhotes, Ultimate Froggy, como ele aparece no mundo | |
 
 Cada parte termina igual: compila no GitHub, eu testo aqui num cliente de
 verdade (gravando a tela), te mando o `.jar` e o vídeo, tu testa no Zalith.
@@ -262,17 +275,12 @@ verdade (gravando a tela), te mando o `.jar` e o vídeo, tu testa no Zalith.
 
 **Já decidido:**
 - **Um FroggyDude por mundo.** Persistente, e volta depois de morrer.
-- **Por enquanto ele só aparece por `/summon`.** O jeito de nascer no mundo fica pra Parte 9.
+- **Por enquanto ele só aparece por `/summon`.** O jeito de nascer no mundo fica pra Parte 10.
 - **Só comendo ele recupera vida e limpa as feridas da skin.**
 - **Voz original:** feita (pacote de voz separado, ver seção 0).
 - **Mod de armas:** ele rouba a arma com a língua.
 - **Modo dev:** mundo com `-dev` no nome.
 
-**Ainda em aberto ❓** (o braço e o sangramento ainda não existem no mod, por isso tu não viu nada no teste; a pergunta é como eles vão funcionar quando eu fizer):
-1. **Quando ele arrancar teu braço esquerdo, ele volta?**
-   - (a) volta quando tu morre;
-   - (b) volta com um item caro;
-   - (c) nunca volta naquele mundo.
+- **Braço:** volta quando tu morre (a). Sangramento contínuo, sem estancar, com animação dele comendo o braço (feito na Parte 3).
 
-   Eu iria de (a).
-2. **O sangramento do braço arrancado** para sozinho com o tempo, ou tu precisa estancar (comer, enfaixar com lã/papel)?
+**Ainda em aberto ❓:** nada por enquanto. A próxima é a Parte 4 (mundo `-dev`, config e comando).

@@ -1,49 +1,59 @@
-# Froggydude - Parte 2: corrida, bote e sons
+# Froggydude - Parte 3: combate completo
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
 
 - Parte 1 ✅ combate básico.
-- Parte 2 ✅ (esta) corrida de salto de sapo, bote que derruba e monta na
-  vítima, câmera, língua, cabeça que encara, sangue e sons.
-
-A fase 2 (FroggyFrenzyGoal: contorção, grito, frenesi) continua DESLIGADA.
+- Parte 2 ✅ corrida de salto de sapo, bote que derruba, câmera, língua, sons.
+- Parte 3 ✅ (esta) tamanho de jogador, pulinhos com velocidade variável
+  (matar x apavorar), esmagamento, pulo do céu, devorar mais longo, língua em
+  pirâmide e mais rara, braço arrancado e comido, sangramento, fase 2.
 
 O que testar agora:
-1) De longe ele vem aos saltos de sapo (agacha, voa deitado, cai nas mãos)?
-2) Quando o bote te pega, tu cai no chão e a câmera fica presa na cara dele?
-3) Uma pancada forte nele (machado/espada carregada) enquanto ele está em
-   cima te solta?
-4) A língua chega em ti (no peito), sem passar por cima da cabeça?
-5) Com o pacote de voz ativado, as falas dele tocam nos momentos certos?
+1) Ele está do tamanho de um jogador (um tiquinho maior)?
+2) Às vezes ele não ataca: vem devagar, para longe e fica encarando. Depois ataca.
+3) Pulo do céu: some lá em cima e cai em cima de ti, emendando os socos.
+4) Esmagamento: tu no chão, ele em pé descendo os punhos (4 socos).
+5) Língua de captura: às vezes puxa, arranca teu braço esquerdo e come na tua frente.
+6) Sem braço: sem mão secundária, sem F, sangrando sem parar, toco no ombro (F5).
+   Morrendo, o braço volta.
+7) Fase 2: abaixo de 55% de vida ele se contorce, grita e corre 30 s mais rápido que tu.
 
 ## O que tem no pacote
 Código (src/main/java/com/froggydude):
 - entity/FroggydudeEntity.java - entidade (agora implementa GeoEntity)
 - entity/FroggyState.java - estados e duração de cada um
 - entity/PinTracker.java - jogador derrubado e preso (lado do servidor)
+- entity/PacedAnimationController.java - controlador do GeckoLib que aceita
+  velocidade mudando o tempo todo (o galope acelera e freia liso)
+- player/ArmLoss.java - braço arrancado: vida máxima, mão secundária, sangramento
 - entity/ai/ - FroggyCombatGoal (persegue aos saltos, escolhe o ataque,
   monta na vítima), FroggyFeedGoal (devora mobs com pouca vida),
   FroggyFrenzyGoal (contorção + frenesi, desligada)
-- client/ - FroggydudeModel (textura, cabeça encarando, língua),
-  FroggydudeRenderer, ClientModEvents (registra o renderer) e
-  ClientForgeEvents (tremor, derrubado no chão, câmera presa no rosto dele)
-- network/ - ModNetwork, FroggyShakePacket, ClientShakeHandler
-- event/ModForgeEvents.java - tick do jogador preso no servidor
+- client/ - FroggydudeModel (textura, cabeça encarando, comprimento da língua),
+  FroggydudeRenderer (língua em pirâmide e braço arrancado na boca),
+  ArmlessRendering (jogador sem braço: modelo, armadura, toco, 1ª pessoa),
+  ClientModEvents e ClientForgeEvents (tremor, derrubado, câmera presa)
+- network/ - ModNetwork, FroggyShakePacket, ClientShakeHandler,
+  ArmStatePacket e ClientArmState (quem está sem braço)
+- event/ModForgeEvents.java - tick do jogador preso/sem braço, tecla F,
+  braço que volta na morte (e não volta saindo do End)
 - init/ - registro da entidade, atributos e sons
 
 Recursos (src/main/resources/assets/froggydude):
 - geo/froggydude.geo.json - modelo no formato de jogador (skin 64x64)
 - animations/froggydude.animation.json - animações (corrida, salto, bote e
   montado são geradas por tools/anim/build_anims.py, veja abaixo)
-- sounds.json - 12 sons, com sons de reserva do Minecraft (a voz original
+- sounds.json - 17 sons, com sons de reserva do Minecraft (a voz original
   vem no pacote de recursos FroggyDude-Voz.zip, que não fica no GitHub)
+- textures/entity/arm_stump.png - toco do braço arrancado
 - textures/entity/froggydude_<variante>_0..3.png - skins reais do FroggyDude
   (histórico dele no laby.net / NameMC), escolha provisória. Veja "Texturas"
 - lang/ - nome da entidade e legendas dos sons
 
 tools/prepare_skins.py - prepara as skins do NameMC (veja "Texturas")
-tools/anim/build_anims.py - gera as animações de locomoção e bote
+tools/anim/build_anims.py - gera as animações de locomoção, bote, esmagamento,
+  pulo do céu, braço e contorção
 
 ## Gerar o .jar
 O projeto agora está completo nesta pasta (build.gradle, gradlew, mods.toml).
@@ -77,21 +87,25 @@ a animação do estado. O servidor aplica o dano no tick de impacto. Por
 isso a duração da animação = duração do estado, e o golpe cai no frame
 certo. Se mudar um, mude o outro.
 
-| Estado          | Animação        | Duração | Impacto                         |
-|-----------------|-----------------|---------|---------------------------------|
-| BITE            | bite            | 0,6 s   | 0,3 s                           |
-| TONGUE_WHIP     | tongue_whip     | 0,7 s   | 0,4 s                           |
-| TONGUE_GRAB     | tongue_grab     | 0,8 s   | 0,5 s                           |
-| TONGUE_CAPTURE  | tongue_capture  | 1,4 s   | 0,6 s e 1,0 s                   |
-| JUMP_PIN        | jump_pin        | 1,0 s   | impulso 0,2 s, pouso ~0,75 s    |
-| HIGH_JUMP       | high_jump       | 1,6 s   | impulso 0,3 s, pouso ~1,1 s     |
-| LEAP            | leap            | 1,2 s   | impulso 0,25 s, pouso ~0,85 s   |
-| PIN_HOLD        | pin_hold (loop) | 2,2-2,5 s | mordida a cada 0,7 s          |
-| FEEDING         | feed (loop)     | 4,0 s   | -                               |
-| CONTORTING      | contort         | 2,5 s   | -                               |
-| perseguindo     | run (loop)      | -       | galope de quatro, de perto      |
-| cansado         | tired (loop)    | -       | -                               |
-| parado / andando| idle / walk     | -       | -                               |
+| Estado          | Animação          | Duração   | Impacto                              |
+|-----------------|-------------------|-----------|--------------------------------------|
+| BITE            | bite              | 0,6 s     | 0,3 s                                |
+| TONGUE_WHIP     | tongue_whip       | 0,7 s     | 0,4 s                                |
+| TONGUE_GRAB     | tongue_grab       | 0,8 s     | 0,5 s                                |
+| TONGUE_CAPTURE  | tongue_capture    | 1,4 s     | 0,6 s puxa, recolhe até 1,0 s        |
+| JUMP_PIN        | jump_pin          | 1,0 s     | impulso 0,2 s, pouso ~0,75 s         |
+| HIGH_JUMP       | high_jump         | 1,6 s     | impulso 0,3 s, pouso ~1,1 s          |
+| SKY_DROP        | sky_drop          | até pousar| impulso 0,4 s, topo ~1,25 s, ~2,2 s  |
+| LEAP            | leap              | 1,2 s     | impulso 0,25 s, pouso ~0,85 s        |
+| PIN_HOLD        | pin_hold (1 s)    | 5 s       | mordida aos 0,5 s de cada segundo    |
+| SMASH           | smash (1 s)       | 4,5 s     | soco aos 0,5 s de cada segundo (4x)  |
+| ARM_RIP         | arm_rip           | 2,0 s     | arranca aos 1,1 s, solta aos 1,6 s   |
+| ARM_EAT         | arm_eat           | 4,5 s     | mastiga a cada 0,75 s, engole aos 4 s|
+| FEEDING         | feed (loop)       | 6,0 s     | -                                    |
+| CONTORTING      | contort           | 2,7 s     | grito no começo                      |
+| perseguindo     | run / run_frenzy  | -         | pulinhos; velocidade = a real        |
+| cansado         | tired (loop)      | -         | -                                    |
+| parado / andando| idle / walk       | -         | -                                    |
 
 Andando/correndo é decidido no servidor pela velocidade real, com folga
 (liga rápido, desliga devagar), e vai sincronizado. Por isso a animação não
@@ -99,8 +113,13 @@ pisca mais entre andar e correr.
 
 A língua é um osso separado ("tongue"), filho da cabeça, com controlador
 próprio: fica escondida (escala ~0) e as animações tongue_*_ext esticam
-ela. O comprimento é a distância da boca até o peito do alvo, e ela mira
-porque a cabeça encara o alvo.
+ela. O osso não tem cubo: o renderer desenha uma pirâmide (grossa na boca,
+fina na ponta). O comprimento é a distância da boca até o peito do alvo, e
+ela mira porque a cabeça encara o alvo.
+
+A velocidade da animação de correr/andar acompanha a velocidade real dele
+(PacedAnimationController). Caçando pra matar ele corre a ~5,4 m/s; seguindo
+de longe pra apavorar, ~2,7 m/s; na fase 2, ~8 m/s.
 
 ## Ossos do modelo (nomes que as animações usam)
 root, waist (cintura: inclina o corpo), body, head, tongue, right_arm,
@@ -109,10 +128,12 @@ mantenha esses nomes (ou renomeie também nas animações).
 
 ## Animações
 
-Corrida, salto de sapo, bote, salto alto e montado são geradas por
-`tools/anim/build_anims.py` (rode `python tools/anim/build_anims.py`). As
-poses foram copiadas quadro a quadro do vídeo contra o Parallax (FULL MOVIE
-15:38). As outras animações (língua, comer, morder...) continuam as antigas.
+Corrida (pulinhos), corrida da fase 2, salto de sapo, bote, salto alto,
+montado, esmagamento, pulo do céu, arrancar e comer o braço e a contorção são
+geradas por `tools/anim/build_anims.py` (rode `python tools/anim/build_anims.py`).
+As poses foram copiadas quadro a quadro dos vídeos (Parallax, FULL MOVIE 15:38;
+vs AJTHEBOLD; "I'm the horror mod"). As outras (língua, morder, comer mob)
+continuam as antigas.
 
 Convenções medidas no jogo (modelo de lado):
 - waist X+ inclina o tronco pra frente; head X+ olha pra baixo;
@@ -127,7 +148,13 @@ já aponta a cara pro rosto de quem está embaixo.
   `python tools/anim/build_anims.py --debug`, nomes `dbg_<anim>_<tempo>`
   dão a pose congelada (arquivo local, fica fora do git).
 - `{DebugHunt:1b}` faz ele caçar o porco mais perto (pra ver de lado).
-- `{DebugAttack:"JUMP_PIN"}` faz ele só usar esse ataque.
+- `{DebugAttack:"JUMP_PIN"}` faz ele só usar esse ataque. Também valem
+  "SKY_DROP", "SMASH" e "PIN_HOLD" (bote que sempre esmaga / sempre devora)
+  e "ARM_RIP" (língua de captura que sempre arranca o braço).
+- `{DebugAnim:"tongue_whip"}` (ou grab/capture) estica a língua em loop.
+- `{DebugStalk:1b}` faz ele sempre começar só olhando (modo apavorar).
+- `{DebugHeldArm:1b}` põe o braço do jogador mais perto na boca dele;
+  `{DebugArmless:1b}` arranca o braço do jogador mais perto (sobrevivência).
 - `./gradlew runClient -PquickWorld=<mundo> -PfroggyDebug=1` liga logs
   `[FROGGYDEBUG]` (pouso dos pulos, jogador preso).
 
@@ -153,27 +180,42 @@ Para trocar uma variante, rode da mais limpa para a mais suja:
 O script também pinta de rosa a região da língua (pixels 56..61 x 16..18),
 que é vazia nas skins normais. Sem isso a língua fica invisível.
 
+## Braço arrancado
+- A língua de captura puxa a vítima de volta; metade das vezes ele arranca o
+  braço esquerdo em vez de morder. No "devorar", 1 em 3 vezes também.
+- Sem braço (player/ArmLoss.java): -3 corações de vida máxima, sem mão
+  secundária (vai pro inventário) e sem tecla F, sangramento contínuo
+  (partículas + 1 de vida a cada 8 s até sobrar 3 corações). O faro dele acha
+  quem está sangrando a 64 blocos.
+- O braço volta só na morte (a marca fica em getPersistentData, que o Forge não
+  copia quando o jogador morre; saindo do End a gente copia).
+- Cliente: o braço some do modelo e da armadura (camada de armadura trocada por
+  reflexão), aparece um toco no ombro, e a 1ª pessoa não desenha o braço.
+
 ## Câmera e jogador preso
 - Tremor: sacode em três eixos com ruído suave e some aos poucos. Quase
   sem giro de tela (o "vira pro lado e volta" da Parte 1 foi removido).
 - Língua de captura: segura o jogador um instante (controles travados).
 - Bote/salto alto que acerta: o jogador cai deitado (pose de rastejar,
   olho rente ao chão), controles travados, e a câmera fica presa no rosto
-  do Froggy, que monta a 2 blocos e morde. Uma pancada de 5+ de dano nele
+  do Froggy. Devorando, ele monta a 1,85 bloco e morde; esmagando, fica em
+  pé a 1,15 e a câmera olha pra cima. Uma pancada de 5+ de dano nele
   solta. Solta também se ele morrer ou se afastar.
 - O dano das mordidas montado não empurra (senão a vítima escorregava pra
   fora e o "preso" acabava antes da hora).
 
 ## Sons
-12 eventos em `sounds.json`: ambient (ribbit), hunt (quando te acha),
-hurt, love_pain ("I love pain", às vezes no lugar do grunhido), death,
-scream (fase 2), bite, eat, tongue (estalo), taste, leap e pin (montado).
-O mod usa sons do Minecraft como reserva. O pacote de recursos
-`FroggyDude-Voz.zip` (fora do GitHub, porque o repositório é público)
-troca todos pela voz original dele, recortada dos vídeos.
+17 eventos em `sounds.json`: ambient (ribbit), hunt (quando te acha),
+hurt, love_pain ("I love pain"), death, scream (contorção da fase 2), pain
+(gemidos na fase 2, "freaking spicy"), bite, eat, chew (mastigando o braço),
+tongue (estalo), taste, leap, pin (montado), smash (soco), sky_land (baque do
+pulo do céu) e rip (braço arrancado). O mod usa sons do Minecraft como
+reserva. O pacote de recursos `FroggyDude-Voz.zip` (fora do GitHub, porque o
+repositório é público) troca as falas pela voz original dele.
 
 ## O que ainda não existe
-Veja `../PLANO.md`: skins por evento, resto das animações, habilidades
-(parede, água, braço arrancado, roubar arma com a língua), inteligência,
-terror e anti-trapaça. Spawn egg e loot table também não existem.
+Veja `../PLANO.md`: mundo `-dev`/config/comando (Parte 4), skins por evento,
+resto das animações, habilidades (parede, água, roubar arma com a língua),
+inteligência de verdade (hoje "matar x apavorar" é sorteio), terror e
+anti-trapaça. Um Froggy por mundo também ainda não é forçado. Spawn egg e loot table também não existem.
 Os números de dano, alcance, duração e cooldown ainda são ponto de partida.

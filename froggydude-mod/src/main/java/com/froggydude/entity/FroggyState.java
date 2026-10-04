@@ -14,12 +14,21 @@ public enum FroggyState {
     JUMP_PIN(20),
     HIGH_JUMP(32),
     BITE(12),
-    FEEDING(80),
-    CONTORTING(50),
+    FEEDING(120),
+    /** Fase 2: a cabeça gira quase de ponta-cabeça e ele grita (vídeo "I'm the horror mod"). */
+    CONTORTING(54),
     /** Salto de sapo na perseguição: agacha, voa rente ao chão, cai nas mãos. */
     LEAP(24),
-    /** Montado em cima da vítima derrubada, mordendo. Dura o tempo do "preso". */
-    PIN_HOLD(50);
+    /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */
+    PIN_HOLD(100),
+    /** Esmagamento: em pé por cima da vítima derrubada, desce os dois punhos juntos (vs AJ, 0:57). */
+    SMASH(90),
+    /** Pulo altíssimo: some no céu e cai em cima da vítima (vs AJ, 0:56). Dura até pousar. */
+    SKY_DROP(80),
+    /** Agarra a vítima presa e arranca o braço esquerdo (vs AJ, 2:22). */
+    ARM_RIP(40),
+    /** Come o braço arrancado: mastiga, engole e digere. Distraído e vulnerável. */
+    ARM_EAT(90);
 
     public final int durationTicks;
 
@@ -29,11 +38,20 @@ public enum FroggyState {
 
     public boolean isAttack() {
         return this == TONGUE_WHIP || this == TONGUE_GRAB || this == TONGUE_CAPTURE
-                || this == JUMP_PIN || this == HIGH_JUMP || this == BITE;
+                || this == JUMP_PIN || this == HIGH_JUMP || this == BITE || this == SKY_DROP;
     }
 
-    /** Qualquer ação conduzida pela Goal de combate (ataques, salto e montado). */
+    public boolean isTongue() {
+        return this == TONGUE_WHIP || this == TONGUE_GRAB || this == TONGUE_CAPTURE;
+    }
+
+    /** Em cima da vítima derrubada (ela fica presa no chão). */
+    public boolean isOnVictim() {
+        return this == PIN_HOLD || this == SMASH || this == ARM_RIP;
+    }
+
+    /** Qualquer ação conduzida pela Goal de combate (ataques, salto, montado, braço). */
     public boolean isCombatAction() {
-        return isAttack() || this == LEAP || this == PIN_HOLD;
+        return isAttack() || isOnVictim() || this == LEAP || this == ARM_EAT;
     }
 }

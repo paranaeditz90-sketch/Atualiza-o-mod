@@ -22,7 +22,7 @@ public class ModEntityTypes {
     public static final RegistryObject<EntityType<FroggydudeEntity>> FROGGYDUDE =
             ENTITY_TYPES.register("froggydude", () -> EntityType.Builder
                     .of(FroggydudeEntity::new, MobCategory.MONSTER)
-                    .sized(0.8F, 2.1F)
+                    .sized(0.7F, 1.95F) // do tamanho de um jogador, um pouco maior
                     .clientTrackingRange(16)
                     .build("froggydude"));
 

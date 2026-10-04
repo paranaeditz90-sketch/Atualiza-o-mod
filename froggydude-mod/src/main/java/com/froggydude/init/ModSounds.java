@@ -38,6 +38,16 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> LEAP = register("froggydude.leap");
     /** Montado em cima da vítima. */
     public static final RegistryObject<SoundEvent> PIN = register("froggydude.pin");
+    /** Fase 2: gemendo e reclamando de dor enquanto corre ("freaking spicy"). */
+    public static final RegistryObject<SoundEvent> PAIN = register("froggydude.pain");
+    /** Cada soco do esmagamento. */
+    public static final RegistryObject<SoundEvent> SMASH = register("froggydude.smash");
+    /** O baque do pulo altíssimo no chão. */
+    public static final RegistryObject<SoundEvent> SKY_LAND = register("froggydude.sky_land");
+    /** Braço sendo arrancado. */
+    public static final RegistryObject<SoundEvent> RIP = register("froggydude.rip");
+    /** Mastigando o braço. */
+    public static final RegistryObject<SoundEvent> CHEW = register("froggydude.chew");
 
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name,
