@@ -40,9 +40,9 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Fase 2** (vídeo "I'm the horror mod" + fim do manhunt contra o Grox, 5:10-5:30): contorção com a cabeça girando e os ossos estalando, grito, 30 s mais rápido que um jogador, gemendo de dor e à prova de bala/flecha. Liga quando ele come blaze ou cai abaixo de 55% de vida.
 
 **Parte 3, ajustes (v0.3.2) ✅:**
-- **Galope consertado:** em pé ou de quatro agora é pela intenção (com vítima = de quatro), não pela velocidade. Parou um instante caçando, fica agachado.
+- **Galope refeito e consertado:** agora é galope de cachorro, alto, costas retas na altura da cintura, braços e pernas esticados até o chão (vs AJ, 0:34) - antes era baixo, de joelho dobrado, parecendo engatinhar. Em pé ou de quatro é pela intenção (com vítima = de quatro), não pela velocidade, então não fica mais trocando de pose. Parou um instante caçando, continua de 4.
 - **Bug da cabeça ("tiques") consertado:** o olhar só é somado na cabeça quando ele está em pé, com limite; saiu o "olhar aleatório pros lados".
-- **Fase 2 em duas etapas:** (1) estala, dobra o tronco e fica curvado de 2 a 4 s com a cabeça girando no pescoço; (2) levanta num estalo gritando e parte pro ataque feroz: galope de gorila rente ao chão, boca aberta, todo ataque com 1,6x de dano.
+- **Fase 2 em duas etapas:** (1) estala, dobra o tronco e fica curvado de 2 a 4 s com a cabeça girando no pescoço; (2) levanta num estalo gritando e dispara correndo EM PÉ, desesperado, como no vídeo "Eu sou o mod de terror" (4,1 s): boca aberta, mais rápido que um jogador, todo ataque com 1,6x de dano.
 - **Boca escancarada** (skin de grito do NameMC) na língua, no grito, mordendo e mastigando; volta ao normal logo depois.
 - **Língua:** ergue os dois braços, inclina o tronco pra frente e cospe a língua.
 - **Braço mais canibal:** crava os dentes no ombro e sacode como cachorro, arranca num tranco, sai sacudindo o braço na boca; come rasgando com trancos da cabeça.

@@ -105,7 +105,7 @@ certo. Se mudar um, mude o outro.
 | FEEDING         | feed (1 s, loop)  | 6,0 s     | mergulha e morde 0,34 s, arranca 0,52 s |
 | CONTORTING      | contort + contort_hold | 1,2 s + 2 a 4 s | ossos estalando, curvado     |
 | ROAR            | roar              | 0,9 s     | grito aos 0,2 s, depois o ataque feroz |
-| perseguindo     | run / run_frenzy  | -         | pulinhos; velocidade = a real        |
+| perseguindo     | run / run_frenzy  | -         | galope de 4 / fase 2: correndo em pé; velocidade = a real |
 | parou caçando   | crouch_idle       | -         | fica agachado (só levanta após 1,5 s)|
 | escalando       | climb (loop)      | -         | parede/torre acima, igual aranha     |
 | cansado         | tired (loop)      | -         | -                                    |
@@ -133,8 +133,9 @@ mantenha esses nomes (ou renomeie também nas animações).
 
 ## Animações
 
-Corrida (pulinhos), corrida da fase 2 (galope de gorila, vs Grox 2:24),
-agachado parado, escalada, salto de sapo, bote, salto alto, montado,
+Corrida de 4 (galope de cachorro, alto, membros esticados - vs AJ 0:34),
+corrida da fase 2 (em pé, desesperada - "Eu sou o mod de terror", 4,1 s),
+parado de 4, escalada, salto de sapo, bote, salto alto, montado,
 esmagamento, pulo do céu, arrancar e comer o braço (estilo "Eating a Zebra"),
 contorção (dobrar, curvado, rugido), língua (braços erguidos) e comer mob são
 geradas por `tools/anim/build_anims.py` (rode `python tools/anim/build_anims.py`).

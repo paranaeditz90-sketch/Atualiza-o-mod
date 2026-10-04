@@ -79,33 +79,52 @@ def crouch(**over):
 
 ANIMS = {}
 
-# Corrida de quatro (perto do alvo): no vídeo contra o AJ (0:32, quadro a quadro)
-# não é galope de cachorro, são PULINHOS de sapo bem rápidos: agacha com as mãos
-# no chão, estica o corpo pra cima e pra frente com as pernas pra trás, cai nas
-# mãos de novo. 0,5 s por pulinho na velocidade 1; o jogo acelera ou freia a
-# animação junto com a velocidade real (caçando = rápido, apavorando = devagar).
+# Corrida de quatro (vs AJTHEBOLD, 0:34,5-0:34,8, quadro a quadro, passando do
+# lado da câmera): é um GALOPE DE CACHORRO, alto. As costas ficam retas na
+# horizontal na altura da cintura, os braços e as pernas ESTICADOS até o chão,
+# e o galope alterna: as mãos vão lá na frente enquanto as pernas empurram
+# atrás, depois tudo se junta embaixo da barriga. A cara vai na frente, olhando
+# pra frente e um pouco pra baixo. (Antes era baixo, de joelho dobrado - parecia
+# engatinhando.) Com a cintura a 90 graus, braço a -90 e perna a 0, as mãos e os
+# pés tocam o chão sozinhos (ombro e quadril ficam na mesma altura).
+# 0,5 s por passada na velocidade 1; o jogo acelera ou freia junto com a
+# velocidade real (caçando = rápido, apavorando = devagar).
+def quad(waist, arm_r, arm_l, leg_r, leg_l, y, look=24, wz=0.0):
+    return pose(root_y=y, waist=waist, head=-waist + look, arms=arm_r, arm_l=arm_l,
+                legs=leg_r, leg_l=leg_l, arm_spread=4, leg_spread=4, waist_z=wz)
+
+
+QUAD_STAND = dict(waist=90, arm_r=-90, arm_l=-88, leg_r=0, leg_l=4, y=-1.5)
 ANIMS["run"] = animation(0.5, [
-    (0.00, pose(root_y=-5, waist=62, head=-56, arms=-74, arm_l=-66, legs=30, leg_l=24, arm_spread=7, leg_spread=10)),   # cai nas mãos
-    (0.10, pose(root_y=-6.5, waist=58, head=-54, arms=-48, arm_l=-42, legs=-40, leg_l=-34, arm_spread=7, leg_spread=12)),  # pernas vêm por baixo
-    (0.20, pose(root_y=-4, waist=40, head=-38, arms=-36, arm_l=-30, legs=-8, arm_spread=6, leg_spread=9)),             # empurra
-    (0.30, pose(root_y=-1, waist=28, head=-26, arms=-122, arm_l=-110, legs=50, leg_l=44, arm_spread=5, leg_spread=7)), # esticado no ar
-    (0.40, pose(root_y=-3, waist=50, head=-46, arms=-96, arm_l=-88, legs=44, leg_l=38, arm_spread=6, leg_spread=8)),   # descendo
-    (0.50, pose(root_y=-5, waist=62, head=-56, arms=-74, arm_l=-66, legs=30, leg_l=24, arm_spread=7, leg_spread=10)),
+    (0.00, quad(92, -72, -78, -24, -16, -1.8, wz=2)),     # tudo junto embaixo da barriga
+    (0.12, quad(88, -112, -100, 10, 18, -1.0)),           # as pernas empurram, as mãos vão pra frente
+    (0.25, quad(82, -138, -128, 42, 50, 0.8, wz=-2)),     # esticado no ar
+    (0.37, quad(90, -96, -106, 30, 22, -1.2)),            # as mãos batem no chão
+    (0.50, quad(92, -72, -78, -24, -16, -1.8, wz=2)),
 ], True)
 
-# Fase 2 (vs Grox, 2:24, quadro a quadro): galope de gorila, BEM rente ao chão,
-# a cara virada pra frente (dá pra ver a boca aberta gritando), os braços
-# alternando - um vai lá na frente enquanto o outro empurra - e as pernas
-# empurrando atrás. 0,4 s por passada na velocidade 1 (o jogo acelera).
-def gallop(reach_r, reach_l, leg_r, leg_l, y, waist, wz):
-    return pose(root_y=y, waist=waist, head=-(waist - 4), arms=reach_r, arm_l=reach_l, legs=leg_r, leg_l=leg_l,
-                arm_spread=9, leg_spread=12, waist_z=wz)
-ANIMS["run_frenzy"] = animation(0.4, [
-    (0.00, gallop(-122, -44, 42, -30, -6.5, 72, 7)),    # braço direito lá na frente, esquerdo empurrando
-    (0.10, gallop(-78, -80, -40, -36, -8.0, 68, 0)),    # mãos embaixo, pernas vêm por baixo
-    (0.20, gallop(-44, -122, -30, 42, -6.5, 72, -7)),   # agora o esquerdo vai na frente
-    (0.30, gallop(-80, -78, -36, -40, -8.0, 68, 0)),
-    (0.40, gallop(-122, -44, 42, -30, -6.5, 72, 7)),
+
+# Fase 2, ataque feroz (vídeo "Eu sou o mod de terror", 4,1-4,6 s): depois de
+# se contorcer ele dispara EM PÉ, correndo feito gente desesperada - tronco pra
+# frente, braços esticados balançando e a cabeça sacudindo de um lado pro
+# outro - e chega na cara da vítima em meio segundo. 0,6 s por passada na
+# velocidade 1 (na fase 2 o jogo toca a 2,6x: passadas curtas e frenéticas).
+def sprint(side, flight):
+    s = 1 if side > 0 else -1
+    if flight:   # as pernas cruzando no meio da passada, corpo no alto
+        return pose(root_y=0.6, waist=20, head=-14, head_z=-4 * s, arms=-14, arm_l=-14, arm_spread=10,
+                    legs=0, leg_l=0, leg_spread=3)
+    return pose(root_y=-0.6, waist=22, waist_y=7 * s, head=-12, head_z=10 * s, head_y=-6 * s,
+                arms=-82 if s > 0 else 62, arm_l=62 if s > 0 else -82, arm_spread=10,
+                legs=52 if s > 0 else -58, leg_l=-58 if s > 0 else 52, leg_spread=3)
+
+
+ANIMS["run_frenzy"] = animation(0.6, [
+    (0.00, sprint(1, False)),
+    (0.15, sprint(1, True)),
+    (0.30, sprint(-1, False)),
+    (0.45, sprint(-1, True)),
+    (0.60, sprint(1, False)),
 ], True)
 
 # Escalando (igual aranha - "ele consegue escalar", vs Grox 1:10): grudado na
@@ -128,12 +147,12 @@ ANIMS["climb"] = animation(0.5, [
     (0.50, climb_p(1, 0.0)),
 ], True)
 
-# Parado um instante no meio da caçada: continua agachado de quatro, respirando
-# (antes ele levantava e abaixava de novo, e parecia que ficava trocando de pose).
+# Parado um instante no meio da caçada: continua de quatro, em pé nos braços e
+# nas pernas (igual ao galope), respirando - não levanta e abaixa de novo.
 ANIMS["crouch_idle"] = animation(1.2, [
-    (0.00, crouch()),
-    (0.60, crouch(root_y=-6.4, waist=52, head=-50, arms=-60)),
-    (1.20, crouch()),
+    (0.00, quad(**QUAD_STAND)),
+    (0.60, quad(**{**QUAD_STAND, "waist": 92, "y": -1.8})),
+    (1.20, quad(**QUAD_STAND)),
 ], True)
 
 # Salto de sapo da perseguição. Sincronizado com o servidor:
@@ -345,16 +364,16 @@ ANIMS["contort_hold"] = animation(2.0, [
 ], True)
 
 # Levanta num estalo e GRITA (o ataque feroz começa aqui): o tronco joga pra
-# trás, a cabeça vai pro céu e os braços abrem; aí ele cai pra frente na pose
-# do galope. 0,9 s = 18 ticks; o grito sai no tick 4.
+# trás, a cabeça vai pro céu e os braços abrem; aí ele dispara correndo em pé.
+# 0,9 s = 18 ticks; o grito sai no tick 4.
 ANIMS["roar"] = animation(0.9, [
     (0.00, bent(head_y=0)),
     (0.12, pose(root_y=-1, waist=24, head=-24, arms=-40, arm_spread=30, legs=-4, leg_spread=12)),
     (0.24, pose(root_y=0, waist=-20, head=-44, arms=-34, arm_spread=74, legs=0, leg_spread=12)),          # GRITO
     (0.40, pose(root_y=0, waist=-16, head=-36, head_z=8, arms=-46, arm_spread=80, legs=0, leg_spread=12)),
     (0.55, pose(root_y=0, waist=-18, head=-40, head_z=-8, arms=-38, arm_spread=76, legs=0, leg_spread=12)),
-    (0.72, pose(root_y=-3, waist=36, head=-30, arms=-96, arm_spread=30, legs=-20, leg_spread=12)),         # cai pra frente
-    (0.90, gallop(-110, -80, 20, -30, -6.5, 70, 0)),
+    (0.72, pose(root_y=-1, waist=30, head=-20, arms=-70, arm_l=30, arm_spread=20, legs=-30, leg_l=20, leg_spread=6)),  # dispara
+    (0.90, sprint(1, False)),
 ], "hold_on_last_frame")
 
 
@@ -447,8 +466,9 @@ def main():
 
     if "--debug" in sys.argv:
         times = {
-            "run": [0.0, 0.1, 0.2, 0.3, 0.4],
-            "run_frenzy": [0.0, 0.1, 0.2],
+            "run": [0.0, 0.12, 0.25, 0.37],
+            "run_frenzy": [0.0, 0.15, 0.3],
+            "crouch_idle": [0.0],
             "smash": [0.0, 0.14, 0.25, 0.4],
             "sky_drop": [0.3, 0.4, 1.1, 1.3, 1.7, 2.2],
             "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
