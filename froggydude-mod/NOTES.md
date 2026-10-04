@@ -103,9 +103,9 @@ certo. Se mudar um, mude o outro.
 | ARM_RIP         | arm_rip           | 2,0 s     | crava os dentes 0,4 s, sacode, arranca aos 1,1 s, solta aos 1,6 s |
 | ARM_EAT         | arm_eat           | 4,5 s     | mordida + tranco a cada 0,75 s, engole aos 4 s |
 | FEEDING         | feed (1 s, loop)  | 6,0 s     | mergulha e morde 0,34 s, arranca 0,52 s |
-| CONTORTING      | contort + contort_hold | 1,2 s + 2 a 4 s | ossos estalando, curvado     |
+| CONTORTING      | contort + contort_hold | 1,0 s + 2 a 4 s | tronco chicoteia; encurvado, cabeça tombada |
 | ROAR            | roar              | 0,9 s     | grito aos 0,2 s, depois o ataque feroz |
-| perseguindo     | run / run_frenzy  | -         | galope de 4 / fase 2: correndo em pé; velocidade = a real |
+| perseguindo     | run / run_frenzy  | -         | galope de 4 (fase 2: mais esticado e rápido); poeira e barulho a cada patada |
 | parou caçando   | crouch_idle       | -         | fica agachado (só levanta após 1,5 s)|
 | escalando       | climb (loop)      | -         | parede/torre acima, igual aranha     |
 | cansado         | tired (loop)      | -         | -                                    |
@@ -134,7 +134,7 @@ mantenha esses nomes (ou renomeie também nas animações).
 ## Animações
 
 Corrida de 4 (galope de cachorro, alto, membros esticados - vs AJ 0:34),
-corrida da fase 2 (em pé, desesperada - "Eu sou o mod de terror", 4,1 s),
+corrida da fase 2 (o mesmo galope, mais esticado e rápido - vs AJ 7:45),
 parado de 4, escalada, salto de sapo, bote, salto alto, montado,
 esmagamento, pulo do céu, arrancar e comer o braço (estilo "Eating a Zebra"),
 contorção (dobrar, curvado, rugido), língua (braços erguidos) e comer mob são
@@ -165,6 +165,7 @@ O RandomLookAroundGoal (olhar pros lados sem motivo) também saiu.
   e "ARM_RIP" (língua de captura que sempre arranca o braço).
 - `{DebugAnim:"tongue_whip"}` (ou grab/capture) estica a língua em loop.
 - `{DebugStalk:1b}` faz ele sempre começar só olhando (modo apavorar).
+- `{DebugPhase2In:60}` entra na fase 2 depois de 60 ticks (pra filmar a contorção do começo).
 - `{DebugHeldArm:1b}` põe o braço do jogador mais perto na boca dele;
   `{DebugArmless:1b}` arranca o braço do jogador mais perto (sobrevivência).
 - `./gradlew runClient -PquickWorld=<mundo> -PfroggyDebug=1` liga logs
@@ -225,6 +226,11 @@ tempo (~6 min por estágio) e rápido na água ou na chuva.
 - O servidor manda um pacote por jato/poça (entity/BloodFx, rede id 2).
 - Em quem está preso embaixo, o jato voa por cima do Froggy, não na câmera.
 
+- `dust_puff` (client/DustPuffParticle): a nuvem de poeira do galope. Sai das
+  patas a cada passada, cresce, sobe devagar e some; pega a cor do chão (grama
+  levanta terra). Junto, cada passada toca `froggydude.gallop` e o passo do
+  bloco do chão.
+
 ## Escalada
 Navegação de aranha (WallClimberNavigation): encostou numa parede indo atrás
 de alguém, ele sobe de quatro (0,3 bloco/tick; 0,42 na fase 2), seja qual for
@@ -244,11 +250,11 @@ toma dano de queda se soltar da parede.
   fora e o "preso" acabava antes da hora).
 
 ## Sons
-18 eventos em `sounds.json`: ambient (ribbit), hunt (quando te acha),
+19 eventos em `sounds.json`: ambient (ribbit), hunt (quando te acha),
 hurt, love_pain ("I love pain"), death, scream (contorção da fase 2), pain
 (gemidos na fase 2, "freaking spicy"), bite, eat, chew (mastigando o braço),
 tongue (estalo), taste, leap, pin (montado), smash (soco), sky_land (baque do
-pulo do céu), rip (braço arrancado) e crack (ossos estalando na contorção). O mod usa sons do Minecraft como
+pulo do céu), rip (braço arrancado), crack (ossos estalando na contorção) e gallop (as patadas do galope). O mod usa sons do Minecraft como
 reserva. O pacote de recursos `FroggyDude-Voz.zip` (fora do GitHub, porque o
 repositório é público) troca as falas pela voz original dele.
 

@@ -50,6 +50,8 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> CRACK = register("froggydude.crack");
     /** Mastigando o braço. */
     public static final RegistryObject<SoundEvent> CHEW = register("froggydude.chew");
+    /** As patadas do galope de quatro (junto com o passo do bloco do chão). */
+    public static final RegistryObject<SoundEvent> GALLOP = register("froggydude.gallop");
 
     private static RegistryObject<SoundEvent> register(String name) {
         return SOUNDS.register(name,

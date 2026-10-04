@@ -26,5 +26,6 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.BLOOD.get(), BloodParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.DUST_PUFF.get(), DustPuffParticle.Provider::new);
     }
 }

@@ -3,6 +3,7 @@ package com.froggydude.entity;
 import com.froggydude.entity.ai.FroggyCombatGoal;
 import com.froggydude.entity.ai.FroggyFeedGoal;
 import com.froggydude.entity.ai.FroggyFrenzyGoal;
+import com.froggydude.init.ModParticles;
 import com.froggydude.init.ModSounds;
 import com.froggydude.player.ArmLoss;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -33,6 +34,7 @@ import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.navigation.WallClimberNavigation;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
@@ -141,6 +143,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private boolean debugArmless = false;
     /** Teste: NBT "DebugStalk" faz ele sempre começar só olhando (modo apavorar). */
     private boolean debugStalk = false;
+    /** Teste: NBT "DebugPhase2In" (ticks) - entra na fase 2 depois desse tempo (pra filmar do começo). */
+    private int debugPhase2In = 0;
     /** "Apavorar" em vez de "matar": segue de longe, encara, não ataca (ticks restantes). */
     private int stalkTicks = 0;
     /** Comeu blaze: entra na fase 2 assim que der. */
@@ -157,6 +161,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     // --- só no cliente ---
     private double clientGroundSpeed = 0D;
     private double hopClock = 0D;
+    private boolean hindStride = false;
     private int clientStateAge = 0;
     private int lastClientState = -1;
     private int clientStillTicks = 0;
@@ -661,6 +666,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (attackCooldown > 0) attackCooldown--;
         if (feedSearchCooldown > 0) feedSearchCooldown--;
         if (frenzyCooldown > 0) frenzyCooldown--;
+        if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;
         if (vocalCooldown > 0) vocalCooldown--;
         if (debugHunt && this.getTarget() == null && this.tickCount > 80 && this.tickCount % 10 == 0) {
@@ -730,23 +736,56 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                     + " correndo=" + isRunning() + " pos=" + String.format("%.1f %.1f %.1f", getX(), getY(), getZ()));
         }
 
-        // cada pulinho do galope levanta terra (como no vídeo contra o AJ)
-        if (isRunning() && this.onGround() && getFroggyState() == FroggyState.CHASE) {
+        // galope: cada patada levanta uma nuvem de poeira e faz barulho
+        // (vs AJ, 0:34 e 7:45 - a poeira fica pra trás dele)
+        if (isRunning() && isMovingSynced() && this.onGround() && !isClimbing()
+                && getFroggyState() == FroggyState.CHASE) {
             hopClock += mainAnimSpeed();
-            if (hopClock >= 10.0D) {
-                hopClock -= 10.0D;
-                BlockState below = this.getBlockStateOn();
-                if (!below.isAir()) {
-                    BlockParticleOption dust = new BlockParticleOption(ParticleTypes.BLOCK, below);
-                    for (int i = 0; i < 4; i++) {
-                        this.level().addParticle(dust,
-                                this.getX() + (this.getRandom().nextDouble() - 0.5D) * 0.6D, this.getY() + 0.1D,
-                                this.getZ() + (this.getRandom().nextDouble() - 0.5D) * 0.6D,
-                                (this.getRandom().nextDouble() - 0.5D) * 0.2D, 0.2D,
-                                (this.getRandom().nextDouble() - 0.5D) * 0.2D);
-                    }
-                }
+            if (hopClock >= 5.0D) {
+                hopClock -= 5.0D;
+                hindStride = !hindStride;
+                strideEffects(hindStride);
             }
+        }
+    }
+
+    /** Uma patada do galope: poeira, terra e (nas patas de trás) o barulho. */
+    private void strideEffects(boolean hind) {
+        float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw);
+        double fz = Mth.cos(yaw);
+        // patas de trás ficam atrás do corpo, as da frente na frente
+        double off = hind ? -0.45D : 0.55D;
+        double px = this.getX() + fx * off;
+        double pz = this.getZ() + fz * off;
+        boolean frenzy = isFrenzyActive();
+        int puffs = frenzy ? 5 : 3;
+        for (int i = 0; i < puffs; i++) {
+            this.level().addParticle(ModParticles.DUST_PUFF.get(),
+                    px + (this.random.nextDouble() - 0.5D) * 0.5D, this.getY() + 0.12D,
+                    pz + (this.random.nextDouble() - 0.5D) * 0.5D,
+                    -fx * (0.03D + this.random.nextDouble() * 0.05D) + (this.random.nextDouble() - 0.5D) * 0.04D,
+                    0.015D + this.random.nextDouble() * 0.03D,
+                    -fz * (0.03D + this.random.nextDouble() * 0.05D) + (this.random.nextDouble() - 0.5D) * 0.04D);
+        }
+        BlockState below = this.getBlockStateOn();
+        if (below.isAir()) return;
+        BlockParticleOption crumbs = new BlockParticleOption(ParticleTypes.BLOCK, below);
+        for (int i = 0; i < 3; i++) {
+            this.level().addParticle(crumbs,
+                    px + (this.random.nextDouble() - 0.5D) * 0.5D, this.getY() + 0.1D,
+                    pz + (this.random.nextDouble() - 0.5D) * 0.5D,
+                    -fx * 0.15D + (this.random.nextDouble() - 0.5D) * 0.15D, 0.18D,
+                    -fz * 0.15D + (this.random.nextDouble() - 0.5D) * 0.15D);
+        }
+        if (hind) {
+            // uma pancada por passada: o galope + o passo do bloco do chão
+            float pitch = 0.9F + this.random.nextFloat() * 0.2F;
+            this.level().playLocalSound(px, this.getY(), pz, ModSounds.GALLOP.get(), SoundSource.HOSTILE,
+                    frenzy ? 0.9F : 0.6F, pitch, false);
+            SoundType type = below.getSoundType();
+            this.level().playLocalSound(px, this.getY(), pz, type.getStepSound(), SoundSource.HOSTILE,
+                    type.getVolume() * 0.35F, type.getPitch() * 0.75F, false);
         }
     }
 
@@ -865,6 +904,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugHeldArm) tag.putBoolean("DebugHeldArm", true);
         if (debugArmless) tag.putBoolean("DebugArmless", true);
         if (debugStalk) tag.putBoolean("DebugStalk", true);
+        if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
     }
 
     @Override
@@ -881,6 +921,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.debugHeldArm = tag.getBoolean("DebugHeldArm");
         this.debugArmless = tag.getBoolean("DebugArmless");
         this.debugStalk = tag.getBoolean("DebugStalk");
+        this.debugPhase2In = tag.getInt("DebugPhase2In");
         this.debugAttack = null;
         for (FroggyState st : FroggyState.values()) {
             if (st.name().equals(tag.getString("DebugAttack"))) this.debugAttack = st;

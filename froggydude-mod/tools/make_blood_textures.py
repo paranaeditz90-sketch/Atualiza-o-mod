@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Gera as texturas do sangue (pixel art, sempre igual - semente fixa).
+"""Gera as texturas do sangue e da poeira (pixel art, sempre igual - semente fixa).
 
-    textures/particle/blood_0..3.png   pedaços (cinza: o jogo pinta de vermelho)
-    textures/misc/blood_pool.png       a poça no chão (32x32, vista de cima)
+    textures/particle/blood_0..3.png      pedaços (cinza: o jogo pinta de vermelho)
+    textures/misc/blood_pool.png          a poça no chão (32x32, vista de cima)
+    textures/particle/dust_puff_0..2.png  nuvem de poeira do galope (cinza: o jogo
+                                          pinta com a cor do chão)
 
 Uso:  python tools/make_blood_textures.py
 """
@@ -75,7 +77,29 @@ def pool():
     img.save(os.path.join(TEX, "misc", "blood_pool.png"))
 
 
+def puffs():
+    """Nuvens redondas e fofas, com a borda esfarelada e transparência."""
+    os.makedirs(os.path.join(TEX, "particle"), exist_ok=True)
+    rnd = random.Random(11)
+    for i in range(3):
+        size = 16
+        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        c = (size - 1) / 2
+        lobes = [(c, c, 6.2)] + [(c + rnd.uniform(-3.5, 3.5), c + rnd.uniform(-3.5, 3.5), rnd.uniform(3.0, 4.6))
+                                 for _ in range(4)]
+        for y in range(size):
+            for x in range(size):
+                depth = max(r - math.hypot(x - lx, y - ly) for lx, ly, r in lobes)
+                if depth <= 0 or (depth < 1.2 and rnd.random() < 0.45):
+                    continue
+                v = 205 + rnd.randint(-25, 30)
+                a = int(min(1.0, depth / 3.0) * 210)
+                img.putpixel((x, y), (min(255, v), min(255, v), min(255, v), a))
+        img.save(os.path.join(TEX, "particle", f"dust_puff_{i}.png"))
+
+
 if __name__ == "__main__":
     chunks()
     pool()
+    puffs()
     print("ok")

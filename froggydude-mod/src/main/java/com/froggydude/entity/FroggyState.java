@@ -16,11 +16,11 @@ public enum FroggyState {
     BITE(12),
     FEEDING(120),
     /**
-     * Fase 2, etapa 1: os ossos estalam e ele dobra o tronco pra frente, curvado,
-     * com a cabeça girando sozinha. A duração de verdade (1,2 s pra dobrar + 2 a
-     * 4 s curvado) quem decide é a FroggyFrenzyGoal.
+     * Fase 2, etapa 1 (vs AJTHEBOLD 7:26): os ossos estalam e o tronco chicoteia
+     * pros lados; depois fica encurvado com a cabeça tombada. A duração de verdade
+     * (1 s de chicote + 2 a 4 s encurvado) quem decide é a FroggyFrenzyGoal.
      */
-    CONTORTING(24),
+    CONTORTING(20),
     /** Salto de sapo na perseguição: agacha, voa rente ao chão, cai nas mãos. */
     LEAP(24),
     /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */

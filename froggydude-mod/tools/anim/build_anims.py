@@ -104,27 +104,22 @@ ANIMS["run"] = animation(0.5, [
 ], True)
 
 
-# Fase 2, ataque feroz (vídeo "Eu sou o mod de terror", 4,1-4,6 s): depois de
-# se contorcer ele dispara EM PÉ, correndo feito gente desesperada - tronco pra
-# frente, braços esticados balançando e a cabeça sacudindo de um lado pro
-# outro - e chega na cara da vítima em meio segundo. 0,6 s por passada na
-# velocidade 1 (na fase 2 o jogo toca a 2,6x: passadas curtas e frenéticas).
-def sprint(side, flight):
-    s = 1 if side > 0 else -1
-    if flight:   # as pernas cruzando no meio da passada, corpo no alto
-        return pose(root_y=0.6, waist=20, head=-14, head_z=-4 * s, arms=-14, arm_l=-14, arm_spread=10,
-                    legs=0, leg_l=0, leg_spread=3)
-    return pose(root_y=-0.6, waist=22, waist_y=7 * s, head=-12, head_z=10 * s, head_y=-6 * s,
-                arms=-82 if s > 0 else 62, arm_l=62 if s > 0 else -82, arm_spread=10,
-                legs=52 if s > 0 else -58, leg_l=-58 if s > 0 else 52, leg_spread=3)
+# Fase 2, ataque feroz (vs AJTHEBOLD, 7:44,6-7:45,4 desta cópia - 7:26 no
+# YouTube): depois de se contorcer ele vem DE QUATRO, no mesmo galope de
+# cachorro, só que muito mais rápido e mais esticado, levantando nuvens de
+# poeira, com a cabeça meio tombada, e esmaga quem estiver no caminho.
+# 0,5 s por passada na velocidade 1 (na fase 2 o jogo toca a 2,6x).
+def quad_mad(waist, arm_r, arm_l, leg_r, leg_l, y, wz=0.0):
+    return pose(root_y=y, waist=waist, head=-waist + 18, head_z=16, arms=arm_r, arm_l=arm_l,
+                legs=leg_r, leg_l=leg_l, arm_spread=6, leg_spread=6, waist_z=wz)
 
 
-ANIMS["run_frenzy"] = animation(0.6, [
-    (0.00, sprint(1, False)),
-    (0.15, sprint(1, True)),
-    (0.30, sprint(-1, False)),
-    (0.45, sprint(-1, True)),
-    (0.60, sprint(1, False)),
+ANIMS["run_frenzy"] = animation(0.5, [
+    (0.00, quad_mad(94, -64, -72, -36, -26, -2.0, wz=4)),     # tudo junto embaixo da barriga
+    (0.12, quad_mad(86, -118, -104, 14, 24, -0.6)),           # empurra
+    (0.25, quad_mad(78, -150, -138, 54, 62, 1.2, wz=-4)),     # voando, bem esticado
+    (0.37, quad_mad(90, -100, -112, 34, 24, -1.2)),           # as mãos batem no chão
+    (0.50, quad_mad(94, -64, -72, -36, -26, -2.0, wz=4)),
 ], True)
 
 # Escalando (igual aranha - "ele consegue escalar", vs Grox 1:10): grudado na
@@ -322,58 +317,66 @@ eat_keys += [
 ]
 ANIMS["arm_eat"] = animation(4.5, eat_keys, "hold_on_last_frame")
 
-# Contorção da fase 2 (vídeo "Eu sou o mod de terror", quadro a quadro): os
-# ossos estalam, a cabeça dá trancos e ele DOBRA o tronco pra frente até ficar
-# quase deitado, pernas abertas, braços pendurados até o chão. Curvado assim, a
-# cabeça gira sozinha no pescoço (de frente a gente vê o topo da coroa girando
-# feito um losango). 1,2 s pra dobrar; depois "contort_hold" (em loop, de 2 a
-# 4 s - quem decide é o servidor) e por fim "roar": levanta num estalo e grita.
-BENT = dict(root_y=-1.5, waist=86, head=6, arms=-84, arm_l=-90, arm_spread=3, spread_l=-2, legs=-4, leg_spread=14)
+# Contorção da fase 2 (vs AJTHEBOLD, 7:40,0-7:42,9 desta cópia - 7:26 no
+# YouTube, quadro a quadro): em menos de um segundo o tronco CHICOTEIA - joga
+# os braços pro alto, dobra de lado até quase deitar, a cabeça vira de ponta-
+# cabeça, dobra pra frente até o chão, volta pelo outro lado e levanta com os
+# braços se debatendo. Termina encurvado com a cabeça tombada uns 45 graus.
+# 1,0 s (20 ticks); depois "contort_hold" (em loop, 2 a 4 s, quem decide é o
+# servidor) e por fim "roar": a cabeça levanta num estalo e ele grita.
+HUNCH = dict(root_y=-0.5, waist=20, waist_z=6, head=18, head_z=45, head_y=10, arms=-8, arm_l=-14,
+             arm_spread=4, spread_l=-2, legs=0, leg_spread=8)
 
 
-def bent(**over):
-    p = dict(BENT)
+def hunch(**over):
+    p = dict(HUNCH)
     p.update(over)
     return pose(**p)
 
 
-ANIMS["contort"] = animation(1.2, [
+ANIMS["contort"] = animation(1.0, [
     (0.00, pose()),
-    (0.06, pose(head=8, head_z=38, waist_z=6, arms=-6, arm_l=10)),                   # CRACK: a cabeça tomba
-    (0.18, pose(head=14, head_z=-34, waist=10, waist_z=-5, arms=6, arm_l=-12)),      # CRACK pro outro lado
-    (0.34, pose(root_y=-0.5, waist=34, head=22, head_z=50, head_y=30, arms=-30, arm_l=-24, leg_spread=8)),
-    (0.55, bent(waist=70, head=12, head_y=70, arms=-66, arm_l=-60)),                # dobrando
-    (0.72, bent(waist=90, head=4, head_y=110)),                                     # passa do ponto
-    (0.86, bent(waist=84, head=8, head_y=95, arms=-80, arm_l=-94)),                 # CRACK: tranco
-    (1.02, bent(head=6, head_y=40)),
-    (1.20, bent(head_y=0)),
+    (0.07, pose(waist=10, waist_z=35, waist_y=25, head_z=25, arms=-150, arm_l=-110, arm_spread=20)),   # CRACK: braços pro alto
+    (0.13, pose(waist=20, waist_z=70, waist_y=30, head=20, head_z=40, arms=-60, arm_l=-170)),          # dobra de lado
+    (0.20, pose(waist=70, waist_z=40, waist_y=-20, head=30, head_z=95, arms=-110, arm_l=-60)),         # cabeça de ponta-cabeça
+    (0.27, pose(waist=85, waist_z=-20, waist_y=-40, head=20, head_z=150, arms=-90, arm_l=-40)),
+    (0.33, pose(root_y=-1, waist=95, waist_z=-50, head=10, head_z=100, arms=-95, arm_l=-80)),          # CRACK: dobrado até o chão
+    (0.40, pose(root_y=-0.5, waist=70, waist_z=-65, head=5, head_z=60, arms=-30, arm_l=-150)),         # pro outro lado
+    (0.47, pose(waist=40, waist_z=-30, waist_y=20, head=-10, head_z=30, arms=-120, arm_l=-20, arm_spread=30)),
+    (0.55, pose(waist=10, waist_z=10, head_z=-20, arms=-95, arm_l=-40, arm_spread=10)),               # levanta se debatendo
+    (0.65, pose(waist=5, waist_y=-15, head_z=25, arms=-100, arm_l=-110, arm_spread=15)),
+    (0.75, pose(waist=12, waist_z=8, head=10, head_z=-15, arms=-40, arm_l=-70)),                       # CRACK
+    (0.87, pose(waist=16, head=12, head_z=35, arms=-10, arm_l=-25, arm_spread=6)),
+    (1.00, hunch()),
 ], "hold_on_last_frame")
 
-# Curvado: a cabeça vai girando no pescoço (uma volta inteira a cada 2 s, com
-# trancos pra trás no meio), o corpo balança e um braço tem espasmo.
+# Encurvado com a cabeça tombada (vs AJ, 7:40,9-7:42,9): a cabeça balança
+# devagar, de vez em quando dá um tranco pro outro lado, o corpo oscila e os
+# braços moles têm espasmos.
 ANIMS["contort_hold"] = animation(2.0, [
-    (0.00, bent(head_y=0)),
-    (0.35, bent(head_y=70, waist_z=4, root_px=0.3)),
-    (0.42, bent(head_y=40, head=14, waist_z=5)),                                    # tranco pra trás
-    (0.80, bent(head_y=135, waist=88, arms=-90, arm_l=-84)),
-    (1.05, bent(head_y=170, arm_l=-118, spread_l=22, waist_z=-3, root_px=-0.3)),    # espasmo no braço
-    (1.12, bent(head_y=150, head=-4, arm_l=-80, spread_l=-2, waist_z=-5)),          # tranco
-    (1.50, bent(head_y=250, waist=84, arms=-78, arm_l=-92)),
-    (1.58, bent(head_y=232, head=12)),
-    (2.00, bent(head_y=360)),
+    (0.00, hunch()),
+    (0.40, hunch(head_z=32, head=22, waist_z=3, arms=-12)),
+    (0.70, hunch(head_z=52, head=14, head_y=12)),
+    (0.78, hunch(head_z=-18, head=26, head_y=-10, arm_l=-40)),                    # tranco
+    (0.90, hunch(head_z=40, head=18)),
+    (1.30, hunch(head_z=48, waist_z=-4, head_y=-6, root_px=0.3)),
+    (1.60, hunch(head_z=36, head=24)),
+    (1.66, hunch(head_z=70, head=5, arms=-30)),                                  # tranco
+    (1.80, hunch(head_z=44)),
+    (2.00, hunch()),
 ], True)
 
-# Levanta num estalo e GRITA (o ataque feroz começa aqui): o tronco joga pra
-# trás, a cabeça vai pro céu e os braços abrem; aí ele dispara correndo em pé.
-# 0,9 s = 18 ticks; o grito sai no tick 4.
+# A cabeça levanta num estalo e ele GRITA (o ataque feroz começa aqui): o
+# tronco joga pra trás, a cabeça vai pro céu e os braços abrem; aí ele cai
+# de quatro e dispara no galope. 0,9 s = 18 ticks; o grito sai no tick 4.
 ANIMS["roar"] = animation(0.9, [
-    (0.00, bent(head_y=0)),
+    (0.00, hunch()),
     (0.12, pose(root_y=-1, waist=24, head=-24, arms=-40, arm_spread=30, legs=-4, leg_spread=12)),
     (0.24, pose(root_y=0, waist=-20, head=-44, arms=-34, arm_spread=74, legs=0, leg_spread=12)),          # GRITO
     (0.40, pose(root_y=0, waist=-16, head=-36, head_z=8, arms=-46, arm_spread=80, legs=0, leg_spread=12)),
     (0.55, pose(root_y=0, waist=-18, head=-40, head_z=-8, arms=-38, arm_spread=76, legs=0, leg_spread=12)),
-    (0.72, pose(root_y=-1, waist=30, head=-20, arms=-70, arm_l=30, arm_spread=20, legs=-30, leg_l=20, leg_spread=6)),  # dispara
-    (0.90, sprint(1, False)),
+    (0.72, pose(root_y=-1, waist=60, head=-42, arms=-80, arm_l=-70, arm_spread=12, legs=-10, leg_spread=6)),  # cai de quatro
+    (0.90, quad_mad(94, -64, -72, -36, -26, -2.0, wz=4)),
 ], "hold_on_last_frame")
 
 
@@ -467,14 +470,14 @@ def main():
     if "--debug" in sys.argv:
         times = {
             "run": [0.0, 0.12, 0.25, 0.37],
-            "run_frenzy": [0.0, 0.15, 0.3],
+            "run_frenzy": [0.0, 0.12, 0.25, 0.37],
             "crouch_idle": [0.0],
             "smash": [0.0, 0.14, 0.25, 0.4],
             "sky_drop": [0.3, 0.4, 1.1, 1.3, 1.7, 2.2],
             "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
             "arm_eat": [0.5, 0.64, 4.0],
-            "contort": [0.06, 0.34, 0.72, 1.2],
-            "contort_hold": [0.35, 1.05, 1.5],
+            "contort": [0.07, 0.13, 0.2, 0.33, 0.4, 0.55, 1.0],
+            "contort_hold": [0.0, 0.78, 1.66],
             "roar": [0.24, 0.72, 0.9],
             "tongue_capture": [0.2, 0.6, 1.05],
             "feed": [0.22, 0.52],

@@ -9,17 +9,19 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import java.util.EnumSet;
 
 /**
- * Fase 2 (vídeo "Eu sou o mod de terror" e o fim do manhunt contra o Grox:
+ * Fase 2 (vs AJTHEBOLD 7:26 no YouTube, o vídeo "Eu sou o mod de terror" e o fim do manhunt contra o Grox:
  * aos 5:10 ele come os blazes, 5:16 se contorce gemendo com os ossos
  * estalando, 5:30 está à prova de bala). Duas etapas:
  *
- * 1. Contorção: os ossos estalam, a cabeça dá trancos e ele dobra o tronco
- *    pra frente, curvado, com a cabeça girando sozinha no pescoço. Fica assim
- *    de 2 a 4 segundos, gemendo e estalando (é quando dá pra bater nele).
- * 2. Ataque feroz: levanta num estalo soltando o grito que se ouve de longe,
- *    e parte pra cima por 30 segundos - mais rápido que um jogador correndo,
- *    de boca aberta, imune a projétil e com todos os ataques (língua,
- *    esmagamento, comer vivo...) batendo mais forte (ver FroggyCombatGoal).
+ * 1. Contorção (vs AJTHEBOLD, 7:26 no YouTube): os ossos estalam e o tronco
+ *    chicoteia - dobra de lado, a cabeça vai de ponta-cabeça, dobra até o chão
+ *    e volta -, e ele fica encurvado com a cabeça tombada, balançando e dando
+ *    trancos, de 2 a 4 segundos, gemendo (é quando dá pra bater nele).
+ * 2. Ataque feroz: a cabeça levanta num estalo soltando o grito que se ouve
+ *    de longe, ele cai de quatro e parte no galope por 30 segundos - mais
+ *    rápido que um jogador correndo, de boca aberta, imune a projétil e com
+ *    todos os ataques (língua, esmagamento, comer vivo...) batendo mais forte
+ *    (ver FroggyCombatGoal).
  *
  * Começa quando ele come um blaze, ou quando a vida cai abaixo de 55% (uma
  * vez). Depois disso pode voltar, de vez em quando, se a vida estiver abaixo
@@ -28,12 +30,12 @@ import java.util.EnumSet;
  */
 public class FroggyFrenzyGoal extends Goal {
 
-    /** Ticks pra dobrar o corpo (animação "contort", 1,2 s). */
+    /** Ticks do chicote do tronco (animação "contort", 1,0 s). */
     private static final int BEND_TICKS = FroggyState.CONTORTING.durationTicks;
     /** O grito sai quando a cabeça dele vai pro céu (animação "roar", 0,24 s). */
     private static final int ROAR_SCREAM_AT = 4;
-    /** Estalos enquanto dobra (batem com os trancos da animação). */
-    private static final int[] BEND_CRACKS = {1, 3, 16, 17};
+    /** Estalos do chicote (batem com os trancos da animação: 0,07 s, 0,33 s e 0,75 s). */
+    private static final int[] BEND_CRACKS = {1, 6, 15};
 
     private final FroggydudeEntity froggy;
     private int contortTicks;

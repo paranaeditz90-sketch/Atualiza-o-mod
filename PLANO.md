@@ -51,6 +51,11 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Bote de frente consertado:** se tu corre na direção dele, ele te agarra no ar (ou te derruba na hora, se já estiver colado).
 - **Escala torres de quatro**, igual aranha, qualquer altura (vs Grox, 1:10).
 
+**Parte 3, ajustes (v0.3.3) ✅** - comparado lado a lado com o vs AJTHEBOLD (7:26 no YouTube):
+- **Contorção igual à do AJ:** o tronco chicoteia (dobra de lado, a cabeça vai de ponta-cabeça, dobra até o chão e volta) e ele fica encurvado com a cabeça tombada, balançando e dando trancos, de 2 a 4 s; aí grita.
+- **Ataque feroz de 4:** depois do grito ele cai de quatro e vem no galope, mais esticado e muito mais rápido que o normal, igual no vídeo (a corrida em pé saiu).
+- **Poeira e barulho no galope:** cada patada levanta uma nuvem de poeira com a cor do chão e faz barulho de galope.
+
 ## 1. A arquitetura (o contrato)
 
 ```

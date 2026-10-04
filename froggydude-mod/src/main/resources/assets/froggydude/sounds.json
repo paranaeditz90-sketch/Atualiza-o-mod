@@ -443,5 +443,22 @@
         "volume": 0.7
       }
     ]
+  },
+  "froggydude.gallop": {
+    "subtitle": "subtitles.froggydude.gallop",
+    "sounds": [
+      {
+        "name": "minecraft:entity.horse.gallop",
+        "type": "event",
+        "pitch": 0.75,
+        "volume": 0.8
+      },
+      {
+        "name": "minecraft:entity.horse.step",
+        "type": "event",
+        "pitch": 0.6,
+        "volume": 0.9
+      }
+    ]
   }
 }
