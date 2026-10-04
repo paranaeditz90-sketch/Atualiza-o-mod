@@ -42,6 +42,7 @@ public class FroggyFeedGoal extends Goal {
     @Override
     public boolean canUse() {
         if (froggy.getFroggyState().isCombatAction() || froggy.isFrenzyActive()) return false;
+        if (froggy.getFroggyState() == FroggyState.CONTORTING || froggy.getFroggyState() == FroggyState.ROAR) return false;
         if (froggy.getFeedSearchCooldown() > 0) return false;
 
         LivingEntity blaze = findBlaze();
@@ -88,6 +89,15 @@ public class FroggyFeedGoal extends Goal {
         if (victim == null) return;
 
         if (froggy.getFroggyState() == FroggyState.FEEDING) {
+            // animação "feed" (1 s): mergulha e morde aos 0,34 s, arranca a carne pra cima aos 0,52 s
+            int t = froggy.getStateTicks() % 20;
+            if (t == 7) {
+                froggy.onBiteHit();
+                froggy.spawnBlood(victim, 6);
+            } else if (t == 11) {
+                froggy.onChew();
+                froggy.spawnMouthBlood(6);
+            }
             if (froggy.getStateTicks() >= FroggyState.FEEDING.durationTicks) {
                 froggy.eatVictim(victim);
                 froggy.setFeedTarget(null);

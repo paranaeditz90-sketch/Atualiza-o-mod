@@ -15,8 +15,12 @@ public enum FroggyState {
     HIGH_JUMP(32),
     BITE(12),
     FEEDING(120),
-    /** Fase 2: a cabeça gira quase de ponta-cabeça e ele grita (vídeo "I'm the horror mod"). */
-    CONTORTING(54),
+    /**
+     * Fase 2, etapa 1: os ossos estalam e ele dobra o tronco pra frente, curvado,
+     * com a cabeça girando sozinha. A duração de verdade (1,2 s pra dobrar + 2 a
+     * 4 s curvado) quem decide é a FroggyFrenzyGoal.
+     */
+    CONTORTING(24),
     /** Salto de sapo na perseguição: agacha, voa rente ao chão, cai nas mãos. */
     LEAP(24),
     /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */
@@ -28,7 +32,9 @@ public enum FroggyState {
     /** Agarra a vítima presa e arranca o braço esquerdo (vs AJ, 2:22). */
     ARM_RIP(40),
     /** Come o braço arrancado: mastiga, engole e digere. Distraído e vulnerável. */
-    ARM_EAT(90);
+    ARM_EAT(90),
+    /** Fase 2, etapa 2: levanta num estalo e grita; daí parte pro ataque feroz. */
+    ROAR(18);
 
     public final int durationTicks;
 

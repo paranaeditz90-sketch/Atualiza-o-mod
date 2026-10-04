@@ -39,6 +39,18 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Sem braço:** braço some do modelo (e a manga da armadura), toco com osso no ombro, sem mão secundária (nem tecla F), 3 corações a menos, sangramento sem parar e sem estancar (tira vida devagar, até 3 corações), e o faro dele te acha a 64 blocos. O braço volta quando tu morre.
 - **Fase 2** (vídeo "I'm the horror mod" + fim do manhunt contra o Grox, 5:10-5:30): contorção com a cabeça girando e os ossos estalando, grito, 30 s mais rápido que um jogador, gemendo de dor e à prova de bala/flecha. Liga quando ele come blaze ou cai abaixo de 55% de vida.
 
+**Parte 3, ajustes (v0.3.2) ✅:**
+- **Galope consertado:** em pé ou de quatro agora é pela intenção (com vítima = de quatro), não pela velocidade. Parou um instante caçando, fica agachado.
+- **Bug da cabeça ("tiques") consertado:** o olhar só é somado na cabeça quando ele está em pé, com limite; saiu o "olhar aleatório pros lados".
+- **Fase 2 em duas etapas:** (1) estala, dobra o tronco e fica curvado de 2 a 4 s com a cabeça girando no pescoço; (2) levanta num estalo gritando e parte pro ataque feroz: galope de gorila rente ao chão, boca aberta, todo ataque com 1,6x de dano.
+- **Boca escancarada** (skin de grito do NameMC) na língua, no grito, mordendo e mastigando; volta ao normal logo depois.
+- **Língua:** ergue os dois braços, inclina o tronco pra frente e cospe a língua.
+- **Braço mais canibal:** crava os dentes no ombro e sacode como cachorro, arranca num tranco, sai sacudindo o braço na boca; come rasgando com trancos da cabeça.
+- **Gore:** partícula de sangue própria (pedaços que voam e caem), poças que se espalham no chão, rastro de quem perdeu o braço, sangue acumulando na skin (ref. "Eating a Zebra").
+- **Esmagamento 2x mais rápido** (8 socos, mesmo dano total).
+- **Bote de frente consertado:** se tu corre na direção dele, ele te agarra no ar (ou te derruba na hora, se já estiver colado).
+- **Escala torres de quatro**, igual aranha, qualquer altura (vs Grox, 1:10).
+
 ## 1. A arquitetura (o contrato)
 
 ```

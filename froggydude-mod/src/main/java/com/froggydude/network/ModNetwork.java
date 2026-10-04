@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "3";
+    private static final String PROTOCOL = "4";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -27,6 +27,8 @@ public final class ModNetwork {
                 FroggyShakePacket::encode, FroggyShakePacket::decode, FroggyShakePacket::handle);
         CHANNEL.registerMessage(1, ArmStatePacket.class,
                 ArmStatePacket::encode, ArmStatePacket::decode, ArmStatePacket::handle);
+        CHANNEL.registerMessage(2, BloodFxPacket.class,
+                BloodFxPacket::encode, BloodFxPacket::decode, BloodFxPacket::handle);
     }
 
     /** Só treme a câmera. */

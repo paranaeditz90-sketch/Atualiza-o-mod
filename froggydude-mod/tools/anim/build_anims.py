@@ -5,8 +5,8 @@ Uso:
     python tools/anim/build_anims.py              # atualiza froggydude.animation.json
     python tools/anim/build_anims.py --debug      # também gera poses congeladas (dbg_*) pra teste
 
-As outras animações do arquivo (língua, comer, morder...) ficam como estão;
-este script só reescreve as que estão definidas aqui.
+As outras animações do arquivo (idle, walk, tired, bite, a língua esticando...)
+ficam como estão; este script só reescreve as que estão definidas aqui.
 
 Convenções (medidas no jogo, com o modelo de lado):
     waist X+  inclina o tronco pra frente (pivô no quadril)
@@ -93,14 +93,47 @@ ANIMS["run"] = animation(0.5, [
     (0.50, pose(root_y=-5, waist=62, head=-56, arms=-74, arm_l=-66, legs=30, leg_l=24, arm_spread=7, leg_spread=10)),
 ], True)
 
-# Fase 2 (manhunt dos blazes: "why is he running like that?"): os mesmos
-# pulinhos, mas torto: cabeça caída de lado, um braço se debatendo, tronco torcendo.
-ANIMS["run_frenzy"] = animation(0.5, [
-    (0.00, pose(root_y=-4, waist=55, head=-40, head_z=34, arms=-60, arm_l=-142, legs=30, leg_l=22, arm_spread=8, spread_l=24, waist_z=8, leg_spread=10)),
-    (0.12, pose(root_y=-6, waist=50, head=-28, head_z=22, arms=-40, arm_l=-88, legs=-36, leg_l=-28, arm_spread=8, spread_l=30, waist_z=-6, leg_spread=12)),
-    (0.25, pose(root_y=-2, waist=28, head=-14, head_z=46, arms=-150, arm_l=-52, legs=46, leg_l=40, arm_spread=6, spread_l=40, waist_z=10, leg_spread=8)),
-    (0.38, pose(root_y=-3, waist=46, head=-34, head_z=18, arms=-100, arm_l=-124, legs=40, leg_l=34, arm_spread=8, spread_l=18, waist_z=-8, leg_spread=9)),
-    (0.50, pose(root_y=-4, waist=55, head=-40, head_z=34, arms=-60, arm_l=-142, legs=30, leg_l=22, arm_spread=8, spread_l=24, waist_z=8, leg_spread=10)),
+# Fase 2 (vs Grox, 2:24, quadro a quadro): galope de gorila, BEM rente ao chão,
+# a cara virada pra frente (dá pra ver a boca aberta gritando), os braços
+# alternando - um vai lá na frente enquanto o outro empurra - e as pernas
+# empurrando atrás. 0,4 s por passada na velocidade 1 (o jogo acelera).
+def gallop(reach_r, reach_l, leg_r, leg_l, y, waist, wz):
+    return pose(root_y=y, waist=waist, head=-(waist - 4), arms=reach_r, arm_l=reach_l, legs=leg_r, leg_l=leg_l,
+                arm_spread=9, leg_spread=12, waist_z=wz)
+ANIMS["run_frenzy"] = animation(0.4, [
+    (0.00, gallop(-122, -44, 42, -30, -6.5, 72, 7)),    # braço direito lá na frente, esquerdo empurrando
+    (0.10, gallop(-78, -80, -40, -36, -8.0, 68, 0)),    # mãos embaixo, pernas vêm por baixo
+    (0.20, gallop(-44, -122, -30, 42, -6.5, 72, -7)),   # agora o esquerdo vai na frente
+    (0.30, gallop(-80, -78, -36, -40, -8.0, 68, 0)),
+    (0.40, gallop(-122, -44, 42, -30, -6.5, 72, 7)),
+], True)
+
+# Escalando (igual aranha - "ele consegue escalar", vs Grox 1:10): grudado na
+# parede de quatro, braços e pernas bem abertos, um braço alcança lá em cima
+# enquanto o outro puxa, as pernas empurram alternando, a cabeça olhando pra
+# cima (pra vítima). 0,5 s por passada.
+def climb_p(side, y):
+    # sapo grudado no vidro: braços e pernas bem abertos pros lados
+    up, down = (1, 0) if side > 0 else (0, 1)
+    arm = (-168, -96)
+    spread = (38, 58)
+    leg = (-74, 8)
+    lspread = (42, 30)
+    return pose(root_y=y, waist=20, head=-46, arms=arm[1 - up], arm_l=arm[1 - down],
+                arm_spread=spread[1 - up], spread_l=spread[1 - down],
+                legs=leg[up], leg_l=leg[down], leg_spread=36)
+ANIMS["climb"] = animation(0.5, [
+    (0.00, climb_p(1, 0.0)),
+    (0.25, climb_p(-1, -1.0)),
+    (0.50, climb_p(1, 0.0)),
+], True)
+
+# Parado um instante no meio da caçada: continua agachado de quatro, respirando
+# (antes ele levantava e abaixava de novo, e parecia que ficava trocando de pose).
+ANIMS["crouch_idle"] = animation(1.2, [
+    (0.00, crouch()),
+    (0.60, crouch(root_y=-6.4, waist=52, head=-50, arms=-60)),
+    (1.20, crouch()),
 ], True)
 
 # Salto de sapo da perseguição. Sincronizado com o servidor:
@@ -154,24 +187,26 @@ ANIMS["pin_hold"] = animation(1.0, [
     (0.30, pose(**{**PIN_POSE, "waist": 56, "head": -48, "arms": -86})),                 # recua
     (0.45, pose(**{**PIN_POSE, "waist": 74, "head": -26, "arms": -76})),                 # avança a boca
     (0.50, pose(**{**PIN_POSE, "waist": 77, "head": -22, "arms": -74})),                 # MORDE
-    (0.60, pose(**{**PIN_POSE, "waist": 76, "head": -24, "head_z": 14, "arms": -74})),   # rasga pra um lado
-    (0.72, pose(**{**PIN_POSE, "waist": 74, "head": -26, "head_z": -14, "arms": -76})),  # e pro outro
+    (0.58, pose(**{**PIN_POSE, "waist": 76, "head": -24, "head_z": 16, "head_y": 30, "arms": -74})),   # rasga sacudindo
+    (0.66, pose(**{**PIN_POSE, "waist": 75, "head": -25, "head_z": -16, "head_y": -30, "arms": -76})),  # como cachorro
+    (0.74, pose(**{**PIN_POSE, "waist": 74, "head": -28, "head_z": 12, "head_y": 22, "arms": -76})),
     (0.86, pose(**{**PIN_POSE, "waist": 64, "head": -42, "head_z": 4})),                 # volta te encarando
     (1.00, pose(**PIN_POSE)),
 ], True)
 
 # Esmagamento (vs AJ, 0:57-1:01, visto de quem está no chão): em pé por cima da
 # vítima, os dois braços juntos lá no alto, e desce tudo de uma vez - tronco,
-# cabeça e punhos - na cara dela. Um soco por segundo; o impacto é aos 0,5 s.
+# cabeça e punhos - na cara dela. Dois socos por segundo (era um, ficava lento);
+# o impacto é aos 0,25 s de cada volta de 0,5 s.
 SMASH_UP = dict(root_y=0, waist=-6, head=20, arms=-170, arm_spread=4, legs=0, leg_spread=6)
-ANIMS["smash"] = animation(1.0, [
+ANIMS["smash"] = animation(0.5, [
     (0.00, pose(**SMASH_UP)),
-    (0.30, pose(**{**SMASH_UP, "root_y": 0.5, "waist": -14, "head": 10, "arms": -186})),       # arma o golpe
-    (0.42, pose(**{**SMASH_UP, "waist": 30, "head": 26, "arms": -122})),                       # descendo
-    (0.50, pose(root_y=-4, waist=78, head=40, arms=-56, arm_spread=2, legs=-22, leg_spread=8)),  # IMPACTO
-    (0.62, pose(root_y=-4.5, waist=80, head=42, arms=-50, arm_spread=2, legs=-24, leg_spread=8)),
-    (0.80, pose(**{**SMASH_UP, "root_y": -1.5, "waist": 35, "head": 26, "arms": -132})),       # sobe de novo
-    (1.00, pose(**SMASH_UP)),
+    (0.14, pose(**{**SMASH_UP, "root_y": 0.5, "waist": -14, "head": 10, "arms": -186})),       # arma o golpe
+    (0.20, pose(**{**SMASH_UP, "waist": 30, "head": 26, "arms": -122})),                       # descendo
+    (0.25, pose(root_y=-4, waist=78, head=40, arms=-56, arm_spread=2, legs=-22, leg_spread=8)),  # IMPACTO
+    (0.31, pose(root_y=-4.5, waist=80, head=42, arms=-50, arm_spread=2, legs=-24, leg_spread=8)),
+    (0.40, pose(**{**SMASH_UP, "root_y": -1.5, "waist": 35, "head": 26, "arms": -132})),       # sobe de novo
+    (0.50, pose(**SMASH_UP)),
 ], True)
 
 # Pulo altíssimo (vs AJ, 0:56): agacha fundo, explode pra cima com os braços pro
@@ -190,37 +225,77 @@ ANIMS["sky_drop"] = animation(2.2, [
     (2.20, pose(root_y=-2, waist=22, head=36, arms=-176, arm_spread=6, legs=-40, leg_spread=12)),
 ], "hold_on_last_frame")
 
-# Arrancar o braço (vs AJ, 2:21): agachado por cima, agarra o ombro esquerdo da
-# vítima com as duas mãos, puxa, faz força pros dois lados e ARRANCA num tranco
-# (1,1 s = tick 22 do servidor). Levanta segurando o braço na mão direita.
+# Arrancar o braço (vs AJ, 2:21, e o jeito de comer da "Eating a Zebra"):
+# agachado por cima, agarra o ombro esquerdo da vítima com as duas mãos, CRAVA
+# os dentes no ombro e sacode a cabeça como cachorro rasgando (0,45-0,95 s),
+# puxa com os dentes e as mãos e ARRANCA num tranco (1,1 s = tick 22 do
+# servidor). Sai com o braço atravessado na boca, sacudindo, sangue voando.
 RIP_BASE = dict(root_y=-8, waist=65, head=-30, arms=-80, legs=48, arm_spread=10, leg_spread=16)
+
+
+def rip_p(**over):
+    p = dict(RIP_BASE)
+    p.update(over)
+    return pose(**p)
+
+
+def shake_p(side, **over):
+    p = {"waist": 76, "head": -14, "head_y": 38 * side, "head_z": 14 * side, "waist_z": 5 * side,
+         "arms": -98, "arm_spread": 2}
+    p.update(over)
+    return rip_p(**p)
+
+
+def mouth_shake(side, amount=40):
+    # em pé, braço atravessado na boca: sacode a cabeça pra rasgar
+    return pose(root_y=-1, waist=6, head=-6, head_y=amount * side, head_z=12 * side, arms=-70, arm_l=-60,
+                arm_spread=12, legs=4, leg_spread=8)
+
+
 ANIMS["arm_rip"] = animation(2.0, [
-    (0.00, pose(**RIP_BASE)),
-    (0.30, pose(**{**RIP_BASE, "waist": 82, "head": -18, "arms": -96, "arm_spread": 3})),                    # agarra
-    (0.70, pose(**{**RIP_BASE, "root_y": -6, "waist": 60, "head": -38, "arms": -112, "arm_spread": 1})),     # puxa
-    (0.85, pose(**{**RIP_BASE, "root_y": -6, "waist": 52, "head": -46, "arms": -122, "arm_spread": 1, "waist_z": 7})),
-    (1.00, pose(**{**RIP_BASE, "root_y": -6, "waist": 54, "head": -44, "arms": -120, "arm_spread": 1, "waist_z": -7})),
-    (1.10, pose(root_y=-2, waist=-10, head=-30, arms=-162, arm_spread=4, legs=20, leg_spread=12)),           # TRANCO
-    (1.30, pose(root_y=-1, waist=-5, head=-12, arms=-170, arm_l=-40, arm_spread=6, legs=8, leg_spread=8)),   # braço pro alto
-    (1.60, pose(root_y=0, waist=5, head=10, arms=-110, arm_l=-10, arm_spread=2, legs=0, leg_spread=4)),      # olha o braço
-    (2.00, pose(root_y=0, waist=6, head=6, arms=-100, arm_l=-14, arm_spread=-4, legs=0, leg_spread=4)),
+    (0.00, rip_p()),
+    (0.20, rip_p(waist=74, head=-22, arms=-96, arm_spread=3)),                              # agarra o ombro
+    (0.32, rip_p(waist=70, head=-36, arms=-98, arm_spread=2)),                              # abre a boca
+    (0.42, rip_p(waist=79, head=-10, arms=-98, arm_spread=2)),                              # CRAVA os dentes
+    (0.52, shake_p(1)),
+    (0.62, shake_p(-1)),
+    (0.72, shake_p(1)),
+    (0.82, shake_p(-1)),
+    (0.92, shake_p(1, waist=76)),
+    (1.02, rip_p(root_y=-6, waist=56, head=-44, arms=-124, arm_spread=1, waist_z=-6)),      # puxa com tudo
+    (1.10, pose(root_y=-2, waist=-14, head=-36, arms=-150, arm_l=-60, arm_spread=8, legs=20, leg_spread=12)),  # TRANCO
+    (1.22, mouth_shake(1)),
+    (1.34, mouth_shake(-1)),
+    (1.46, mouth_shake(1, 34)),
+    (1.58, mouth_shake(-1, 34)),
+    (1.75, pose(root_y=0, waist=8, head=-12, head_y=10, arms=-110, arm_l=-104, arm_ry=-20, arm_spread=-6, leg_spread=6)),
+    (2.00, pose(root_y=0, waist=10, head=-4, arms=-124, arm_l=-118, arm_ry=-26, arm_spread=-8, leg_spread=4)),  # segura pra comer
 ], "hold_on_last_frame")
 
-# Comer o braço: segura com as duas mãos na boca, como milho, e mastiga
-# arrancando pedaço (cabeça sacode). Uma mordida a cada 0,75 s (aos 0,5 s,
-# 1,25 s, 2 s, 2,75 s e 3,5 s = ticks 10, 25, 40, 55 e 70). Engole aos 4 s
-# (olhando pra cima) e esfrega a barriga.
-def chew(bite, side):
-    # mãos na boca: braço bem pra cima e virado pra dentro
-    return pose(root_y=0, waist=16 if bite else 10, head=18 if bite else -4, head_z=16 * side if bite else 0,
+
+# Comer o braço: segura com as duas mãos na boca e RASGA - morde, a cabeça dá
+# um tranco pra trás arrancando o pedaço e sacode de um lado pro outro.
+# Mordidas aos 0,5 s, 1,25 s, 2 s, 2,75 s e 3,5 s (= ticks 10, 25, 40, 55 e 70
+# do servidor, onde o sangue espirra). Engole aos 4 s, olhando pra cima.
+def chew(bite, side, yank=False):
+    if yank:   # arrancando o pedaço: cabeça pra trás e torta
+        return pose(root_y=0, waist=4, head=-22, head_y=24 * side, head_z=18 * side,
+                    arms=-120, arm_l=-112, arm_ry=-22, arm_spread=-6, legs=0, leg_spread=4)
+    return pose(root_y=0, waist=18 if bite else 10, head=20 if bite else -4, head_z=10 * side if bite else 0,
+                head_y=-14 * side if bite else 0,
                 arms=-132 if bite else -124, arm_l=-126 if bite else -118, arm_ry=-26, arm_spread=-8,
                 legs=0, leg_spread=4)
-eat_keys = [(0.0, pose(root_y=0, waist=6, head=6, arms=-100, arm_l=-14, arm_spread=-4, leg_spread=4)),
+
+
+eat_keys = [(0.0, pose(root_y=0, waist=10, head=-4, arms=-124, arm_l=-118, arm_ry=-26, arm_spread=-8, leg_spread=4)),
             (0.30, chew(False, 0))]
 for k in range(5):
     t = 0.5 + k * 0.75
-    eat_keys.append((round(t, 3), chew(True, 1 if k % 2 == 0 else -1)))
-    eat_keys.append((round(t + 0.35, 3), chew(False, 0)))
+    side = 1 if k % 2 == 0 else -1
+    eat_keys.append((round(t, 3), chew(True, side)))
+    eat_keys.append((round(t + 0.14, 3), chew(False, side, yank=True)))
+    eat_keys.append((round(t + 0.26, 3), chew(False, -side, yank=True)))
+    eat_keys.append((round(t + 0.40, 3), chew(False, 0)))
 eat_keys += [
     (4.00, pose(root_y=0, waist=-8, head=-28, arms=-30, arm_l=-20, arm_spread=2, leg_spread=4)),     # engole
     (4.25, pose(root_y=0, waist=4, head=10, arms=-38, arm_l=-8, arm_spread=-16, leg_spread=4)),      # mão na barriga
@@ -228,29 +303,109 @@ eat_keys += [
 ]
 ANIMS["arm_eat"] = animation(4.5, eat_keys, "hold_on_last_frame")
 
-# Contorção da fase 2 (vídeo "I'm the horror mod", quadro a quadro): a cabeça
-# cai pra frente e gira quase de ponta-cabeça, levanta torta, cai pro outro
-# lado; os braços ficam moles e um ombro sobe. 2,7 s (54 ticks), com o grito.
-def contort_p(head, head_z, arms=8, arm_l=None, spread=-4, spread_l=None, waist=22, waist_z=0, px=0.0):
-    return pose(root_y=-1, root_px=px, waist=waist, waist_z=waist_z, head=head, head_z=head_z,
-                arms=arms, arm_l=arm_l, arm_spread=spread, spread_l=spread_l, legs=-6, leg_spread=6)
-ANIMS["contort"] = animation(2.7, [
+# Contorção da fase 2 (vídeo "Eu sou o mod de terror", quadro a quadro): os
+# ossos estalam, a cabeça dá trancos e ele DOBRA o tronco pra frente até ficar
+# quase deitado, pernas abertas, braços pendurados até o chão. Curvado assim, a
+# cabeça gira sozinha no pescoço (de frente a gente vê o topo da coroa girando
+# feito um losango). 1,2 s pra dobrar; depois "contort_hold" (em loop, de 2 a
+# 4 s - quem decide é o servidor) e por fim "roar": levanta num estalo e grita.
+BENT = dict(root_y=-1.5, waist=86, head=6, arms=-84, arm_l=-90, arm_spread=3, spread_l=-2, legs=-4, leg_spread=14)
+
+
+def bent(**over):
+    p = dict(BENT)
+    p.update(over)
+    return pose(**p)
+
+
+ANIMS["contort"] = animation(1.2, [
     (0.00, pose()),
-    (0.10, contort_p(90, 45, px=0.5)),
-    (0.25, contort_p(96, 15, px=-0.4)),
-    (0.40, contort_p(84, -25, px=0.5)),
-    (0.55, contort_p(102, -52, px=-0.5)),
-    (0.70, contort_p(58, 30, arms=-42, px=0.4)),
-    (0.85, contort_p(-10, 20, waist=15, px=-0.3)),
-    (1.10, contort_p(-6, 26, arms=-30, arm_l=16, waist=15, px=0.3)),
-    (1.35, contort_p(10, -30, waist_z=8, px=-0.4)),
-    (1.55, contort_p(60, -42, px=0.4)),
-    (1.75, contort_p(20, 56, arm_l=-60, spread_l=40, waist=20, waist_z=-10, px=-0.3)),
-    (2.00, contort_p(26, 62, arm_l=-72, spread_l=46, waist=20, waist_z=-10, px=0.3)),
-    (2.30, contort_p(14, 50, arms=-26, arm_l=-50, spread_l=30, px=-0.2)),
-    (2.55, contort_p(0, 20, arms=0, arm_l=0, spread_l=-4, waist=12)),
-    (2.70, contort_p(-5, 10, arms=0, arm_l=0, spread_l=-4, waist=10)),
+    (0.06, pose(head=8, head_z=38, waist_z=6, arms=-6, arm_l=10)),                   # CRACK: a cabeça tomba
+    (0.18, pose(head=14, head_z=-34, waist=10, waist_z=-5, arms=6, arm_l=-12)),      # CRACK pro outro lado
+    (0.34, pose(root_y=-0.5, waist=34, head=22, head_z=50, head_y=30, arms=-30, arm_l=-24, leg_spread=8)),
+    (0.55, bent(waist=70, head=12, head_y=70, arms=-66, arm_l=-60)),                # dobrando
+    (0.72, bent(waist=90, head=4, head_y=110)),                                     # passa do ponto
+    (0.86, bent(waist=84, head=8, head_y=95, arms=-80, arm_l=-94)),                 # CRACK: tranco
+    (1.02, bent(head=6, head_y=40)),
+    (1.20, bent(head_y=0)),
 ], "hold_on_last_frame")
+
+# Curvado: a cabeça vai girando no pescoço (uma volta inteira a cada 2 s, com
+# trancos pra trás no meio), o corpo balança e um braço tem espasmo.
+ANIMS["contort_hold"] = animation(2.0, [
+    (0.00, bent(head_y=0)),
+    (0.35, bent(head_y=70, waist_z=4, root_px=0.3)),
+    (0.42, bent(head_y=40, head=14, waist_z=5)),                                    # tranco pra trás
+    (0.80, bent(head_y=135, waist=88, arms=-90, arm_l=-84)),
+    (1.05, bent(head_y=170, arm_l=-118, spread_l=22, waist_z=-3, root_px=-0.3)),    # espasmo no braço
+    (1.12, bent(head_y=150, head=-4, arm_l=-80, spread_l=-2, waist_z=-5)),          # tranco
+    (1.50, bent(head_y=250, waist=84, arms=-78, arm_l=-92)),
+    (1.58, bent(head_y=232, head=12)),
+    (2.00, bent(head_y=360)),
+], True)
+
+# Levanta num estalo e GRITA (o ataque feroz começa aqui): o tronco joga pra
+# trás, a cabeça vai pro céu e os braços abrem; aí ele cai pra frente na pose
+# do galope. 0,9 s = 18 ticks; o grito sai no tick 4.
+ANIMS["roar"] = animation(0.9, [
+    (0.00, bent(head_y=0)),
+    (0.12, pose(root_y=-1, waist=24, head=-24, arms=-40, arm_spread=30, legs=-4, leg_spread=12)),
+    (0.24, pose(root_y=0, waist=-20, head=-44, arms=-34, arm_spread=74, legs=0, leg_spread=12)),          # GRITO
+    (0.40, pose(root_y=0, waist=-16, head=-36, head_z=8, arms=-46, arm_spread=80, legs=0, leg_spread=12)),
+    (0.55, pose(root_y=0, waist=-18, head=-40, head_z=-8, arms=-38, arm_spread=76, legs=0, leg_spread=12)),
+    (0.72, pose(root_y=-3, waist=36, head=-30, arms=-96, arm_spread=30, legs=-20, leg_spread=12)),         # cai pra frente
+    (0.90, gallop(-110, -80, 20, -30, -6.5, 70, 0)),
+], "hold_on_last_frame")
+
+
+# Língua: ele ergue os dois braços (garras pro alto), inclina o tronco pra
+# frente e cospe a língua. Os tempos batem com tongue_*_ext (a língua sai em
+# 0,25-0,4 s no chicote, 0,3-0,45 s na agarrada e 0,4-0,6 s na captura).
+def tongue_p(waist, arms, spread, root_y=0.0, legs=0, leg_l=None):
+    return pose(root_y=root_y, waist=waist, head=-waist * 0.5, arms=arms, arm_spread=spread,
+                legs=legs, leg_l=leg_l, leg_spread=5)
+
+
+ANIMS["tongue_whip"] = animation(0.7, [
+    (0.00, pose()),
+    (0.15, tongue_p(-6, -150, 24)),                                 # braços pro alto
+    (0.25, tongue_p(18, -166, 30, root_y=-1)),                      # inclina
+    (0.40, tongue_p(24, -170, 34, root_y=-1)),                      # LÍNGUA
+    (0.55, tongue_p(20, -160, 30, root_y=-1)),
+    (0.70, tongue_p(6, -60, 12)),
+], "hold_on_last_frame")
+ANIMS["tongue_grab"] = animation(0.8, [
+    (0.00, pose()),
+    (0.18, tongue_p(-6, -152, 24)),
+    (0.30, tongue_p(18, -168, 32, root_y=-1)),
+    (0.45, tongue_p(24, -172, 34, root_y=-1.5)),                    # LÍNGUA
+    (0.65, tongue_p(14, -96, 14, root_y=-1.5, legs=-14, leg_l=14)),  # puxa
+    (0.80, tongue_p(8, -70, 8)),
+], "hold_on_last_frame")
+ANIMS["tongue_capture"] = animation(1.4, [
+    (0.00, pose()),
+    (0.20, tongue_p(-8, -150, 24)),
+    (0.40, tongue_p(20, -168, 32, root_y=-1.5, legs=-12, leg_l=12)),
+    (0.60, tongue_p(26, -172, 36, root_y=-2, legs=-16, leg_l=16)),  # LÍNGUA
+    (0.90, tongue_p(22, -150, 26, root_y=-2, legs=-16, leg_l=16)),
+    (1.05, tongue_p(30, -100, 12, root_y=-2.5, legs=-18, leg_l=18)),  # puxa e abre os braços pra agarrar
+    (1.25, tongue_p(34, -92, 6, root_y=-2.5, legs=-18, leg_l=18)),
+    (1.40, tongue_p(24, -84, 8, root_y=-1.5)),
+], "hold_on_last_frame")
+
+# Devorando um mob (ref. "Eating a Zebra"): mergulha de cabeça na carcaça,
+# morde, puxa a carne pra cima jogando sangue e sacode a cabeça como cachorro.
+FEED_UP = dict(root_y=-2, waist=24, head=-10, arms=-60, arm_spread=10, legs=-10, leg_spread=12)
+ANIMS["feed"] = animation(1.0, [
+    (0.00, pose(**FEED_UP)),
+    (0.22, pose(root_y=-4, waist=96, head=20, arms=-70, arm_spread=14, legs=-16, leg_spread=14)),     # mergulha
+    (0.34, pose(root_y=-4.5, waist=100, head=34, arms=-66, arm_spread=14, legs=-16, leg_spread=14)),  # MORDE
+    (0.52, pose(root_y=-1, waist=8, head=-34, arms=-50, arm_spread=16, legs=-6, leg_spread=12)),      # arranca pra cima
+    (0.64, pose(root_y=-1, waist=12, head=-24, head_y=34, head_z=12, arms=-56, arm_spread=16, legs=-6, leg_spread=12)),
+    (0.74, pose(root_y=-1, waist=12, head=-24, head_y=-34, head_z=-12, arms=-56, arm_spread=16, legs=-6, leg_spread=12)),
+    (0.84, pose(root_y=-1, waist=14, head=-20, head_y=24, arms=-58, arm_spread=14, legs=-8, leg_spread=12)),
+    (1.00, pose(**FEED_UP)),
+], True)
 
 
 # ------------------------------------------------------------------ amostragem (pra teste)
@@ -293,12 +448,17 @@ def main():
     if "--debug" in sys.argv:
         times = {
             "run": [0.0, 0.1, 0.2, 0.3, 0.4],
-            "run_frenzy": [0.0, 0.12, 0.25, 0.38],
-            "smash": [0.0, 0.3, 0.5, 0.8],
+            "run_frenzy": [0.0, 0.1, 0.2],
+            "smash": [0.0, 0.14, 0.25, 0.4],
             "sky_drop": [0.3, 0.4, 1.1, 1.3, 1.7, 2.2],
-            "arm_rip": [0.3, 0.7, 1.1, 1.6, 2.0],
-            "arm_eat": [0.5, 0.85, 4.0, 4.5],
-            "contort": [0.1, 0.55, 0.85, 1.55, 2.0],
+            "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
+            "arm_eat": [0.5, 0.64, 4.0],
+            "contort": [0.06, 0.34, 0.72, 1.2],
+            "contort_hold": [0.35, 1.05, 1.5],
+            "roar": [0.24, 0.72, 0.9],
+            "tongue_capture": [0.2, 0.6, 1.05],
+            "feed": [0.22, 0.52],
+            "climb": [0.0, 0.25],
             "leap": [0.0, 0.15, 0.25, 0.4, 0.6, 0.78, 0.86, 1.0],
             "jump_pin": [0.2, 0.45, 0.68, 0.76, 1.0],
             "high_jump": [0.2, 0.3, 0.55, 0.75, 0.95, 1.1],

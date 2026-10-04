@@ -50,7 +50,14 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
     @Override
     public ResourceLocation getTextureResource(FroggydudeEntity animatable) {
         int stage = Math.max(0, Math.min(3, animatable.getGoreStage()));
-        return resolve(animatable.getSkinVariant().id, stage);
+        ResourceLocation closed = resolve(animatable.getSkinVariant().id, stage);
+        if (animatable.isMouthOpen()) {
+            // boca escancarada (a skin de grito do NameMC): mesmo arquivo com "_open" no fim
+            ResourceLocation open = new ResourceLocation(closed.getNamespace(),
+                    closed.getPath().replace(".png", "_open.png"));
+            if (exists(open)) return open;
+        }
+        return closed;
     }
 
     @Override
@@ -61,21 +68,23 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
     @Override
     public void setCustomAnimations(FroggydudeEntity animatable, long instanceId,
                                     AnimationState<FroggydudeEntity> animationState) {
-        // a cabeça encara o alvo: soma o olhar à pose da animação
+        // a cabeça acompanha o olhar dele, mas SÓ quando está em pé. De quatro
+        // (ou curvado, montado, comendo) o tronco está deitado e a cabeça já
+        // aponta pro lugar certo na animação: somar o olhar ali fazia a cabeça
+        // tombar de lado e pra cima/baixo do nada (o bug dos "tiques").
         CoreGeoBone head = getAnimationProcessor().getBone("head");
         EntityModelData data = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
         FroggyState state = animatable.getFroggyState();
-        boolean posed = state == FroggyState.PIN_HOLD || state == FroggyState.SMASH
-                || state == FroggyState.ARM_RIP || state == FroggyState.ARM_EAT;
-        if (head != null && data != null && !animatable.getDebugAnim().startsWith("dbg_")
-                && state != FroggyState.CONTORTING) {
-            // em cima da vítima (ou comendo), a pose já aponta a cara pro lugar
-            // certo: somar o olhar de novo faria ele olhar pro chão (e a vítima
-            // só veria a coroa)
-            if (!posed) {
-                head.setRotX(head.getRotX() + data.headPitch() * Mth.DEG_TO_RAD);
+        if (head != null && data != null && animatable.getDebugAnim().isEmpty()) {
+            boolean upright = (state == FroggyState.IDLE || state == FroggyState.CHASE)
+                    && !animatable.isRunning() && !animatable.isClimbing() && !animatable.isFrenzyTired();
+            boolean aiming = state.isTongue() || state == FroggyState.BITE;
+            if (upright) {
+                head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -50F, 50F) * Mth.DEG_TO_RAD);
             }
-            head.setRotY(head.getRotY() + data.netHeadYaw() * Mth.DEG_TO_RAD);
+            if (upright || aiming) {
+                head.setRotX(head.getRotX() + Mth.clamp(data.headPitch(), -30F, 35F) * Mth.DEG_TO_RAD);
+            }
         }
 
         CoreGeoBone tongue = getAnimationProcessor().getBone("tongue");

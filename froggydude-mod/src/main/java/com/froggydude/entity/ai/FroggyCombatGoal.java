@@ -17,6 +17,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -81,7 +82,8 @@ public class FroggyCombatGoal extends Goal {
     // Em cima da vítima. Distâncias pro rosto/corpo dela, sem entrar na câmera.
     private static final double PIN_DISTANCE = 1.85D;
     private static final double SMASH_DISTANCE = 1.15D;
-    private static final double RIP_DISTANCE = 1.5D;
+    // (o braço: um pouco mais longe que antes - mordendo o ombro, a cabeça dele entrava na câmera)
+    private static final double RIP_DISTANCE = 1.8D;
 
     // Devorar: 5 s, uma mordida por segundo (bate com a animação pin_hold de 1 s).
     private static final int PIN_TICKS = 100;
@@ -89,14 +91,19 @@ public class FroggyCombatGoal extends Goal {
     private static final int PIN_BITE_EVERY = 20;
     private static final float PIN_BITE_DAMAGE = 1.5F;
 
-    // Esmagar: 4 socos, um por segundo (soco aos 0,5 s de cada volta da animação).
-    private static final int SMASH_FIRST = 10;
-    private static final int SMASH_EVERY = 20;
-    private static final int SMASH_HITS = 4;
-    private static final float SMASH_DAMAGE = 2.0F;
+    // Esmagar: 8 socos, dois por segundo (soco aos 0,25 s de cada volta de 0,5 s da
+    // animação; o primeiro conta os 3 ticks de transição da pose anterior). O
+    // dano total é o mesmo de antes (4 x 2), só que vem duas vezes mais rápido.
+    private static final int SMASH_FIRST = 8;
+    private static final int SMASH_EVERY = 10;
+    private static final int SMASH_HITS = 8;
+    private static final float SMASH_DAMAGE = 1.0F;
 
     // Arrancar o braço: agarra, arranca aos 22 ticks, solta a vítima aos 32.
     private static final int RIP_AT = 22;
+    /** Crava os dentes no ombro (animação arm_rip, 0,42 s) e sacode como cachorro até arrancar. */
+    private static final int RIP_BITE = 8;
+    private static final float FRENZY_DAMAGE = 1.6F;
     private static final int RIP_RELEASE = 32;
     // Comer o braço: mastiga a cada 15 ticks, engole aos 80, digere até 90.
     private static final int EAT_SWALLOW = 80;
@@ -307,8 +314,11 @@ public class FroggyCombatGoal extends Goal {
 
         List<FroggyState> valid = new ArrayList<>();
         FroggyState only = debugAttackKind();
+        // pendurado na parede: só dá pra morder (o resto precisa de chão)
+        boolean onWall = froggy.isClimbing() && !froggy.onGround();
         for (FroggyState s : ATTACKS) {
             if (only != null && s != only) continue;
+            if (onWall && s != FroggyState.BITE) continue;
             if (s.isTongue() && tongueCooldown > 0 && only == null) continue;
             if (froggy.isReady(s) && canHit(s, target, dist)) {
                 valid.add(s);
@@ -343,8 +353,11 @@ public class FroggyCombatGoal extends Goal {
     private boolean canPounce(LivingEntity target, int totalTicks, double maxReach) {
         if (!target.onGround()) return false;
         if (Math.abs(target.getY() - froggy.getY()) > 1.4D) return false;
-        double speed = Math.sqrt(targetVel.x * targetVel.x + targetVel.z * targetVel.z);
-        if (speed > 0.25D) return false;
+        // só desiste se a vítima estiver fugindo rápido; vindo NA DIREÇÃO dele, pode pular
+        Vec3 toTarget = target.position().subtract(froggy.position()).multiply(1, 0, 1);
+        double away = toTarget.lengthSqr() < 1.0E-4D ? 0
+                : (targetVel.x * toTarget.x + targetVel.z * toTarget.z) / toTarget.length();
+        if (away > 0.25D) return false;
         Vec3 aim = target.position().add(targetVel.x * totalTicks, 0, targetVel.z * totalTicks);
         double dx = aim.x - froggy.getX();
         double dz = aim.z - froggy.getZ();
@@ -366,6 +379,7 @@ public class FroggyCombatGoal extends Goal {
         froggy.faceTarget(target);
         froggy.getNavigation().stop();
         froggy.setFroggyState(s);
+        if (s.isTongue()) froggy.openMouth(s.durationTicks + 4);
         switch (s) {
             case TONGUE_WHIP, TONGUE_GRAB -> {
                 froggy.setTongueLength(tongueLength(target, 8.0D));
@@ -457,6 +471,15 @@ public class FroggyCombatGoal extends Goal {
             froggy.setNoFallTicks(60);
             froggy.hasImpulse = true;
             froggy.onLeapLaunch();
+        }
+        // a vítima veio correndo na direção dele: em vez de se cruzarem no ar
+        // (e "nada acontecer"), ele agarra no meio do salto ou assim que pousa
+        if (launched && t > LEAP_LAUNCH && (touching(target, 0.45D)
+                || (froggy.onGround() && t > LEAP_LAUNCH + 4 && froggy.distanceTo(target) <= 2.2D))) {
+            debug("salto pegou a vitima: t=" + t + " dist=" + froggy.distanceTo(target));
+            froggy.setDeltaMovement(0, Math.min(0, froggy.getDeltaMovement().y), 0);
+            pounceHit(FroggyState.JUMP_PIN, target);
+            return;
         }
         if (t >= FroggyState.LEAP.durationTicks) {
             endLeap();
@@ -554,49 +577,45 @@ public class FroggyCombatGoal extends Goal {
                     }
                 }
             }
-            case JUMP_PIN -> {
-                if (t < JUMP_PIN_LAUNCH) froggy.faceTarget(target);
-                if (!launched && t >= JUMP_PIN_LAUNCH) {
+            case JUMP_PIN, HIGH_JUMP -> {
+                boolean high = state == FroggyState.HIGH_JUMP;
+                int launchAt = high ? HIGH_JUMP_LAUNCH : JUMP_PIN_LAUNCH;
+                if (!launched && t < launchAt) {
+                    froggy.faceTarget(target);
+                    // a vítima veio correndo pra cima dele: nem pula, agarra e derruba na hora
+                    if (touching(target, 0.6D)) {
+                        debug("tackle antes do pulo: dist=" + dist);
+                        pounceHit(state, target);
+                        return;
+                    }
+                }
+                if (!launched && t >= launchAt) {
                     launched = true;
-                    if (!launch(target, JUMP_PIN_VY, JUMP_PIN_AIR, 2.5D, 7.5D)) {
-                        abort(state);
+                    boolean ok = high ? launch(target, HIGH_JUMP_VY, HIGH_JUMP_AIR, 3.5D, 10.0D)
+                            : launch(target, JUMP_PIN_VY, JUMP_PIN_AIR, 2.5D, 7.5D);
+                    if (!ok) {
+                        if (froggy.distanceTo(target) <= 3.0D && froggy.hasLineOfSight(target)) {
+                            // perto demais pra pular (vinha correndo na direção dele): se joga em cima
+                            debug("tackle no lugar do pulo: dist=" + froggy.distanceTo(target));
+                            pounceHit(state, target);
+                        } else {
+                            abort(state);
+                        }
                         return;
                     }
                 }
-                if (launched && !fired1 && landed(t, JUMP_PIN_LAUNCH, state)) {
-                    fired1 = true;
-                    debug("bote pousou: t=" + t + " dist=" + froggy.distanceTo(target) + " chao=" + froggy.onGround());
-                    if (froggy.distanceTo(target) <= 3.0D) {
-                        // acertou: derruba. Às vezes devora, às vezes esmaga.
-                        hurtNoKnockback(target, 5.0F);
-                        froggy.spawnBlood(target, 5);
-                        FroggyState dbg = froggy.getDebugAttack();
-                        boolean smash = dbg == FroggyState.SMASH
-                                || (dbg != FroggyState.PIN_HOLD && froggy.getRandom().nextBoolean());
-                        if (smash) beginSmash(state, target, 1.4F);
-                        else pinVictim(state, target, 1.2F);
-                        return;
-                    }
-                }
-            }
-            case HIGH_JUMP -> {
-                if (t < HIGH_JUMP_LAUNCH) froggy.faceTarget(target);
-                if (!launched && t >= HIGH_JUMP_LAUNCH) {
-                    launched = true;
-                    if (!launch(target, HIGH_JUMP_VY, HIGH_JUMP_AIR, 3.5D, 10.0D)) {
-                        abort(state);
-                        return;
-                    }
-                }
-                if (launched && !fired1 && landed(t, HIGH_JUMP_LAUNCH, state)) {
-                    fired1 = true;
-                    debug("salto alto pousou: t=" + t + " dist=" + froggy.distanceTo(target) + " chao=" + froggy.onGround());
-                    if (froggy.distanceTo(target) <= 3.4D) {
-                        // impacto forte: derruba e monta em cima pra devorar
-                        hurtNoKnockback(target, 7.0F);
-                        froggy.spawnBlood(target, 6);
-                        pinVictim(state, target, 1.6F);
-                        return;
+                if (launched && !fired1) {
+                    // no ar ele confere TODO tick se trombou na vítima (de frente ela passava por baixo)
+                    boolean contact = t > launchAt && touching(target, 0.45D);
+                    if (contact || landed(t, launchAt, state)) {
+                        fired1 = true;
+                        debug((contact ? "trombou no ar" : "pousou") + ": t=" + t + " dist="
+                                + froggy.distanceTo(target) + " chao=" + froggy.onGround());
+                        if (contact || froggy.distanceTo(target) <= (high ? 3.4D : 3.0D)) {
+                            froggy.setDeltaMovement(0, Math.min(0, froggy.getDeltaMovement().y), 0);
+                            pounceHit(state, target);
+                            return;
+                        }
                     }
                 }
             }
@@ -655,6 +674,31 @@ public class FroggyCombatGoal extends Goal {
         froggy.setNoFallTicks(80);
         froggy.hasImpulse = true;
         return true;
+    }
+
+    /** As caixas de colisão (com uma folga) se encostam. */
+    private boolean touching(LivingEntity target, double slack) {
+        return froggy.getBoundingBox().inflate(slack, 0.2D, slack).intersects(target.getBoundingBox());
+    }
+
+    /**
+     * O bote pegou: derruba. O bote baixo às vezes devora, às vezes esmaga; o
+     * salto alto bate mais forte e sempre monta em cima pra devorar.
+     */
+    private void pounceHit(FroggyState state, LivingEntity target) {
+        if (state == FroggyState.HIGH_JUMP) {
+            hurtNoKnockback(target, 7.0F);
+            froggy.spawnBlood(target, 6);
+            pinVictim(state, target, 1.6F);
+            return;
+        }
+        hurtNoKnockback(target, 5.0F);
+        froggy.spawnBlood(target, 5);
+        FroggyState dbg = froggy.getDebugAttack();
+        boolean smash = dbg == FroggyState.SMASH
+                || (dbg != FroggyState.PIN_HOLD && froggy.getRandom().nextBoolean());
+        if (smash) beginSmash(state, target, 1.4F);
+        else pinVictim(state, target, 1.2F);
     }
 
     private boolean landed(int t, int launchTick, FroggyState state) {
@@ -916,17 +960,41 @@ public class FroggyCombatGoal extends Goal {
                 return;
             }
             holdOver(victim, RIP_DISTANCE);
+            if (t == RIP_BITE) {
+                // crava os dentes no ombro
+                hurtNoKnockback(victim, 1.0F);
+                froggy.onBiteHit();
+                froggy.spawnBlood(victim, 8);
+                shake(victim, 0.9F, 8);
+            } else if (t > RIP_BITE && t < RIP_AT - 1 && (t - RIP_BITE) % 2 == 0) {
+                // sacode a cabeça rasgando a carne (a cada tranco espirra)
+                froggy.spawnBlood(victim, 3);
+                shake(victim, 0.5F, 4);
+                froggy.openMouth(4);
+            }
             return;
         }
         if (t == RIP_AT && victim != null) {
             froggy.faceTarget(victim);
+            Vec3 wound = victim instanceof Player pl ? ArmLoss.shoulder(pl)
+                    : victim.position().add(0, victim.getBbHeight() * 0.6D, 0);
             if (victim instanceof ServerPlayer p && ArmLoss.canLoseArm(p)) {
                 ArmLoss.removeArm(p);
                 froggy.setHeldArm(p);
             }
             hurtNoKnockback(victim, 4.0F);
             froggy.spawnBlood(victim, 20);
+            // jorra do ombro pra cima e pra cima DELE (e não na câmera de quem perdeu o braço)
+            Vec3 out = wound.subtract(victim.position()).multiply(1, 0, 1);
+            Vec3 dir = out.lengthSqr() < 1.0E-4D ? new Vec3(0, 1, 0) : out.normalize().add(0, 1.6D, 0);
+            froggy.bloodBurst(wound, dir, 60, 0.5F, 1.6F);
+            froggy.addGore(0.6F);
             shake(victim, 1.4F, 20);
+        }
+        if (t > RIP_AT && t <= RIP_AT + 12 && (t - RIP_AT) % 3 == 0) {
+            // o braço atravessado na boca, sacudindo: sangue voando pra todo lado
+            froggy.spawnMouthBlood(5);
+            froggy.openMouth(4);
         }
         if (t == RIP_RELEASE) {
             // larga a vítima: ela pode fugir enquanto ele come
@@ -954,7 +1022,11 @@ public class FroggyCombatGoal extends Goal {
 
         if (t < EAT_SWALLOW && t % 15 == 10) {
             froggy.onChew();
-            froggy.spawnMouthBlood(6);
+            froggy.spawnMouthBlood(7);
+        } else if (t < EAT_SWALLOW && t % 15 == 13) {
+            // arranca o pedaço com um tranco da cabeça
+            froggy.spawnMouthBlood(4);
+            froggy.openMouth(5);
         }
         if (t == EAT_SWALLOW) {
             froggy.finishEatingArm();
@@ -996,9 +1068,12 @@ public class FroggyCombatGoal extends Goal {
 
     // ---------------------------------------------------------------- efeitos
 
-    /** Ataques causam mais dano durante o frenesi. */
+    /**
+     * Fase 2 (ataque feroz): TODO ataque bate mais forte - língua, mordida,
+     * esmagamento, pulo, comer vivo e arrancar o braço.
+     */
     private float dmg(float base) {
-        return froggy.isFrenzyActive() ? base * 1.3F : base;
+        return froggy.isFrenzyActive() ? base * FRENZY_DAMAGE : base;
     }
 
     private void hurt(LivingEntity target, float base) {

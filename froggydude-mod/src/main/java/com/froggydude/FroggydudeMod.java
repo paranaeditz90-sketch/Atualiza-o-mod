@@ -1,6 +1,7 @@
 package com.froggydude;
 
 import com.froggydude.init.ModEntityTypes;
+import com.froggydude.init.ModParticles;
 import com.froggydude.init.ModSounds;
 import com.froggydude.network.ModNetwork;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -20,6 +21,7 @@ public class FroggydudeMod {
         IEventBus modBus = FMLJavaModLoadingContext.get().getModEventBus();
         ModEntityTypes.register(modBus);
         ModSounds.register(modBus);
+        ModParticles.register(modBus);
         modBus.addListener(this::commonSetup);
     }
 

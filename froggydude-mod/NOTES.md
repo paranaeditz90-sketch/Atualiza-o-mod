@@ -99,18 +99,22 @@ certo. Se mudar um, mude o outro.
 | SKY_DROP        | sky_drop          | até pousar| impulso 0,4 s, topo ~1,25 s, ~2,2 s  |
 | LEAP            | leap              | 1,2 s     | impulso 0,25 s, pouso ~0,85 s        |
 | PIN_HOLD        | pin_hold (1 s)    | 5 s       | mordida aos 0,5 s de cada segundo    |
-| SMASH           | smash (1 s)       | 4,5 s     | soco aos 0,5 s de cada segundo (4x)  |
-| ARM_RIP         | arm_rip           | 2,0 s     | arranca aos 1,1 s, solta aos 1,6 s   |
-| ARM_EAT         | arm_eat           | 4,5 s     | mastiga a cada 0,75 s, engole aos 4 s|
-| FEEDING         | feed (loop)       | 6,0 s     | -                                    |
-| CONTORTING      | contort           | 2,7 s     | grito no começo                      |
+| SMASH           | smash (0,5 s)     | 4,5 s     | soco aos 0,25 s de cada volta (8x)   |
+| ARM_RIP         | arm_rip           | 2,0 s     | crava os dentes 0,4 s, sacode, arranca aos 1,1 s, solta aos 1,6 s |
+| ARM_EAT         | arm_eat           | 4,5 s     | mordida + tranco a cada 0,75 s, engole aos 4 s |
+| FEEDING         | feed (1 s, loop)  | 6,0 s     | mergulha e morde 0,34 s, arranca 0,52 s |
+| CONTORTING      | contort + contort_hold | 1,2 s + 2 a 4 s | ossos estalando, curvado     |
+| ROAR            | roar              | 0,9 s     | grito aos 0,2 s, depois o ataque feroz |
 | perseguindo     | run / run_frenzy  | -         | pulinhos; velocidade = a real        |
+| parou caçando   | crouch_idle       | -         | fica agachado (só levanta após 1,5 s)|
+| escalando       | climb (loop)      | -         | parede/torre acima, igual aranha     |
 | cansado         | tired (loop)      | -         | -                                    |
 | parado / andando| idle / walk       | -         | -                                    |
 
-Andando/correndo é decidido no servidor pela velocidade real, com folga
-(liga rápido, desliga devagar), e vai sincronizado. Por isso a animação não
-pisca mais entre andar e correr.
+Em pé ou de quatro quem decide é a INTENÇÃO (no servidor, sincronizado): com
+uma vítima na mira ele anda sempre de quatro, rápido ou devagar; em pé só
+passeando sem alvo. Antes era pela velocidade, que no celular oscila, e ele
+ficava trocando de pose várias vezes por segundo.
 
 A língua é um osso separado ("tongue"), filho da cabeça, com controlador
 próprio: fica escondida (escala ~0) e as animações tongue_*_ext esticam
@@ -129,20 +133,26 @@ mantenha esses nomes (ou renomeie também nas animações).
 
 ## Animações
 
-Corrida (pulinhos), corrida da fase 2, salto de sapo, bote, salto alto,
-montado, esmagamento, pulo do céu, arrancar e comer o braço e a contorção são
+Corrida (pulinhos), corrida da fase 2 (galope de gorila, vs Grox 2:24),
+agachado parado, escalada, salto de sapo, bote, salto alto, montado,
+esmagamento, pulo do céu, arrancar e comer o braço (estilo "Eating a Zebra"),
+contorção (dobrar, curvado, rugido), língua (braços erguidos) e comer mob são
 geradas por `tools/anim/build_anims.py` (rode `python tools/anim/build_anims.py`).
 As poses foram copiadas quadro a quadro dos vídeos (Parallax, FULL MOVIE 15:38;
-vs AJTHEBOLD; "I'm the horror mod"). As outras (língua, morder, comer mob)
-continuam as antigas.
+vs AJTHEBOLD; vs Grox; "Eu sou o mod de terror"; "Eating a Zebra"). Ficam
+como eram só idle, walk, tired, bite e a língua esticando (tongue_*_ext).
 
 Convenções medidas no jogo (modelo de lado):
 - waist X+ inclina o tronco pra frente; head X+ olha pra baixo;
 - braço X- levanta pra frente; perna X+ vai pra trás;
 - root X+ tomba o corpo todo; root position Y- abaixa.
 
-Montado (PIN_HOLD), o modelo não soma o "olhar pro alvo" na cabeça: a pose
-já aponta a cara pro rosto de quem está embaixo.
+A cabeça só soma o "olhar pro alvo" quando ele está EM PÉ (parado ou
+andando), com limite de 50 graus pro lado e 30-35 pra cima/baixo; mirando a
+língua ou mordendo, só o pra cima/baixo. De quatro, curvado, montado ou
+comendo, a pose já aponta a cara pro lugar certo: somar o olhar ali fazia a
+cabeça tombar de lado e pra cima/baixo do nada (o bug dos "tiques" da 0.3.1).
+O RandomLookAroundGoal (olhar pros lados sem motivo) também saiu.
 
 ### Testar animação sem lutar (NBT de teste)
 - `{DebugAnim:"leap"}` toca uma animação em loop. Com o
@@ -181,6 +191,17 @@ Para trocar uma variante, rode da mais limpa para a mais suja:
 O script também pinta de rosa a região da língua (pixels 56..61 x 16..18),
 que é vazia nas skins normais. Sem isso a língua fica invisível.
 
+**Boca escancarada:** cada skin tem uma versão `_open.png` com o rosto de
+grito (a skin do NameMC dele, 01/10/2026; a de boca com sangue, 31/08; e a
+de boca preta, 09/08 pras carbonizadas/destroçadas). Ele abre a boca pra
+soltar a língua, gritar, morder, mastigar e falar, e fecha logo depois; na
+fase 2 fica com ela aberta o tempo todo. Pra refazer depois de trocar uma
+skin: `python tools/make_mouth_open.py`.
+
+**Sangue grudado:** cada mordida, braço e vítima devorada suja ele mais
+(até 3,5). A skin usa o pior entre isso e a vida perdida. Sai devagar com o
+tempo (~6 min por estágio) e rápido na água ou na chuva.
+
 ## Braço arrancado
 - A língua de captura puxa a vítima de volta; metade das vezes ele arranca o
   braço esquerdo em vez de morder. No "devorar", 1 em 3 vezes também.
@@ -192,6 +213,22 @@ que é vazia nas skins normais. Sem isso a língua fica invisível.
   copia quando o jogador morre; saindo do End a gente copia).
 - Cliente: o braço some do modelo e da armadura (camada de armadura trocada por
   reflexão), aparece um toco no ombro, e a 1ª pessoa não desenha o braço.
+
+## Sangue (partícula própria + poças)
+- `blood` (client/BloodParticle): pedaço de sangue que sai com a velocidade do
+  jato, cai com peso e fica um tempo no chão. Texturas em
+  `textures/particle/blood_*.png` (`tools/make_blood_textures.py`).
+- Poças (client/ClientBloodFx): mancha no chão que vai se espalhando; mais
+  sangue no mesmo lugar engrossa a poça (até 2,8 blocos). Somem em ~3 min.
+  Não aparecem na água. Quem perdeu o braço deixa rastro.
+- O servidor manda um pacote por jato/poça (entity/BloodFx, rede id 2).
+- Em quem está preso embaixo, o jato voa por cima do Froggy, não na câmera.
+
+## Escalada
+Navegação de aranha (WallClimberNavigation): encostou numa parede indo atrás
+de alguém, ele sobe de quatro (0,3 bloco/tick; 0,42 na fase 2), seja qual for
+a altura. Pendurado na parede só morde (fica grudado enquanto morde). Não
+toma dano de queda se soltar da parede.
 
 ## Câmera e jogador preso
 - Tremor: sacode em três eixos com ruído suave e some aos poucos. Quase
@@ -218,5 +255,5 @@ repositório é público) troca as falas pela voz original dele.
 Veja `../PLANO.md`: mundo `-dev`/config/comando (Parte 4), skins por evento,
 resto das animações, habilidades (parede, água, roubar arma com a língua),
 inteligência de verdade (hoje "matar x apavorar" é sorteio), terror e
-anti-trapaça. Um Froggy por mundo também ainda não é forçado. Spawn egg e loot table também não existem.
+anti-trapaça. (Escalar parede já existe.) Um Froggy por mundo também ainda não é forçado. Spawn egg e loot table também não existem.
 Os números de dano, alcance, duração e cooldown ainda são ponto de partida.
