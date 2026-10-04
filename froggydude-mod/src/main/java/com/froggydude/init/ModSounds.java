@@ -46,6 +46,8 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> SKY_LAND = register("froggydude.sky_land");
     /** Braço sendo arrancado. */
     public static final RegistryObject<SoundEvent> RIP = register("froggydude.rip");
+    /** Ossos estalando na contorção da fase 2 (vs Grox, 5:16: "hughghuguuhuh *crack*"). */
+    public static final RegistryObject<SoundEvent> CRACK = register("froggydude.crack");
     /** Mastigando o braço. */
     public static final RegistryObject<SoundEvent> CHEW = register("froggydude.chew");
 

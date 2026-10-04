@@ -715,7 +715,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             amount *= 1.5F; // mais vulnerável enquanto come
         }
         if (isFrenzyActive() && source.is(DamageTypeTags.IS_PROJECTILE)) {
-            amount *= 0.15F; // quase à prova de flecha durante o frenesi
+            // "nah bro's bulletproof now" (vs Grox, 5:30): flecha e bala não fazem nada na fase 2
+            this.playSound(SoundEvents.SHIELD_BLOCK, 0.8F, 0.6F);
+            return false;
         }
 
         boolean hurt = super.hurt(source, amount);

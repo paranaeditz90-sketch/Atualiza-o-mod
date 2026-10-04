@@ -37,7 +37,7 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Língua** fina em pirâmide (grossa na boca, ponta fina), como no vídeo, e bem mais rara (descanso de 8 a 13 s entre usos).
 - **Braço arrancado** (vs AJ, 2:18-2:23): a língua puxa de volta, ele monta, arranca o braço esquerdo, levanta com ele na boca, mastiga, engole e esfrega a barriga. Tu é solto na hora do arranco e pode fugir enquanto ele come.
 - **Sem braço:** braço some do modelo (e a manga da armadura), toco com osso no ombro, sem mão secundária (nem tecla F), 3 corações a menos, sangramento sem parar e sem estancar (tira vida devagar, até 3 corações), e o faro dele te acha a 64 blocos. O braço volta quando tu morre.
-- **Fase 2** (vídeo "I'm the horror mod" + manhunt dos blazes): contorção com a cabeça girando, grito, 30 s mais rápido que um jogador, gemendo de dor. Liga quando ele come blaze ou cai abaixo de 55% de vida.
+- **Fase 2** (vídeo "I'm the horror mod" + fim do manhunt contra o Grox, 5:10-5:30): contorção com a cabeça girando e os ossos estalando, grito, 30 s mais rápido que um jogador, gemendo de dor e à prova de bala/flecha. Liga quando ele come blaze ou cai abaixo de 55% de vida.
 
 ## 1. A arquitetura (o contrato)
 

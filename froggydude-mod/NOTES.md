@@ -17,7 +17,8 @@ O que testar agora:
 5) Língua de captura: às vezes puxa, arranca teu braço esquerdo e come na tua frente.
 6) Sem braço: sem mão secundária, sem F, sangrando sem parar, toco no ombro (F5).
    Morrendo, o braço volta.
-7) Fase 2: abaixo de 55% de vida ele se contorce, grita e corre 30 s mais rápido que tu.
+7) Fase 2: abaixo de 55% de vida (ou comendo blaze) ele se contorce com os
+   ossos estalando, grita e corre 30 s mais rápido que tu, imune a flecha e bala.
 
 ## O que tem no pacote
 Código (src/main/java/com/froggydude):
@@ -44,7 +45,7 @@ Recursos (src/main/resources/assets/froggydude):
 - geo/froggydude.geo.json - modelo no formato de jogador (skin 64x64)
 - animations/froggydude.animation.json - animações (corrida, salto, bote e
   montado são geradas por tools/anim/build_anims.py, veja abaixo)
-- sounds.json - 17 sons, com sons de reserva do Minecraft (a voz original
+- sounds.json - 18 sons, com sons de reserva do Minecraft (a voz original
   vem no pacote de recursos FroggyDude-Voz.zip, que não fica no GitHub)
 - textures/entity/arm_stump.png - toco do braço arrancado
 - textures/entity/froggydude_<variante>_0..3.png - skins reais do FroggyDude
@@ -205,11 +206,11 @@ que é vazia nas skins normais. Sem isso a língua fica invisível.
   fora e o "preso" acabava antes da hora).
 
 ## Sons
-17 eventos em `sounds.json`: ambient (ribbit), hunt (quando te acha),
+18 eventos em `sounds.json`: ambient (ribbit), hunt (quando te acha),
 hurt, love_pain ("I love pain"), death, scream (contorção da fase 2), pain
 (gemidos na fase 2, "freaking spicy"), bite, eat, chew (mastigando o braço),
 tongue (estalo), taste, leap, pin (montado), smash (soco), sky_land (baque do
-pulo do céu) e rip (braço arrancado). O mod usa sons do Minecraft como
+pulo do céu), rip (braço arrancado) e crack (ossos estalando na contorção). O mod usa sons do Minecraft como
 reserva. O pacote de recursos `FroggyDude-Voz.zip` (fora do GitHub, porque o
 repositório é público) troca as falas pela voz original dele.
 

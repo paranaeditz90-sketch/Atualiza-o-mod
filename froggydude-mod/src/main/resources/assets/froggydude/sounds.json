@@ -422,5 +422,26 @@
         "volume": 1.0
       }
     ]
+  },
+  "froggydude.crack": {
+    "subtitle": "subtitles.froggydude.crack",
+    "sounds": [
+      {
+        "name": "minecraft:block.bone_block.break",
+        "type": "event",
+        "pitch": 0.6
+      },
+      {
+        "name": "minecraft:block.bone_block.break",
+        "type": "event",
+        "pitch": 0.8
+      },
+      {
+        "name": "minecraft:entity.skeleton.hurt",
+        "type": "event",
+        "pitch": 0.5,
+        "volume": 0.7
+      }
+    ]
   }
 }
