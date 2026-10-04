@@ -30,12 +30,12 @@ import java.util.EnumSet;
  */
 public class FroggyFrenzyGoal extends Goal {
 
-    /** Ticks do chicote do tronco (animação "contort", 1,0 s). */
+    /** Ticks da contorção (animação "contort", 2,2 s: encara, dobra, levanta, trava torto). */
     private static final int BEND_TICKS = FroggyState.CONTORTING.durationTicks;
-    /** O grito sai quando a cabeça dele vai pro céu (animação "roar", 0,24 s). */
-    private static final int ROAR_SCREAM_AT = 4;
-    /** Estalos do chicote (batem com os trancos da animação: 0,07 s, 0,33 s e 0,75 s). */
-    private static final int[] BEND_CRACKS = {1, 6, 15};
+    /** O grito sai quando a cabeça joga pra trás (animação "roar", 0,1 s). */
+    private static final int ROAR_SCREAM_AT = 2;
+    /** Estalos (batem com a animação: começa a dobrar 0,55 s, dobrado 0,7 s, tranco 1,15 s, trava 2,2 s). */
+    private static final int[] BEND_CRACKS = {11, 14, 23, 43};
 
     private final FroggydudeEntity froggy;
     private int contortTicks;
@@ -79,7 +79,8 @@ public class FroggyFrenzyGoal extends Goal {
         froggy.stopStalking();
         froggy.setFroggyState(FroggyState.CONTORTING);
         froggy.getNavigation().stop();
-        // dobra (1,2 s) e fica curvado de 2 a 4 s
+        // contorção (2,2 s) e fica torto, com o braço na cabeça, de 2 a 4 s (no short ele
+        // fica um tempão assim antes de disparar)
         contortTicks = BEND_TICKS + 40 + froggy.getRandom().nextInt(41);
         nextCrack = BEND_TICKS + 6;
         froggy.vocalize(ModSounds.PAIN.get(), 2.5F); // geme antes de tudo

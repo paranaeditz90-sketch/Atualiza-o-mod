@@ -56,6 +56,15 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Ataque feroz de 4:** depois do grito ele cai de quatro e vem no galope, mais esticado e muito mais rápido que o normal, igual no vídeo (a corrida em pé saiu).
 - **Poeira e barulho no galope:** cada patada levanta uma nuvem de poeira com a cor do chão e faz barulho de galope.
 
+**Parte 3, ajustes (v0.3.4) ✅** - investigar, achar a causa, reproduzir no jogo e só então mexer:
+- **Cabeça virando pro nada e atacando pro lado:** a navegação guardava o alvo velho da escalada e ele ficava rodeando a vítima; o corpo agora segue exatamente pra onde o servidor vira ele (na hora, sincronizado) e o pescoço não torce mais que ~25°.
+- **Não foge mais:** quando tu avança pra cima dele, ele avança junto e te derruba (bote/trombada). Antes, no modo "só olhando", ele recuava e voltava, e a língua saía pro lado errado na tela (mesmo acertando).
+- **Escalada:** com a vítima lá em cima, ele sobe sempre (não precisa mais ficar no meio da torre).
+- **Galope de 4 da "RACING A CHEETAH":** 0,25 s por passada, empina-estica-pousa-chuta-reúne, ~10 blocos/s caçando e ~15 na fase 2.
+- **Fase 2 refeita quadro a quadro** (short "Throwing hands with AJTHEBOLD" + "I'm the horror mod"): dobra num estalo com o topo da cabeça pra frente, balança, sobe rápido, fica torto com o ombro deslocado pra cima, o tronco pra trás, uma perna na frente e a cabeça quebrada pra trás olhando pra cima de lado; depois grita e corre EM PÉ, desesperado, todo torto, com o braço se debatendo.
+- **Braço arrancado igual à zebra:** sacode o braço na boca rápido (2,5x por segundo) depois de arrancar e a cada mordida, com jorro de cubinhos vermelhos (saiu a névoa/pó vermelho).
+- **Sangue não tampa mais a tela** de quem está preso embaixo dele.
+
 ## 1. A arquitetura (o contrato)
 
 ```
@@ -300,4 +309,6 @@ verdade (gravando a tela), te mando o `.jar` e o vídeo, tu testa no Zalith.
 
 - **Braço:** volta quando tu morre (a). Sangramento contínuo, sem estancar, com animação dele comendo o braço (feito na Parte 3).
 
-**Ainda em aberto ❓:** nada por enquanto. A próxima é a Parte 4 (mundo `-dev`, config e comando).
+**Ainda em aberto ❓:**
+- **A proposta é Manhunt, não "terror"** (correção do LM): os vídeos mostram uma caçada, corrida contra o tempo antes de matar, tipo o Speedrun do Dream. Vamos conversar sobre isso em breve e isso pode mudar a IA (Parte 8) e o diretor de tensão (5.5).
+- Depois disso, a Parte 4 (mundo `-dev`, config e comando).

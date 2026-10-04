@@ -1,4 +1,4 @@
-# Froggydude - Parte 3: combate completo
+# Froggydude - Parte 3: combate completo (v0.3.4)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -9,16 +9,17 @@ está em `../PLANO.md`.
   (matar x apavorar), esmagamento, pulo do céu, devorar mais longo, língua em
   pirâmide e mais rara, braço arrancado e comido, sangramento, fase 2.
 
-O que testar agora:
-1) Ele está do tamanho de um jogador (um tiquinho maior)?
-2) Às vezes ele não ataca: vem devagar, para longe e fica encarando. Depois ataca.
-3) Pulo do céu: some lá em cima e cai em cima de ti, emendando os socos.
-4) Esmagamento: tu no chão, ele em pé descendo os punhos (4 socos).
-5) Língua de captura: às vezes puxa, arranca teu braço esquerdo e come na tua frente.
-6) Sem braço: sem mão secundária, sem F, sangrando sem parar, toco no ombro (F5).
-   Morrendo, o braço volta.
-7) Fase 2: abaixo de 55% de vida (ou comendo blaze) ele se contorce com os
-   ossos estalando, grita e corre 30 s mais rápido que tu, imune a flecha e bala.
+O que testar agora (v0.3.4):
+1) Anda pra cima dele: ele NÃO recua - avança junto e te derruba (bote ou trombada).
+2) Ele te encara de frente nos ataques; a língua sai na tua direção (não pro lado).
+3) Sobe numa torre de terra e fica na beirada: ele escala atrás (não precisa ficar no meio).
+4) Galope de 4 rápido (0,25 s por passada, ~10 blocos/s caçando).
+5) Fase 2: estala, dobra com o topo da cabeça pra frente, balança, sobe rápido, trava
+   torto (ombro direito pra cima, tronco pra trás, perna esquerda na frente, cabeça
+   quebrada pra trás olhando pra cima de lado); aí grita e corre em pé, todo torto.
+6) Braço arrancado: depois do tranco ele SACODE teu braço na boca (rápido) e a cada
+   mordida sacode de novo, jorrando cubinhos vermelhos (sem névoa/pó).
+7) Preso embaixo dele, o sangue não tampa tua tela.
 
 ## O que tem no pacote
 Código (src/main/java/com/froggydude):
@@ -217,9 +218,11 @@ tempo (~6 min por estágio) e rápido na água ou na chuva.
   reflexão), aparece um toco no ombro, e a 1ª pessoa não desenha o braço.
 
 ## Sangue (partícula própria + poças)
-- `blood` (client/BloodParticle): pedaço de sangue que sai com a velocidade do
-  jato, cai com peso e fica um tempo no chão. Texturas em
-  `textures/particle/blood_*.png` (`tools/make_blood_textures.py`).
+- `blood` (client/BloodParticle): cubinho de sangue sólido, vermelho vivo, de
+  tamanhos variados (igual ao "Eating a Zebra"), que sai com a velocidade do
+  jato, cai com peso e fica um tempo no chão. Não tem névoa nem pó vermelho.
+  Texturas em `textures/particle/blood_*.png` (`tools/make_blood_textures.py`).
+  Some se passar colado na câmera (não tampa a tela de quem está preso).
 - Poças (client/ClientBloodFx): mancha no chão que vai se espalhando; mais
   sangue no mesmo lugar engrossa a poça (até 2,8 blocos). Somem em ~3 min.
   Não aparecem na água. Quem perdeu o braço deixa rastro.

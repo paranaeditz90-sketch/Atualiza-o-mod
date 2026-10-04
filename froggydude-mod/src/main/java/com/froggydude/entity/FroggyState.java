@@ -16,11 +16,12 @@ public enum FroggyState {
     BITE(12),
     FEEDING(120),
     /**
-     * Fase 2, etapa 1 (vs AJTHEBOLD 7:26): os ossos estalam e o tronco chicoteia
-     * pros lados; depois fica encurvado com a cabeça tombada. A duração de verdade
-     * (1 s de chicote + 2 a 4 s encurvado) quem decide é a FroggyFrenzyGoal.
+     * Fase 2, etapa 1 (short "Throwing hands with AJTHEBOLD"): encara, os ossos
+     * estalam, ele dobra até o chão com a cabeça pendurada, levanta e trava torto
+     * com o braço na cabeça. Os 44 ticks são a animação "contort" (2,2 s); o tempo
+     * torto depois disso quem decide é a FroggyFrenzyGoal.
      */
-    CONTORTING(20),
+    CONTORTING(44),
     /** Salto de sapo na perseguição: agacha, voa rente ao chão, cai nas mãos. */
     LEAP(24),
     /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */
@@ -33,8 +34,8 @@ public enum FroggyState {
     ARM_RIP(40),
     /** Come o braço arrancado: mastiga, engole e digere. Distraído e vulnerável. */
     ARM_EAT(90),
-    /** Fase 2, etapa 2: levanta num estalo e grita; daí parte pro ataque feroz. */
-    ROAR(18);
+    /** Fase 2, etapa 2: a cabeça joga pra trás num estalo, grita e já dispara correndo. */
+    ROAR(10);
 
     public final int durationTicks;
 

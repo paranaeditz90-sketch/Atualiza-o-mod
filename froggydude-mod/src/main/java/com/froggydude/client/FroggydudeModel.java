@@ -80,7 +80,8 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
                     && !animatable.isRunning() && !animatable.isClimbing() && !animatable.isFrenzyTired();
             boolean aiming = state.isTongue() || state == FroggyState.BITE;
             if (upright) {
-                head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -50F, 50F) * Mth.DEG_TO_RAD);
+                // o corpo inteiro vira atrás do olhar (FroggyBodyControl): o pescoço só ajusta o resto
+                head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -25F, 25F) * Mth.DEG_TO_RAD);
             }
             if (upright || aiming) {
                 head.setRotX(head.getRotX() + Mth.clamp(data.headPitch(), -30F, 35F) * Mth.DEG_TO_RAD);

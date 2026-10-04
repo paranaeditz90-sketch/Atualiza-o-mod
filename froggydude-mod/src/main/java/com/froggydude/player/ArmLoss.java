@@ -1,11 +1,9 @@
 package com.froggydude.player;
 
+
 import com.froggydude.entity.BloodFx;
 import com.froggydude.init.ModSounds;
 import com.froggydude.network.ModNetwork;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.DustParticleOptions;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -17,9 +15,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3f;
 
 import java.util.UUID;
 
@@ -43,10 +39,6 @@ public final class ArmLoss {
     /** Esguicho mais forte a cada "batida do coração". */
     private static final int SPURT_EVERY = 24;
 
-    private static final DustParticleOptions BLOOD =
-            new DustParticleOptions(new Vector3f(0.55F, 0.02F, 0.02F), 1.1F);
-    private static final BlockParticleOption DROP =
-            new BlockParticleOption(ParticleTypes.BLOCK, Blocks.REDSTONE_BLOCK.defaultBlockState());
 
     private ArmLoss() {
     }
@@ -70,11 +62,10 @@ public final class ArmLoss {
 
         if (player.level() instanceof ServerLevel server) {
             Vec3 at = shoulder(player);
-            // pouca névoa parada (ela fica bem na frente da câmera de quem perdeu o braço);
-            // o grosso do sangue é o jato que voa pra longe
-            server.sendParticles(BLOOD, at.x, at.y, at.z, 14, 0.3D, 0.25D, 0.3D, 0.0D);
-            server.sendParticles(DROP, at.x, at.y, at.z, 8, 0.2D, 0.2D, 0.2D, 0.25D);
-            BloodFx.spray(server, at, side(player).add(0, 0.8D, 0), 45, 0.42F);
+            // só pedaços (cubinhos vermelhos, como no "Eating a Zebra"), nada de névoa/pó:
+            // o jato voa pra longe da câmera de quem perdeu o braço
+            BloodFx.spray(server, at, side(player).add(0, 0.8D, 0), 55, 0.42F);
+            BloodFx.spray(server, at, new Vec3(0, -1, 0), 12, 0.08F);
             BloodFx.pool(server, player.position(), 1.2F);
             server.playSound(null, player.getX(), player.getY(), player.getZ(),
                     ModSounds.RIP.get(), SoundSource.HOSTILE, 1.6F, 0.9F);
@@ -115,19 +106,14 @@ public final class ArmLoss {
         Vec3 at = shoulder(player);
         int t = player.tickCount;
 
-        if (t % 2 == 0) {
-            server.sendParticles(BLOOD, at.x, at.y, at.z, 2, 0.06D, 0.06D, 0.06D, 0.0D);
-        }
-        if (t % 5 == 0) {
-            // gotas que caem e espirram no chão
-            server.sendParticles(DROP, at.x, at.y - 0.1D, at.z, 1, 0.04D, 0.0D, 0.04D, 0.02D);
+        if (t % 4 == 0) {
+            // gotas que escorrem do ombro e caem no chão
+            BloodFx.spray(server, at.add(0, -0.1D, 0), new Vec3(0, -1, 0), 1, 0.04F);
         }
         if (t % SPURT_EVERY == 0) {
             // esguicho pra fora do ombro, no ritmo do coração
             Vec3 out = side(player).scale(0.25D);
-            server.sendParticles(BLOOD, at.x + out.x, at.y, at.z + out.z, 8, 0.12D, 0.1D, 0.12D, 0.0D);
-            server.sendParticles(DROP, at.x, at.y, at.z, 3, 0.05D, 0.05D, 0.05D, 0.18D);
-            BloodFx.spray(server, at.add(out), side(player).add(0, 0.4D, 0), 8, 0.2F);
+            BloodFx.spray(server, at.add(out), side(player).add(0, 0.4D, 0), 10, 0.2F);
         }
         if (t % 30 == 0 && player.onGround()) {
             // rastro: cada parada vira uma poça que vai engrossando

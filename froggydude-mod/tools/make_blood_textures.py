@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gera as texturas do sangue e da poeira (pixel art, sempre igual - semente fixa).
 
-    textures/particle/blood_0..3.png      pedaços (cinza: o jogo pinta de vermelho)
+    textures/particle/blood_0..3.png      cubinhos sólidos (branco: o jogo pinta de vermelho)
     textures/misc/blood_pool.png          a poça no chão (32x32, vista de cima)
     textures/particle/dust_puff_0..2.png  nuvem de poeira do galope (cinza: o jogo
                                           pinta com a cor do chão)
@@ -19,25 +19,17 @@ TEX = os.path.join(HERE, "..", "src", "main", "resources", "assets", "froggydude
 
 
 def chunks():
+    """Cubinhos sólidos (v0.3.4: igual ao "Eating a Zebra" - quadrados cheios de
+    vermelho vivo, nada de mancha/pó): miolo claro e borda um pouco mais escura,
+    de tamanhos diferentes dentro do quadro de 8x8 (o jogo pinta de vermelho)."""
     os.makedirs(os.path.join(TEX, "particle"), exist_ok=True)
-    rnd = random.Random(7)
-    masks = [
-        ["..####..", ".######.", "########", "########", "########", "########", ".######.", "..####.."],
-        ["........", "..###...", ".#####..", ".######.", "..#####.", "...###..", "........", "........"],
-        ["...##...", "..####..", ".######.", "#######.", ".#####..", "..###...", "...#....", "........"],
-        ["........", "........", "..##....", ".####...", ".#####..", "..###...", "........", "........"],
-    ]
-    for i, mask in enumerate(masks):
+    for i, (off, size) in enumerate(((0, 8), (1, 6), (1, 7), (2, 4))):
         img = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
-        for y, row in enumerate(mask):
-            for x, c in enumerate(row):
-                if c == "#":
-                    v = rnd.randint(170, 255)
-                    if y <= 2 and rnd.random() < 0.35:
-                        v = 255                      # brilho em cima
-                    elif y >= 5 and rnd.random() < 0.5:
-                        v = rnd.randint(120, 170)    # mais escuro embaixo
-                    img.putpixel((x, y), (v, v, v, 255))
+        for y in range(off, off + size):
+            for x in range(off, off + size):
+                edge = x in (off, off + size - 1) or y in (off, off + size - 1)
+                v = 200 if edge else 255
+                img.putpixel((x, y), (v, v, v, 255))
         img.save(os.path.join(TEX, "particle", f"blood_{i}.png"))
 
 

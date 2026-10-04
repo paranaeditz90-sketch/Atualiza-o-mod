@@ -13,7 +13,6 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
@@ -28,7 +27,6 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,8 +44,6 @@ public class ClientBloodFx {
 
     private static final ResourceLocation POOL_TEXTURE =
             new ResourceLocation(ModEntityTypes.MOD_ID, "textures/misc/blood_pool.png");
-    private static final DustParticleOptions MIST =
-            new DustParticleOptions(new Vector3f(0.5F, 0.02F, 0.02F), 1.6F);
 
     private static final int MAX_POOLS = 160;
     private static final int POOL_LIFE = 3600;    // 3 minutos
@@ -95,10 +91,14 @@ public class ClientBloodFx {
                     dy * speed + r.nextGaussian() * spread + 0.04D,
                     dz * speed + r.nextGaussian() * spread);
         }
-        for (int i = 0; i < count / 3; i++) {
-            level.addParticle(MIST, x + r.nextGaussian() * 0.15D, y + r.nextGaussian() * 0.12D,
-                    z + r.nextGaussian() * 0.15D, 0, 0, 0);
-        }
+    }
+
+    /** O ponto está colado na câmera de quem joga? (v0.3.4: sangue tampando a tela) */
+    public static boolean nearCamera(double x, double y, double z, double radius) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.gameRenderer == null || !mc.gameRenderer.getMainCamera().isInitialized()) return false;
+        Vec3 cam = mc.gameRenderer.getMainCamera().getPosition();
+        return cam.distanceToSqr(x, y, z) < radius * radius;
     }
 
     public static void pool(double x, double y, double z, float size) {

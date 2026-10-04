@@ -48,6 +48,9 @@ minecraft {
         server {
             property 'forge.enabledGameTestNamespaces', mod_id
             args '--nogui'
+            if (project.hasProperty('froggyDebug')) {
+                property 'froggydude.debug', 'true'
+            }
         }
     }
 }

@@ -27,3 +27,6 @@ forge*changelog.txt
 
 # poses de teste geradas localmente
 src/main/resources/assets/froggydude/animations/froggydude_debug.animation.json
+
+# python (tools/anim)
+__pycache__/

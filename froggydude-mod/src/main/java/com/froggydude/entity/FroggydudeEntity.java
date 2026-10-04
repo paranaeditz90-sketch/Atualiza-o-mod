@@ -7,7 +7,6 @@ import com.froggydude.init.ModParticles;
 import com.froggydude.init.ModSounds;
 import com.froggydude.player.ArmLoss;
 import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -31,7 +30,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
-import net.minecraft.world.entity.ai.navigation.WallClimberNavigation;
+import net.minecraft.world.entity.ai.control.BodyRotationControl;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.level.block.SoundType;
@@ -50,7 +49,6 @@ import software.bernie.geckolib.core.animation.RawAnimation;
 import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
-import org.joml.Vector3f;
 
 import javax.annotation.Nullable;
 import java.util.EnumMap;
@@ -83,7 +81,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Float> DATA_TONGUE_LEN =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
-    /** Correndo de quatro (decidido no servidor, com folga, pra animação não ficar piscando). */
+    /**
+     * Caçando (tem vítima ou está na fase 2): fica de quatro, andando OU parado.
+     * Decidido no servidor, com folga, pra animação não ficar piscando.
+     */
     private static final EntityDataAccessor<Boolean> DATA_RUNNING =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
     /** Andando (mesma ideia, pra não alternar parado/andando a cada tick). */
@@ -101,12 +102,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Boca escancarada (skin de grito): língua, grito, mordida, mastigando. */
     private static final EntityDataAccessor<Boolean> DATA_MOUTH_OPEN =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /**
+     * Pra onde o servidor virou ele no ataque (faceTarget). O cliente põe o corpo
+     * aí na hora - a rotação normal só chega de 3 em 3 ticks e ainda é suavizada,
+     * e a língua saía pra onde ele estava olhando antes (pro lado/pra trás) mesmo
+     * acertando. NaN = andando/parado (o corpo segue o movimento).
+     */
+    private static final EntityDataAccessor<Float> DATA_FACE_YAW =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
 
-    private static final DustParticleOptions BLOOD_DUST =
-            new DustParticleOptions(new Vector3f(0.55F, 0.02F, 0.02F), 1.4F);
 
-    /** Fase 2: mais rápido que um jogador correndo (0,28 x 1,57 = 0,44, uns 7,8 m/s). */
-    private static final double FRENZY_SPEED_BONUS = 0.57D;
+    /**
+     * Fase 2: a corrida desesperada do short (atravessa ~15 blocos em menos de 1 s):
+     * 0,28 x 2,1 = 0,59 -> 0,75 bloco/tick (15 blocos/s, medido no servidor), quase
+     * 3 vezes um jogador correndo.
+     */
+    private static final double FRENZY_SPEED_BONUS = 1.1D;
     public static final int FRENZY_TICKS = 600; // 30 segundos
 
     private static final UUID FRENZY_SPEED_ID = UUID.fromString("6f3a2e6a-6b9e-4e9a-8f9a-6b6a1a2f9e11");
@@ -145,6 +156,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private boolean debugStalk = false;
     /** Teste: NBT "DebugPhase2In" (ticks) - entra na fase 2 depois desse tempo (pra filmar do começo). */
     private int debugPhase2In = 0;
+    /** Teste: NBT "DebugNoLeap" - persegue só galopando, sem os saltos de sapo (pra filmar o galope). */
+    private boolean debugNoLeap = false;
     /** "Apavorar" em vez de "matar": segue de longe, encara, não ataca (ticks restantes). */
     private int stalkTicks = 0;
     /** Comeu blaze: entra na fase 2 assim que der. */
@@ -164,7 +177,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private boolean hindStride = false;
     private int clientStateAge = 0;
     private int lastClientState = -1;
-    private int clientStillTicks = 0;
 
     public FroggydudeEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
@@ -195,6 +207,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_DEBUG_ANIM, "");
         this.entityData.define(DATA_HELD_ARM, Optional.empty());
         this.entityData.define(DATA_MOUTH_OPEN, false);
+        this.entityData.define(DATA_FACE_YAW, Float.NaN);
         this.entityData.define(DATA_CLIMBING, false);
     }
 
@@ -265,7 +278,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (target instanceof Player && old != target && !this.level().isClientSide) {
             vocalize(ModSounds.HUNT.get(), 2.0F);
             // metade das vezes ele não ataca de cara: segue de longe e encara
-            if (debugStalk || (debugAttack == null && this.getLastHurtByMob() != target && this.getRandom().nextBoolean())) {
+            // (com a vítima lá em cima de uma torre ele não fica olhando: sobe)
+            boolean up = target.getY() - this.getY() > 2.5D;
+            if (debugStalk || (!up && debugAttack == null && this.getLastHurtByMob() != target && this.getRandom().nextBoolean())) {
                 startStalking(160 + this.getRandom().nextInt(140));
             }
         }
@@ -278,7 +293,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     @Override
     protected PathNavigation createNavigation(Level level) {
-        return new WallClimberNavigation(this, level);
+        return new FroggyNavigation(this, level);
+    }
+
+    /** O corpo aponta pra onde ele vai/olha de verdade (ver FroggyBodyControl). */
+    @Override
+    protected BodyRotationControl createBodyControl() {
+        return new FroggyBodyControl(this);
     }
 
     @Override
@@ -325,6 +346,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void setFroggyState(FroggyState state) {
         this.entityData.set(DATA_STATE, (byte) state.ordinal());
         this.stateTicks = 0;
+        if (state == FroggyState.IDLE || state == FroggyState.CHASE) {
+            this.entityData.set(DATA_FACE_YAW, Float.NaN);
+        }
+    }
+
+    /** Yaw do ataque em andamento (NaN se não está atacando). Ver DATA_FACE_YAW. */
+    public float getFaceYaw() {
+        return this.entityData.get(DATA_FACE_YAW);
     }
 
     /** Ticks desde que o estado atual começou (só é confiável no servidor). */
@@ -348,6 +377,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Nullable
     public FroggyState getDebugAttack() {
         return debugAttack;
+    }
+
+    public boolean isDebugNoLeap() {
+        return debugNoLeap;
     }
 
     public String getDebugAnim() {
@@ -399,12 +432,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             return this.getEyePosition(partialTick);
         }
         if (state == FroggyState.PIN_HOLD || state == FroggyState.ARM_RIP) {
-            // agachado em cima: a cara fica baixa e à frente
-            return pos.add(fx * 0.87D, 0.78D, fz * 0.87D);
+            // agachado em cima: a cara fica baixa e à frente (centro da cabeça na pose
+            // PIN_POSE, medido com tools/anim/check_poses.py)
+            return pos.add(fx * 0.86D, 0.94D, fz * 0.86D);
         }
         if (state == FroggyState.SMASH) {
-            // em pé por cima: um ponto fixo no peito/rosto, pra câmera não pular a cada soco
-            return pos.add(fx * 0.15D, 1.45D, fz * 0.15D);
+            // em pé na frente: um ponto fixo entre o peito e o rosto, pra câmera não
+            // pular a cada soco (a cabeça vai de 1,8 de altura até ~1,0 no impacto)
+            return pos.add(fx * 0.45D, 1.35D, fz * 0.45D);
         }
         return this.getEyePosition(partialTick);
     }
@@ -644,6 +679,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.yBodyRotO = yaw;
         this.yHeadRot = yaw;
         this.yHeadRotO = yaw;
+        if (!this.level().isClientSide) this.entityData.set(DATA_FACE_YAW, yaw);
     }
 
     // ---------------- tick ----------------
@@ -729,20 +765,37 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         double dz = this.getZ() - this.zo;
         double v = Math.sqrt(dx * dx + dz * dz);
         clientGroundSpeed += (v - clientGroundSpeed) * 0.35D;
-        clientStillTicks = isMovingSynced() ? 0 : clientStillTicks + 1;
         if (Boolean.getBoolean("froggydude.debug") && this.tickCount % 10 == 0) {
             System.out.println("[FROGGYDEBUG] cliente: estado=" + getFroggyState() + " idade=" + clientStateAge
                     + " vel=" + String.format("%.3f", clientGroundSpeed) + " anim=" + String.format("%.2f", mainAnimSpeed())
                     + " correndo=" + isRunning() + " pos=" + String.format("%.1f %.1f %.1f", getX(), getY(), getZ()));
+        }
+        if (Boolean.getBoolean("froggydude.debug") && (this.tickCount % 5 == 0 || clientStateAge == 1)) {
+            Player p = this.level().getNearestPlayer(this, 64.0D);
+            String rel = "";
+            if (p != null) {
+                double ddx = p.getX() - getX(), ddz = p.getZ() - getZ();
+                float toP = (float) (Mth.atan2(ddz, ddx) * Mth.RAD_TO_DEG) - 90F;
+                rel = String.format(" paraJogador=%.0f corpoErro=%.0f cabecaErro=%.0f dist=%.2f",
+                        Mth.wrapDegrees(toP), Mth.wrapDegrees(this.yBodyRot - toP), Mth.wrapDegrees(this.yHeadRot - toP),
+                        Math.sqrt(ddx * ddx + ddz * ddz));
+            }
+            System.out.println("[FROGGYDEBUG] giro: estado=" + getFroggyState() + " idade=" + clientStateAge
+                    + String.format(" yRot=%.0f corpo=%.0f cabeca=%.0f", Mth.wrapDegrees(getYRot()),
+                    Mth.wrapDegrees(this.yBodyRot), Mth.wrapDegrees(this.yHeadRot))
+                    + rel + " chao=" + this.onGround() + " subindo=" + isClimbing()
+                    + String.format(" y=%.2f", getY()));
         }
 
         // galope: cada patada levanta uma nuvem de poeira e faz barulho
         // (vs AJ, 0:34 e 7:45 - a poeira fica pra trás dele)
         if (isRunning() && isMovingSynced() && this.onGround() && !isClimbing()
                 && getFroggyState() == FroggyState.CHASE) {
+            // duas patadas por passada: galope = 5 ticks por passada, corrida da fase 2 = 6
+            double step = isFrenzyActive() ? 3.0D : 2.5D;
             hopClock += mainAnimSpeed();
-            if (hopClock >= 5.0D) {
-                hopClock -= 5.0D;
+            if (hopClock >= step) {
+                hopClock -= step;
                 hindStride = !hindStride;
                 strideEffects(hindStride);
             }
@@ -804,7 +857,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             return 1.0D;
         }
         if (isRunning()) {
-            return Mth.clamp(clientGroundSpeed * 6.25D, 0.6D, 2.6D);
+            // galope (0,25 s por passada) e corrida da fase 2 (0,3 s por ciclo) na velocidade 1.
+            // A cadência quase não muda com a velocidade (cachorro/guepardo galopando: o que
+            // cresce é o tamanho da passada) - assim a passada fica longa como na referência
+            if (isFrenzyActive()) return Mth.clamp(0.45D + clientGroundSpeed * 0.75D, 0.5D, 1.3D);
+            return Mth.clamp(0.35D + clientGroundSpeed * 1.1D, 0.45D, 1.25D);
         }
         return Mth.clamp(clientGroundSpeed * 12.5D, 0.5D, 1.6D);
     }
@@ -828,7 +885,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         else if (runningHold > 0) runningHold--;
 
         boolean moving = movingHold > 0;
-        boolean running = runningHold > 0 && moving;
+        // a intenção vale parado também: antes "correndo" exigia estar andando, então
+        // bastava ele parar meio segundo (esperando o próximo bote) que levantava em pé
+        boolean running = runningHold > 0;
         if (moving != this.entityData.get(DATA_MOVING)) this.entityData.set(DATA_MOVING, moving);
         if (running != this.entityData.get(DATA_RUNNING)) this.entityData.set(DATA_RUNNING, running);
     }
@@ -905,6 +964,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugArmless) tag.putBoolean("DebugArmless", true);
         if (debugStalk) tag.putBoolean("DebugStalk", true);
         if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
+        if (debugNoLeap) tag.putBoolean("DebugNoLeap", true);
     }
 
     @Override
@@ -922,6 +982,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.debugArmless = tag.getBoolean("DebugArmless");
         this.debugStalk = tag.getBoolean("DebugStalk");
         this.debugPhase2In = tag.getInt("DebugPhase2In");
+        this.debugNoLeap = tag.getBoolean("DebugNoLeap");
         this.debugAttack = null;
         for (FroggyState st : FroggyState.values()) {
             if (st.name().equals(tag.getString("DebugAttack"))) this.debugAttack = st;
@@ -955,6 +1016,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation ANIM_RUN_FRENZY = RawAnimation.begin().thenLoop("run_frenzy");
+    private static final RawAnimation ANIM_FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
     private static final RawAnimation ANIM_TIRED = RawAnimation.begin().thenLoop("tired");
     private static final RawAnimation ANIM_CLIMB = RawAnimation.begin().thenLoop("climb");
     private static final RawAnimation ANIM_CROUCH_IDLE = RawAnimation.begin().thenLoop("crouch_idle");
@@ -1057,9 +1119,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             if (!isRunning()) return state.setAndContinue(ANIM_WALK);
             return state.setAndContinue(isFrenzyActive() ? ANIM_RUN_FRENZY : ANIM_RUN);
         }
-        if (isRunning() && clientStillTicks < 30) {
-            // parou um instante no meio da caçada: fica agachado, não levanta
-            return state.setAndContinue(ANIM_CROUCH_IDLE);
+        if (isRunning()) {
+            // parado no meio da caçada: continua de quatro, respirando (não levanta);
+            // na fase 2, em pé curvado, ofegando
+            return state.setAndContinue(isFrenzyActive() ? ANIM_FRENZY_IDLE : ANIM_CROUCH_IDLE);
         }
         return state.setAndContinue(ANIM_IDLE);
     }
@@ -1095,14 +1158,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      * quem apanhou, senão tampa a visão.
      */
     public void spawnBlood(LivingEntity target, int amount) {
-        if (this.level() instanceof ServerLevel server) {
+        if (this.level() instanceof ServerLevel) {
             Vec3 from = target.position().add(0, target.getBbHeight() * 0.5D, 0);
             Vec3 to = this.position().add(0, this.getBbHeight() * 0.45D, 0);
             // jogador: o sangue sai mais perto do Froggy e voa por cima dele, pra
             // não tampar a câmera de quem está preso embaixo
             boolean player = target instanceof Player;
             Vec3 at = from.add(to.subtract(from).scale(player ? 0.8D : 0.55D));
-            server.sendParticles(BLOOD_DUST, at.x, at.y, at.z, amount, 0.2D, 0.2D, 0.2D, 0.0D);
             if (player) {
                 Vec3 over = to.subtract(from).multiply(1, 0, 1);
                 BloodFx.spray(this.level(), at, over.normalize().add(0, 1.4D, 0), amount * 2, 0.16F + amount * 0.012F);
@@ -1119,9 +1181,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Explosão de sangue (braço arrancado, vítima devorada): jato forte e poça grande. */
     public void bloodBurst(Vec3 at, Vec3 dir, int count, float power, float poolSize) {
         BloodFx.spray(this.level(), at, dir, count, power);
-        if (this.level() instanceof ServerLevel server) {
-            server.sendParticles(BLOOD_DUST, at.x, at.y, at.z, count / 2, 0.3D, 0.3D, 0.3D, 0.0D);
-        }
+        BloodFx.spray(this.level(), at, new Vec3(0, -1, 0), count / 4, 0.1F);
         BloodFx.pool(this.level(), at, poolSize);
     }
 
@@ -1134,16 +1194,17 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         updateGoreStage();
     }
 
-    /** Sangue saindo da boca enquanto mastiga. */
+    /**
+     * Sangue saindo da boca enquanto sacode/mastiga ("Eating a Zebra"): um jorro de
+     * cubinhos vermelhos que espirra pra frente e despenca do queixo até o chão.
+     */
     public void spawnMouthBlood(int amount) {
-        if (this.level() instanceof ServerLevel server) {
+        if (this.level() instanceof ServerLevel) {
             float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
             Vec3 fwd = new Vec3(-Mth.sin(yaw), 0, Mth.cos(yaw));
             Vec3 at = this.position().add(fwd.scale(0.35D)).add(0, this.getBbHeight() * 0.8D, 0);
-            server.sendParticles(BLOOD_DUST, at.x, at.y, at.z, amount, 0.12D, 0.1D, 0.12D, 0.0D);
-            // espirra pra frente e escorre pelo queixo (como a zebra)
             BloodFx.spray(this.level(), at, fwd.add(0, 0.5D, 0), amount * 2, 0.2F);
-            BloodFx.spray(this.level(), at, new Vec3(0, -1, 0), amount, 0.06F);
+            BloodFx.spray(this.level(), at, new Vec3(0, -1, 0), amount * 2, 0.06F);
             BloodFx.pool(this.level(), this.position().add(fwd.scale(0.45D)), 0.3F + amount * 0.03F);
             addGore(amount * 0.02F);
         }
