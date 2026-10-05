@@ -24,6 +24,8 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> AMBIENT = register("froggydude.ambient");
     /** Quando ele te acha ("I'm hungry", "you can't run, you can't hide"). */
     public static final RegistryObject<SoundEvent> HUNT = register("froggydude.hunt");
+    /** Farejando o rastro (FroggyTrackGoal). */
+    public static final RegistryObject<SoundEvent> SNIFF = register("froggydude.sniff");
     /** Apanhou: grunhido curto. */
     public static final RegistryObject<SoundEvent> HURT = register("froggydude.hurt");
     /** De vez em quando, no lugar do grunhido: "I love pain". */

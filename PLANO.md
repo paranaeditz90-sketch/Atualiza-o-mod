@@ -82,6 +82,14 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Anti-trapaça:** vale com manhunt OU quando ele está te caçando (fugir dele pro criativo é trapaça). Sem aviso: ele vira pra ti e reage FALANDO, com o áudio original ("What... the hell?! That's cheating! You can't do that!") e a invasão segue o vídeo segundo a segundo: escurece, a janela estoura (o vidro do vídeo), a casa e a ligação pro 911 com o jogador desesperado, e no "AHHH!" ele te derruba. Áudio só pra quem trapaceou. Nada de texto no chat.
 - **Inteligência:** caminho até 80 blocos e 4x mais rotas testadas; abre porta; lembra onde se machucou (lava, fogo, explosão, cacto, neve fofa, flecha de dispensador) e desvia por ~1 hora; corta caminho pra onde tu vai estar (intercepta) e, se a estratégia é cercar, vem por trás. Trancou-se em casa: derruba a parede/porta/janela a tiros de língua ("How strong is my tongue?": vidro e terra num tiro, tábua em dois) e come o telhado se tu estiver embaixo. No speedrun: come o portal do Nether quando tu está longe e come os aldeões perto de ti (sem troca).
 
+**Faro e varredura (v0.3.7) ✅** - pedido do LM depois da v0.3.6:
+- **Rastro de cheiro:** cada jogador deixa marcas por onde passa (dura 1 min; agachado ou na chuva, metade; dentro d'água não fica nada). Parado, a pessoa continua soltando cheiro.
+- **Faro:** sem ver ninguém, ele sente o rastro a até 24 blocos (40 se for a presa que acabou de sumir) e vai atrás, de quatro, farejando. De longe o cheiro só dá a direção; perto, segue o rastro exato.
+- **Perdeu de vista** (dobrou a esquina, entrou em casa): em 8 s larga o alvo e passa pro faro; quando acha de novo, ri ("achei").
+- **Varredura:** onde o rastro termina (água, pérola, casa fechada) ele para, fareja, olha em volta e berra "you can run, but you can't hide"; a até 14 blocos sente de onde vem o cheiro (erro diminui com a distância); a 5 blocos sabe exatamente, mesmo atrás da parede.
+- **Arrombar:** derruba parede/telhado a tiros de língua; porta, alçapão e portão até de ferro (5 tiros); sem parede que quebre, vai até a porta e arromba. Nada fica como item (a porta não volta pro jogador).
+- **Barriga cheia:** depois de matar alguém, 45 s sem caçar essa pessoa (antes ele farejava quem renascia e matava de novo).
+
 ## 1. A arquitetura (o contrato)
 
 ```
@@ -307,7 +315,7 @@ Tu pediu animação e som primeiro, e fez sentido: era o que mais destoava dos v
 | 5 | **Skins em camadas** + regras evento → skin (comer suja a frente, lava carboniza, água lava) | |
 | 6 | **Resto das animações** (parede, nadar, espiar janela, bater na porta, giro de cabeça, estalo de costas, lavar sangue) | |
 | 7 | **Habilidades:** subir parede, nadar e arrastar pra água, comer pra curar, ressuscitar, roubar item com a língua | |
-| 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | 🟡 memória por jogador + decisão que aprende (v0.3.5); caminho, perigo, interceptar, derrubar parede e sabotar (v0.3.6); falta faro, rotina, diretor |
+| 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | 🟡 memória por jogador + decisão que aprende (v0.3.5); caminho, perigo, interceptar, derrubar parede e sabotar (v0.3.6); faro, varredura e arrombar (v0.3.7); falta rotina e diretor |
 | 9 | **Terror + anti-trapaça + invasão** | 🟡 anti-trapaça e invasão do 911 (v0.3.5), com a reação e o áudio originais (v0.3.6) |
 | 10 | Extras: FroggyDoom, filhotes, Ultimate Froggy, como ele aparece no mundo | |
 

@@ -9,6 +9,7 @@ import com.froggydude.entity.ai.FroggyCombatGoal;
 import com.froggydude.entity.ai.FroggyFeedGoal;
 import com.froggydude.entity.ai.FroggyFrenzyGoal;
 import com.froggydude.entity.ai.FroggySabotageGoal;
+import com.froggydude.entity.ai.FroggyTrackGoal;
 import com.froggydude.entity.voice.VoiceLine;
 import com.froggydude.entity.voice.VoiceSituation;
 import com.froggydude.init.ModEntityTypes;
@@ -172,6 +173,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Quem ele caçava e quando perdeu de vista (pra rir quando acha de novo). */
     @Nullable
     private UUID lastPreyId;
+    /** Quem ele matou há pouco (até quando fica de barriga cheia dessa pessoa). */
+    private final java.util.Map<UUID, Integer> fedOn = new java.util.HashMap<>();
+    private static final int FED_TICKS = 900;
+    /** Farejando um rastro (FroggyTrackGoal): anda de quatro, como caçando. */
+    private boolean tracking;
+    /** Há quanto tempo o alvo está fora de vista (ver serverAiStep). */
+    private int unseenTicks;
     private int preyLostAt = Integer.MIN_VALUE / 2;
     /** Altura onde começou a subir a parede (NaN = não está subindo). */
     private double climbStartY = Double.NaN;
@@ -272,6 +280,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // 2: cérebro de combate - só ataca quando tem certeza que acerta
         this.combatGoal = new FroggyCombatGoal(this);
         this.goalSelector.addGoal(2, combatGoal);
+        // 2: faro - sem ver ninguém, segue o rastro de cheiro e, no fim dele, varre
+        // em volta até achar quem se escondeu (mesma prioridade do combate: um
+        // precisa de alvo, o outro só roda sem alvo)
+        this.goalSelector.addGoal(2, new FroggyTrackGoal(this));
         // abre porta de madeira (quem não trancou a porta... - vs "how many days", 7:18)
         this.goalSelector.addGoal(1, new OpenDoorGoal(this, false));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
@@ -282,7 +294,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         // faro: quem está sem braço sangra e ele sente o cheiro de longe, mesmo sem ver
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, false, false,
-                e -> e instanceof Player p && ArmLoss.isArmless(p)) {
+                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p)) {
             {
                 this.targetConditions = this.targetConditions.ignoreLineOfSight();
             }
@@ -292,7 +304,20 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return 64.0D;
             }
         });
-        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, true));
+        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
+                e -> !isFedOn(e)) {
+            @Override
+            public boolean canContinueToUse() {
+                // o padrão esquece quem ficou 3 s sem ser visto - no meio do arrombamento
+                // (comendo o telhado, a parede na frente) ele largava a vítima. Arrombando
+                // ou colado nela, ele sabe onde está; longe e sem ver, quem cuida é o faro.
+                LivingEntity t = this.mob.getTarget();
+                if (t != null && t.isAlive() && (combatGoal.isBreaking() || this.mob.distanceTo(t) < 6.0F)) {
+                    return true;
+                }
+                return super.canContinueToUse();
+            }
+        });
     }
 
     @Override
@@ -334,6 +359,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (this.level().isClientSide) return;
         if (engagement != null && killed.getUUID().equals(engagement.player)) endEngagement(FroggyBrain.Outcome.KILLED);
         if (killed instanceof Player) {
+            // barriga cheia: 45 s sem caçar quem ele acabou de matar (antes ele
+            // farejava quem renascia e matava de novo, sem parar)
+            fedOn.put(killed.getUUID(), this.tickCount + FED_TICKS);
             speak(VoiceSituation.ATE, true);
             if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
         }
@@ -859,6 +887,26 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         openMouth(Math.min(line.ticks, 40));
     }
 
+    /** Matou essa pessoa há menos de 45 s? (não caça ela de novo ainda) */
+    public boolean isFedOn(Entity e) {
+        Integer until = fedOn.get(e.getUUID());
+        if (until == null) return false;
+        if (this.tickCount < until) return true;
+        fedOn.remove(e.getUUID());
+        return false;
+    }
+
+    /** O faro está seguindo um rastro (anda de quatro). */
+    public void setTracking(boolean tracking) {
+        this.tracking = tracking;
+    }
+
+    /** A presa que sumiu há menos de 1 minuto (o faro procura ela primeiro). */
+    @Nullable
+    public UUID getRecentlyLostPrey() {
+        return lastPreyId != null && this.tickCount - preyLostAt < 1200 ? lastPreyId : null;
+    }
+
     /** Fica calado por um tempo (as falas nem entram na fila). */
     public void mute(int ticks) {
         muteTicks = Math.max(muteTicks, ticks);
@@ -1106,6 +1154,23 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             Player look = holdLookAt == null ? null : this.level().getPlayerByUUID(holdLookAt);
             if (look != null) faceTarget(look);
         }
+        // Sumiu de vista (escondeu, dobrou a esquina) por 8 s: ele larga o alvo e
+        // passa a usar o FARO (FroggyTrackGoal) - antes, alvo posto sem ser por
+        // um TargetGoal (faro, mordida) ele seguia pra sempre sabendo onde estava.
+        // No manhunt ele está sempre no teu rastro (Manhunt.keepOnTrail).
+        if (this.getTarget() instanceof Player tp && !isHolding() && !getFroggyState().isOnVictim()
+                && !combatGoal.isBreaking() && this.level() instanceof ServerLevel sl
+                && !FroggyWorldData.get(sl).manhuntActive) {
+            if (this.getSensing().hasLineOfSight(tp) || this.distanceTo(tp) < 6.0F) {
+                unseenTicks = 0;
+            } else if (++unseenTicks > 160) {
+                unseenTicks = 0;
+                brainLog("perdi " + tp.getScoreboardName() + " de vista: no faro agora");
+                this.setTarget(null);
+            }
+        } else {
+            unseenTicks = 0;
+        }
         if (engagement != null && engagement.lostAt >= 0 && this.tickCount - engagement.lostAt > 1200) {
             endEngagement(FroggyBrain.Outcome.ESCAPED); // sumiu por 1 minuto: escapou
         }
@@ -1315,7 +1380,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         double dx = this.getX() - this.xo;
         double dz = this.getZ() - this.zo;
         double speed = Math.sqrt(dx * dx + dz * dz);
-        boolean chasing = this.getTarget() != null || isFrenzyActive();
+        boolean chasing = this.getTarget() != null || isFrenzyActive() || tracking;
 
         if (speed > 0.02D) movingHold = 8;
         else if (movingHold > 0) movingHold--;

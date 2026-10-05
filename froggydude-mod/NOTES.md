@@ -1,4 +1,4 @@
-# Froggydude - Parte 4: manhunt, cérebro e anti-trapaça (v0.3.6)
+# Froggydude - Parte 4: manhunt, cérebro e anti-trapaça (v0.3.7)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -11,7 +11,18 @@ está em `../PLANO.md`.
   e já um pedaço das Partes 8 e 9: o cérebro que aprende e o anti-trapaça
   com a invasão do 911.
 
-O que testar agora (v0.3.6):
+O que testar agora (v0.3.7) - o faro:
+1) Esconde-te numa casa fechada sem ele te ver (até ~24 blocos dele): ele
+   fareja o teu rastro, chega de quatro, fareja em volta e arromba.
+2) Foge, dobra a esquina e te esconde: em 8 s ele larga o alvo e segue o
+   cheiro; achou, ri. Entrando na água o rastro some: ele varre em volta de
+   onde o rastro acabou e berra "you can run, but you can't hide".
+3) Porta de ferro: ele arromba (5 tiros de língua). A porta não cai como item.
+4) Morreu pra ele: 45 s de barriga cheia antes de te caçar de novo.
+5) Num mundo `-dev`, o chat conta tudo ("farejando o rastro", "varredura",
+   "o cheiro vem dali", "achei pelo cheiro").
+
+Da v0.3.6:
 1) A cabeça não gira mais sozinha (andando, parado, caçando).
 2) Língua: meio coração. Esmagamento: 24 socos com "tai!" em cada um, mais
    fraco por soco e mais longo (6,6 s).
@@ -61,6 +72,8 @@ Código (src/main/java/com/froggydude):
 - brain/DangerMemory.java - onde ele se machucou (salvo no mundo, esquece em ~1 h)
 - world/Sabotage.java e entity/ai/FroggySabotageGoal.java - o portal do Nether
   que ele vai comer no speedrun
+- brain/Scent.java - o rastro de cheiro de cada jogador (só na memória)
+- entity/ai/FroggyTrackGoal.java - o faro: segue o rastro e faz a varredura
 - command/FroggyCommand.java - `/froggydude`
 - config/FroggyConfig.java - `config/froggydude-common.toml`
 - init/ - registro da entidade, atributos e sons
@@ -69,7 +82,7 @@ Recursos (src/main/resources/assets/froggydude):
 - geo/froggydude.geo.json - modelo no formato de jogador (skin 64x64)
 - animations/froggydude.animation.json - animações (corrida, salto, bote e
   montado são geradas por tools/anim/build_anims.py, veja abaixo)
-- sounds.json - 23 sons de categoria (com o "tai", a contorção, o vidro e a
+- sounds.json - 24 sons de categoria (com o "tai", a contorção, o farejar, o vidro e a
   ligação pro 911 da invasão) + 39 falas (froggydude.voice.*), com sons
   de reserva do Minecraft (a voz original vem no pacote de recursos
   FroggyDude-Voz.zip, que não fica no GitHub)

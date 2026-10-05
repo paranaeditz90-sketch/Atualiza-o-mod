@@ -53,6 +53,13 @@ public class FroggyServerEvents {
         if (event.phase != TickEvent.Phase.END) return;
         Manhunt.tick(event.getServer());
         Invasion.tickAll(event.getServer());
+        long now = event.getServer().overworld().getGameTime();
+        if (now % 10 == 0) {
+            // o rastro de cheiro de cada um (o faro do FroggyDude)
+            for (net.minecraft.server.level.ServerPlayer p : event.getServer().getPlayerList().getPlayers()) {
+                com.froggydude.brain.Scent.record(p, p.serverLevel().getGameTime());
+            }
+        }
     }
 
     /** Obsidiana posta por um jogador: ele "sabe" que vem portal (ver Sabotage). */
@@ -69,6 +76,7 @@ public class FroggyServerEvents {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         Sabotage.clear();
+        com.froggydude.brain.Scent.clear();
     }
 
     @SubscribeEvent

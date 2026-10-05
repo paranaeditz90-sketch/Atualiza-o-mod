@@ -860,5 +860,22 @@
       }
     ],
     "subtitle": "subtitles.froggydude.contort"
+  },
+  "froggydude.sniff": {
+    "sounds": [
+      {
+        "name": "minecraft:entity.sniffer.sniffing",
+        "type": "event",
+        "pitch": 1.15,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:entity.fox.sniff",
+        "type": "event",
+        "pitch": 0.55,
+        "volume": 1.0
+      }
+    ],
+    "subtitle": "subtitles.froggydude.sniff"
   }
 }

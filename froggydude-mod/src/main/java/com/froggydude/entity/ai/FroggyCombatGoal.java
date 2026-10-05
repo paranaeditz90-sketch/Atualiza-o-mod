@@ -78,7 +78,7 @@ public class FroggyCombatGoal extends Goal {
      * (v0.3.4) e, com o salto de sapo no meio, parecia "um sapo pulando, bem lento".
      * Ajustável no config (caca_blocos_por_segundo); 15 b/s dá 2,11.
      */
-    private static double huntSpeed() {
+    static double huntSpeed() {
         double perTick = FroggyConfig.get(FroggyConfig.CACA_BLOCOS_POR_SEGUNDO) / 20.0D;
         return Math.sqrt(perTick / 2.15D) / 0.28D;
     }
@@ -314,7 +314,7 @@ public class FroggyCombatGoal extends Goal {
             froggy.getNavigation().stop();
         }
         // preso do lado de fora (a vítima se trancou em casa / num buraco): come a passagem
-        if (stuckFor(target, dist) >= STUCK_TICKS && startEatObstacle(target)) return;
+        if (stuckFor(target, dist) >= STUCK_TICKS && (startEatObstacle(target) || approachDoor(target))) return;
         if (froggy.tickCount % 10 == 0) {
             net.minecraft.world.level.pathfinder.Path path = froggy.getNavigation().getPath();
             debug("persegue: dist=" + String.format("%.2f", dist) + " dy=" + String.format("%.2f", target.getY() - froggy.getY())
@@ -424,6 +424,8 @@ public class FroggyCombatGoal extends Goal {
                 }
             }
         }
+        // parede que ele não quebra (pedra dura, obsidiana): arromba a porta, se der pra mirar nela
+        if (pick == null) pick = doorInReach(level, target);
         if (pick == null) return false;
         eating = pick;
         eatProgress = 0;
@@ -443,6 +445,84 @@ public class FroggyCombatGoal extends Goal {
                     + " (" + shotsTotal + (shotsTotal == 1 ? " tiro)" : " tiros)"));
         }
         return true;
+    }
+
+    /** Porta/alçapão/portão da toca da vítima que dá pra acertar com a língua daqui. */
+    @javax.annotation.Nullable
+    private BlockPos doorInReach(Level level, LivingEntity target) {
+        BlockPos at = froggy.blockPosition();
+        Vec3 mouth = froggy.position().add(0, froggy.getBbHeight() * 0.88D, 0);
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (BlockPos pos : BlockPos.betweenClosed(at.offset(-6, -2, -6), at.offset(6, 3, 6))) {
+            if (!isDoorLike(level, pos) || !edible(level, pos)) continue;
+            if (pos.distSqr(target.blockPosition()) > 8 * 8) continue; // é da toca dela
+            Vec3 c = Vec3.atCenterOf(pos);
+            double d = c.distanceTo(mouth);
+            if (d > TONGUE_BREAK_RANGE || d >= bestD) continue;
+            var hit = level.clip(new net.minecraft.world.level.ClipContext(mouth, c,
+                    net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, froggy));
+            if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK && hit.getBlockPos().equals(pos)) {
+                best = pos.immutable();
+                bestD = d;
+            }
+        }
+        return best;
+    }
+
+    /** Trancada sem parede que ele quebre: vai pra frente da porta (o próximo tique arromba). */
+    private boolean approachDoor(LivingEntity target) {
+        if (froggy.tickCount % 20 != 0) return doorWalk != null;
+        Level level = froggy.level();
+        BlockPos t = target.blockPosition();
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (BlockPos pos : BlockPos.betweenClosed(t.offset(-8, -3, -8), t.offset(8, 3, 8))) {
+            if (!isDoorLike(level, pos) || !edible(level, pos)) continue;
+            double d = pos.distSqr(froggy.blockPosition());
+            if (d < bestD) {
+                bestD = d;
+                best = pos.immutable();
+            }
+        }
+        boolean changed = best != null && !best.equals(doorWalk);
+        doorWalk = best;
+        if (best == null) return false;
+        // um ponto 2 blocos pra fora da porta, do lado oposto ao da vítima
+        Vec3 door = Vec3.atBottomCenterOf(best);
+        Vec3 out = door.subtract(target.position()).multiply(1, 0, 1);
+        out = out.lengthSqr() < 1.0E-4D ? new Vec3(1, 0, 0) : out.normalize();
+        Vec3 spot = door.add(out.scale(2.0D));
+        froggy.getNavigation().moveTo(spot.x, door.y, spot.z, huntSpeed());
+        if (changed) froggy.brainLog("trancada sem parede que quebre: indo arrombar a porta em " + best.toShortString());
+        return true;
+    }
+
+    @javax.annotation.Nullable
+    private BlockPos doorWalk;
+
+    /**
+     * Quebra sem deixar item. Porta tem duas metades: quebrando uma, o jogo
+     * derrubava a outra como item (a vítima ganhava a porta de volta).
+     */
+    private void destroyNoDrops(Level level, BlockPos pos) {
+        var st = level.getBlockState(pos);
+        if (st.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
+            BlockPos other = st.getValue(net.minecraft.world.level.block.DoorBlock.HALF)
+                    == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? pos.above() : pos.below();
+            if (level.getBlockState(other).is(st.getBlock())) {
+                level.setBlock(other, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(),
+                        net.minecraft.world.level.block.Block.UPDATE_ALL | net.minecraft.world.level.block.Block.UPDATE_SUPPRESS_DROPS);
+            }
+        }
+        level.destroyBlock(pos, false, froggy);
+    }
+
+    private static boolean isDoorLike(Level level, BlockPos pos) {
+        var block = level.getBlockState(pos).getBlock();
+        return block instanceof net.minecraft.world.level.block.DoorBlock
+                || block instanceof net.minecraft.world.level.block.TrapDoorBlock
+                || block instanceof net.minecraft.world.level.block.FenceGateBlock;
     }
 
     /** Até onde ele derruba parede com a língua (o chicote alcança 8). */
@@ -498,7 +578,7 @@ public class FroggyCombatGoal extends Goal {
             if (shotsLeft <= 0) {
                 level.destroyBlockProgress(froggy.getId(), pos, -1);
                 if (net.minecraftforge.event.ForgeEventFactory.onEntityDestroyBlock(froggy, pos, st)) {
-                    level.destroyBlock(pos, false, froggy); // estourou: não sobra nada
+                    destroyNoDrops(level, pos); // estourou: não sobra nada
                 }
             } else {
                 level.destroyBlockProgress(froggy.getId(), pos, Math.min(9, (shotsTotal - shotsLeft) * 10 / shotsTotal));
@@ -523,7 +603,15 @@ public class FroggyCombatGoal extends Goal {
         var state = level.getBlockState(pos);
         if (state.isAir() || state.getCollisionShape(level, pos).isEmpty()) return false;
         float hardness = state.getDestroySpeed(level, pos);
-        return hardness >= 0.0F && hardness <= 3.0F && !state.hasBlockEntity();
+        if (hardness < 0.0F || state.hasBlockEntity()) return false;
+        // porta, alçapão e portão ele arromba até de ferro (5 tiros de língua)
+        var block = state.getBlock();
+        if (block instanceof net.minecraft.world.level.block.DoorBlock
+                || block instanceof net.minecraft.world.level.block.TrapDoorBlock
+                || block instanceof net.minecraft.world.level.block.FenceGateBlock) {
+            return hardness <= 5.0F;
+        }
+        return hardness <= 3.0F;
     }
 
     private void runEatObstacle(LivingEntity target) {
@@ -548,7 +636,7 @@ public class FroggyCombatGoal extends Goal {
         if (eatProgress % 7 == 0) froggy.onChew();
         if (eatProgress >= eatNeeded) {
             if (net.minecraftforge.event.ForgeEventFactory.onEntityDestroyBlock(froggy, pos, level.getBlockState(pos))) {
-                level.destroyBlock(pos, false, froggy); // comeu: não sobra nada
+                destroyNoDrops(level, pos); // comeu: não sobra nada
             }
             stopEating();
             repathTicks = 0;
@@ -565,6 +653,11 @@ public class FroggyCombatGoal extends Goal {
         if (shooting) froggy.setTongueLength(0F);
         shooting = false;
         shotGap = 0;
+    }
+
+    /** Derrubando algo que tapa o caminho (não larga o alvo por não ver: ele está ali atrás). */
+    public boolean isBreaking() {
+        return eating != null;
     }
 
     /** Invasão (anti-trapaça): derruba na hora, sem bote. */

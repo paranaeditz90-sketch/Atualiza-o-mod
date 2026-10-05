@@ -32,6 +32,8 @@ public enum VoiceSituation {
     CHASE(0, GET_BACK_HERE, CANT_RUN_CANT_HIDE, BECOME_FOOD, NEVER_LOSE_PREY),
     CAUGHT_UP(0, YOU_THINK_ESCAPE),
     FOUND(0, LAUGH),
+    /** O rastro acabou e ele varre em volta: sabe que tu está ali perto. */
+    SEARCH(0, CANT_RUN_CANT_HIDE, YOU_THINK_ESCAPE, NEVER_LOSE_PREY),
     TONGUE_HIT(0, LIKE_THE_WAY_YOU_TASTE),
     TONGUE_DODGED(0, SCARED_OF_MY_TONGUE),
     PAIN(0, LOVE_PAIN_1, LOVE_PAIN_2, LOVE_PAIN_3, LOVE_PAIN_4),
@@ -60,7 +62,7 @@ public enum VoiceSituation {
     /** Caçando ele berra de longe (ouve-se a ~32 blocos); em cima da vítima fala de perto. */
     public float volume() {
         return switch (this) {
-            case SPOT, CHASE, CAUGHT_UP, FOUND -> 2.0F;
+            case SPOT, CHASE, CAUGHT_UP, FOUND, SEARCH -> 2.0F;
             case DEATH -> 1.6F;
             case CHEATING -> 1.0F;
             default -> 1.4F;
