@@ -1,4 +1,4 @@
-# Froggydude - Parte 4: manhunt, cérebro e anti-trapaça (v0.3.5)
+# Froggydude - Parte 4: manhunt, cérebro e anti-trapaça (v0.3.6)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -11,22 +11,22 @@ está em `../PLANO.md`.
   e já um pedaço das Partes 8 e 9: o cérebro que aprende e o anti-trapaça
   com a invasão do 911.
 
-O que testar agora (v0.3.5):
-1) Galope a ~15 blocos/s (o do original), sem o salto de sapo no meio da
-   perseguição; fase 2 ainda mais rápida (~19 b/s).
-2) Sangue: os cubinhos caem pesado e saem em bem mais quantidade.
-3) Falas: cada situação tem a sequência dos vídeos ("Hey, humans!" -> "I'm
-   hungry" -> "I wanna eat you"...; derrubou: "Give me your body!", montado:
-   "Stay on the ground", "You are mine"...). A sequência continua de onde parou,
-   inclusive depois dele morrer (fica salva no mundo).
-4) `/froggydude manhunt speedrun` (ou `sobrevivencia 3`): título, vantagem com
-   contagem, "CORRE", e ele vem. Te pegou: "O FROGGYDUDE VENCEU", ele come e vai
-   embora. Matou o dragão (ou passaram os dias): ele morre gritando "no, no, noooo".
-5) Num mundo com `-dev` no nome: o chat conta o que o cérebro aprendeu a cada
-   caçada; `/froggydude cerebro` mostra o que ele sabe de ti.
-6) Num mundo SEM `-dev`, com manhunt rolando: `/gamemode creative` -> "I SEE YOU";
-   mais uma trapaça (ex.: `/give`) -> invasão. Pra ver a invasão sem banir:
-   `/froggydude trapaca testar` (as tochas por perto apagam de verdade).
+O que testar agora (v0.3.6):
+1) A cabeça não gira mais sozinha (andando, parado, caçando).
+2) Língua: meio coração. Esmagamento: 24 socos com "tai!" em cada um, mais
+   fraco por soco e mais longo (6,6 s).
+3) Fase 2: contorção com o som original (ossos + gemido) e o grito ao levantar.
+   Bate nele enquanto contorce: ele não sai do lugar nem gira.
+4) Anti-trapaça (mundo SEM `-dev`): com manhunt rolando OU com ele te caçando,
+   `/gamemode creative` -> ele vira pra ti e fala "What... the hell?! That's
+   cheating! You can't do that!" e começa a invasão do vídeo (precisa do
+   FroggyDude-Voz.zip ativado pro áudio original). `/froggydude trapaca testar`
+   mostra tudo sem banir.
+5) Tranca-te numa casa: ele derruba a parede a tiros de língua (vidro e terra
+   num tiro, tábua em dois). Em cima do teu telhado, come o telhado.
+6) `/froggydude manhunt speedrun`: faz um portal do Nether e te afasta dele -
+   ele vai lá e come a obsidiana; aldeões perto de ti viram comida.
+7) Lava, fogo, explosão, cacto: onde ele se machucou, ele desvia depois.
 
 ## O que tem no pacote
 Código (src/main/java/com/froggydude):
@@ -54,7 +54,13 @@ Código (src/main/java/com/froggydude):
 - brain/ - o cérebro que aprende (FroggyBrain, PlayerMemory, Strategy, Style, Engagement)
 - world/ - FroggyWorldData (data/froggydude.dat no save), FroggyKeeper (um por
   mundo, onde ele aparece), Manhunt e ManhuntMode
-- anticheat/ - AntiCheat (aviso/advertências) e Invasion (a sequência do 911)
+- anticheat/ - AntiCheat (quando vale e o que é trapaça) e Invasion (a
+  sequência do 911, com os tempos tirados do áudio original)
+- entity/FroggyNavigation.java e FroggyNodeEvaluator.java - caminho de aranha,
+  longe (80 blocos), abre porta, desvia de onde já se machucou
+- brain/DangerMemory.java - onde ele se machucou (salvo no mundo, esquece em ~1 h)
+- world/Sabotage.java e entity/ai/FroggySabotageGoal.java - o portal do Nether
+  que ele vai comer no speedrun
 - command/FroggyCommand.java - `/froggydude`
 - config/FroggyConfig.java - `config/froggydude-common.toml`
 - init/ - registro da entidade, atributos e sons
@@ -63,7 +69,8 @@ Recursos (src/main/resources/assets/froggydude):
 - geo/froggydude.geo.json - modelo no formato de jogador (skin 64x64)
 - animations/froggydude.animation.json - animações (corrida, salto, bote e
   montado são geradas por tools/anim/build_anims.py, veja abaixo)
-- sounds.json - 19 sons de categoria + 38 falas (froggydude.voice.*), com sons
+- sounds.json - 23 sons de categoria (com o "tai", a contorção, o vidro e a
+  ligação pro 911 da invasão) + 39 falas (froggydude.voice.*), com sons
   de reserva do Minecraft (a voz original vem no pacote de recursos
   FroggyDude-Voz.zip, que não fica no GitHub)
 - textures/entity/arm_stump.png - toco do braço arrancado
@@ -119,9 +126,8 @@ certo. Se mudar um, mude o outro.
 | JUMP_PIN        | jump_pin          | 1,0 s     | impulso 0,2 s, pouso ~0,75 s         |
 | HIGH_JUMP       | high_jump         | 1,6 s     | impulso 0,3 s, pouso ~1,1 s          |
 | SKY_DROP        | sky_drop          | até pousar| impulso 0,4 s, topo ~1,25 s, ~2,2 s  |
-| LEAP            | leap              | 1,2 s     | impulso 0,25 s, pouso ~0,85 s        |
 | PIN_HOLD        | pin_hold (1 s)    | 5 s       | mordida aos 0,5 s de cada segundo    |
-| SMASH           | smash (0,5 s)     | 4,5 s     | soco aos 0,25 s de cada volta (8x)   |
+| SMASH           | smash             | 6,6 s     | soco a cada 0,25 s (24x), "tai!" em cada |
 | ARM_RIP         | arm_rip           | 2,0 s     | crava os dentes 0,4 s, sacode, arranca aos 1,1 s, solta aos 1,6 s |
 | ARM_EAT         | arm_eat           | 4,5 s     | mordida + tranco a cada 0,75 s, engole aos 4 s |
 | FEEDING         | feed (1 s, loop)  | 6,0 s     | mergulha e morde 0,34 s, arranca 0,52 s |

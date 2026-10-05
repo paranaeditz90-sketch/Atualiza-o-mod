@@ -8,6 +8,7 @@ import com.froggydude.brain.Style;
 import com.froggydude.entity.ai.FroggyCombatGoal;
 import com.froggydude.entity.ai.FroggyFeedGoal;
 import com.froggydude.entity.ai.FroggyFrenzyGoal;
+import com.froggydude.entity.ai.FroggySabotageGoal;
 import com.froggydude.entity.voice.VoiceLine;
 import com.froggydude.entity.voice.VoiceSituation;
 import com.froggydude.init.ModEntityTypes;
@@ -17,6 +18,7 @@ import com.froggydude.player.ArmLoss;
 import com.froggydude.world.FroggyKeeper;
 import com.froggydude.world.FroggyWorldData;
 import com.froggydude.world.Manhunt;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -33,6 +35,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -42,6 +45,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
@@ -51,6 +55,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
@@ -155,6 +160,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int movingHold = 0;
     private int pinnedVictimId = -1;
     private int vocalCooldown = 0;
+    /** Calado (invasão: o áudio original do vídeo toca sozinho). */
+    private int muteTicks = 0;
     /** A fala tocando agora (pra cortar quando precisa falar outra por cima). */
     @Nullable
     private VoiceLine speakingLine;
@@ -168,6 +175,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int preyLostAt = Integer.MIN_VALUE / 2;
     /** Altura onde começou a subir a parede (NaN = não está subindo). */
     private double climbStartY = Double.NaN;
+    private int caughtUpReadyAt = 0;
     /** A caçada em andamento (o cérebro avalia quando ela acaba). */
     @Nullable
     private Engagement engagement;
@@ -215,6 +223,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public FroggydudeEntity(EntityType<? extends Monster> type, Level level) {
         super(type, level);
         this.xpReward = 25;
+        // caminho: foge de fogo, lava, neve fofa e espinho (e do que ele aprendeu, ver
+        // FroggyNodeEvaluator); passa por eles só se não tiver outro jeito
+        this.setPathfindingMalus(BlockPathTypes.DANGER_FIRE, 16.0F);
+        this.setPathfindingMalus(BlockPathTypes.DAMAGE_FIRE, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DANGER_OTHER, 16.0F);
+        this.setPathfindingMalus(BlockPathTypes.DAMAGE_OTHER, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.POWDER_SNOW, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DANGER_POWDER_SNOW, 16.0F);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -251,9 +267,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(0, new FroggyFeedGoal(this));
         // 1: fase 2 (contorção + grito + 30 s correndo mais que um jogador)
         this.goalSelector.addGoal(1, new FroggyFrenzyGoal(this));
+        // 1: speedrun - longe da vítima, come o portal do Nether que ela está fazendo
+        this.goalSelector.addGoal(1, new FroggySabotageGoal(this));
         // 2: cérebro de combate - só ataca quando tem certeza que acerta
         this.combatGoal = new FroggyCombatGoal(this);
         this.goalSelector.addGoal(2, combatGoal);
+        // abre porta de madeira (quem não trancou a porta... - vs "how many days", 7:18)
+        this.goalSelector.addGoal(1, new OpenDoorGoal(this, false));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         // sem RandomLookAroundGoal: ele virava a cabeça pros lados do nada (parecia tique).
         // Só encara quem estiver perto.
@@ -395,22 +415,79 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
         }
         data.setDirty();
-        if (FroggyWorldData.isDev(server.getServer())) {
-            // mundo -dev: conta no chat o que aprendeu (pra dar pra ver ele aprendendo)
-            String msg = String.format(java.util.Locale.ROOT, "[cérebro] caçada contra %s: %s, %s, recompensa %+.1f -> %s vale %+.1f",
-                    m.name, e.strategy.label, outcome.name().toLowerCase(java.util.Locale.ROOT), reward, e.strategy.label,
-                    m.q[e.context.ordinal()][e.strategy.ordinal()]);
-            for (ServerPlayer p : server.players()) {
-                p.sendSystemMessage(net.minecraft.network.chat.Component.literal(msg)
-                        .withStyle(net.minecraft.ChatFormatting.DARK_AQUA));
-            }
-        }
+        // mundo -dev: conta no chat o que aprendeu (pra dar pra ver ele aprendendo)
+        brainLog(String.format(java.util.Locale.ROOT, "caçada contra %s: %s, %s, recompensa %+.1f -> %s vale %+.1f",
+                m.name, e.strategy.label, outcome.name().toLowerCase(java.util.Locale.ROOT), reward, e.strategy.label,
+                m.q[e.context.ordinal()][e.strategy.ordinal()]));
     }
 
     @Nullable
     private PlayerMemory memoryOf(LivingEntity target) {
         if (!(target instanceof Player) || !(this.level() instanceof ServerLevel server)) return null;
         return FroggyWorldData.get(server).brain.memory(target.getUUID(), target.getScoreboardName());
+    }
+
+    // ---------------- perigo aprendido (brain/DangerMemory) ----------------
+
+    /** Ele já se machucou nesse bloco? (o caminho desvia; ver FroggyNodeEvaluator) */
+    public boolean remembersDanger(int x, int y, int z) {
+        if (!(this.level() instanceof ServerLevel server)) return false;
+        return FroggyWorldData.get(server).dangers.isDangerous(
+                server.dimension().location().toString(), x, y, z, server.getGameTime());
+    }
+
+    /**
+     * Machucou com algo do mundo (não de quem ele caça): lembra do lugar. Lava,
+     * fogo e chão quente marcam onde ele pisou; explosão, um raio de 3 blocos
+     * em volta dela; flecha sem dono (armadilha de dispensador), em volta dele.
+     */
+    private void learnDanger(DamageSource source) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        BlockPos at = null;
+        int radius = 1;
+        String what;
+        if (source.is(DamageTypes.LAVA) || source.is(DamageTypes.IN_FIRE) || source.is(DamageTypes.HOT_FLOOR)) {
+            at = this.blockPosition();
+            what = "fogo/lava";
+        } else if (source.is(DamageTypeTags.IS_EXPLOSION)) {
+            Vec3 p = source.getSourcePosition();
+            at = p != null ? BlockPos.containing(p) : this.blockPosition();
+            radius = 3;
+            what = "explosão";
+        } else if (source.is(DamageTypes.CACTUS) || source.is(DamageTypes.SWEET_BERRY_BUSH)) {
+            at = this.blockPosition();
+            what = "espinho";
+        } else if (source.is(DamageTypes.FREEZE)) {
+            at = this.blockPosition();
+            what = "neve fofa";
+        } else if (source.is(DamageTypeTags.IS_PROJECTILE) && !(source.getEntity() instanceof Player)) {
+            at = this.blockPosition();
+            radius = 2;
+            what = "armadilha";
+        } else {
+            return;
+        }
+        FroggyWorldData data = FroggyWorldData.get(server);
+        String dim = server.dimension().location().toString();
+        boolean known = data.dangers.isDangerous(dim, at.getX(), at.getY(), at.getZ(), server.getGameTime());
+        data.dangers.mark(dim, at, radius, server.getGameTime());
+        data.setDirty();
+        if (!known) brainLog("aprendi um perigo: " + what + " em " + at.toShortString() + " (o caminho agora desvia)");
+    }
+
+    /** Mundo -dev: conta no chat o que o cérebro decidiu/aprendeu. */
+    public void brainLog(String msg) {
+        if (!(this.level() instanceof ServerLevel server) || !FroggyWorldData.isDev(server.getServer())) return;
+        net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("[cérebro] " + msg)
+                .withStyle(net.minecraft.ChatFormatting.DARK_AQUA);
+        for (ServerPlayer p : server.players()) p.sendSystemMessage(line);
+    }
+
+    /** Ele está caçando esse jogador agora (mirando nele, ou perdeu de vista há pouco)? */
+    public boolean isHunting(Player player) {
+        if (this.getTarget() == player) return true;
+        return engagement != null && engagement.player.equals(player.getUUID())
+                && (engagement.lostAt < 0 || this.tickCount - engagement.lostAt < 600);
     }
 
     /** A estratégia da caçada de agora (null = sem caçada). */
@@ -753,6 +830,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     public boolean speak(VoiceSituation situation, boolean interrupt) {
         if (!(this.level() instanceof ServerLevel server)) return false;
+        if (muteTicks > 0) return false;
         if (vocalCooldown > 0) {
             if (!interrupt) return false;
             stopSpeaking(server);
@@ -764,6 +842,27 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         vocalCooldown = line.ticks + 10;
         openMouth(Math.min(line.ticks, 30));
         return true;
+    }
+
+    /**
+     * Fala SÓ pra esse jogador, onde quer que ele esteja (o som nasce nele): no
+     * mundo de um jogador é como se fosse o mundo todo; no multiplayer, só ele ouve.
+     * Corta o que estiver falando. A boca abre aqui (quem estiver vendo ele vê).
+     */
+    public void speakTo(ServerPlayer player, VoiceSituation situation) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        stopSpeaking(server);
+        VoiceLine line = nextLine(server, situation);
+        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] fala (só pra " + player.getScoreboardName() + ") " + situation + ": " + line.clip);
+        player.playNotifySound(ModSounds.VOICE.get(line).get(), SoundSource.HOSTILE, 1.0F, 1.0F);
+        vocalCooldown = line.ticks + 10;
+        openMouth(Math.min(line.ticks, 40));
+    }
+
+    /** Fica calado por um tempo (as falas nem entram na fila). */
+    public void mute(int ticks) {
+        muteTicks = Math.max(muteTicks, ticks);
+        pendingSpeech = null;
     }
 
     /** Fala depois que terminar a de agora (espera até ~6 s; depois desiste). */
@@ -828,6 +927,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Cada soco do esmagamento. */
     public void onSmashHit() {
         this.playSound(ModSounds.SMASH.get(), 1.3F, 0.8F + this.getRandom().nextFloat() * 0.25F);
+        // a cada soco ele solta um "tai!" (nos vídeos: "tai tai tai tai tai")
+        this.playSound(ModSounds.SMASH_TAI.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
+        openMouth(4);
     }
 
     /** O baque do pulo altíssimo no chão. */
@@ -1018,6 +1120,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;
         if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
+        if (muteTicks > 0) muteTicks--;
         if (pendingSpeech != null) {
             if (--pendingSpeechTicks <= 0 && vocalCooldown <= 0) {
                 speak(pendingSpeech);
@@ -1053,8 +1156,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (climb && Double.isNaN(climbStartY)) climbStartY = this.getY();
         if (!climb && !Double.isNaN(climbStartY) && this.onGround()) {
             // subiu atrás de quem achou que estava a salvo lá em cima (vs Grox, 3:24)
-            if (this.getY() - climbStartY >= 3.0D && this.getTarget() instanceof Player p && this.distanceTo(p) < 5.0F) {
+            if (this.getY() - climbStartY >= 3.0D && this.getTarget() instanceof Player p && this.distanceTo(p) < 5.0F
+                    && this.hasLineOfSight(p) && this.tickCount >= caughtUpReadyAt) {
                 speak(VoiceSituation.CAUGHT_UP, true);
+                caughtUpReadyAt = this.tickCount + 600; // uma vez a cada 30 s, no máximo
             }
             climbStartY = Double.NaN;
         }
@@ -1178,6 +1283,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     public double mainAnimSpeed() {
         FroggyState s = getFroggyState();
+        // esmagamento: um soco a cada 6 ticks (o ciclo "smash" tem 0,5 s = 10 ticks)
+        if (s == FroggyState.SMASH && getDebugAnim().isEmpty()) return 10.0D / FroggyCombatGoal.SMASH_EVERY;
         if (isClimbing() && !this.onGround() && getDebugAnim().isEmpty()) {
             return isFrenzyActive() ? 2.2D : 1.6D;
         }
@@ -1237,6 +1344,18 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     // ---------------- dano / estágio de sangue / tipo de estrago ----------------
 
+    /**
+     * Contorcendo e gritando (fase 2) ele fica plantado: antes cada golpe empurrava
+     * o corpo com a pose torta congelada e ele "patinava" pra trás e pra frente
+     * (teste do LM, v0.3.5) - a contorção parecia outra a cada vez.
+     */
+    @Override
+    public void knockback(double strength, double x, double z) {
+        FroggyState s = getFroggyState();
+        if (s == FroggyState.CONTORTING || s == FroggyState.ROAR) return;
+        super.knockback(strength, x, z);
+    }
+
     @Override
     public boolean hurt(DamageSource source, float amount) {
         FroggyState state = getFroggyState();
@@ -1252,6 +1371,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
         float before = this.getHealth();
         boolean hurt = super.hurt(source, amount);
+        if (hurt && !this.level().isClientSide) learnDanger(source);
         if (hurt && source.getEntity() instanceof Player attacker) {
             stopStalking(); // mexeu com ele: acabou o "só olhando"
             if (engagement != null && attacker.getUUID().equals(engagement.player)) {

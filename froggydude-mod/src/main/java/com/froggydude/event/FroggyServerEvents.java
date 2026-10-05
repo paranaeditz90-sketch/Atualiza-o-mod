@@ -10,6 +10,7 @@ import com.froggydude.world.FroggyKeeper;
 import com.froggydude.world.FroggyWorldData;
 import com.froggydude.world.Manhunt;
 import com.froggydude.world.ManhuntMode;
+import com.froggydude.world.Sabotage;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -23,6 +24,8 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -50,6 +53,22 @@ public class FroggyServerEvents {
         if (event.phase != TickEvent.Phase.END) return;
         Manhunt.tick(event.getServer());
         Invasion.tickAll(event.getServer());
+    }
+
+    /** Obsidiana posta por um jogador: ele "sabe" que vem portal (ver Sabotage). */
+    @SubscribeEvent
+    public static void onPlace(BlockEvent.EntityPlaceEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p) Sabotage.onPlace(p, event.getPos(), event.getPlacedBlock());
+    }
+
+    @SubscribeEvent
+    public static void onPortal(BlockEvent.PortalSpawnEvent event) {
+        if (event.getLevel() instanceof net.minecraft.server.level.ServerLevel level) Sabotage.onPortal(level, event.getPos());
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        Sabotage.clear();
     }
 
     @SubscribeEvent

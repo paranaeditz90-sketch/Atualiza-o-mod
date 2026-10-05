@@ -6,12 +6,14 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.level.pathfinder.PathFinder;
 
 import javax.annotation.Nullable;
+import java.util.Set;
 
 /**
  * Navegação de aranha (sobe parede), igual à WallClimberNavigation do jogo,
- * com duas diferenças que faziam ele "atacar do lado errado":
+ * com estas diferenças (as duas primeiras faziam ele "atacar do lado errado"):
  *
  * 1. A do jogo guarda o bloco do alvo do último moveTo e, mesmo depois de
  *    stop(), continua mandando o corpo andar até lá todo tick. Em cima da
@@ -20,6 +22,9 @@ import javax.annotation.Nullable;
  *    frente/trás, ele ficava girando em volta dela. Aqui stop() esquece o alvo.
  * 2. A do jogo mira o CANTO do bloco (x e z inteiros). Aqui mira o meio, então
  *    ele sobe a torre pelo meio da face, não escorregando pra quina.
+ * 3. (v0.3.6) Pensa mais longe e melhor: procura caminho num raio de 80 blocos
+ *    (o atributo é 48), testa 4x mais rotas antes de desistir, abre porta de
+ *    madeira e desvia de onde já se machucou (FroggyNodeEvaluator).
  */
 public class FroggyNavigation extends GroundPathNavigation {
 
@@ -29,6 +34,20 @@ public class FroggyNavigation extends GroundPathNavigation {
 
     public FroggyNavigation(Mob mob, Level level) {
         super(mob, level);
+        this.setMaxVisitedNodesMultiplier(4.0F);
+        this.setCanOpenDoors(true);
+    }
+
+    @Override
+    protected PathFinder createPathFinder(int maxVisitedNodes) {
+        this.nodeEvaluator = new FroggyNodeEvaluator();
+        this.nodeEvaluator.setCanPassDoors(true);
+        return new PathFinder(this.nodeEvaluator, maxVisitedNodes);
+    }
+
+    @Override
+    protected Path createPath(Set<BlockPos> targets, int regionOffset, boolean offsetUpward, int accuracy, float followRange) {
+        return super.createPath(targets, regionOffset, offsetUpward, accuracy, Math.max(followRange, 80.0F));
     }
 
     @Override

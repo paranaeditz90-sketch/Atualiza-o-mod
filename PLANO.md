@@ -74,6 +74,14 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Cérebro que aprende** (escolha do LM): por jogador, salvo no mundo; aprende teu estilo, qual estratégia de caçada funciona contra ele (apavorar / direto / cercar por trás) e quais ataques te acertam.
 - **Anti-trapaça + invasão do 911** (seção 7), com `-dev` desligando e `/froggydude trapaca testar` pra ver sem banir.
 
+**Parte 4, ajustes (v0.3.6) ✅** - em cima do teste do LM:
+- **Cabeça girando do nada (bug crítico):** a marca de "osso mexido" do GeckoLib sobrevivia de um quadro pro outro e, na animação de andar (que não mexe na cabeça), o olhar era somado de novo a cada quadro. Agora a marca é limpa depois de cada ajuste e a animação de andar trava a cabeça na pose.
+- **Língua:** meio coração por chicotada/puxão.
+- **Esmagamento:** 24 socos (um a cada 0,25 s, 6,6 s ao todo), dano bem menor por soco, e o "tai!" do original (vs AJTHEBOLD) em cada um.
+- **Fase 2:** o som da contorção é o do short original (ossos estalando + gemido torto) e o grito de raiva fica pro levantar. Contorcendo e gritando ele não é mais empurrado pelos golpes nem gira atrás de quem bate (no teste ele "patinava" com a pose congelada).
+- **Anti-trapaça:** vale com manhunt OU quando ele está te caçando (fugir dele pro criativo é trapaça). Sem aviso: ele vira pra ti e reage FALANDO, com o áudio original ("What... the hell?! That's cheating! You can't do that!") e a invasão segue o vídeo segundo a segundo: escurece, a janela estoura (o vidro do vídeo), a casa e a ligação pro 911 com o jogador desesperado, e no "AHHH!" ele te derruba. Áudio só pra quem trapaceou. Nada de texto no chat.
+- **Inteligência:** caminho até 80 blocos e 4x mais rotas testadas; abre porta; lembra onde se machucou (lava, fogo, explosão, cacto, neve fofa, flecha de dispensador) e desvia por ~1 hora; corta caminho pra onde tu vai estar (intercepta) e, se a estratégia é cercar, vem por trás. Trancou-se em casa: derruba a parede/porta/janela a tiros de língua ("How strong is my tongue?": vidro e terra num tiro, tábua em dois) e come o telhado se tu estiver embaixo. No speedrun: come o portal do Nether quando tu está longe e come os aldeões perto de ti (sem troca).
+
 ## 1. A arquitetura (o contrato)
 
 ```
@@ -299,8 +307,8 @@ Tu pediu animação e som primeiro, e fez sentido: era o que mais destoava dos v
 | 5 | **Skins em camadas** + regras evento → skin (comer suja a frente, lava carboniza, água lava) | |
 | 6 | **Resto das animações** (parede, nadar, espiar janela, bater na porta, giro de cabeça, estalo de costas, lavar sangue) | |
 | 7 | **Habilidades:** subir parede, nadar e arrastar pra água, comer pra curar, ressuscitar, roubar item com a língua | |
-| 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | 🟡 memória por jogador + decisão que aprende (v0.3.5); falta faro, rotina, diretor |
-| 9 | **Terror + anti-trapaça + invasão** | 🟡 anti-trapaça e invasão do 911 (v0.3.5) |
+| 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | 🟡 memória por jogador + decisão que aprende (v0.3.5); caminho, perigo, interceptar, derrubar parede e sabotar (v0.3.6); falta faro, rotina, diretor |
+| 9 | **Terror + anti-trapaça + invasão** | 🟡 anti-trapaça e invasão do 911 (v0.3.5), com a reação e o áudio originais (v0.3.6) |
 | 10 | Extras: FroggyDoom, filhotes, Ultimate Froggy, como ele aparece no mundo | |
 
 Cada parte termina igual: compila no GitHub, eu testo aqui num cliente de

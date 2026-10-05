@@ -1,5 +1,7 @@
 package com.froggydude.entity.ai;
 
+import net.minecraft.util.Mth;
+
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.init.ModSounds;
@@ -35,11 +37,12 @@ public class FroggyFrenzyGoal extends Goal {
     /** O grito sai quando a cabeça joga pra trás (animação "roar", 0,1 s). */
     private static final int ROAR_SCREAM_AT = 2;
     /** Estalos (batem com a animação: começa a dobrar 0,55 s, dobrado 0,7 s, tranco 1,15 s, trava 2,2 s). */
-    private static final int[] BEND_CRACKS = {11, 14, 23, 43};
 
     private final FroggydudeEntity froggy;
     private int contortTicks;
     private int nextCrack;
+    /** Pra onde ele estava virado quando começou: contorce sem girar atrás de quem bate. */
+    private float lockedYaw;
 
     public FroggyFrenzyGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -79,11 +82,16 @@ public class FroggyFrenzyGoal extends Goal {
         froggy.stopStalking();
         froggy.setFroggyState(FroggyState.CONTORTING);
         froggy.getNavigation().stop();
+        lockedYaw = froggy.getYRot();
+        holdYaw();
         // contorção (2,2 s) e fica torto, com o braço na cabeça, de 2 a 4 s (no short ele
         // fica um tempão assim antes de disparar)
         contortTicks = BEND_TICKS + 40 + froggy.getRandom().nextInt(41);
         nextCrack = BEND_TICKS + 6;
-        froggy.vocalize(ModSounds.PAIN.get(), 2.5F); // geme antes de tudo
+        // o som da contorção do original (short da fase 2, 4,6-6,9 s): estalos + o
+        // gemido torto, junto com a dobra. O grito de raiva fica pro ROAR.
+        froggy.playSound(ModSounds.CONTORT.get(), 2.5F, 1.0F);
+        froggy.openMouth(48);
     }
 
     @Override
@@ -92,9 +100,8 @@ public class FroggyFrenzyGoal extends Goal {
         int t = froggy.getStateTicks();
 
         if (froggy.getFroggyState() == FroggyState.CONTORTING) {
-            for (int c : BEND_CRACKS) {
-                if (t == c) crack();
-            }
+            holdYaw();
+            // (os estalos da dobra já estão no som da contorção; aqui só os de depois)
             if (t >= BEND_TICKS && t >= nextCrack) {
                 // curvado: os ossos continuam estalando e ele geme
                 crack();
@@ -115,6 +122,11 @@ public class FroggyFrenzyGoal extends Goal {
             crack();
         }
         if (t < ROAR_SCREAM_AT) facePrey();
+    }
+
+    private void holdYaw() {
+        float r = lockedYaw * Mth.DEG_TO_RAD;
+        froggy.faceDirection(-Mth.sin(r), Mth.cos(r));
     }
 
     private void facePrey() {

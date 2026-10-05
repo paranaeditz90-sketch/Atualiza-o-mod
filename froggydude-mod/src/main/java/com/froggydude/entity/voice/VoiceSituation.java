@@ -45,6 +45,8 @@ public enum VoiceSituation {
     ATE_ODD(0, EXOTIC_MEAT),
     ATE_PANDA(0, PANDA_DELICIOUS),
     SPICY(0, FREAKING_SPICY),
+    /** Pegou trapaça: "What?! This is cheating! You'll pay for it!" (anticheat/Invasion). */
+    CHEATING(0, CHEAT_REACTION),
     DEATH(0, NO_NO_NOOO, NOOOOO);
 
     final VoiceLine[] lines;
@@ -60,6 +62,7 @@ public enum VoiceSituation {
         return switch (this) {
             case SPOT, CHASE, CAUGHT_UP, FOUND -> 2.0F;
             case DEATH -> 1.6F;
+            case CHEATING -> 1.0F;
             default -> 1.4F;
         };
     }

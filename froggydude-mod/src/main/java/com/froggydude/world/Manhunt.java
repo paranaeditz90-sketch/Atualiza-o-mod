@@ -97,6 +97,12 @@ public final class Manhunt {
         long now = overworld.getGameTime();
         if (now % 20 != 0) return;
 
+        if (data.manhuntMode == ManhuntMode.SPEEDRUN && now % 40 == 0) {
+            // de 2 em 2 s (desde a contagem): tem portal perto de alguém? (ele vai querer
+            // comer). Antes só olhava depois de solto e de 5 em 5 s: dava pra escapar.
+            for (ServerPlayer p : server.getPlayerList().getPlayers()) Sabotage.scanNear(p);
+        }
+
         if (!data.released) {
             long left = (data.releaseAt - now + 19) / 20;
             if (left > 0) {

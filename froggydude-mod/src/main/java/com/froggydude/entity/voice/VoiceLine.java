@@ -53,6 +53,8 @@ public enum VoiceLine {
     EXOTIC_MEAT("eat_exotic_meat", 62),
     PANDA_DELICIOUS("eat_panda_delicious", 58),
     FREAKING_SPICY("pain_freaking_spicy", 25),
+    // pegou alguém trapaceando (vira pra pessoa e fala, sem texto)
+    CHEAT_REACTION("cheat_reaction", 70),
     // morrendo
     NO_NO_NOOO("death_no_no_nooo", 50),
     NOOOOO("death_nooooo", 33);

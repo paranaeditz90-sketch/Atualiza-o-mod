@@ -104,10 +104,17 @@ public class FroggyCombatGoal extends Goal {
     // Esmagar: 8 socos, dois por segundo (soco aos 0,25 s de cada volta de 0,5 s da
     // animação; o primeiro conta os 3 ticks de transição da pose anterior). O
     // dano total é o mesmo de antes (4 x 2), só que vem duas vezes mais rápido.
-    private static final int SMASH_FIRST = 8;
-    private static final int SMASH_EVERY = 10;
-    private static final int SMASH_HITS = 8;
-    private static final float SMASH_DAMAGE = 1.0F;
+    // Esmagamento (v0.3.6, LM): bem mais socos, mais fracos e por mais tempo - nos
+    // vídeos ele desce os punhos sem parar, ~4 por segundo, com um "tai!" a cada
+    // soco (vs AJTHEBOLD: "tai tai tai tai tai tai", sílabas a cada ~0,25 s).
+    // 24 socos de 0,4 (antes 8 de 1,0), um a cada 5 ticks (~6 s); a animação
+    // acelera pra bater junto (FroggydudeEntity#mainAnimSpeed: ciclo de 0,5 s em 5 ticks).
+    public static final int SMASH_EVERY = 5;
+    private static final int SMASH_FIRST = 5;
+    private static final int SMASH_HITS = 24;
+    private static final float SMASH_DAMAGE = 0.4F;
+    /** Língua: só meio coração (LM), mesmo na fase 2. */
+    private static final float TONGUE_DAMAGE = 1.0F;
 
     // Arrancar o braço: agarra, arranca aos 22 ticks, solta a vítima aos 32.
     private static final int RIP_AT = 22;
@@ -131,6 +138,25 @@ public class FroggyCombatGoal extends Goal {
     private boolean pinTalked = false;
     /** O ataque em andamento já acertou? (o cérebro aprende com isso) */
     private boolean attackHit = false;
+    /** Bloco que ele está derrubando pra passar (null = nenhum). */
+    @javax.annotation.Nullable
+    private BlockPos eating;
+    private int eatProgress;
+    private int eatNeeded;
+    /**
+     * Parede/porta/janela na frente: derruba com tiros de língua ("How strong is
+     * my tongue?": vidro e terra num tiro, tábua em dois). O chão embaixo dele
+     * (telhado de quem se escondeu lá embaixo) continua sendo comido.
+     */
+    private boolean shooting;
+    private int shotsLeft;
+    private int shotsTotal;
+    /** Pausa entre um tiro e outro (a língua volta pra boca). */
+    private int shotGap;
+    /** Pra saber se está preso: a menor distância até a vítima e há quanto tempo não melhora. */
+    private double bestDist = Double.MAX_VALUE;
+    private int stuckTicks;
+    private static final int STUCK_TICKS = 60;
     private int repathTicks;
     private int counterCooldown;
     private int tongueCooldown;
@@ -166,7 +192,7 @@ public class FroggyCombatGoal extends Goal {
         if (state == FroggyState.ARM_EAT) return true; // termina de comer, com ou sem alvo
         LivingEntity target = froggy.getTarget();
         return target != null && target.isAlive()
-                && (state == FroggyState.CHASE || state.isCombatAction());
+                && (state == FroggyState.CHASE || state.isCombatAction() || eating != null);
     }
 
     @Override
@@ -179,6 +205,7 @@ public class FroggyCombatGoal extends Goal {
 
     @Override
     public void stop() {
+        stopEating();
         releaseVictim();
         froggy.setHeldArm(null);
         if (froggy.getFroggyState().isCombatAction()) {
@@ -222,6 +249,12 @@ public class FroggyCombatGoal extends Goal {
             }
             default -> {
             }
+        }
+        // derrubando o que tapa o caminho (porta, parede, telhado de quem se trancou).
+        // Vem antes dos ataques: o tiro de língua no bloco usa o estado TONGUE_WHIP.
+        if (eating != null) {
+            runEatObstacle(target);
+            return;
         }
         if (state.isAttack()) {
             runAttack(state, target, dist);
@@ -272,13 +305,16 @@ public class FroggyCombatGoal extends Goal {
         if (dist > 2.0D) {
             if (--repathTicks <= 0) {
                 repathTicks = 4;
-                if (!flank(target, dist)) {
-                    froggy.getNavigation().moveTo(target, froggy.isFrenzyActive() ? 1.0D : huntSpeed());
+                double speed = froggy.isFrenzyActive() ? 1.0D : huntSpeed();
+                if (!flank(target, dist) && !intercept(target, dist, speed)) {
+                    froggy.getNavigation().moveTo(target, speed);
                 }
             }
         } else {
             froggy.getNavigation().stop();
         }
+        // preso do lado de fora (a vítima se trancou em casa / num buraco): come a passagem
+        if (stuckFor(target, dist) >= STUCK_TICKS && startEatObstacle(target)) return;
         if (froggy.tickCount % 10 == 0) {
             net.minecraft.world.level.pathfinder.Path path = froggy.getNavigation().getPath();
             debug("persegue: dist=" + String.format("%.2f", dist) + " dy=" + String.format("%.2f", target.getY() - froggy.getY())
@@ -318,6 +354,217 @@ public class FroggyCombatGoal extends Goal {
         if (look.lengthSqr() < 1.0E-4D) return false;
         Vec3 behind = target.position().subtract(look.normalize().scale(6.0D));
         return froggy.getNavigation().moveTo(behind.x, target.getY(), behind.z, huntSpeed());
+    }
+
+    /**
+     * Quem foge em linha reta é interceptado: ele corre pra onde a vítima VAI
+     * estar (o rumo dela x o tempo que ele leva pra chegar), não pras costas
+     * dela - corta caminho em curva, em volta de árvore, de casa. Devolve false
+     * se não é pra interceptar agora.
+     */
+    private boolean intercept(LivingEntity target, double dist, double speed) {
+        if (dist < 6.0D || dist > 40.0D || !target.onGround()) return false;
+        if (Math.abs(target.getY() - froggy.getY()) > 3.0D || approachSpeed(target) > -0.08D) return false;
+        double lead = Math.min(30.0D, dist / 0.75D);
+        Vec3 aim = target.position().add(targetVel.x * lead, 0, targetVel.z * lead);
+        return froggy.getNavigation().moveTo(aim.x, target.getY(), aim.z, speed);
+    }
+
+    /**
+     * Há quanto tempo ele não consegue chegar mais perto da vítima, sem enxergar ela
+     * ou sem caminho até ela (trancada). Conta mesmo se ele estiver se mexendo: na
+     * caixa fechada ele subia a parede, caía e subia de novo sem nunca "ficar parado".
+     */
+    private int stuckFor(LivingEntity target, double dist) {
+        net.minecraft.world.level.pathfinder.Path path = froggy.getNavigation().getPath();
+        boolean cantReach = path == null || !path.canReach() || froggy.getNavigation().isDone();
+        boolean blocked = cantReach || !froggy.hasLineOfSight(target);
+        if (dist <= 2.5D || dist > 24.0D || !blocked || froggy.isFrenzyActive()) {
+            bestDist = dist;
+            stuckTicks = 0;
+            return 0;
+        }
+        if (dist < bestDist - 0.75D) {
+            bestDist = dist;
+            stuckTicks = 0;
+        }
+        return ++stuckTicks;
+    }
+
+    /**
+     * A vítima se trancou: ele derruba o bloco entre os dois (porta de madeira,
+     * tábua, vidro, terra, pedra - nada de ferro, obsidiana, bedrock). Na frente
+     * (parede, porta, janela): tiros de língua, até 6 blocos. Lá em cima do
+     * telhado com ela embaixo: come o telhado. Respeita mobGriefing.
+     */
+    private boolean startEatObstacle(LivingEntity target) {
+        Level level = froggy.level();
+        if (!froggy.onGround() || !net.minecraftforge.event.ForgeEventFactory.getMobGriefingEvent(level, froggy)) return false;
+        BlockPos pick = null;
+        boolean below = false;
+        double hdx = target.getX() - froggy.getX(), hdz = target.getZ() - froggy.getZ();
+        double hd = Math.sqrt(hdx * hdx + hdz * hdz);
+        if (target.getY() < froggy.getY() - 1.5D && hd < 3.0D) {
+            BlockPos under = froggy.blockPosition().below();
+            if (edible(level, under)) {
+                pick = under;
+                below = true;
+            }
+        }
+        if (pick == null) {
+            Vec3 from = froggy.position().add(0, 0.5D, 0);
+            for (double y : new double[]{0.5D, 1.5D}) {
+                var hit = level.clip(new net.minecraft.world.level.ClipContext(froggy.position().add(0, y, 0),
+                        target.position().add(0, Math.min(y, target.getBbHeight() - 0.2D), 0),
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, froggy));
+                if (hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK
+                        && hit.getLocation().distanceTo(from) < TONGUE_BREAK_RANGE && edible(level, hit.getBlockPos())) {
+                    pick = hit.getBlockPos();
+                    break;
+                }
+            }
+        }
+        if (pick == null) return false;
+        eating = pick;
+        eatProgress = 0;
+        float hardness = level.getBlockState(pick).getDestroySpeed(level, pick);
+        froggy.getNavigation().stop();
+        String name = level.getBlockState(pick).getBlock().getName().getString();
+        if (below) {
+            shooting = false;
+            eatNeeded = 10 + Math.round(hardness * 8.0F);
+            froggy.setFroggyState(FroggyState.FEEDING);
+            froggy.brainLog("a vítima se escondeu embaixo: comendo " + name + " em " + pick.toShortString());
+        } else {
+            shooting = true;
+            shotsTotal = shotsLeft = Math.max(1, Math.round(hardness));
+            beginShot(pick);
+            froggy.brainLog("a vítima se trancou: língua em " + name + " em " + pick.toShortString()
+                    + " (" + shotsTotal + (shotsTotal == 1 ? " tiro)" : " tiros)"));
+        }
+        return true;
+    }
+
+    /** Até onde ele derruba parede com a língua (o chicote alcança 8). */
+    private static final double TONGUE_BREAK_RANGE = 6.0D;
+
+    private void beginShot(BlockPos pos) {
+        fired1 = false;
+        shotGap = 0;
+        froggy.setFroggyState(FroggyState.TONGUE_WHIP);
+        froggy.openMouth(FroggyState.TONGUE_WHIP.durationTicks + 4);
+        aimAtBlock(pos);
+        froggy.onTongueOut();
+    }
+
+    private void aimAtBlock(BlockPos pos) {
+        Vec3 c = Vec3.atCenterOf(pos);
+        froggy.faceDirection(c.x - froggy.getX(), c.z - froggy.getZ());
+        froggy.getLookControl().setLookAt(c.x, c.y, c.z, 90.0F, 90.0F);
+        Vec3 mouth = froggy.position().add(0, froggy.getBbHeight() * 0.88D, 0);
+        froggy.setTongueLength((float) Math.min(mouth.distanceTo(c), 8.0D));
+    }
+
+    /** Um tiro de língua no bloco por vez; quebra no último. */
+    private void runTongueShots(LivingEntity target) {
+        Level level = froggy.level();
+        BlockPos pos = eating;
+        boolean reachable = froggy.distanceTo(target) < 3.0D && froggy.hasLineOfSight(target);
+        if (pos == null || reachable || !edible(level, pos)
+                || froggy.position().add(0, 1.0D, 0).distanceTo(Vec3.atCenterOf(pos)) > TONGUE_BREAK_RANGE + 1.5D) {
+            stopEating();
+            return;
+        }
+        froggy.getNavigation().stop();
+        froggy.setDeltaMovement(0, froggy.getDeltaMovement().y, 0);
+        if (shotGap > 0) {
+            // a língua voltou pra boca; mais um
+            if (--shotGap == 0) beginShot(pos);
+            else aimAtBlock(pos);
+            return;
+        }
+        int t = froggy.getStateTicks();
+        if (t < 8) aimAtBlock(pos);
+        if (!fired1 && t >= 8) {
+            fired1 = true;
+            shotsLeft--;
+            var st = level.getBlockState(pos);
+            level.playSound(null, pos, st.getSoundType().getHitSound(), net.minecraft.sounds.SoundSource.BLOCKS, 1.2F, 0.8F);
+            if (level instanceof net.minecraft.server.level.ServerLevel sl) {
+                Vec3 c = Vec3.atCenterOf(pos);
+                sl.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK, st),
+                        c.x, c.y, c.z, 12, 0.3D, 0.3D, 0.3D, 0.1D);
+            }
+            if (shotsLeft <= 0) {
+                level.destroyBlockProgress(froggy.getId(), pos, -1);
+                if (net.minecraftforge.event.ForgeEventFactory.onEntityDestroyBlock(froggy, pos, st)) {
+                    level.destroyBlock(pos, false, froggy); // estourou: não sobra nada
+                }
+            } else {
+                level.destroyBlockProgress(froggy.getId(), pos, Math.min(9, (shotsTotal - shotsLeft) * 10 / shotsTotal));
+            }
+        }
+        if (t >= FroggyState.TONGUE_WHIP.durationTicks) {
+            froggy.setTongueLength(0F);
+            if (shotsLeft > 0) {
+                // a língua volta, e o cliente precisa ver outro estado pra recomeçar a animação
+                froggy.setFroggyState(FroggyState.CHASE);
+                shotGap = 4;
+            } else {
+                stopEating();
+                repathTicks = 0;
+                // se ainda estiver tapado, emenda o próximo bloco logo
+                stuckTicks = STUCK_TICKS - 10;
+            }
+        }
+    }
+
+    private static boolean edible(Level level, BlockPos pos) {
+        var state = level.getBlockState(pos);
+        if (state.isAir() || state.getCollisionShape(level, pos).isEmpty()) return false;
+        float hardness = state.getDestroySpeed(level, pos);
+        return hardness >= 0.0F && hardness <= 3.0F && !state.hasBlockEntity();
+    }
+
+    private void runEatObstacle(LivingEntity target) {
+        if (shooting) {
+            runTongueShots(target);
+            return;
+        }
+        Level level = froggy.level();
+        BlockPos pos = eating;
+        // abriu passagem de outro jeito ou a vítima veio pra perto: larga o bloco e ataca
+        boolean reachable = froggy.distanceTo(target) < 3.0D && froggy.hasLineOfSight(target);
+        if (pos == null || reachable || !edible(level, pos) || froggy.position().distanceTo(Vec3.atCenterOf(pos)) > 3.5D) {
+            stopEating();
+            return;
+        }
+        froggy.getNavigation().stop();
+        froggy.setDeltaMovement(0, froggy.getDeltaMovement().y, 0);
+        froggy.faceDirection(pos.getX() + 0.5D - froggy.getX(), pos.getZ() + 0.5D - froggy.getZ());
+        if (froggy.getFroggyState() != FroggyState.FEEDING) froggy.setFroggyState(FroggyState.FEEDING);
+        eatProgress++;
+        level.destroyBlockProgress(froggy.getId(), pos, Math.min(9, eatProgress * 10 / eatNeeded));
+        if (eatProgress % 7 == 0) froggy.onChew();
+        if (eatProgress >= eatNeeded) {
+            if (net.minecraftforge.event.ForgeEventFactory.onEntityDestroyBlock(froggy, pos, level.getBlockState(pos))) {
+                level.destroyBlock(pos, false, froggy); // comeu: não sobra nada
+            }
+            stopEating();
+            repathTicks = 0;
+            // se ainda estiver tapado, emenda o próximo bloco logo
+            stuckTicks = STUCK_TICKS - 10;
+        }
+    }
+
+    private void stopEating() {
+        if (eating != null) froggy.level().destroyBlockProgress(froggy.getId(), eating, -1);
+        eating = null;
+        FroggyState st = froggy.getFroggyState();
+        if (st == FroggyState.FEEDING || shooting && st == FroggyState.TONGUE_WHIP) froggy.setFroggyState(FroggyState.CHASE);
+        if (shooting) froggy.setTongueLength(0F);
+        shooting = false;
+        shotGap = 0;
     }
 
     /** Invasão (anti-trapaça): derruba na hora, sem bote. */
@@ -541,7 +788,7 @@ public class FroggyCombatGoal extends Goal {
                 if (!fired1 && t >= 8) {
                     fired1 = true;
                     if (tongueReaches(target, dist, 8.5D)) {
-                        hurt(target, 6.0F);
+                        hurtExact(target, TONGUE_DAMAGE);
                         push(target, 1.4D, 0.3D);
                         froggy.spawnBlood(target, 6);
                         froggy.onTongueTaste();
@@ -556,7 +803,7 @@ public class FroggyCombatGoal extends Goal {
                     fired1 = true;
                     if (tongueReaches(target, dist, 8.5D)) {
                         pull(target, 1.3D);
-                        hurt(target, 3.0F);
+                        hurtExact(target, TONGUE_DAMAGE);
                         froggy.onTongueTaste();
                     } else {
                         froggy.onTongueMiss();
@@ -1138,6 +1385,12 @@ public class FroggyCombatGoal extends Goal {
      */
     private float dmg(float base) {
         return froggy.isFrenzyActive() ? base * FRENZY_DAMAGE : base;
+    }
+
+    /** Dano exato (sem o bônus da fase 2). */
+    private void hurtExact(LivingEntity target, float amount) {
+        float before = target.getHealth();
+        if (target.hurt(froggy.damageSources().mobAttack(froggy), amount)) dealt(target, before);
     }
 
     private void hurt(LivingEntity target, float base) {

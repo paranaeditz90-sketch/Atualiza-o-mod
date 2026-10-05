@@ -50,6 +50,13 @@ public class FroggyFeedGoal extends Goal {
             froggy.setFeedTarget(blaze);
             return true;
         }
+        // speedrun: aldeão perto de quem quer zerar vira comida (sem troca de pérola/cama)
+        LivingEntity villager = findSabotageVillager();
+        if (villager != null) {
+            froggy.setFeedTarget(villager);
+            froggy.brainLog("comendo o aldeão perto da vítima (sem troca pra quem quer zerar)");
+            return true;
+        }
         if (!froggy.isLowHealth()) return false;
 
         LivingEntity victim = findVictim();
@@ -121,6 +128,26 @@ public class FroggyFeedGoal extends Goal {
     private LivingEntity findBlaze() {
         AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS, 6.0D, SEARCH_RADIUS);
         return froggy.level().getEntitiesOfClass(Blaze.class, area, e -> e.isAlive() && froggy.hasLineOfSight(e))
+                .stream().min(Comparator.comparingDouble(froggy::distanceTo)).orElse(null);
+    }
+
+    /**
+     * Manhunt speedrun, longe da luta: o aldeão mais perto dele que esteja perto de
+     * alguém que ele caça ("I guess Froggy ate this villager", vs Grox 4:15).
+     */
+    private LivingEntity findSabotageVillager() {
+        if (!(froggy.level() instanceof net.minecraft.server.level.ServerLevel level)) return null;
+        com.froggydude.world.FroggyWorldData data = com.froggydude.world.FroggyWorldData.get(level);
+        if (!data.manhuntActive || !data.released || data.manhuntMode != com.froggydude.world.ManhuntMode.SPEEDRUN) return null;
+        if (froggy.isHolding()) return null;
+        List<net.minecraft.server.level.ServerPlayer> runners = level.players().stream()
+                .filter(p -> !p.isSpectator() && !p.isCreative()).toList();
+        for (Player p : runners) {
+            if (p.distanceTo(froggy) < 12.0D) return null; // luta primeiro
+        }
+        AABB area = froggy.getBoundingBox().inflate(24.0D);
+        return level.getEntitiesOfClass(net.minecraft.world.entity.npc.AbstractVillager.class, area,
+                        v -> v.isAlive() && runners.stream().anyMatch(p -> p.distanceTo(v) < 48.0D))
                 .stream().min(Comparator.comparingDouble(froggy::distanceTo)).orElse(null);
     }
 

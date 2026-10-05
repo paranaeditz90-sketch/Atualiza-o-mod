@@ -86,6 +86,12 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
             if (upright || aiming) {
                 head.setRotX(head.getRotX() + Mth.clamp(data.headPitch(), -30F, 35F) * Mth.DEG_TO_RAD);
             }
+            // O setRot marca o osso como "mexido" e essa marca sobrevive até o próximo
+            // quadro: numa animação que não mexe na cabeça (a "walk"), o GeckoLib então
+            // NÃO volta a cabeça pra pose e o olhar era somado de novo a cada quadro -
+            // a cabeça girava sem parar pros lados (v0.3.5, bug crítico). Limpando a
+            // marca aqui, o próximo quadro sempre parte da pose da animação.
+            head.resetStateChanges();
         }
 
         CoreGeoBone tongue = getAnimationProcessor().getBone("tongue");
@@ -94,6 +100,7 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
         float blocks = animatable.getDebugAnim().startsWith("tongue_") ? 4.0F : animatable.getTongueLength();
         float lengthPx = blocks * 16F / FroggydudeEntity.MODEL_SCALE;
         tongue.setScaleZ(fraction * lengthPx);
+        tongue.resetStateChanges(); // mesmo motivo da cabeça: senão a escala ia se multiplicando
     }
 
     private static ResourceLocation resolve(String variant, int stage) {

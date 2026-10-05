@@ -1,5 +1,6 @@
 package com.froggydude.world;
 
+import com.froggydude.brain.DangerMemory;
 import com.froggydude.brain.FroggyBrain;
 import com.froggydude.entity.voice.FroggyVoice;
 import net.minecraft.nbt.CompoundTag;
@@ -27,6 +28,8 @@ public class FroggyWorldData extends SavedData {
     public final FroggyVoice voice = new FroggyVoice();
     /** O que ele aprendeu de cada jogador. */
     public final FroggyBrain brain = new FroggyBrain();
+    /** Onde ele já se machucou (o caminho desvia). */
+    public final DangerMemory dangers = new DangerMemory();
 
     // ----- o FroggyDude do mundo (só existe um)
     @Nullable
@@ -77,6 +80,7 @@ public class FroggyWorldData extends SavedData {
         FroggyWorldData d = new FroggyWorldData();
         d.voice.load(tag.getCompound("Voice"));
         d.brain.load(tag.getCompound("Brain"));
+        d.dangers.load(tag.getCompound("Dangers"));
         if (tag.hasUUID("FroggyId")) d.froggyId = tag.getUUID("FroggyId");
         d.froggyAlive = tag.getBoolean("FroggyAlive");
         d.froggyHealth = tag.getFloat("FroggyHealth");
@@ -105,6 +109,7 @@ public class FroggyWorldData extends SavedData {
     public CompoundTag save(CompoundTag tag) {
         tag.put("Voice", voice.save());
         tag.put("Brain", brain.save());
+        tag.put("Dangers", dangers.save());
         if (froggyId != null) tag.putUUID("FroggyId", froggyId);
         tag.putBoolean("FroggyAlive", froggyAlive);
         tag.putFloat("FroggyHealth", froggyHealth);

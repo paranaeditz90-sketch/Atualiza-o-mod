@@ -25,7 +25,7 @@ public enum FroggyState {
     /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */
     PIN_HOLD(100),
     /** Esmagamento: em pé por cima da vítima derrubada, desce os dois punhos juntos (vs AJ, 0:57). */
-    SMASH(90),
+    SMASH(132),
     /** Pulo altíssimo: some no céu e cai em cima da vítima (vs AJ, 0:56). Dura até pousar. */
     SKY_DROP(80),
     /** Agarra a vítima presa e arranca o braço esquerdo (vs AJ, 2:22). */

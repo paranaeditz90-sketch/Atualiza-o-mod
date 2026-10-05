@@ -802,5 +802,63 @@
       }
     ],
     "subtitle": "subtitles.froggydude.voice.death_nooooo"
+  },
+  "froggydude.smash_tai": {
+    "sounds": [
+      {
+        "name": "minecraft:mob/frog/hurt1",
+        "pitch": 1.5,
+        "volume": 0.7
+      },
+      {
+        "name": "minecraft:mob/frog/hurt2",
+        "pitch": 1.5,
+        "volume": 0.7
+      }
+    ],
+    "subtitle": "subtitles.froggydude.smash_tai"
+  },
+  "froggydude.voice.cheat_reaction": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.cheat_reaction"
+  },
+  "froggydude.invasion.call": {
+    "sounds": [
+      {
+        "name": "minecraft:block.note_block.bell",
+        "type": "event",
+        "pitch": 1.6,
+        "volume": 0.6,
+        "attenuation_distance": 256
+      }
+    ],
+    "subtitle": "subtitles.froggydude.invasion.call"
+  },
+  "froggydude.invasion.glass": {
+    "sounds": [
+      {
+        "name": "minecraft:block.glass.break",
+        "type": "event",
+        "volume": 1.0,
+        "attenuation_distance": 64
+      }
+    ],
+    "subtitle": "subtitles.froggydude.invasion.glass"
+  },
+  "froggydude.contort": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.crack",
+        "type": "event",
+        "volume": 1.0,
+        "attenuation_distance": 48
+      }
+    ],
+    "subtitle": "subtitles.froggydude.contort"
   }
 }
