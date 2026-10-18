@@ -1,17 +1,13 @@
 package com.froggydude.client.gore;
 
+import com.froggydude.client.BloodParticle;
 import com.froggydude.client.ClientBloodFx;
 import com.froggydude.init.ModEntityTypes;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.froggydude.init.ModParticles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.particle.Particle;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
@@ -20,13 +16,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import org.joml.Matrix3f;
-import org.joml.Matrix4f;
-import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -34,20 +26,27 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * O sangue JORRANDO (Extremo): em vez de só pedaços soltos, um jato contínuo,
- * como mangueira - uma fita líquida que sai do ferimento, faz o arco da
- * gravidade, quebra em gotas no fim e vira poça onde cai. Se quem sangra se
- * mexe, o jato balança junto (é preso no corpo). Igual ao jorro do ombro da
- * zebra (77,3-80,6 s do vídeo do LM), só que de líquido.
+ * O sangue JORRANDO (Extremo): um jato contínuo que sai do ferimento, faz o
+ * arco da gravidade e vira poça onde cai. Se quem sangra se mexe, o jato vai
+ * junto (é preso no corpo). Igual ao jorro do ombro da zebra (77,3-80,6 s do
+ * vídeo do LM): uma COLUNA DE CUBINHOS de sangue subindo, cada um do tamanho
+ * dos pedaços normais.
+ *
+ * (LM: "essa cobra ficou meio estranha") Antes as gotas eram ligadas numa fita
+ * líquida; com o braço sacudindo na boca a origem pulava de lado a cada tick e
+ * a fita virava uma cobra em zigue-zague. Agora cada gota é um cubinho solto
+ * (BloodParticle: gruda na skin de quem acertar, some perto da câmera) e aqui
+ * só fica a conta de onde cai, pra fazer a poça.
  */
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class BloodStreams {
 
-    private static final ResourceLocation TEX = new ResourceLocation(ModEntityTypes.MOD_ID, "textures/misc/blood_stream.png");
     private static final int MAX_STREAMS = 48;
-    /** Gotas por tick: quanto mais, mais liso o arco. */
+    /** Cubinhos por tick: o jorro é cheio, mas não uma parede. */
     private static final int PER_TICK = 3;
-    private static final double GRAVITY = 0.045D;
+    /** A mesma física da BloodParticle (gravidade 1,5 x 0,04 e atrito 0,97): a poça cai onde o cubinho cai. */
+    private static final double GRAVITY = 0.06D;
+    private static final double FRICTION = 0.97D;
 
     private static final List<Stream> STREAMS = new ArrayList<>();
     private static ClientLevel streamLevel;
@@ -56,11 +55,9 @@ public final class BloodStreams {
     }
 
     private static final class Drop {
-        double x, y, z, px, py, pz, vx, vy, vz;
+        double x, y, z, vx, vy, vz;
         int age;
         boolean dead;
-        /** Começo de um pedaço novo da fita (não liga com a gota de antes). */
-        boolean breakBefore;
     }
 
     /** Um jato. A origem e a direção vêm de fora (presas num corpo, num toco de braço...). */
@@ -71,17 +68,15 @@ public final class BloodStreams {
         final int total;
         int left;
         final float r, g, b;
-        final float width;
         final boolean pulse;
         final List<Drop> drops = new ArrayList<>();
         int age;
         int pools;
-        boolean wasOff = true;
         /** Variação lenta da força (ruído suave, igual pra todas as gotas do tick). */
         double wob;
         double jx, jy, jz;
 
-        Stream(Supplier<Vec3> origin, Supplier<Vec3> dir, float speed, int ticks, int color, float width, boolean pulse) {
+        Stream(Supplier<Vec3> origin, Supplier<Vec3> dir, float speed, int ticks, int color, boolean pulse) {
             this.origin = origin;
             this.dir = dir;
             this.speed = speed;
@@ -90,7 +85,6 @@ public final class BloodStreams {
             this.r = ((color >> 16) & 255) / 255F;
             this.g = ((color >> 8) & 255) / 255F;
             this.b = (color & 255) / 255F;
-            this.width = width;
             this.pulse = pulse;
         }
 
@@ -112,10 +106,10 @@ public final class BloodStreams {
 
     /** Jato com origem e direção calculadas a cada tick (ex.: o toco do braço na cutscene). */
     public static Stream custom(Supplier<Vec3> origin, Supplier<Vec3> dir, float speed, int ticks, int color,
-                                float width, boolean pulse) {
+                                boolean pulse) {
         if (!ready()) return null;
         if (STREAMS.size() >= MAX_STREAMS) STREAMS.remove(0);
-        Stream s = new Stream(origin, dir, speed, ticks, color, width, pulse);
+        Stream s = new Stream(origin, dir, speed, ticks, color, pulse);
         STREAMS.add(s);
         return s;
     }
@@ -123,7 +117,7 @@ public final class BloodStreams {
     /** Jato parado no mundo (respingo forte de um golpe). */
     public static Stream fixed(Vec3 at, Vec3 dir, float speed, int ticks, int color) {
         Vec3 d = dir.normalize();
-        return custom(() -> at, () -> d, speed, ticks, color, 0.06F, false);
+        return custom(() -> at, () -> d, speed, ticks, color, false);
     }
 
     /**
@@ -145,7 +139,7 @@ public final class BloodStreams {
             float dy = (now == null ? yaw0 : bodyYaw(now, 1F)) - yaw0;
             return d0.yRot(-dy * Mth.DEG_TO_RAD);
         };
-        return custom(origin, direction, speed, ticks, color, 0.075F, true);
+        return custom(origin, direction, speed, ticks, color, true);
     }
 
     static float bodyYaw(Entity e, float partial) {
@@ -187,46 +181,37 @@ public final class BloodStreams {
                     s.left = 0;
                 } else {
                     // a força e o desvio mudam DEVAGAR (de tick em tick, igual pras gotas do mesmo tick):
-                    // com um sorteio por gota, gotas mais rápidas passavam as mais lentas e a fita
-                    // virava um zigue-zague de varas atravessando a tela
+                    // o jorro sobe como coluna, não como chuveiro
                     s.wob = s.wob * 0.75D + rnd.nextGaussian() * 0.25D;
                     s.jx = s.jx * 0.8D + rnd.nextGaussian() * 0.0025D;
                     s.jy = s.jy * 0.8D + rnd.nextGaussian() * 0.0025D;
                     s.jz = s.jz * 0.8D + rnd.nextGaussian() * 0.0025D;
                     for (int i = 0; i < PER_TICK; i++) {
                         Drop drop = new Drop();
-                        double sp = s.speed * fade * beat * (1D + 0.05D * s.wob);
+                        // x1,15: a gravidade do cubinho é mais forte que a da fita antiga; o jorro sobe igual
+                        double sp = s.speed * 1.15D * fade * beat * (1D + 0.05D * s.wob);
                         drop.vx = d.x * sp + s.jx;
                         drop.vy = d.y * sp + s.jy;
                         drop.vz = d.z * sp + s.jz;
-                        // gotas do mesmo tick saem escalonadas no tempo: a fita fica lisa
+                        // gotas do mesmo tick saem escalonadas no tempo: a coluna fica cheia, sem buracos
                         double ahead = 1D - i / (double) PER_TICK;
                         drop.x = o.x + drop.vx * ahead;
                         drop.y = o.y + drop.vy * ahead;
                         drop.z = o.z + drop.vz * ahead;
-                        drop.px = drop.x;
-                        drop.py = drop.y;
-                        drop.pz = drop.z;
-                        drop.breakBefore = s.wasOff;
-                        s.wasOff = false;
                         s.drops.add(drop);
+                        cube(mc, s, drop);
                     }
                 }
-            } else {
-                s.wasOff = true;
             }
             for (Drop d : s.drops) {
                 if (d.dead) continue;
-                d.px = d.x;
-                d.py = d.y;
-                d.pz = d.z;
                 d.vy -= GRAVITY;
-                d.vx *= 0.985D;
-                d.vy *= 0.985D;
-                d.vz *= 0.985D;
                 d.x += d.vx;
                 d.y += d.vy;
                 d.z += d.vz;
+                d.vx *= FRICTION;
+                d.vy *= FRICTION;
+                d.vz *= FRICTION;
                 d.age++;
                 if (d.age > 80 || hits(mc.level, d)) {
                     d.dead = true;
@@ -236,20 +221,6 @@ public final class BloodStreams {
                         ClientBloodFx.pool(d.x, d.y + 0.3D, d.z, 0.35F, col);
                         ClientBloodFx.droplets(d.x, d.y + 0.05D, d.z, 2, col);
                     }
-                }
-            }
-            // a ponta do jato (as gotas mais velhas) se desfaz em gotas soltas
-            if (s.age % 3 == 0 && !s.drops.isEmpty()) {
-                Drop tip = null;
-                for (Drop d : s.drops) {
-                    if (!d.dead) {
-                        tip = d;
-                        break;
-                    }
-                }
-                if (tip != null && tip.age > 6) {
-                    int col = ((int) (s.r * 255) << 16) | ((int) (s.g * 255) << 8) | (int) (s.b * 255);
-                    ClientBloodFx.droplets(tip.x, tip.y, tip.z, 1, col);
                 }
             }
             s.drops.removeIf(d -> d.dead);
@@ -277,68 +248,15 @@ public final class BloodStreams {
         streamLevel = null;
     }
 
-    @SubscribeEvent
-    public static void onRender(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || STREAMS.isEmpty()) return;
-        Minecraft mc = Minecraft.getInstance();
-        ClientLevel level = mc.level;
-        if (level == null || level != streamLevel) return;
-        Vec3 cam = event.getCamera().getPosition();
-        float pt = event.getPartialTick();
-        PoseStack ps = event.getPoseStack();
-        MultiBufferSource.BufferSource buffers = mc.renderBuffers().bufferSource();
-        RenderType type = RenderType.entityCutoutNoCull(TEX);
-        VertexConsumer vc = buffers.getBuffer(type);
-        ps.pushPose();
-        ps.translate(-cam.x, -cam.y, -cam.z);
-        Matrix4f m = ps.last().pose();
-        Matrix3f n = ps.last().normal();
-        for (Stream s : STREAMS) {
-            Drop prev = null;
-            Vec3 pa = null;
-            float va = 0F;
-            for (Drop d : s.drops) {
-                Vec3 p = new Vec3(Mth.lerp(pt, d.px, d.x), Mth.lerp(pt, d.py, d.y), Mth.lerp(pt, d.pz, d.z));
-                // não liga gotas longe uma da outra (vira vara), nem desenha colado na câmera (tampa a tela)
-                boolean link = prev != null && !d.breakBefore && pa.distanceToSqr(p) < 0.35D * 0.35D
-                        && cam.distanceToSqr(p) > 0.5D * 0.5D && cam.distanceToSqr(pa) > 0.5D * 0.5D;
-                if (link) {
-                    // largura: grossa saindo do corpo, afina na ponta
-                    float wa = s.width * Mth.clamp(1.2F - prev.age / 40F, 0.35F, 1.2F);
-                    float wb = s.width * Mth.clamp(1.2F - d.age / 40F, 0.35F, 1.2F);
-                    float vb = va + (float) pa.distanceTo(p) * 2F;
-                    segment(vc, m, n, level, cam, pa, p, wa, wb, va, vb, s.r, s.g, s.b);
-                    va = vb;
-                }
-                prev = d;
-                pa = p;
-            }
+    /** O cubinho que a gente vê: sai junto com a gota, com a mesma velocidade. */
+    private static void cube(Minecraft mc, Stream s, Drop d) {
+        Particle p = mc.particleEngine.createParticle(ModParticles.BLOOD.get(), d.x, d.y, d.z, d.vx, d.vy, d.vz);
+        if (p instanceof BloodParticle bp) {
+            int col = ((int) (s.r * 255) << 16) | ((int) (s.g * 255) << 8) | (int) (s.b * 255);
+            bp.tint(col);
+            // do tamanho dos pedaços normais (os gigantes pareciam bloco voando)
+            bp.size(0.7F + mc.level.random.nextFloat() * 0.45F);
+            bp.life(60 + mc.level.random.nextInt(30));
         }
-        ps.popPose();
-        buffers.endBatch(type);
-    }
-
-    private static void segment(VertexConsumer vc, Matrix4f m, Matrix3f n, ClientLevel level, Vec3 cam,
-                                Vec3 a, Vec3 b, float wa, float wb, float va, float vb, float r, float g, float bl) {
-        Vec3 along = b.subtract(a);
-        Vec3 mid = a.add(b).scale(0.5D);
-        Vec3 toCam = cam.subtract(mid);
-        Vec3 side = along.cross(toCam);
-        if (side.lengthSqr() < 1.0E-8D) return;
-        side = side.normalize();
-        Vec3 sa = side.scale(wa * 0.5D), sb = side.scale(wb * 0.5D);
-        int la = LevelRenderer.getLightColor(level, BlockPos.containing(a));
-        int lb = LevelRenderer.getLightColor(level, BlockPos.containing(b));
-        Vector3f nn = toCam.normalize().toVector3f();
-        put(vc, m, n, a.add(sa), 0F, va, la, r, g, bl, nn);
-        put(vc, m, n, a.subtract(sa), 1F, va, la, r, g, bl, nn);
-        put(vc, m, n, b.subtract(sb), 1F, vb, lb, r, g, bl, nn);
-        put(vc, m, n, b.add(sb), 0F, vb, lb, r, g, bl, nn);
-    }
-
-    private static void put(VertexConsumer vc, Matrix4f m, Matrix3f n, Vec3 p, float u, float v, int light,
-                            float r, float g, float b, Vector3f nn) {
-        vc.vertex(m, (float) p.x, (float) p.y, (float) p.z).color(r, g, b, 1F).uv(u, v)
-                .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(n, nn.x(), nn.y(), nn.z()).endVertex();
     }
 }

@@ -35,6 +35,10 @@ O que testar agora (v0.4.0):
    quando te derruba e te come vivo, e no teu corpo no Extremo. Golem/esqueleto
    soltam lasca da cor deles, não sangue.
 10) Correndo de 4 levanta poeira clara nos pés a cada passada.
+    O jorro do Extremo não é mais a "cobra" (fita ligando as gotas, que virava
+    zigue-zague com o braço sacudindo): agora é uma coluna de cubinhos de
+    sangue, igual ao ombro da zebra no vídeo. Ainda faz poça onde cai e suja
+    a skin de quem acerta.
 11) Cutscene: a câmera ficou mais longe nos planos de corpo inteiro (no vídeo
    ele ocupa metade da tela) e o close é na frente-direita dele, com a tua
    cabeça saindo da boca pro lado (não tampa mais a cara dele).
@@ -87,7 +91,7 @@ Código (src/main/java/com/froggydude):
   que fica, e ele comendo/jogando/sacudindo
 - config/GoreLevel.java, config/FroggyClientConfig.java (cada jogador escolhe
   o seu gore), client/screen/ (aviso, aviso do Extremo, configurações)
-- client/gore/ - BloodStains (sangue na skin), BloodStreams (o jato do Extremo),
+- client/gore/ - BloodStains (sangue na skin), BloodStreams (o jorro do Extremo, em cubinhos),
   ScreenBlood (sangue na tela)
 - entity/voice/ - VoiceLine (cada fala), VoiceSituation (situação -> sequência
   dos vídeos), FroggyVoice (em que fala de cada situação ele está)

@@ -8,7 +8,6 @@ o jogo pinta com a cor do sangue de cada bicho (vermelho, podre, verde, roxo...)
 Sai em src/main/resources/assets/froggydude/textures/:
     gui/blood_splat_0..5.png   respingos na tela (pixel-art 64x64 aumentado pra 256)
     misc/blood_pool.png        a poça no chão
-    misc/blood_stream.png      o jato de sangue (fita com brilho de líquido)
     particle/blood_cloud_0..2.png  sangue se espalhando na água
     entity/froggydude_mouth_stain.png  a boca suja do que ele comeu (mesmo UV da skin dele)
 """
@@ -132,20 +131,6 @@ def pool(n=64, seed=7):
     return img
 
 
-def stream(n=16):
-    img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    for y in range(n):
-        for x in range(n):
-            # atravessado na largura: escuro nas bordas, brilho no meio (líquido)
-            t = abs((x + 0.5) / n * 2 - 1)
-            lum = 0.62 + 0.38 * (1 - t) ** 3
-            if 6 <= x <= 7 and y % 5 != 0:
-                lum = 1.0
-            c = int(255 * min(1.0, lum))
-            img.putpixel((x, y), (c, c, c, 255))
-    return img
-
-
 def cloud(seed, n=32):
     rng = random.Random(seed)
     img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
@@ -189,7 +174,6 @@ def main():
     for i in range(6):
         save(splat(100 + i * 17), "gui", f"blood_splat_{i}.png")
     save(pool(), "misc", "blood_pool.png")
-    save(stream(), "misc", "blood_stream.png")
     for i in range(3):
         save(cloud(300 + i), "particle", f"blood_cloud_{i}.png")
     save(mouth_stain(), "entity", "froggydude_mouth_stain.png")
