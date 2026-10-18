@@ -7,10 +7,10 @@ o jogo pinta com a cor do sangue de cada bicho (vermelho, podre, verde, roxo...)
 
 Sai em src/main/resources/assets/froggydude/textures/:
     gui/blood_splat_0..5.png   respingos na tela (pixel-art 64x64 aumentado pra 256)
-    gui/blood_vignette.png     a borda vermelha da tela (POV de quem é esmagado)
     misc/blood_pool.png        a poça no chão
     misc/blood_stream.png      o jato de sangue (fita com brilho de líquido)
     particle/blood_cloud_0..2.png  sangue se espalhando na água
+    entity/froggydude_mouth_stain.png  a boca suja do que ele comeu (mesmo UV da skin dele)
 """
 import math
 import os
@@ -114,18 +114,6 @@ def splat(seed, n=64):
     return img.resize((n * 4, n * 4), Image.NEAREST)
 
 
-def vignette(n=256):
-    img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
-    for y in range(n):
-        for x in range(n):
-            dx, dy = (x + 0.5) / n * 2 - 1, (y + 0.5) / n * 2 - 1
-            d = math.sqrt(dx * dx * 0.9 + dy * dy)
-            a = max(0.0, min(1.0, (d - 0.45) / 0.75))
-            a = a ** 1.6
-            img.putpixel((x, y), (255, 255, 255, int(255 * a)))
-    return img
-
-
 def pool(n=64, seed=7):
     rng = random.Random(seed)
     img = Image.new("RGBA", (n, n), (0, 0, 0, 0))
@@ -171,14 +159,40 @@ def cloud(seed, n=32):
     return img
 
 
+def mouth_stain(seed=21):
+    """Por cima da skin dele (64x64, mesmo UV): lábios, cantos e o fundo da boca (rosto,
+    linhas 13-15 de x 8-15 - a boca escancarada é o retângulo preto ali) e uns pingos
+    escorrendo no peito. O jogo pinta com a cor do que ele comeu."""
+    rng = random.Random(seed)
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+
+    def put(x, y, a):
+        a = max(0.0, min(1.0, a * rng.uniform(0.8, 1.1)))
+        lum = int(255 * rng.uniform(0.82, 1.0))
+        img.putpixel((x, y), (lum, lum, lum, int(255 * a)))
+
+    for x in range(9, 15):
+        put(x, 13, 0.5)
+    put(8, 13, 0.3)
+    put(15, 13, 0.3)
+    for x in range(8, 16):
+        put(x, 14, 0.85)
+        put(x, 15, 0.92)
+    # escorrendo do queixo pro peito (frente do tronco: x 20-27, y 20-31)
+    for x, n in ((21, 4), (23, 2), (25, 5), (26, 1)):
+        for k in range(n):
+            put(x, 20 + k, 0.75 - k * 0.12)
+    return img
+
+
 def main():
     for i in range(6):
         save(splat(100 + i * 17), "gui", f"blood_splat_{i}.png")
-    save(vignette(), "gui", "blood_vignette.png")
     save(pool(), "misc", "blood_pool.png")
     save(stream(), "misc", "blood_stream.png")
     for i in range(3):
         save(cloud(300 + i), "particle", f"blood_cloud_{i}.png")
+    save(mouth_stain(), "entity", "froggydude_mouth_stain.png")
 
 
 if __name__ == "__main__":

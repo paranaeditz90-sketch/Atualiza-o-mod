@@ -35,8 +35,8 @@ import java.util.UUID;
 
 /**
  * Desenha o Froggy (GeckoLib) e duas coisas que não são cubos do modelo:
- * - a língua: uma pirâmide grossa na boca e fina na ponta (no vídeo contra o
- *   AJ ela é assim, e não uma barra quadrada);
+ * - a língua: uma fita chata da largura da boca, rosa-claro na boca e mais
+ *   escura na ponta redonda (vídeo do LM: "o modelo da língua é 2D, como um papel");
  * - o braço arrancado atravessado na boca (como cachorro com osso), com a
  *   skin de quem perdeu o braço; vai sumindo enquanto ele come;
  * - no golpe final, o braço ou a cabeça da vítima na boca dele.
@@ -44,8 +44,13 @@ import java.util.UUID;
 public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
 
     // Língua, em pixels do modelo (coordenadas do GeckoLib: x invertido em relação ao Blockbench)
-    private static final float TONGUE_HALF_W = 1.25F;
-    private static final float TONGUE_HALF_H = 0.8F;
+    private static final float TONGUE_HALF_W = 2.6F;
+    private static final float TONGUE_TIP_HALF_W = 2.0F;
+    private static final float TONGUE_SAG = 0.7F;
+    private static final int TONGUE_SEGMENTS = 12;
+    /** Meia espessura (px): uma fatia fininha, "2D só que achatado" (LM). */
+    private static final float TONGUE_HALF_THICK = 0.25F;
+    private static final Vector3f LEFT = new Vector3f(-1, 0, 0), RIGHT = new Vector3f(1, 0, 0);
     private static final float TONGUE_Y = 26.0F;
     private static final float TONGUE_Z = -4.0F;   // frente do rosto (pivô do osso)
     // Um pixel rosa da skin (o prepare_skins.py pinta essa área de língua)
@@ -60,6 +65,7 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         super(context, new FroggydudeModel());
         this.shadowRadius = 0.5F;
         this.withScale(FroggydudeEntity.MODEL_SCALE);
+        addRenderLayer(new MouthStainLayer(this));
     }
 
     @Override
@@ -101,35 +107,65 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     // ---------------------------------------------------------------- língua
 
     /**
-     * Pirâmide de 1 pixel de comprimento, apontando pra frente. O osso "tongue"
-     * é esticado no eixo Z pela animação (FroggydudeModel), então a ponta vai
-     * até o alvo e a base continua do tamanho da boca.
+     * A língua é CHATA, uma fatia fininha (LM: "2D só que achatado"), da largura
+     * da boca, rosa-claro saindo da boca e mais escura na ponta, que é redonda.
+     * Desenhada com 1 pixel de comprimento pra frente; o osso "tongue" é esticado
+     * no eixo Z pela animação (FroggydudeModel), então a ponta vai até o alvo e a
+     * largura continua a da boca. Cai um tiquinho no meio (é mole) e tem as duas
+     * faces (vista de baixo também aparece).
      */
     private void drawTongue(PoseStack poseStack, VertexConsumer vc, int light, int overlay) {
         PoseStack.Pose pose = poseStack.last();
         Matrix4f m = pose.pose();
         Matrix3f n = pose.normal();
-        float x0 = -TONGUE_HALF_W / 16F, x1 = TONGUE_HALF_W / 16F;
-        float y0 = (TONGUE_Y - TONGUE_HALF_H) / 16F, y1 = (TONGUE_Y + TONGUE_HALF_H) / 16F;
-        float zb = TONGUE_Z / 16F;
-        float tipX = 0F, tipY = TONGUE_Y / 16F, tipZ = (TONGUE_Z - 1F) / 16F;
-
-        // em cima mais clara, embaixo mais escura (igual ao vídeo)
-        tri(vc, m, n, light, overlay, 1.00F, x0, y1, zb, x1, y1, zb, tipX, tipY, tipZ, 0, 1, -0.3F);
-        tri(vc, m, n, light, overlay, 0.70F, x1, y0, zb, x0, y0, zb, tipX, tipY, tipZ, 0, -1, -0.3F);
-        tri(vc, m, n, light, overlay, 0.85F, x1, y1, zb, x1, y0, zb, tipX, tipY, tipZ, 1, 0, -0.3F);
-        tri(vc, m, n, light, overlay, 0.85F, x0, y0, zb, x0, y1, zb, tipX, tipY, tipZ, -1, 0, -0.3F);
+        Vector3f up = new Vector3f(0, 1, 0), down = new Vector3f(0, -1, 0);
+        float prevF = 0F;
+        for (int i = 1; i <= TONGUE_SEGMENTS; i++) {
+            float f = i / (float) TONGUE_SEGMENTS;
+            float wa = tongueHalfWidth(prevF) / 16F, wb = tongueHalfWidth(f) / 16F;
+            float ya = tongueY(prevF) / 16F, yb = tongueY(f) / 16F;
+            float za = (TONGUE_Z - prevF) / 16F, zb = (TONGUE_Z - f) / 16F;
+            float sa = 1F - 0.25F * prevF, sb = 1F - 0.25F * f;
+            float ga = 1F - 0.5F * prevF, gb = 1F - 0.5F * f;
+            float t = TONGUE_HALF_THICK / 16F;
+            // em cima
+            vertex(vc, m, n, -wa, ya + t, za, sa, ga, ga, TONGUE_U, TONGUE_V, overlay, light, up);
+            vertex(vc, m, n, wa, ya + t, za, sa, ga, ga, TONGUE_U, TONGUE_V, overlay, light, up);
+            vertex(vc, m, n, wb, yb + t, zb, sb, gb, gb, TONGUE_U, TONGUE_V, overlay, light, up);
+            vertex(vc, m, n, -wb, yb + t, zb, sb, gb, gb, TONGUE_U, TONGUE_V, overlay, light, up);
+            // embaixo (um pouco mais escura)
+            float d = 0.82F;
+            vertex(vc, m, n, -wb, yb - t, zb, sb * d, gb * d, gb * d, TONGUE_U, TONGUE_V, overlay, light, down);
+            vertex(vc, m, n, wb, yb - t, zb, sb * d, gb * d, gb * d, TONGUE_U, TONGUE_V, overlay, light, down);
+            vertex(vc, m, n, wa, ya - t, za, sa * d, ga * d, ga * d, TONGUE_U, TONGUE_V, overlay, light, down);
+            vertex(vc, m, n, -wa, ya - t, za, sa * d, ga * d, ga * d, TONGUE_U, TONGUE_V, overlay, light, down);
+            // as bordas da fatia (de lado ela não some: aparece uma tirinha)
+            float e = 0.7F;
+            vertex(vc, m, n, wa, ya + t, za, sa * e, ga * e, ga * e, TONGUE_U, TONGUE_V, overlay, light, RIGHT);
+            vertex(vc, m, n, wa, ya - t, za, sa * e, ga * e, ga * e, TONGUE_U, TONGUE_V, overlay, light, RIGHT);
+            vertex(vc, m, n, wb, yb - t, zb, sb * e, gb * e, gb * e, TONGUE_U, TONGUE_V, overlay, light, RIGHT);
+            vertex(vc, m, n, wb, yb + t, zb, sb * e, gb * e, gb * e, TONGUE_U, TONGUE_V, overlay, light, RIGHT);
+            vertex(vc, m, n, -wb, yb + t, zb, sb * e, gb * e, gb * e, TONGUE_U, TONGUE_V, overlay, light, LEFT);
+            vertex(vc, m, n, -wb, yb - t, zb, sb * e, gb * e, gb * e, TONGUE_U, TONGUE_V, overlay, light, LEFT);
+            vertex(vc, m, n, -wa, ya - t, za, sa * e, ga * e, ga * e, TONGUE_U, TONGUE_V, overlay, light, LEFT);
+            vertex(vc, m, n, -wa, ya + t, za, sa * e, ga * e, ga * e, TONGUE_U, TONGUE_V, overlay, light, LEFT);
+            prevF = f;
+        }
     }
 
-    /** Um triângulo (quad com o último vértice repetido): rosa da textura, com sombra por face. */
-    private static void tri(VertexConsumer vc, Matrix4f m, Matrix3f n, int light, int overlay, float shade,
-                            float ax, float ay, float az, float bx, float by, float bz,
-                            float cx, float cy, float cz, float nx, float ny, float nz) {
-        Vector3f nn = new Vector3f(nx, ny, nz).normalize();
-        vertex(vc, m, n, ax, ay, az, shade, shade, shade, TONGUE_U, TONGUE_V, overlay, light, nn);
-        vertex(vc, m, n, bx, by, bz, shade, shade, shade, TONGUE_U, TONGUE_V, overlay, light, nn);
-        vertex(vc, m, n, cx, cy, cz, shade, shade, shade, TONGUE_U, TONGUE_V, overlay, light, nn);
-        vertex(vc, m, n, cx, cy, cz, shade, shade, shade, TONGUE_U, TONGUE_V, overlay, light, nn);
+    /** Meia largura (px) ao longo da língua (0 = boca, 1 = ponta): afina um pouco e arredonda no fim. */
+    private static float tongueHalfWidth(float f) {
+        float w = TONGUE_HALF_W + (TONGUE_TIP_HALF_W - TONGUE_HALF_W) * f;
+        if (f > 0.88F) {
+            float k = (f - 0.88F) / 0.12F;
+            w *= (float) Math.sqrt(Math.max(0F, 1F - k * k));
+        }
+        return w;
+    }
+
+    /** Altura (px) ao longo da língua: mole, cai no meio. */
+    private static float tongueY(float f) {
+        return TONGUE_Y - TONGUE_SAG * Mth.sin(f * Mth.PI);
     }
 
     private static void vertex(VertexConsumer vc, Matrix4f m, Matrix3f n, float x, float y, float z,
@@ -227,14 +263,20 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
 
         ps.translate(0F, MOUTH_Y / 16F, MOUTH_Z / 16F);
         ps.scale(inv, inv, inv);
-        // balança de um lado pro outro (a cabeça dele já sacode na animação)
-        ps.mulPose(Axis.YP.rotationDegrees(Mth.sin(wob * 1.9F) * 26F));
+        // o pedaço vai atrás da cabeça dele, que chicoteia na animação (braço: um lado a cada
+        // 0,2 s; cabeça: a cada 0,1 s, depois de 0,4 s quase parado - vídeo da zebra, 86-88,8 s)
+        float t = e.t(partial);
+        boolean head = held == 3;
+        float amp = head && t < Finisher.RIP_H + 12 ? 0.25F : 1F;
+        float w = head ? wob * Mth.HALF_PI : wob * Mth.PI / 4F;
+        ps.mulPose(Axis.YP.rotationDegrees(Mth.sin(w) * (head ? 20F : 26F) * amp));
         // daqui pra frente: espaço do modelo de jogador (y pra baixo, frente em -z)
         ps.scale(-1F, -1F, 1F);
-        if (held == 3) {
-            // topo da cabeça pra frente, o pescoço dentro da boca, girando no próprio eixo
-            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(wob * 1.1F) * 18F));
-            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(wob * 0.7F) * 120F));
+        if (head) {
+            // topo da cabeça pra frente, o pescoço dentro da boca; a cada chicotada ela vira de
+            // face (de lado, de topo, de costas), como a da zebra
+            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 25F * amp));
+            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 100F * amp));
             ps.translate(0F, 1.5F / 16F, 0F);
             renderPart(model.head, ps, vc, light);
             renderPart(model.hat, ps, vc, light);
@@ -243,9 +285,9 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             boolean left = held == 1;
             boolean slim = "slim".equals(victim.getModelName());
             float cx = (left ? 1F : -1F) * (slim ? 0.5F : 1F);
-            // pendurado pra frente e pra baixo, sacudindo
-            ps.mulPose(Axis.XP.rotationDegrees(-60F + Mth.sin(wob * 2.2F) * 22F));
-            ps.mulPose(Axis.ZP.rotationDegrees(Mth.sin(wob * 1.3F + 1F) * 15F));
+            // pendurado pra frente e pra baixo, balançando atrás da chicotada
+            ps.mulPose(Axis.XP.rotationDegrees(-60F + Mth.sin(w + 0.8F) * 22F));
+            ps.mulPose(Axis.ZP.rotationDegrees(Mth.sin(w + 1.6F) * 18F));
             ps.translate(-cx / 16F, 2F / 16F, 0F);
             renderPart(left ? model.leftArm : model.rightArm, ps, vc, light);
             renderPart(left ? model.leftSleeve : model.rightSleeve, ps, vc, light);

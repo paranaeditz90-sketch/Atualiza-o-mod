@@ -1,5 +1,6 @@
 package com.froggydude.client.cutscene;
 
+import com.froggydude.entity.Finisher;
 import com.froggydude.init.ModEntityTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.model.PlayerModel;
@@ -7,8 +8,10 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.WalkAnimationState;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.PlayerModelPart;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderNameTagEvent;
@@ -42,8 +45,34 @@ public final class VictimRender {
     public static final int HIDDEN = 2;
 
     private static final class Saved {
-        float bodyRot, bodyRotO, headRot, headRotO, xRot, xRotO, swim, swimO;
+        float bodyRot, bodyRotO, headRot, headRotO, xRot, xRotO, swim, swimO, walkPos, walkSpeed, walkSpeedO;
         int deathTime;
+    }
+
+    /** WalkAnimationState.position / speed / speedOld: as pernas e o braço chutando ao se debater. */
+    private static final Field WALK_POS = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267358_");
+    private static final Field WALK_SPEED = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267371_");
+    private static final Field WALK_SPEED_O = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267406_");
+
+    /**
+     * Quanto ela se debate agora (0 a 1). Igual à zebra do vídeo: da mordida até arrancar,
+     * forte (a cabeça virando de um lado pro outro, trancos no corpo, as pernas chutando);
+     * depois de arrancar, vai morrendo em espasmos; antes da primeira mordida, só tenta se soltar.
+     */
+    static float thrash(float t, boolean skipLeft) {
+        float a = t < Finisher.BEND_L ? 0.3F : 0.15F;
+        if (!skipLeft) a = Math.max(a, bout(t, Finisher.BITE_L, Finisher.RIP_L));
+        a = Math.max(a, bout(t, Finisher.BITE_R, Finisher.RIP_R));
+        a = Math.max(a, bout(t, Finisher.BITE_H, Finisher.RIP_H));
+        if (t >= Finisher.RIP_H) a = Math.max(0F, 0.5F * (1F - (t - Finisher.RIP_H) / 50F));
+        return a;
+    }
+
+    private static float bout(float t, int bite, int rip) {
+        if (t < bite - 3 || t > rip + 50) return 0F;
+        if (t < bite) return (t - (bite - 3)) / 3F;
+        if (t <= rip + 6) return 1F;
+        return 0.3F + 0.7F * (1F - (t - rip - 6) / 44F);
     }
 
     /** LivingEntity.swimAmount / swimAmountO: quem estava preso no chão (pose de nado) ainda "nada" uns ticks. */
@@ -88,9 +117,16 @@ public final class VictimRender {
         PoseStack ps = event.getPoseStack();
         Vec3 pos = p.getPosition(partial);
         Vec3 h = e.h;
+        float t = e.t(partial);
+        float thr = (p.isDeadOrDying() || e.ended()) ? 0F : thrash(t, e.skipLeft);
+        float time = p.level().getGameTime() + partial;
         ps.pushPose();
+        // se debatendo: o corpo dá trancos (gira um pouco no próprio comprimento e pula)
+        double lift = thr * 0.05D * Math.abs(Mth.sin(time * 1.9F));
         // pés em A - 0,9H, as costas encostando no chão
-        ps.translate(e.anchor.x - pos.x - h.x * 0.9D, e.anchor.y - pos.y + 0.14D, e.anchor.z - pos.z - h.z * 0.9D);
+        ps.translate(e.anchor.x - pos.x, e.anchor.y - pos.y + 0.14D + lift, e.anchor.z - pos.z);
+        ps.mulPose(new Quaternionf().rotationAxis(thr * 7F * Mth.DEG_TO_RAD * jitter(time, 2.3F), (float) h.x, 0F, (float) h.z));
+        ps.translate(-h.x * 0.9D, 0D, -h.z * 0.9D);
         ps.mulPose(new Quaternionf().rotationTo(0F, 1F, 0F, (float) h.x, 0F, (float) h.z));
 
         Saved s = new Saved();
@@ -103,14 +139,22 @@ public final class VictimRender {
         s.deathTime = p.deathTime;
         s.swim = getF(SWIM, p);
         s.swimO = getF(SWIM_O, p);
+        s.walkPos = getF(WALK_POS, p.walkAnimation);
+        s.walkSpeed = getF(WALK_SPEED, p.walkAnimation);
+        s.walkSpeedO = getF(WALK_SPEED_O, p.walkAnimation);
         PUSHED.put(p.getId(), s);
         setF(SWIM, p, 0F);
         setF(SWIM_O, p, 0F);
         float face = e.yaw + 180F;
         p.yBodyRot = p.yBodyRotO = face;
-        p.yHeadRot = p.yHeadRotO = face;
-        p.setXRot(0F);
-        p.xRotO = 0F;
+        // a cabeça virando de um lado pro outro (a zebra, 81,2-83 s: ~a cada 0,2 s), o queixo mexendo
+        p.yHeadRot = p.yHeadRotO = face + thr * 55F * jitter(time, 1.3F);
+        p.setXRot(thr * 14F * jitter(time + 7F, 1.7F));
+        p.xRotO = p.getXRot();
+        // pernas e o braço que sobrou chutando/batendo (o balanço de andar, rápido e forte)
+        setF(WALK_POS, p.walkAnimation, time * 1.15F);
+        setF(WALK_SPEED, p.walkAnimation, thr * 0.85F);
+        setF(WALK_SPEED_O, p.walkAnimation, thr * 0.85F);
         // sem o tombo de lado da morte (ela já está deitada)
         p.deathTime = 0;
 
@@ -149,6 +193,9 @@ public final class VictimRender {
         p.deathTime = s.deathTime;
         setF(SWIM, p, s.swim);
         setF(SWIM_O, p, s.swimO);
+        setF(WALK_POS, p.walkAnimation, s.walkPos);
+        setF(WALK_SPEED, p.walkAnimation, s.walkSpeed);
+        setF(WALK_SPEED_O, p.walkAnimation, s.walkSpeedO);
         PlayerModel<AbstractClientPlayer> m = event.getRenderer().getModel();
         m.rightArm.visible = true;
         m.rightSleeve.visible = p.isModelPartShown(PlayerModelPart.RIGHT_SLEEVE);
@@ -170,6 +217,11 @@ public final class VictimRender {
             ((ModelPart) f.get(m)).visible = visible;
         } catch (IllegalAccessException | ClassCastException ignored) {
         }
+    }
+
+    /** Vai e volta irregular (-1 a 1), sem ficar com cara de pêndulo. */
+    private static float jitter(float time, float speed) {
+        return Mth.sin(time * speed) * 0.7F + Mth.sin(time * speed * 2.27F + 1.3F) * 0.3F;
     }
 
     private static float getF(Field f, Object o) {

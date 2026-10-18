@@ -1,4 +1,4 @@
-# Froggydude - Parte 4: manhunt, cérebro e anti-trapaça (v0.3.7)
+# Froggydude - v0.4.0: gore, o golpe final (a zebra) e sem anti-trapaça
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -8,19 +8,39 @@ está em `../PLANO.md`.
 - Parte 3 ✅ combate completo (esmagamento, pulo do céu, braço, fase 2...).
 - Parte 4 ✅ (esta) config, mundo `-dev`, comando `/froggydude`, um FroggyDude
   por mundo, manhunt (speedrun ou sobrevivência), falas na ordem dos vídeos,
-  e já um pedaço das Partes 8 e 9: o cérebro que aprende e o anti-trapaça
-  com a invasão do 911.
+  e já um pedaço da Parte 8: o cérebro que aprende.
+- v0.4.0: o vídeo do LM (0.1x, analisado em 60 fps): gore em 5 níveis, sangue
+  em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
+  o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.3.7) - o faro:
-1) Esconde-te numa casa fechada sem ele te ver (até ~24 blocos dele): ele
-   fareja o teu rastro, chega de quatro, fareja em volta e arromba.
-2) Foge, dobra a esquina e te esconde: em 8 s ele larga o alvo e segue o
-   cheiro; achou, ri. Entrando na água o rastro some: ele varre em volta de
-   onde o rastro acabou e berra "you can run, but you can't hide".
-3) Porta de ferro: ele arromba (5 tiros de língua). A porta não cai como item.
-4) Morreu pra ele: 45 s de barriga cheia antes de te caçar de novo.
-5) Num mundo `-dev`, o chat conta tudo ("farejando o rastro", "varredura",
-   "o cheiro vem dali", "achei pelo cheiro").
+O que testar agora (v0.4.0):
+1) Primeira vez que o jogo abre: a tela de aviso escolhe o gore (Desligado,
+   Leve, Médio, Pesado, Extremo); o Extremo tem tela própria ("Atenção ⚠").
+   Depois muda em Mods > Froggydude > Configurar.
+2) Bate num porco com espada: sangra (chão, a tua skin, a tela). Esqueleto,
+   slime e golem não sangram; creeper verde, enderman roxo, zumbi podre.
+3) O golpe dele que te mataria vira a cutscene: tu cai de costas e ele arranca
+   o braço esquerdo, o direito e a cabeça (câmera de cinema, igual à zebra).
+   `/froggydude golpefinal` testa na hora (em sobrevivência).
+4) Extremo: o sangue jorra em jato; o teu corpo fica e ele come, joga pro alto
+   e sacode na boca - tu vê isso antes da tela de morte.
+5) A língua é uma fatia chata rosa (boca aberta e braços em V antes).
+6) Pulo do céu: braços em V 0,3 s, agacha num piscar e sai como foguete.
+7) Ele come um golem de ferro: a boca fica esbranquiçada (cada bicho mancha a
+   boca com a cor do sangue dele, e some em ~2 min).
+8) Sangue na tua skin escorre e seca; cada gota mancha onde bateu.
+9) Comer = "flexão" (vídeos "Taste testing Minecraft mobs" e "never kill my
+   dog"): o bicho cai de lado e ele deita de bruços por cima, mãos plantadas,
+   e a cabeça desce mordendo a cada 0,3 s (desce rápido, sobe devagar). Igual
+   quando te derruba e te come vivo, e no teu corpo no Extremo. Golem/esqueleto
+   soltam lasca da cor deles, não sangue.
+10) Correndo de 4 levanta poeira clara nos pés a cada passada.
+11) Cutscene: a câmera ficou mais longe nos planos de corpo inteiro (no vídeo
+   ele ocupa metade da tela) e o close é na frente-direita dele, com a tua
+   cabeça saindo da boca pro lado (não tampa mais a cara dele).
+
+Da v0.3.7 - o faro: esconde-te numa casa sem ele ver (ele fareja o rastro e
+arromba); foge e dobra a esquina (ele segue o cheiro); na água o rastro some.
 
 Da v0.3.6:
 1) A cabeça não gira mais sozinha (andando, parado, caçando).
@@ -28,11 +48,6 @@ Da v0.3.6:
    fraco por soco e mais longo (6,6 s).
 3) Fase 2: contorção com o som original (ossos + gemido) e o grito ao levantar.
    Bate nele enquanto contorce: ele não sai do lugar nem gira.
-4) Anti-trapaça (mundo SEM `-dev`): com manhunt rolando OU com ele te caçando,
-   `/gamemode creative` -> ele vira pra ti e fala "What... the hell?! That's
-   cheating! You can't do that!" e começa a invasão do vídeo (precisa do
-   FroggyDude-Voz.zip ativado pro áudio original). `/froggydude trapaca testar`
-   mostra tudo sem banir.
 5) Tranca-te numa casa: ele derruba a parede a tiros de língua (vidro e terra
    num tiro, tábua em dois). Em cima do teu telhado, come o telhado.
 6) `/froggydude manhunt speedrun`: faz um portal do Nether e te afasta dele -
@@ -48,25 +63,37 @@ Código (src/main/java/com/froggydude):
   velocidade mudando o tempo todo (o galope acelera e freia liso)
 - player/ArmLoss.java - braço arrancado: vida máxima, mão secundária, sangramento
 - entity/ai/ - FroggyCombatGoal (persegue aos saltos, escolhe o ataque,
-  monta na vítima), FroggyFeedGoal (devora mobs com pouca vida),
+  monta na vítima), FroggyFeedGoal (devora mobs com pouca vida, em "flexão"; o bicho fica
+  caído e parado - entity/FeedLock e client/FeedVictimRender),
   FroggyFrenzyGoal (contorção + frenesi, desligada)
 - client/ - FroggydudeModel (textura, cabeça encarando, comprimento da língua),
-  FroggydudeRenderer (língua em pirâmide e braço arrancado na boca),
+  FroggydudeRenderer (língua em fatia e o pedaço na boca), MouthStainLayer
+  (a boca suja do que ele comeu), PlayerCorpseRenderer (o corpo do Extremo),
   ArmlessRendering (jogador sem braço: modelo, armadura, toco, 1ª pessoa),
   ClientModEvents e ClientForgeEvents (tremor, derrubado, câmera presa)
 - network/ - ModNetwork, FroggyShakePacket, ClientShakeHandler,
   ArmStatePacket e ClientArmState (quem está sem braço)
 - event/ModForgeEvents.java - tick do jogador preso/sem braço, tecla F,
   braço que volta na morte (e não volta saindo do End)
-- event/FroggyServerEvents.java - Parte 4: um por mundo, manhunt, anti-trapaça,
-  comando, banimento no login, aviso de mundo -dev
+- event/FroggyServerEvents.java - Parte 4: um por mundo, manhunt, comando,
+  aviso de mundo -dev
+- event/GoreEvents.java - sangue de qualquer dano em qualquer mob (cor por tipo)
+- event/FinisherEvents.java - o golpe que mataria vira a cutscene; a vítima não
+  leva outro dano nem age durante ela
+- entity/Finisher.java - a tabela de tempos e a geometria da cutscene (servidor
+  e cliente contam do mesmo tick); entity/ai/FroggyFinisherGoal.java - o lado
+  do servidor; client/cutscene/ - a câmera de cinema, o corpo deitado, os tocos
+- entity/PlayerCorpse.java + entity/ai/FroggyCorpseGoal.java - Extremo: o corpo
+  que fica, e ele comendo/jogando/sacudindo
+- config/GoreLevel.java, config/FroggyClientConfig.java (cada jogador escolhe
+  o seu gore), client/screen/ (aviso, aviso do Extremo, configurações)
+- client/gore/ - BloodStains (sangue na skin), BloodStreams (o jato do Extremo),
+  ScreenBlood (sangue na tela)
 - entity/voice/ - VoiceLine (cada fala), VoiceSituation (situação -> sequência
   dos vídeos), FroggyVoice (em que fala de cada situação ele está)
 - brain/ - o cérebro que aprende (FroggyBrain, PlayerMemory, Strategy, Style, Engagement)
 - world/ - FroggyWorldData (data/froggydude.dat no save), FroggyKeeper (um por
   mundo, onde ele aparece), Manhunt e ManhuntMode
-- anticheat/ - AntiCheat (quando vale e o que é trapaça) e Invasion (a
-  sequência do 911, com os tempos tirados do áudio original)
 - entity/FroggyNavigation.java e FroggyNodeEvaluator.java - caminho de aranha,
   longe (80 blocos), abre porta, desvia de onde já se machucou
 - brain/DangerMemory.java - onde ele se machucou (salvo no mundo, esquece em ~1 h)
@@ -82,21 +109,23 @@ Recursos (src/main/resources/assets/froggydude):
 - geo/froggydude.geo.json - modelo no formato de jogador (skin 64x64)
 - animations/froggydude.animation.json - animações (corrida, salto, bote e
   montado são geradas por tools/anim/build_anims.py, veja abaixo)
-- sounds.json - 24 sons de categoria (com o "tai", a contorção, o farejar, o vidro e a
-  ligação pro 911 da invasão) + 39 falas (froggydude.voice.*), com sons
+- sounds.json - sons de categoria (com o "tai", a contorção, o farejar e o
+  vidro) + 39 falas (froggydude.voice.*), com sons
   de reserva do Minecraft (a voz original vem no pacote de recursos
   FroggyDude-Voz.zip, que não fica no GitHub)
 - textures/entity/arm_stump.png - toco do braço arrancado
 - textures/entity/froggydude_<variante>_0..3.png - skins reais do FroggyDude
   (histórico dele no laby.net / NameMC), escolha provisória. Veja "Texturas"
-- lang/ - nome da entidade, legendas dos sons (cada fala tem a sua) e textos
-  do manhunt/invasão
-Dados (src/main/resources/data): o tipo de dano `froggydude:devoured` (a morte
-da invasão: ignora totem, armadura e invencibilidade) e as tags dele.
+- lang/ - nome da entidade, legendas dos sons (cada fala tem a sua), textos
+  do manhunt e das telas do gore
+Dados (src/main/resources/data): o tipo de dano `froggydude:devoured` (o fim do
+golpe final: ignora totem, armadura e invencibilidade) e as tags dele.
 
 tools/prepare_skins.py - prepara as skins do NameMC (veja "Texturas")
 tools/anim/build_anims.py - gera as animações de locomoção, bote, esmagamento,
-  pulo do céu, braço e contorção
+  pulo do céu, braço, contorção, língua, o golpe final e o corpo
+tools/make_gore_textures.py - respingos da tela, poça, jato, nuvem na água e a
+  mancha da boca
 
 ## Gerar o .jar
 O projeto agora está completo nesta pasta (build.gradle, gradlew, mods.toml).
@@ -144,6 +173,10 @@ certo. Se mudar um, mude o outro.
 | ARM_RIP         | arm_rip           | 2,0 s     | crava os dentes 0,4 s, sacode, arranca aos 1,1 s, solta aos 1,6 s |
 | ARM_EAT         | arm_eat           | 4,5 s     | mordida + tranco a cada 0,75 s, engole aos 4 s |
 | FEEDING         | feed (1 s, loop)  | 6,0 s     | mergulha e morde 0,34 s, arranca 0,52 s |
+| FINISHER        | finisher / finisher_r | 11,6 s (8,6 sem o braço esq.) | arranca 1,6 s / 4,6 s / 8,3 s, engole 11,3 s |
+| CORPSE_EAT      | feed (loop)       | 2,0 s     | mordida no corpo aos 0,35 s de cada volta |
+| CORPSE_TOSS     | corpse_toss       | 1,2 s     | solta o corpo pro alto aos 0,4 s     |
+| CORPSE_SHAKE    | corpse_shake      | 1,7 s     | o corpo na boca sacudindo            |
 | CONTORTING      | contort + contort_hold | 1,0 s + 2 a 4 s | tronco chicoteia; encurvado, cabeça tombada |
 | ROAR            | roar              | 0,9 s     | grito aos 0,2 s, depois o ataque feroz |
 | perseguindo     | run / run_frenzy  | -         | galope de 4 (fase 2: mais esticado e rápido); poeira e barulho a cada patada |
@@ -159,8 +192,8 @@ ficava trocando de pose várias vezes por segundo.
 
 A língua é um osso separado ("tongue"), filho da cabeça, com controlador
 próprio: fica escondida (escala ~0) e as animações tongue_*_ext esticam
-ela. O osso não tem cubo: o renderer desenha uma pirâmide (grossa na boca,
-fina na ponta). O comprimento é a distância da boca até o peito do alvo, e
+ela. O osso não tem cubo: o renderer desenha uma fatia chata
+(da largura da boca, rosa-claro na boca e mais escura na ponta redonda). O comprimento é a distância da boca até o peito do alvo, e
 ela mira porque a cabeça encara o alvo.
 
 A velocidade da animação de correr/andar acompanha a velocidade real dele
@@ -352,27 +385,43 @@ Pequeno, offline, dentro do mod, e salvo no mundo (data/froggydude.dat).
   `/froggydude esquecer <jogador>` apaga. Em mundo `-dev`, o chat conta cada
   caçada ("caçada contra LM: cercar por trás, killed, recompensa +10.0").
 
-## Anti-trapaça e a invasão (começo da Parte 9)
-Só com manhunt rodando, `anti_trapaca.ligado = true` e mundo SEM `-dev`.
-- Conta como trapaça: ir pro criativo/espectador, comandos de trapaça (`/give`,
-  `/tp`, `/effect`, `/kill`, `/time`, `/locate`...), voar no sobrevivência,
-  Resistência V+, e o mod Viltrumita (viltrumitecore) carregado.
-- 1ª vez: tela escura um instante, `<FroggyDude> I SEE YOU, nome` e ele parado
-  te olhando (pela janela, se tiver vidro).
-- 2ª vez: a invasão ("How many days can you survive against me?", 6:42-7:50):
-  tira o criativo e o voo, vira meia-noite, as tochas da casa apagam uma a uma,
-  três batidas na porta, a porta abre, a ligação pro 911 no chat, ele aparece
-  atrás de ti, derruba, arranca o braço e acabou ("foi encontrado morto em casa.
-  A porta estava destrancada."). Depois, o boletim de ocorrência e o banimento.
-  Durante a invasão comandos e troca de modo de jogo não funcionam; sair do
-  jogo no meio não salva (o banimento vale igual).
-- Banimento: só um registro dentro do save (nada fora do jogo é apagado). Pra
-  perdoar: `perdoar = true` no config (na próxima entrada o ban some; depois
-  volta pra false), ou `/froggydude perdoar <jogador>` por outro OP.
-- `/froggydude trapaca testar [jogador]`: a invasão inteira, sem banimento.
+## Gore (v0.4.0)
+Cada jogador escolhe o seu (config/froggydude-client.toml, ou Mods > Froggydude >
+Configurar). O servidor sabe o de cada um (pacote GoreLevel) pra decidir o corpo
+do Extremo; o resto é só visual de quem está vendo.
+- Desligado: nada de sangue; na cutscene a tela escurece em cada mordida.
+- Leve: pouco sangue, sem poça nem na tela. Médio: poças, skin e tela (só golpe
+  grande). Pesado (padrão): tudo. Extremo: o sangue JORRA em jato contínuo
+  (BloodStreams), a skin só limpa na água ou na chuva, e o corpo fica.
+- Sangue na skin (BloodStains): textura viva por jogador nas regiões da camada
+  de fora da skin; molhado escorre pra baixo e seca escurecendo; cada gota
+  (partícula) que bate num jogador mancha o ponto exato (na tua cara em
+  primeira pessoa vira uma gota na tela).
+- Na tela (ScreenBlood): respingos que escorrem e, preso embaixo dele, a tela
+  inteira vai ficando vermelha (a opacidade sobe a cada soco).
+- Cor por bicho (entity/BloodType): vermelho, podre (zumbi), verde (creeper,
+  aranha), amarelo (abelha), roxo (ender), ciano (warden), tinta (lula); sem
+  sangue: esqueleto, slime, golem, blaze, vex, allay, wither, ghast.
+- A boca dele fica da cor do que comeu (golem de ferro: branca) e some em ~2 min.
+
+## Golpe final (a cutscene da zebra)
+O golpe dele que mataria o jogador (sem totem na mão) vira a cutscene: a vítima
+cai de costas onde estava e ele, em pé por cima, arranca o braço esquerdo
+(tick 32), o direito (92) e a cabeça (166), engolindo aos 226 (11,6 s; sem o
+braço esquerdo começa no 60). Tempos e planos tirados quadro a quadro do vídeo
+do LM (77,3-88,8 s em 60 fps). A vítima se debate como a zebra (cabeça virando
+de um lado pro outro, trancos, pernas chutando) da mordida até arrancar.
+- Câmera (client/cutscene/CinematicCamera): baixinha do lado da cabeça da vítima
+  olhando pra cima; corte pro outro lado; close na cara dele com a cabeça na boca
+  chicoteando ~5x por segundo. Não atravessa parede. Sem HUD, faixas pretas.
+- Servidor e cliente contam do mesmo tick (entity.Finisher), a câmera e a pose
+  são interpoladas por quadro: liso a 60 fps.
+- Extremo: o corpo (PlayerCorpse) fica; ele come (as pernas somem primeiro),
+  joga pro alto e sacode na boca. A vítima assiste uns 6,5 s antes de morrer de
+  verdade (um jogador morto sai do mundo em 1 s e o cliente dele para de ver
+  as entidades).
 
 ## Config (`config/froggydude-common.toml`)
-- `anti_trapaca.ligado` (true), `anti_trapaca.perdoar` (false)
 - `manhunt.modo` (SPEEDRUN/SOBREVIVENCIA), `manhunt.dias` (5),
   `manhunt.vantagem_segundos` (30), `manhunt.volta_segundos` (60)
 - `froggydude.caca_blocos_por_segundo` (15; um jogador correndo faz ~5,6)
@@ -381,10 +430,11 @@ Só com manhunt rodando, `anti_trapaca.ligado = true` e mundo SEM `-dev`.
 - Só existe um: o último a nascer fica (o `/summon` ou `/froggydude invocar`
   "chama" ele pra perto e o antigo some); um antigo que aparece ao carregar um
   pedaço do mapa some sozinho.
-- Mundo com `-dev` no nome (ou na pasta): anti-trapaça desligado só ali, e o
-  cérebro conta no chat o que aprende. Ao entrar, aparece um aviso.
+- Mundo com `-dev` no nome (ou na pasta): o cérebro conta no chat o que
+  aprende. Ao entrar, aparece um aviso.
 - `/froggydude info`: modo do mundo, onde ele está, vida, estado, estratégia
   da caçada e o manhunt. `/froggydude fase2` força a fase 2.
+  `/froggydude golpefinal` faz a cutscene em ti (sobrevivência).
 
 ## O que ainda não existe
 Veja `../PLANO.md`: skins por evento, resto das animações, habilidades (água,

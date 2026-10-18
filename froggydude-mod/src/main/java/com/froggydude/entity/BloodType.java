@@ -66,6 +66,28 @@ public enum BloodType {
         return this != NONE;
     }
 
+    /**
+     * A cor que fica na boca dele depois de comer o bicho (LM: comendo um golem de ferro a
+     * boca dele ficou meio branca). Quem sangra deixa a cor do sangue; quem não sangra
+     * deixa o que é feito: ferro, neve, osso, gosma, fogo...
+     */
+    public static int residue(LivingEntity e) {
+        BloodType b = of(e);
+        if (b.bleeds()) return b.color;
+        if (e instanceof IronGolem) return 0xD6D6CE;
+        if (e instanceof SnowGolem) return 0xF2F7F7;
+        if (e instanceof AbstractSkeleton || e instanceof SkeletonHorse) return 0xE4DFCF;
+        if (e instanceof net.minecraft.world.entity.monster.MagmaCube) return 0xC4501C;
+        if (e instanceof Slime) return 0x7CC45A;
+        if (e instanceof Blaze) return 0xEFAE2E;
+        if (e instanceof Ghast) return 0xEEEEEE;
+        if (e instanceof Vex) return 0xA8C0D4;
+        if (e instanceof Allay) return 0x6FD3F2;
+        if (e instanceof WitherBoss) return 0x2C2C2C;
+        if (e instanceof ArmorStand) return 0xA88B5A;
+        return 0xD0D0D0;
+    }
+
     public static BloodType of(LivingEntity e) {
         if (e instanceof ArmorStand || e instanceof AbstractSkeleton || e instanceof SkeletonHorse
                 || e instanceof Slime || e instanceof IronGolem || e instanceof SnowGolem || e instanceof Blaze

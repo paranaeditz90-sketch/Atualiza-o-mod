@@ -13,9 +13,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 
 /**
- * Nuvem de poeira que o galope levanta (vs AJTHEBOLD, 0:34 e 7:45): sai dos
- * pés, vai crescendo, sobe devagar e some. Pega a cor do chão onde nasceu
- * (areia = bege, terra = marrom, pedra = cinza), meio clareada, como poeira.
+ * Nuvem de poeira que o galope levanta (vs AJTHEBOLD, 0:34 e 7:45; "never kill
+ * my dog", 10 s): sai dos pés, vai crescendo rente ao chão e some. Pega um pouco
+ * da cor do chão onde nasceu, mas bem clara, como poeira de verdade.
  */
 public class DustPuffParticle extends TextureSheetParticle {
 
@@ -28,10 +28,10 @@ public class DustPuffParticle extends TextureSheetParticle {
         this.yd = vy;
         this.zd = vz;
         this.friction = 0.86F;
-        this.gravity = -0.012F;   // sobe devagarinho
+        this.gravity = -0.004F;   // fica rente ao chão, quase não sobe
         this.hasPhysics = true;
-        this.lifetime = 18 + this.random.nextInt(16);
-        this.startSize = 0.2F + this.random.nextFloat() * 0.14F;
+        this.lifetime = 14 + this.random.nextInt(14);
+        this.startSize = 0.22F + this.random.nextFloat() * 0.2F;
         this.quadSize = startSize;
         this.startAlpha = 0.75F + this.random.nextFloat() * 0.15F;
         this.alpha = startAlpha;
@@ -43,11 +43,13 @@ public class DustPuffParticle extends TextureSheetParticle {
         BlockState state = level.getBlockState(below);
         int col = state.isAir() ? 0 : state.is(BlockTags.DIRT) ? MapColor.DIRT.col
                 : state.getMapColor(level, below).col;
-        float r = 0.70F, g = 0.67F, b = 0.62F;
+        // bem mais clara que o chão (no tapete vermelho do vídeo ela sai rosa-esbranquiçada):
+        // da cor do chão, ela sumia em cima dele
+        float r = 0.86F, g = 0.84F, b = 0.80F;
         if (col != 0) {
-            r = ((col >> 16) & 255) / 255F * 0.6F + 0.32F;
-            g = ((col >> 8) & 255) / 255F * 0.6F + 0.30F;
-            b = (col & 255) / 255F * 0.6F + 0.28F;
+            r = ((col >> 16) & 255) / 255F * 0.3F + 0.68F;
+            g = ((col >> 8) & 255) / 255F * 0.3F + 0.64F;
+            b = (col & 255) / 255F * 0.3F + 0.62F;
         }
         float shade = 0.92F + this.random.nextFloat() * 0.08F;
         this.setColor(Math.min(1F, r * shade), Math.min(1F, g * shade), Math.min(1F, b * shade));

@@ -33,7 +33,6 @@ import java.util.List;
 public final class ScreenBlood {
 
     private static final ResourceLocation[] SPLAT = new ResourceLocation[6];
-    private static final ResourceLocation VIGNETTE = new ResourceLocation(ModEntityTypes.MOD_ID, "textures/gui/blood_vignette.png");
 
     static {
         for (int i = 0; i < SPLAT.length; i++) {
@@ -186,11 +185,11 @@ public final class ScreenBlood {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         if (f > 0.003F) {
-            int a = (int) (Mth.clamp(f * 0.78F, 0F, 0.95F) * 255);
-            int col = (a << 24) | ((int) (filmR * 255 * 0.8F) << 16) | ((int) (filmG * 255 * 0.8F) << 8) | (int) (filmB * 255 * 0.8F);
+            // a tela inteira vai ficando vermelha por igual, a opacidade subindo (o POV de quem
+            // é esmagado no vídeo do LM, 36,2-48,6 s) - nada de vinheta fechando pelas bordas
+            int a = (int) (Mth.clamp(f, 0F, 1F) * 0.92F * 255);
+            int col = (a << 24) | ((int) (filmR * 255 * 0.85F) << 16) | ((int) (filmG * 255 * 0.85F) << 8) | (int) (filmB * 255 * 0.85F);
             gfx.fill(0, 0, w, h, col);
-            RenderSystem.setShaderColor(filmR * 0.6F, filmG * 0.6F, filmB * 0.6F, Mth.clamp(f * 1.5F, 0F, 1F));
-            gfx.blit(VIGNETTE, 0, 0, w, h, 0F, 0F, 256, 256, 256, 256);
         }
         for (Splat s : SPLATS) {
             int left = s.life - s.age;

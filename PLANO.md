@@ -69,17 +69,16 @@ Tudo testado aqui num cliente de verdade, gravando a tela, inclusive do ponto de
 - **Corrida na velocidade do original:** galope a ~15 blocos/s (RACING A CHEETAH), fase 2 a ~19. Saiu o salto de sapo da perseguição (ele cobria 7,5 blocos em 1,2 s, mais devagar que o galope: era o "sapo pulando, bem lento").
 - **Sangue** cai mais pesado (gravidade 1,5) e sai 1,6x mais.
 - **Falas na ordem dos vídeos:** 38 falas, cada uma com seu som; cada situação (avistou, fugindo, língua, derrubou, montado, comeu, morrendo...) tem a sequência tirada das legendas dos vídeos, e ela continua de onde parou (salva no mundo).
-- **Config** (`config/froggydude-common.toml`), **mundo `-dev`**, **comando `/froggydude`** (invocar, info, manhunt, fase2, cerebro, esquecer, falas, trapaca testar, perdoar) e **um FroggyDude por mundo**.
+- **Config** (`config/froggydude-common.toml`), **mundo `-dev`**, **comando `/froggydude`** (invocar, info, manhunt, fase2, cerebro, esquecer, falas, golpefinal) e **um FroggyDude por mundo**.
 - **Manhunt, os dois modos** (decisão do LM): speedrun (matar o dragão antes dele te pegar) e sobrevivência (X dias). Vantagem com contagem, ele te segue pro Nether/End, volta depois de morrer, some quando vence.
 - **Cérebro que aprende** (escolha do LM): por jogador, salvo no mundo; aprende teu estilo, qual estratégia de caçada funciona contra ele (apavorar / direto / cercar por trás) e quais ataques te acertam.
-- **Anti-trapaça + invasão do 911** (seção 7), com `-dev` desligando e `/froggydude trapaca testar` pra ver sem banir.
+- ~~Anti-trapaça + invasão do 911~~ — **removido na v0.4.0** (LM: "percebi vários bugs relacionados a ela, pode remover sem dó").
 
 **Parte 4, ajustes (v0.3.6) ✅** - em cima do teste do LM:
 - **Cabeça girando do nada (bug crítico):** a marca de "osso mexido" do GeckoLib sobrevivia de um quadro pro outro e, na animação de andar (que não mexe na cabeça), o olhar era somado de novo a cada quadro. Agora a marca é limpa depois de cada ajuste e a animação de andar trava a cabeça na pose.
 - **Língua:** meio coração por chicotada/puxão.
 - **Esmagamento:** 24 socos (um a cada 0,25 s, 6,6 s ao todo), dano bem menor por soco, e o "tai!" do original (vs AJTHEBOLD) em cada um.
 - **Fase 2:** o som da contorção é o do short original (ossos estalando + gemido torto) e o grito de raiva fica pro levantar. Contorcendo e gritando ele não é mais empurrado pelos golpes nem gira atrás de quem bate (no teste ele "patinava" com a pose congelada).
-- **Anti-trapaça:** vale com manhunt OU quando ele está te caçando (fugir dele pro criativo é trapaça). Sem aviso: ele vira pra ti e reage FALANDO, com o áudio original ("What... the hell?! That's cheating! You can't do that!") e a invasão segue o vídeo segundo a segundo: escurece, a janela estoura (o vidro do vídeo), a casa e a ligação pro 911 com o jogador desesperado, e no "AHHH!" ele te derruba. Áudio só pra quem trapaceou. Nada de texto no chat.
 - **Inteligência:** caminho até 80 blocos e 4x mais rotas testadas; abre porta; lembra onde se machucou (lava, fogo, explosão, cacto, neve fofa, flecha de dispensador) e desvia por ~1 hora; corta caminho pra onde tu vai estar (intercepta) e, se a estratégia é cercar, vem por trás. Trancou-se em casa: derruba a parede/porta/janela a tiros de língua ("How strong is my tongue?": vidro e terra num tiro, tábua em dois) e come o telhado se tu estiver embaixo. No speedrun: come o portal do Nether quando tu está longe e come os aldeões perto de ti (sem troca).
 
 **Faro e varredura (v0.3.7) ✅** - pedido do LM depois da v0.3.6:
@@ -263,44 +262,13 @@ Ele **nunca repete** o mesmo susto em sequência, e guarda o que já te assustou
 
 ---
 
-## 7. Anti-trapaça e a invasão (Parte 9)
+## 7. Anti-trapaça e a invasão — REMOVIDO (v0.4.0)
 
-Inspirado no fim de **"How many days can you survive against me?"** (6:42–7:50):
-- o último jogador trapaceia e vai pro criativo;
-- "nem o criativo te salva";
-- o FroggyDude invade a casa;
-- som de rasgo;
-- ligação pro 911.
-
-**O que conta como trapaça** ❓:
-- mudar pra criativo/espectador;
-- usar comando (`/give`, `/tp`, `/effect`, `/kill` nele);
-- voar no sobrevivência;
-- resistência 255;
-- mod de trapaça instalado. Detectado pela lista de mods: o **Viltrumita** tem versão Forge 1.20.1 (`viltrumitecore-forge`), então dá pra pegar pelo ID.
-
-**A sequência:**
-1. **1ª vez: aviso.** A tela dá um glitch, aparece no chat `<FroggyDude> I SEE YOU, <teu nome>` e ele aparece na tua janela, olhando. Mais nada.
-2. **2ª vez: invasão.**
-   - Ele **tira teu criativo** e tu volta pro sobrevivência.
-   - Vira noite.
-   - As tochas da tua base apagam uma a uma.
-   - Batida na porta, e a porta abre.
-   - Ele está **dentro da tua casa** (que ele já conhece pela memória).
-   - Nada te protege: o dano dele ignora invulnerabilidade.
-   - Jumpscare, som de rasgo.
-3. **Banimento:** tela de desconexão estilo boletim de ocorrência ("Jogador X encontrado morto em casa. Porta destrancada. Polícia investiga."). O mundo grava tua conta como banida e te expulsa toda vez que tu tentar entrar.
-
-**Modo desenvolvedor pelo nome do mundo (ideia tua):** se o nome do mundo tiver **`-dev`** (ex.: `teste-dev`), o anti-trapaça fica desligado **só naquele mundo**: sem aviso, sem invasão e sem banimento. Os outros mundos funcionam normal. Assim tu testa com comandos sem mexer em config.
-
-**Mod de armas não dá ban:** ele arranca a arma com a língua (seção 4). Ban é pra trapaça de verdade (criativo, comandos, voar, Viltrumita...).
-
-**Travas de segurança (não negociáveis):**
-- **Nunca apaga mundo, arquivo ou nada fora do jogo.** O banimento é um registro dentro do save, que dá pra desfazer.
-- **Perdão:** opção `perdoar = true` no arquivo de config. Na próxima entrada, o ban some.
-- **Modo desenvolvedor:** mundo com `-dev` no nome (acima). Também fica a opção `anti_trapaca = false` no config, pra desligar em todos os mundos.
-
----
+O LM pediu pra tirar tudo ("percebi vários bugs relacionados a ela, então não
+compensa deixar ela. Pode remover sem dó."): detecção, reação, invasão do 911,
+tela do boletim, banimento, `/froggydude trapaca` e `perdoar`, e as opções do
+config. No lugar, a v0.4.0 trouxe o gore em 5 níveis e o golpe final (a zebra):
+ver NOTES.md.
 
 ## 8. Ordem das partes
 
@@ -311,12 +279,12 @@ Tu pediu animação e som primeiro, e fez sentido: era o que mais destoava dos v
 | 1 | Combate básico | ✅ |
 | 2 | **Animações de corrida/bote + sons + câmera + língua** | ✅ |
 | 3 | **Combate completo:** tamanho de jogador, pulinhos com velocidade variável, esmagamento, pulo do céu, devorar mais longo, língua em pirâmide e mais rara, braço arrancado e comido, sangramento, fase 2 | ✅ esta entrega |
-| 4 | **Fundação:** config, mundo `-dev`, comando `/froggydude`, um por mundo, manhunt (2 modos), falas na ordem | ✅ v0.3.5 (+ cérebro e anti-trapaça adiantados) |
+| 4 | **Fundação:** config, mundo `-dev`, comando `/froggydude`, um por mundo, manhunt (2 modos), falas na ordem | ✅ v0.3.5 (+ cérebro adiantado) |
 | 5 | **Skins em camadas** + regras evento → skin (comer suja a frente, lava carboniza, água lava) | |
 | 6 | **Resto das animações** (parede, nadar, espiar janela, bater na porta, giro de cabeça, estalo de costas, lavar sangue) | |
 | 7 | **Habilidades:** subir parede, nadar e arrastar pra água, comer pra curar, ressuscitar, roubar item com a língua | |
 | 8 | **Inteligência:** percepção, faro, memória, decisão, diretor de tensão | 🟡 memória por jogador + decisão que aprende (v0.3.5); caminho, perigo, interceptar, derrubar parede e sabotar (v0.3.6); faro, varredura e arrombar (v0.3.7); falta rotina e diretor |
-| 9 | **Terror + anti-trapaça + invasão** | 🟡 anti-trapaça e invasão do 911 (v0.3.5), com a reação e o áudio originais (v0.3.6) |
+| 9 | **Terror** | 🟡 gore em 5 níveis e o golpe final da zebra (v0.4.0); o anti-trapaça saiu |
 | 10 | Extras: FroggyDoom, filhotes, Ultimate Froggy, como ele aparece no mundo | |
 
 Cada parte termina igual: compila no GitHub, eu testo aqui num cliente de
@@ -336,7 +304,6 @@ verdade (gravando a tela), te mando o `.jar` e o vídeo, tu testa no Zalith.
 
 - **Manhunt:** os dois modos, configurável (speedrun e sobrevivência), feito na v0.3.5.
 - **IA:** o cérebro que aprende (por jogador, offline, salvo no mundo), começo feito na v0.3.5.
-- **Anti-trapaça:** só vale com manhunt rodando (senão ia banir quem só usa `/gamemode` construindo).
 
 **Ainda em aberto ❓:**
 - **O resto do Manhunt** (o LM disse que ainda vamos conversar): como ele aparece no mundo sem comando, se vale pra vários jogadores ao mesmo tempo (hoje: pegou um, acabou), e o equilíbrio. A 15 blocos/s ninguém escapa correndo em linha reta; o que salva é torre, água, porta e cabeça.

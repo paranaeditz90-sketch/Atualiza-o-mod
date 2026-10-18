@@ -206,6 +206,7 @@ public class FroggyFinisherGoal extends Goal {
     private void bite(ServerLevel level, int t, int biteAt, int ripAt, Vec3 at, Vec3 out) {
         if (t == biteAt) {
             froggy.onBiteHit();
+            froggy.stainMouth(victim, 0.35F);
             froggy.openMouth(ripAt - biteAt + 4);
             BloodFx.spray(level, at, out.add(0, 0.8D, 0), 10, 0.22F);
             BloodFx.hit(victim, froggy, at, out.scale(-1), 3F, BloodFx.RED, BloodFx.HIT_MARKS);

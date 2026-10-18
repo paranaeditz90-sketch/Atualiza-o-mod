@@ -95,11 +95,13 @@ public class FroggyCombatGoal extends Goal {
     private static final double SMASH_DISTANCE = 1.5D;
     private static final double RIP_DISTANCE = 1.5D;
 
-    // Devorar: 5 s, uma mordida por segundo (bate com a animação pin_hold de 1 s).
+    // Devorar: 5 s comendo em "flexão" (pin_hold): a cabeça desce mordendo a cada 0,3 s.
+    // O jogador fica 10 ticks invencível depois de cada dano, então a mordida que
+    // tira vida é uma sim, uma não (a cada 12 ticks, 0,9) - dá o mesmo dano de antes
+    // (1,5 por segundo); as outras só sangram e sacodem.
     private static final int PIN_TICKS = 100;
-    private static final int PIN_FIRST_BITE = 10;
-    private static final int PIN_BITE_EVERY = 20;
-    private static final float PIN_BITE_DAMAGE = 1.5F;
+    private static final int PIN_FIRST_BITE = 9;
+    private static final float PIN_BITE_DAMAGE = 0.9F;
 
     // Esmagar: 8 socos, dois por segundo (soco aos 0,25 s de cada volta de 0,5 s da
     // animação; o primeiro conta os 3 ticks de transição da pose anterior). O
@@ -158,6 +160,9 @@ public class FroggyCombatGoal extends Goal {
     private int stuckTicks;
     private static final int STUCK_TICKS = 60;
     private int repathTicks;
+    /** Colado atrás de quem foge (vídeo da zebra: ~0,4 s correndo junto antes do bote). */
+    private int tailTicks;
+    private static final int TAIL_TICKS = 8;
     private int counterCooldown;
     private int tongueCooldown;
     private boolean fired1;
@@ -285,6 +290,8 @@ public class FroggyCombatGoal extends Goal {
         if (charging && froggy.getAttackCooldown() <= 0 && counterPounce(target, dist)) {
             return;
         }
+        // alcançou quem foge: corre COLADO atrás uns 0,4 s (a zebra do vídeo) e dá o bote
+        if (tail(target, dist, elevated)) return;
 
         if (froggy.getAttackCooldown() <= 0) {
             FroggyState next = pickAttack(target, dist, elevated);
@@ -303,9 +310,11 @@ public class FroggyCombatGoal extends Goal {
         // ticks (0,31 b/t), mais devagar que o galope - "parece um sapo pulando, bem
         // lento" (LM). Agora é galope o caminho todo, como o guepardo do original.
         if (dist > 2.0D) {
-            if (--repathTicks <= 0) {
+            double speed = froggy.isFrenzyActive() ? 1.0D : huntSpeed();
+            if (beeline(target, dist, speed)) {
+                repathTicks = 0;
+            } else if (--repathTicks <= 0) {
                 repathTicks = 4;
-                double speed = froggy.isFrenzyActive() ? 1.0D : huntSpeed();
                 if (!flank(target, dist) && !intercept(target, dist, speed)) {
                     froggy.getNavigation().moveTo(target, speed);
                 }
@@ -368,6 +377,101 @@ public class FroggyCombatGoal extends Goal {
         double lead = Math.min(30.0D, dist / 0.75D);
         Vec3 aim = target.position().add(targetVel.x * lead, 0, targetVel.z * lead);
         return froggy.getNavigation().moveTo(aim.x, target.getY(), aim.z, speed);
+    }
+
+    /**
+     * Caminho mais curto de verdade: vendo a vítima, no mesmo nível e com chão firme
+     * e livre em linha reta até ela (sem buraco, lava, água funda nem parede), ele
+     * corre RETO, sem os zigue-zagues do caminho de bloco em bloco do jogo. Mirando
+     * onde ela vai estar, se está fugindo. Qualquer coisa no meio: volta pro
+     * caminho calculado (que contorna, sobe e desce).
+     */
+    private boolean beeline(LivingEntity target, double dist, double speed) {
+        if (dist > 48.0D || froggy.isClimbing() || !froggy.onGround() || !target.onGround()) return false;
+        if (Math.abs(target.getY() - froggy.getY()) > 1.1D || !froggy.hasLineOfSight(target)) return false;
+        double lead = approachSpeed(target) < -0.08D ? Math.min(12.0D, dist / 0.75D) : 0.0D;
+        Vec3 aim = target.position().add(targetVel.x * lead, 0, targetVel.z * lead);
+        if (!clearRun(froggy.position(), aim)) {
+            aim = target.position();
+            if (!clearRun(froggy.position(), aim)) return false;
+        }
+        froggy.getNavigation().stop();
+        froggy.getMoveControl().setWantedPosition(aim.x, target.getY(), aim.z, speed);
+        return true;
+    }
+
+    /** Chão firme e passagem livre (1 bloco de degrau no máximo) em linha reta de a até b. */
+    private boolean clearRun(Vec3 a, Vec3 b) {
+        Level level = froggy.level();
+        Vec3 d = b.subtract(a).multiply(1, 0, 1);
+        double len = d.length();
+        if (len < 0.5D) return true;
+        Vec3 step = d.scale(0.5D / len);
+        double y = a.y;
+        Vec3 p = a;
+        for (double done = 0.5D; done < len; done += 0.5D) {
+            p = p.add(step);
+            BlockPos feet = BlockPos.containing(p.x, y + 0.1D, p.z);
+            if (!level.getFluidState(feet).isEmpty() || !level.getFluidState(feet.below()).isEmpty()) return false;
+            boolean feetFree = level.getBlockState(feet).getCollisionShape(level, feet).isEmpty();
+            boolean headFree = level.getBlockState(feet.above()).getCollisionShape(level, feet.above()).isEmpty()
+                    && level.getBlockState(feet.above(2)).getCollisionShape(level, feet.above(2)).isEmpty();
+            if (!headFree) return false;
+            if (!feetFree) {
+                // degrau de 1 bloco: sobe (o pulo do MoveControl resolve)
+                BlockPos up = feet.above();
+                if (!level.getBlockState(up.above(2)).getCollisionShape(level, up.above(2)).isEmpty()) return false;
+                y += 1.0D;
+                continue;
+            }
+            BlockPos below = feet.below();
+            if (level.getBlockState(below).getCollisionShape(level, below).isEmpty()) {
+                // degrau pra baixo de 1 bloco ainda vai; buraco mais fundo, não
+                BlockPos below2 = below.below();
+                if (level.getBlockState(below2).getCollisionShape(level, below2).isEmpty()) return false;
+                y -= 1.0D;
+            }
+            var st = level.getBlockState(BlockPos.containing(p.x, y - 0.5D, p.z));
+            if (st.is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK) || st.is(net.minecraft.world.level.block.Blocks.CAMPFIRE)
+                    || st.is(net.minecraft.world.level.block.Blocks.CACTUS) || st.is(net.minecraft.world.level.block.Blocks.SWEET_BERRY_BUSH)
+                    || st.is(net.minecraft.world.level.block.Blocks.POWDER_SNOW)) return false;
+            if (level.getBlockState(feet).is(net.minecraft.world.level.block.Blocks.FIRE)
+                    || level.getBlockState(feet).is(net.minecraft.world.level.block.Blocks.COBWEB)) return false;
+        }
+        return Math.abs(y - b.y) < 1.6D;
+    }
+
+    /**
+     * Correndo colado atrás de quem foge (vídeo da zebra, 72,2-73,6 s: alcança,
+     * corre junto ~0,4 s e dá o bote). Devolve true enquanto está colando ou se
+     * acabou de dar o bote.
+     */
+    private boolean tail(LivingEntity target, double dist, boolean elevated) {
+        boolean fleeing = !elevated && target.onGround() && approachSpeed(target) < -0.08D
+                && Math.abs(target.getY() - froggy.getY()) < 1.2D && froggy.hasLineOfSight(target);
+        if (!fleeing || dist > 3.4D || froggy.isClimbing()) {
+            tailTicks = 0;
+            return false;
+        }
+        if (froggy.getAttackCooldown() > 0 && tailTicks == 0) return false;
+        tailTicks++;
+        if (tailTicks < TAIL_TICKS) {
+            // 1,2 bloco atrás dela, no mesmo passo (um pouco mais rápido pra não perder)
+            Vec3 v = targetVel.multiply(1, 0, 1);
+            Vec3 back = v.lengthSqr() > 1.0E-4D ? v.normalize().scale(-1.2D) : Vec3.ZERO;
+            Vec3 aim = target.position().add(back).add(targetVel.scale(2.0D));
+            froggy.getNavigation().stop();
+            froggy.getMoveControl().setWantedPosition(aim.x, target.getY(), aim.z, huntSpeed() * 1.05D);
+            froggy.getLookControl().setLookAt(target, 60.0F, 60.0F);
+            return true;
+        }
+        tailTicks = 0;
+        FroggyState only = debugAttackKind();
+        if (only != null && only != FroggyState.JUMP_PIN) return false;
+        debug("colou atrás " + TAIL_TICKS + " ticks: bote, dist=" + String.format("%.2f", dist));
+        // de perto o bote baixo agarra na trombada (ver runAttack JUMP_PIN)
+        beginAttack(FroggyState.JUMP_PIN, target, dist);
+        return true;
     }
 
     /**
@@ -931,6 +1035,11 @@ public class FroggyCombatGoal extends Goal {
                             hurt(target, 5.0F);
                             froggy.spawnBlood(target, 6);
                             froggy.onBiteHit();
+                            // puxou até a boca: metade das vezes já derruba e come vivo
+                            if (target.isAlive() && froggy.getRandom().nextBoolean()) {
+                                pinVictim(state, target, 1.0F);
+                                return;
+                            }
                         }
                     }
                 }
@@ -1274,12 +1383,13 @@ public class FroggyCombatGoal extends Goal {
             beginArmRip(victim);
             return;
         }
-        // morde uma vez por segundo (o primeiro logo depois de cair em cima)
-        if (t >= PIN_FIRST_BITE && (t - PIN_FIRST_BITE) % PIN_BITE_EVERY == 0) {
-            hurtNoKnockback(victim, PIN_BITE_DAMAGE);
-            froggy.spawnBlood(victim, 4);
-            froggy.onBiteHit();
-            shake(victim, 0.7F, 8);
+        // a cabeça bate embaixo a cada 0,3 s (a primeira logo depois de cair em cima)
+        if (t >= PIN_FIRST_BITE && FroggydudeEntity.pushupBite(t)) {
+            boolean hurts = (t / FroggydudeEntity.PUSHUP_TICKS) % 2 == 0;
+            if (hurts) hurtNoKnockback(victim, PIN_BITE_DAMAGE);
+            froggy.spawnBlood(victim, hurts ? 3 : 1);
+            froggy.onPushupBite(t);
+            shake(victim, hurts ? 0.6F : 0.35F, 4);
         }
     }
 
@@ -1301,9 +1411,16 @@ public class FroggyCombatGoal extends Goal {
     private void runSmash(LivingEntity target, double dist) {
         int t = froggy.getStateTicks();
         LivingEntity victim = froggy.getPinnedVictim();
-        if (!stillPinned(victim, target, dist) || t >= stateLength) {
+        if (!stillPinned(victim, target, dist)) {
             debug("fim do esmagamento: t=" + t + "/" + stateLength + " dist=" + dist);
             endOnVictim();
+            return;
+        }
+        if (t >= stateLength) {
+            // a sequência (LM): cai em cima, ESMAGA e em seguida começa a comer vivo.
+            // A mordida que mataria vira o golpe final (FinisherEvents)
+            debug("esmagou: agora come vivo");
+            devourAlive(victim);
             return;
         }
         holdOver(victim, SMASH_DISTANCE);
@@ -1326,6 +1443,19 @@ public class FroggyCombatGoal extends Goal {
             froggy.onSmashHit();
             shake(victim, 1.1F, 10);
         }
+    }
+
+    /** Do esmagamento direto pra comer vivo, sem soltar (ela continua no chão). */
+    private void devourAlive(LivingEntity victim) {
+        placeBeside(victim, PIN_DISTANCE);
+        knockDown(victim, PIN_TICKS, 0.8F);
+        stateLength = PIN_TICKS;
+        boolean canRip = victim instanceof ServerPlayer p && ArmLoss.canLoseArm(p);
+        ripAt = canRip && froggy.getRandom().nextFloat() < 0.35F ? 50 : -1;
+        froggy.setFroggyState(FroggyState.PIN_HOLD);
+        froggy.onPinnedVictim(victim);
+        froggy.speak(VoiceSituation.PIN);
+        pinTalked = false;
     }
 
     // ---------------------------------------------------------------- braço
@@ -1416,6 +1546,7 @@ public class FroggyCombatGoal extends Goal {
         for (int bite : EAT_BITES) {
             if (t == bite) {
                 froggy.onChew();                       // crava
+                froggy.stainMouth(com.froggydude.entity.BloodType.RED.color, 0.2F);
                 froggy.speak(VoiceSituation.CHEWING);  // "mmmm" (se não estiver falando)
             } else if (t == bite + 2) {
                 froggy.spawnMouthBlood(8);             // tranco: arranca o pedaço

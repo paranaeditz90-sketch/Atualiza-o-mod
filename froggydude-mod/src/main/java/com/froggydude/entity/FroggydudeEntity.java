@@ -119,6 +119,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Subindo uma parede/torre de quatro, igual aranha. */
     private static final EntityDataAccessor<Boolean> DATA_CLIMBING =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /** A boca suja do que ele comeu: a cor e quanto (0 a 1, vai sumindo). */
+    private static final EntityDataAccessor<Integer> DATA_MOUTH_COLOR =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Float> DATA_MOUTH_STAIN =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /** A mancha da boca some toda em uns 2 minutos sem comer nada. */
+    private static final float MOUTH_FADE_PER_SECOND = 1F / 120F;
     /** Boca escancarada (skin de grito): língua, grito, mordida, mastigando. */
     private static final EntityDataAccessor<Boolean> DATA_MOUTH_OPEN =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
@@ -133,6 +140,20 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Golpe final sem o braço esquerdo (a língua já tinha arrancado): a animação começa no direito. */
     private static final EntityDataAccessor<Boolean> DATA_FINISH_SKIPLEFT =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /**
+     * O mob que ele está comendo (-1 = nenhum, ou comendo bloco). O cliente deita o
+     * bicho de lado embaixo dele e troca a animação pela "flexão" (feed_mob).
+     */
+    private static final EntityDataAccessor<Integer> DATA_FEED_ID =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+
+    /**
+     * Comendo em "flexão" (pin_hold, feed_mob): uma mordida a cada 0,3 s (6 ticks).
+     * A cabeça bate embaixo aos 0,12 s de cada mordida; o servidor morde no tick 3
+     * (a animação do cliente começa um tico depois do estado).
+     */
+    public static final int PUSHUP_TICKS = 6;
+    public static final int PUSHUP_BITE_AT = 3;
 
 
     /**
@@ -274,9 +295,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_DEBUG_ANIM, "");
         this.entityData.define(DATA_HELD_ARM, Optional.empty());
         this.entityData.define(DATA_MOUTH_OPEN, false);
+        this.entityData.define(DATA_MOUTH_COLOR, BloodType.RED.color);
+        this.entityData.define(DATA_MOUTH_STAIN, 0F);
         this.entityData.define(DATA_FACE_YAW, Float.NaN);
         this.entityData.define(DATA_CLIMBING, false);
         this.entityData.define(DATA_FINISH_SKIPLEFT, false);
+        this.entityData.define(DATA_FEED_ID, -1);
     }
 
     @Override
@@ -675,6 +699,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     }
 
     @Override
+    public void remove(RemovalReason reason) {
+        // sumiu no meio da refeição (descarregou, /kill): o bicho que estava comendo levanta
+        if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget);
+        super.remove(reason);
+    }
+
+    @Override
     protected boolean isImmobile() {
         return super.isImmobile() || holdTicks > 0;
     }
@@ -697,6 +728,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public void die(DamageSource source) {
         if (!this.level().isClientSide && finishing) finisherGoal.stop(); // morto não roda Goal: acaba aqui
+        if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget); // o bicho levanta
         super.die(source);
         if (!this.level().isClientSide) {
             endEngagement(FroggyBrain.Outcome.FROGGY_DIED);
@@ -904,6 +936,32 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (!this.entityData.get(DATA_MOUTH_OPEN)) this.entityData.set(DATA_MOUTH_OPEN, true);
     }
 
+    /** Comeu um pedaço: a boca fica da cor dele (mistura com o que já tinha). */
+    public void stainMouth(int color, float amount) {
+        float old = getMouthStain();
+        float now = Math.min(1F, old + amount);
+        if (now <= 0F) return;
+        int c = getMouthColor();
+        float k = old <= 0.02F ? 1F : amount / now;
+        int r = (int) Mth.lerp(k, (c >> 16) & 255, (color >> 16) & 255);
+        int g = (int) Mth.lerp(k, (c >> 8) & 255, (color >> 8) & 255);
+        int b = (int) Mth.lerp(k, c & 255, color & 255);
+        this.entityData.set(DATA_MOUTH_COLOR, (r << 16) | (g << 8) | b);
+        this.entityData.set(DATA_MOUTH_STAIN, now);
+    }
+
+    public void stainMouth(LivingEntity eaten, float amount) {
+        stainMouth(BloodType.residue(eaten), amount);
+    }
+
+    public int getMouthColor() {
+        return this.entityData.get(DATA_MOUTH_COLOR);
+    }
+
+    public float getMouthStain() {
+        return this.entityData.get(DATA_MOUTH_STAIN);
+    }
+
     /** Pro renderer: na fase 2 ele passa o tempo todo de boca aberta, gritando. */
     public boolean isMouthOpen() {
         if (this.entityData.get(DATA_MOUTH_OPEN) || isFrenzyActive()) return true;
@@ -1094,6 +1152,27 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public void setFeedTarget(@Nullable LivingEntity target) {
         this.feedTarget = target;
+        this.entityData.set(DATA_FEED_ID, target == null ? -1 : target.getId());
+    }
+
+    /** No cliente: o id do mob que ele come (deitado embaixo dele), ou -1. */
+    public int getFeedVictimId() {
+        return this.entityData.get(DATA_FEED_ID);
+    }
+
+    /** Este tick é a cabeça batendo embaixo na flexão? */
+    public static boolean pushupBite(int stateTicks) {
+        return stateTicks % PUSHUP_TICKS == PUSHUP_BITE_AT;
+    }
+
+    /** Cada mordida da flexão: uma estala os dentes, a outra mastiga (não vira metralhadora de som). */
+    public void onPushupBite(int stateTicks) {
+        if ((stateTicks / PUSHUP_TICKS) % 2 == 0) {
+            this.playSound(ModSounds.BITE.get(), 0.85F, 0.9F + this.getRandom().nextFloat() * 0.25F);
+        } else {
+            this.playSound(ModSounds.CHEW.get(), 0.7F, 0.95F + this.getRandom().nextFloat() * 0.3F);
+        }
+        openMouth(PUSHUP_TICKS + 2);
     }
 
     public int getFeedSearchCooldown() {
@@ -1203,6 +1282,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
         stateTicks++;
         if (stalkTicks > 0) stalkTicks--;
+        if (this.tickCount % 20 == 0) {
+            float m = getMouthStain();
+            if (m > 0F) this.entityData.set(DATA_MOUTH_STAIN, Math.max(0F, m - MOUTH_FADE_PER_SECOND));
+        }
         if (leaveTicks > 0 && --leaveTicks == 0) {
             if (this.level() instanceof ServerLevel server) {
                 server.sendParticles(ParticleTypes.POOF, this.getX(), this.getY() + 1.0D, this.getZ(), 30, 0.4D, 0.8D, 0.4D, 0.02D);
@@ -1379,14 +1462,17 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         double px = this.getX() + fx * off;
         double pz = this.getZ() + fz * off;
         boolean frenzy = isFrenzyActive();
-        int puffs = frenzy ? 5 : 3;
+        // a "fumaça" de terra (vídeo "never kill my dog", 10,0-10,4 s): a cada patada um
+        // bolo de nuvenzinhas claras rente ao chão, abrindo pros lados e ficando pra trás
+        int puffs = frenzy ? 9 : 6;
         for (int i = 0; i < puffs; i++) {
+            double side = (this.random.nextDouble() - 0.5D) * 0.12D;
             this.level().addParticle(ModParticles.DUST_PUFF.get(),
-                    px + (this.random.nextDouble() - 0.5D) * 0.5D, this.getY() + 0.12D,
-                    pz + (this.random.nextDouble() - 0.5D) * 0.5D,
-                    -fx * (0.03D + this.random.nextDouble() * 0.05D) + (this.random.nextDouble() - 0.5D) * 0.04D,
-                    0.015D + this.random.nextDouble() * 0.03D,
-                    -fz * (0.03D + this.random.nextDouble() * 0.05D) + (this.random.nextDouble() - 0.5D) * 0.04D);
+                    px + (this.random.nextDouble() - 0.5D) * 0.7D, this.getY() + 0.08D,
+                    pz + (this.random.nextDouble() - 0.5D) * 0.7D,
+                    -fx * (0.02D + this.random.nextDouble() * 0.05D) + fz * side,
+                    0.004D + this.random.nextDouble() * 0.012D,
+                    -fz * (0.02D + this.random.nextDouble() * 0.05D) - fx * side);
         }
         BlockState below = this.getBlockStateOn();
         if (below.isAir()) return;
@@ -1546,6 +1632,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
+        tag.putInt("MouthColor", getMouthColor());
+        tag.putFloat("MouthStain", getMouthStain());
         tag.putString("SkinVariant", getSkinVariant().id);
         if (goreSoak > 0F) tag.putFloat("GoreSoak", goreSoak);
         if (!getDebugAnim().isEmpty()) tag.putString("DebugAnim", getDebugAnim());
@@ -1560,6 +1648,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        if (tag.contains("MouthColor")) this.entityData.set(DATA_MOUTH_COLOR, tag.getInt("MouthColor"));
+        this.entityData.set(DATA_MOUTH_STAIN, tag.getFloat("MouthStain"));
         String id = tag.getString("SkinVariant");
         for (SkinVariant v : SkinVariant.values()) {
             if (v.id.equals(id)) setSkinVariant(v);
@@ -1610,6 +1700,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_CLIMB = RawAnimation.begin().thenLoop("climb");
     private static final RawAnimation ANIM_CROUCH_IDLE = RawAnimation.begin().thenLoop("crouch_idle");
     private static final RawAnimation ANIM_FEED = RawAnimation.begin().thenLoop("feed");
+    private static final RawAnimation ANIM_FEED_MOB = RawAnimation.begin().thenLoop("feed_mob");
     private static final RawAnimation ANIM_BITE =
             RawAnimation.begin().then("bite", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_WHIP =
@@ -1682,7 +1773,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             case HIGH_JUMP:
                 return state.setAndContinue(ANIM_HIGH_JUMP);
             case FEEDING:
-                return state.setAndContinue(ANIM_FEED);
+                // bicho caído embaixo: a flexão; bloco (portal, parede): a mordida de pé
+                return state.setAndContinue(getFeedVictimId() >= 0 ? ANIM_FEED_MOB : ANIM_FEED);
             case CONTORTING:
                 return state.setAndContinue(clientStateAge < FroggyState.CONTORTING.durationTicks
                         ? ANIM_CONTORT : ANIM_CONTORT_HOLD);
@@ -1701,7 +1793,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             case FINISHER:
                 return state.setAndContinue(finisherSkipsLeft() ? ANIM_FINISHER_R : ANIM_FINISHER);
             case CORPSE_EAT:
-                return state.setAndContinue(ANIM_FEED);
+                return state.setAndContinue(ANIM_FEED_MOB);
             case CORPSE_TOSS:
                 return state.setAndContinue(ANIM_CORPSE_TOSS);
             case CORPSE_SHAKE:
@@ -1808,13 +1900,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      * cubinhos vermelhos que espirra pra frente e despenca do queixo até o chão.
      */
     public void spawnMouthBlood(int amount) {
+        spawnMouthBlood(amount, BloodFx.RED, true);
+    }
+
+    /**
+     * Da cor do que ele está comendo: golem, esqueleto, blaze não sangram - sai
+     * lasca da cor do bicho, sem poça e sem sujar ele de sangue.
+     */
+    public void spawnMouthBlood(int amount, int color, boolean bleeds) {
         if (this.level() instanceof ServerLevel) {
             float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
             Vec3 fwd = new Vec3(-Mth.sin(yaw), 0, Mth.cos(yaw));
             Vec3 at = this.position().add(fwd.scale(0.35D)).add(0, this.getBbHeight() * 0.8D, 0);
-            BloodFx.spray(this.level(), at, fwd.add(0, 0.5D, 0), amount * 2, 0.2F);
-            BloodFx.spray(this.level(), at, new Vec3(0, -1, 0), amount * 2, 0.06F);
-            BloodFx.pool(this.level(), this.position().add(fwd.scale(0.45D)), 0.3F + amount * 0.03F);
+            BloodFx.spray(this.level(), at, fwd.add(0, 0.5D, 0), amount * 2, 0.2F, color);
+            BloodFx.spray(this.level(), at, new Vec3(0, -1, 0), amount * 2, 0.06F, color);
+            if (!bleeds) return;
+            BloodFx.pool(this.level(), this.position().add(fwd.scale(0.45D)), 0.3F + amount * 0.03F, color);
             addGore(amount * 0.02F);
         }
     }
@@ -1824,8 +1925,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         BloodType type = BloodType.of(victim);
         if (type.bleeds()) {
             bloodBurst(victim.position().add(0, victim.getBbHeight() * 0.5D, 0), new Vec3(0, 1, 0), 70, 0.45F, 2.2F, type.color);
+            addGore(1.2F);
+        } else {
+            // golem/esqueleto: não sangra - sobra a boca branca (MouthStainLayer), não a cara de sangue
+            BloodFx.spray(this.level(), victim.position().add(0, Math.min(0.6D, victim.getBbWidth() * 0.5D), 0),
+                    new Vec3(0, 1, 0), 30, 0.3F, BloodType.residue(victim));
+            stainMouth(victim, 0.5F);
         }
-        addGore(1.2F);
         this.playSound(ModSounds.CHEW.get(), 1.4F, 1.0F);
         victim.hurt(this.damageSources().mobAttack(this), Float.MAX_VALUE / 2F);
         this.heal((float) (this.getMaxHealth() * 0.20D));
@@ -1833,7 +1939,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             speak(VoiceSituation.SPICY, true);
             requestPhase2(); // "freaking spicy"
         } else {
-            setSkinVariant(SkinVariant.FED);
+            if (type.bleeds()) setSkinVariant(SkinVariant.FED);
             speak(afterMeal(victim), true);
             if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
         }

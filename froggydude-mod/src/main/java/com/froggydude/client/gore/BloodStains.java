@@ -76,6 +76,9 @@ public final class BloodStains {
         final boolean slim;
         final float[] amt = new float[N * N];
         final int[] col = new int[N * N];
+        /** Quanto ainda está molhado (1 = acabou de cair): molhado escorre; seco escurece. */
+        final float[] wet = new float[N * N];
+        int dripCooldown;
         NativeImage img;
         DynamicTexture tex;
         ResourceLocation loc;
@@ -106,6 +109,7 @@ public final class BloodStains {
             // cor: mistura com o que já tinha (sangue de dois bichos vira um tom no meio)
             col[i] = old <= 0.01F ? color : mix(col[i], color, a / now);
             amt[i] = now;
+            wet[i] = Math.min(1F, wet[i] + a * 1.5F);
             total += now - old;
             dirty = true;
             lastColor = color;
@@ -125,6 +129,8 @@ public final class BloodStains {
                     int c = col[i];
                     // seco por fora, molhado no meio: quanto mais sangue, mais escuro e opaco
                     float shade = 0.75F + 0.35F * (1F - a) + ((x * 31 + y * 17) % 7) * 0.025F;
+                    // fresco é vermelho vivo e brilha; secando vai escurecendo (quase marrom)
+                    shade *= 0.6F + 0.45F * wet[i];
                     int r = Mth.clamp((int) (((c >> 16) & 255) * shade), 0, 255);
                     int g = Mth.clamp((int) (((c >> 8) & 255) * shade), 0, 255);
                     int b = Mth.clamp((int) ((c & 255) * shade), 0, 255);
@@ -378,6 +384,7 @@ public final class BloodStains {
                 continue;
             }
             wash(mc, p, s, g);
+            flow(mc, p, s);
             if (s.total < 0.05F) {
                 s.close();
                 it.remove();
@@ -385,6 +392,140 @@ public final class BloodStains {
             }
             if (p.tickCount % 3 == 0) s.upload();
         }
+    }
+
+    // ---------------------------------------------------------------- escorrendo
+
+    private static final Face[] SIDES = {Face.RIGHT, Face.FRONT, Face.LEFT, Face.BACK};
+
+    /**
+     * O sangue molhado escorre: em cada face de lado de cada parte, o pixel com
+     * bastante sangue ainda molhado passa um pouco pro de baixo (às vezes desvia
+     * um pixel pro lado), deixando rastro; no fim da parte pinga (a gota cai do
+     * corpo). E vai secando: em ~15 s para de escorrer e fica escuro.
+     */
+    private static void flow(Minecraft mc, Player p, Stain s) {
+        boolean any = false;
+        for (int i = 0; i < N * N; i++) {
+            if (s.wet[i] > 0F) {
+                s.wet[i] = s.wet[i] < 0.01F ? 0F : s.wet[i] * 0.992F;
+                any = true;
+                if ((i & 7) == 0) s.dirty = true;
+            }
+        }
+        if (s.dripCooldown > 0) s.dripCooldown--;
+        if (!any || p.tickCount % 2 != 0) return;
+        for (Part part : Part.values()) {
+            for (Face face : SIDES) {
+                int[] r = rect(part, face, s.slim);
+                int bottom = r[1] + r[3] - 1;
+                for (int y = bottom; y >= r[1]; y--) {
+                    for (int x = r[0]; x < r[0] + r[2]; x++) {
+                        int i = y * N + x;
+                        float a = s.amt[i], w = s.wet[i];
+                        if (w < 0.2F || a < 0.34F) continue;
+                        float mv = Math.min(a - 0.3F, (0.05F + 0.12F * w) * a);
+                        if (mv <= 0.005F) continue;
+                        if (y == bottom) {
+                            // pinga da ponta da parte
+                            if (w > 0.45F && s.dripCooldown <= 0 && part != Part.HEAD) {
+                                s.dripCooldown = 8;
+                                dripFrom(p, part, s.col[i]);
+                            }
+                            s.amt[i] = a - mv * 0.5F;
+                            s.dirty = true;
+                            continue;
+                        }
+                        int tx = x;
+                        if (R.nextFloat() < 0.06F) tx = Mth.clamp(x + (R.nextBoolean() ? 1 : -1), r[0], r[0] + r[2] - 1);
+                        int ti = (y + 1) * N + tx;
+                        float before = s.amt[ti];
+                        float after = Math.min(1F, before + mv);
+                        if (after > before) {
+                            s.col[ti] = before <= 0.01F ? s.col[i] : mix(s.col[ti], s.col[i], (after - before) / after);
+                            s.amt[ti] = after;
+                        }
+                        s.wet[ti] = Math.max(s.wet[ti], w * 0.96F);
+                        s.amt[i] = a - mv;
+                        s.dirty = true;
+                    }
+                }
+            }
+        }
+    }
+
+    /** Uma gota caindo do corpo (da ponta do braço, da barra da camisa, do pé). */
+    private static void dripFrom(Player p, Part part, int color) {
+        double h = switch (part) {
+            case BODY -> 0.72D;
+            case RIGHT_ARM, LEFT_ARM -> 0.75D;
+            default -> 0.05D;
+        };
+        Vec3 side = switch (part) {
+            case RIGHT_ARM -> new Vec3(0.35D, 0, 0);
+            case LEFT_ARM -> new Vec3(-0.35D, 0, 0);
+            case RIGHT_LEG -> new Vec3(0.12D, 0, 0);
+            case LEFT_LEG -> new Vec3(-0.12D, 0, 0);
+            default -> new Vec3((R.nextFloat() - 0.5F) * 0.4D, 0, 0);
+        };
+        float yaw = p.yBodyRot * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw), fz = Mth.cos(yaw);
+        double rx = -fz, rz = fx;
+        com.froggydude.client.ClientBloodFx.droplets(p.getX() + rx * side.x + fx * 0.05D, p.getY() + h,
+                p.getZ() + rz * side.x + fz * 0.05D, 1, color);
+    }
+
+    // ---------------------------------------------------------------- a gota que acertou
+
+    /**
+     * Uma gota de sangue (partícula) bateu no jogador: mancha EXATAMENTE onde bateu
+     * (LM: "um cálculo de onde o sangue vai cair - muito sangue escorre, mas vai uma
+     * gota na cara do player"). A parte sai da altura e do lado, a face de onde a gota
+     * veio, o ponto na face da posição.
+     */
+    public static void dropHit(Player p, Vec3 at, Vec3 vel, int color, float size) {
+        GoreLevel g = gore();
+        if (!g.skinStains() || p.isInvisible()) return;
+        Stain s = stain(p);
+        Vec3 l = toLocal(p, at);
+        Vec3 lv = toLocal(p, p.position().add(vel)).subtract(toLocal(p, p.position()));
+        double scale = p.getBbHeight() / 1.8D;
+        double hy = l.y / scale;
+        Part part;
+        double cx, top, height, width;
+        if (hy > 1.42D) {
+            part = Part.HEAD; cx = 0; top = 1.875D; height = 0.47D; width = 0.47D;
+        } else if (hy > 0.70D) {
+            if (Math.abs(l.x) > 0.24D) {
+                part = l.x > 0 ? Part.RIGHT_ARM : Part.LEFT_ARM;
+                cx = l.x > 0 ? 0.35D : -0.35D;
+                width = s.slim ? 0.18D : 0.23D;
+            } else {
+                part = Part.BODY; cx = 0; width = 0.47D;
+            }
+            top = 1.41D; height = 0.70D;
+        } else {
+            part = l.x > 0 ? Part.RIGHT_LEG : Part.LEFT_LEG;
+            cx = l.x > 0 ? 0.12D : -0.12D; top = 0.70D; height = 0.70D; width = 0.23D;
+        }
+        Face face;
+        double horiz = Math.sqrt(lv.x * lv.x + lv.z * lv.z);
+        if (-lv.y > horiz * 1.5D && hy > top - 0.12D) face = Face.TOP;
+        else if (Math.abs(lv.z) >= Math.abs(lv.x)) face = lv.z <= 0 ? Face.FRONT : Face.BACK;
+        else face = lv.x <= 0 ? Face.RIGHT : Face.LEFT;
+        float fu, fv;
+        double across = (l.x - cx) / width;
+        double depth = l.z / 0.25D;
+        switch (face) {
+            case FRONT -> fu = (float) (0.5D - across);
+            case BACK -> fu = (float) (0.5D + across);
+            case RIGHT -> fu = (float) (0.5D + depth * 0.5D);
+            case LEFT -> fu = (float) (0.5D - depth * 0.5D);
+            default -> fu = (float) (0.5D - across);
+        }
+        fv = face == Face.TOP ? (float) (0.5D - depth * 0.5D) : (float) ((top - hy) / height);
+        blot(s, part, face, Mth.clamp(fu, 0.05F, 0.95F), Mth.clamp(fv, 0.02F, 0.95F),
+                0.45F + size * 7F, Mth.clamp(0.45F + size * 3F, 0.4F, 0.9F), color);
     }
 
     private static void wash(Minecraft mc, Player p, Stain s, GoreLevel g) {

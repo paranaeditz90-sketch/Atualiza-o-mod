@@ -26,7 +26,7 @@ import java.util.Map;
  * Língua: as animações esticam o osso "tongue" de 0 até 100 (100 = 100%). Aqui
  * o valor vira o comprimento real (entidade.getTongueLength(), em blocos), pra
  * língua sempre chegar até o alvo. O osso não tem cubo: o renderer desenha uma
- * pirâmide (grossa na boca, fina na ponta) no lugar dele.
+ * fita chata (2D, da largura da boca) no lugar dele.
  */
 public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
 

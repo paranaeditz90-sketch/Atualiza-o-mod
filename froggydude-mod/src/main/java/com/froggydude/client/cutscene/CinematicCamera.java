@@ -72,7 +72,7 @@ public final class CinematicCamera {
     /** Lado de cada plano (+1 o esquerdo dela, -1 o direito), escolhido pelo espaço livre. */
     private static float sideA = 1F, sideB = -1F;
     private static float roll;
-    private static float fov = 62F;
+    private static float fov = 70F;
     private static Vec3 lastPos;
     /** Depois da morte: o ponto que a câmera segue (ele com o corpo), amaciado. */
     private static Vec3 follow;
@@ -132,10 +132,10 @@ public final class CinematicCamera {
     private static void chooseSides(Minecraft mc, ClientFinisher.Entry e) {
         double left = clearance(mc, e, 1F), right = clearance(mc, e, -1F);
         boolean skip = e.skipLeft;
-        if (!skip && left < 1.4D && right > left + 0.6D) {
+        if (!skip && left < 2.0D && right > left + 0.4D) {
             sideA = -1F;
             sideB = 1F;
-        } else if (right < 1.4D && left > right + 0.6D) {
+        } else if (right < 2.0D && left > right + 0.4D) {
             // o lado direito está fechado: o segundo plano fica do lado esquerdo também
             sideA = 1F;
             sideB = 1F;
@@ -146,8 +146,8 @@ public final class CinematicCamera {
     }
 
     private static double clearance(Minecraft mc, ClientFinisher.Entry e, float side) {
-        Vec3 from = e.at(0.3D, 0D, 0.9D);
-        Vec3 to = e.at(0.4D, 2.6D * side, 0.5D);
+        Vec3 from = e.at(0.0D, 0D, 1.0D);
+        Vec3 to = e.at(2.3D, 1.45D * side, 0.3D);
         var hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
         return hit.getType() == HitResult.Type.BLOCK ? hit.getLocation().distanceTo(from) : from.distanceTo(to);
     }
@@ -156,27 +156,39 @@ public final class CinematicCamera {
     private record Key(float t, double a, double s, double u) {
     }
 
+    // Planos tirados do vídeo da zebra (77,3-86 s): a câmera fica BAIXINHA, quase no chão,
+    // do lado da cabeça da vítima (a cabeça dela em primeiro plano), olhando pra cima pra
+    // ele em pé por cima do corpo. Montados do lado esquerdo dela (+); o B é espelhado.
+    // (prints lado a lado) No vídeo ele ocupa só metade da altura da tela: a câmera fica a
+    // ~3 blocos dele. A 2 blocos ele enchia a tela e, ao abaixar pra morder, a cabeça
+    // dele entrava na câmera (a tela verde/amarela).
     private static final Key[] POS_A = {
-            new Key(0, 0.30, 2.80, 0.40), new Key(Finisher.RIP_L, 0.45, 2.40, 0.45),
-            new Key(Finisher.CUT_1, 0.55, 2.15, 0.55)};
+            new Key(0, 2.30, 1.45, 0.30), new Key(Finisher.RIP_L, 2.20, 1.38, 0.30),
+            new Key(Finisher.CUT_1, 2.10, 1.30, 0.32)};
     private static final Key[] LOOK_A = {
-            new Key(0, 0.00, 0.00, 1.15), new Key(Finisher.BEND_L, 0.15, 0.20, 0.95),
-            new Key(Finisher.BITE_L, 0.40, 0.30, 0.55), new Key(Finisher.RIP_L, 0.40, 0.30, 0.62),
-            new Key(Finisher.RIP_L + 6, 0.20, 0.25, 1.35), new Key(Finisher.CUT_1, 0.15, 0.20, 1.45)};
+            new Key(0, -0.15, 0.05, 1.25), new Key(Finisher.BEND_L, -0.05, 0.12, 1.05),
+            new Key(Finisher.BITE_L, 0.35, 0.30, 0.45), new Key(Finisher.RIP_L, 0.35, 0.30, 0.55),
+            new Key(Finisher.RIP_L + 6, -0.05, 0.15, 1.35), new Key(Finisher.CUT_1, -0.10, 0.10, 1.40)};
     private static final Key[] POS_B = {
-            new Key(Finisher.CUT_1, 0.25, 2.60, 0.45), new Key(Finisher.STILL, 0.45, 2.20, 0.50),
-            new Key(Finisher.BEND_H, 0.60, 2.00, 0.55), new Key(CLOSE, 0.65, 1.90, 0.55)};
+            new Key(Finisher.CUT_1, 2.30, 1.45, 0.30), new Key(Finisher.STILL, 2.15, 1.35, 0.30),
+            new Key(Finisher.BEND_H, 2.05, 1.25, 0.32), new Key(CLOSE, 2.00, 1.20, 0.32)};
     private static final Key[] LOOK_B = {
-            new Key(Finisher.CUT_1, 0.10, 0.20, 1.35), new Key(Finisher.BEND_R, 0.15, 0.20, 1.00),
-            new Key(Finisher.BITE_R, 0.40, 0.30, 0.55), new Key(Finisher.RIP_R, 0.40, 0.30, 0.62),
-            new Key(Finisher.RIP_R + 6, 0.20, 0.25, 1.35), new Key(Finisher.STILL, 0.15, 0.20, 1.45),
-            new Key(Finisher.BEND_H, 0.15, 0.10, 1.30), new Key(Finisher.BITE_H, 0.55, 0.05, 0.50),
-            new Key(Finisher.RIP_H, 0.55, 0.00, 0.58), new Key(CLOSE, 0.30, 0.00, 1.30)};
-    /** Close de baixo pra cima na cara dele (ele em -0,2 virado pra H). */
+            new Key(Finisher.CUT_1, -0.10, 0.10, 1.30), new Key(Finisher.BEND_R, -0.05, 0.12, 1.05),
+            new Key(Finisher.BITE_R, 0.35, 0.30, 0.45), new Key(Finisher.RIP_R, 0.35, 0.30, 0.55),
+            new Key(Finisher.RIP_R + 6, -0.05, 0.15, 1.35), new Key(Finisher.STILL, -0.10, 0.10, 1.40),
+            new Key(Finisher.BEND_H, -0.05, 0.05, 1.20), new Key(Finisher.BITE_H, 0.50, 0.02, 0.45),
+            new Key(Finisher.RIP_H, 0.50, 0.00, 0.55), new Key(CLOSE, 0.10, 0.00, 1.40)};
+    /**
+     * Close na cara dele, perto e um pouco de baixo (86-88,8 s). No vídeo a câmera fica na
+     * frente-DIREITA dele (lado L): a cara dele à esquerda da tela e a cabeça da vítima
+     * saindo da boca pro lado direito. De frente, a cabeça na boca tampava a cara dele.
+     */
     private static final Key[] POS_C = {
-            new Key(CLOSE, 2.35, 0.55, 1.30), new Key(Finisher.END, 1.95, 0.45, 1.42)};
+            new Key(CLOSE, 0.92, 0.95, 1.58), new Key(Finisher.END, 0.82, 0.88, 1.62)};
+    // a cara dele fica a ~1,84 de altura (cabeça do rig de 1,54 a 2,13): mirando no queixo
+    // (1,62) o close cortava a cara em cima e só sobrava a cabeça da vítima e o sangue
     private static final Key[] LOOK_C = {
-            new Key(CLOSE, -0.05, 0.00, 1.50), new Key(Finisher.END, -0.05, 0.00, 1.60)};
+            new Key(CLOSE, 0.00, 0.05, 1.80), new Key(Finisher.END, 0.00, 0.05, 1.82)};
 
     private static Vec3 track(ClientFinisher.Entry e, Key[] keys, float t, float side) {
         Key a = keys[0], b = keys[keys.length - 1];
@@ -229,7 +241,7 @@ public final class CinematicCamera {
             // sacudindo a cabeça na boca: a câmera treme forte e fica torta
             shake = t < Finisher.SWALLOW ? 2.6F : 0.8F;
             roll = 4F + ClientShakeHandler.noise(2, time * 0.9F) * 3F;
-            fov = Mth.lerp((t - CLOSE) / (Finisher.END - CLOSE), 52F, 44F);
+            fov = Mth.lerp((t - CLOSE) / (Finisher.END - CLOSE), 62F, 56F);
         } else if (t >= Finisher.CUT_1 || e.skipLeft) {
             // posição montada do lado esquerdo e espelhada pro lado do plano; o foco é sempre o braço da vez
             float tb = Math.max(t, Finisher.CUT_1);
@@ -237,13 +249,13 @@ public final class CinematicCamera {
             look = track(e, LOOK_B, tb, -1F);
             shake = jolt(t, Finisher.RIP_R);
             roll = 0F;
-            fov = 62F;
+            fov = 70F;
         } else {
             pos = mirror(e, track(e, POS_A, t, 1F), sideA);
             look = track(e, LOOK_A, t, 1F);
             shake = jolt(t, Finisher.RIP_L);
             roll = 0F;
-            fov = 62F;
+            fov = 70F;
         }
         // não atravessa parede: se tem bloco entre o foco e a câmera, chega mais perto
         var hit = mc.level.clip(new ClipContext(look, pos, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));

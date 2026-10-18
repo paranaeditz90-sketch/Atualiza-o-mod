@@ -1,6 +1,7 @@
 package com.froggydude.entity.ai;
 
 import com.froggydude.entity.BloodFx;
+import com.froggydude.entity.BloodType;
 import com.froggydude.entity.Finisher;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
@@ -131,14 +132,21 @@ public class FroggyCorpseGoal extends Goal {
         return froggy.distanceToSqr(a) <= froggy.distanceToSqr(b) ? a : b;
     }
 
-    /** A animação "feed" (1 s em loop): morde aos 0,34 s de cada volta. */
+    /**
+     * Comendo em "flexão" (feed_mob): a cabeça desce no corpo a cada 0,3 s. A conta
+     * (quanto já comeu, falas) continua de segundo em segundo.
+     */
     private void eat() {
         int t = froggy.getStateTicks();
         froggy.getNavigation().stop();
         froggy.faceDirection(corpse.getX() - froggy.getX(), corpse.getZ() - froggy.getZ());
-        if (t % 20 == 7) {
+        if (FroggydudeEntity.pushupBite(t)) {
+            froggy.onPushupBite(t);
+            if ((t / FroggydudeEntity.PUSHUP_TICKS) % 3 == 1) froggy.spawnMouthBlood(2);
+        }
+        if (t % 20 == 9) {
             corpse.bite(0.07F);
-            froggy.onChew();
+            froggy.stainMouth(BloodType.RED.color, 0.15F);
             froggy.addGore(0.15F);
             bites++;
             if (!talked && bites == 2) talked = froggy.speak(VoiceSituation.CHEWING, true);

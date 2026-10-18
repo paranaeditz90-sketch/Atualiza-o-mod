@@ -331,20 +331,38 @@ ANIMS["high_jump"] = animation(1.6, [
     (1.60, pose(**PIN_POSE)),
 ], "hold_on_last_frame")
 
-# Montado na vítima ("devorar"): agachado por cima, mãos segurando, cabeça
-# recua e desce pra morder (0,5 s) e sacode pra rasgar. 1 s por mordida, igual
-# ao servidor (uma mordida a cada 20 ticks).
-ANIMS["pin_hold"] = animation(1.0, [
-    (0.00, pose(**PIN_POSE)),
-    (0.30, pose(**{**PIN_POSE, "waist": 56, "head": -46, "arms": -98})),                  # recua
-    (0.45, pose(**{**PIN_POSE, "waist": 76, "head": -26, "arms": -122})),                 # avança a boca
-    (0.50, pose(**{**PIN_POSE, "waist": 80, "head": -24, "arms": -132})),                 # MORDE (mãos em cima dela)
-    (0.58, pose(**{**PIN_POSE, "waist": 80, "head": -26, "head_z": 16, "head_y": 30, "arms": -132})),   # rasga sacudindo
-    (0.66, pose(**{**PIN_POSE, "waist": 79, "head": -27, "head_z": -16, "head_y": -30, "arms": -130})),  # como cachorro
-    (0.74, pose(**{**PIN_POSE, "waist": 77, "head": -28, "head_z": 12, "head_y": 22, "arms": -125})),
-    (0.86, pose(**{**PIN_POSE, "waist": 62, "head": -36, "head_z": 4})),                  # volta te encarando
-    (1.00, pose(**PIN_POSE)),
-], True)
+# Comendo em "flexão" (LM: "never kill my dog" 0:00-1:47 comendo o jogador, e o
+# "Taste testing Minecraft mobs" 6,2-8,8 s em cima do warden): deitado de bruços em
+# cima da vítima, mãos plantadas no chão dos lados dela, pés no chão lá atrás, e
+# a cabeça (com o peito) DESCE rápido e mordendo, sobe devagar e segura um tico.
+# Medido no warden (coroa quadro a quadro, 30 fps): um ciclo a cada 0,33 s - desce
+# em ~0,07 s, fica embaixo ~0,03, sobe em ~0,17 e segura ~0,07. Aqui 0,3 s por
+# mordida (6 ticks, o servidor morde junto) e duas mordidas por volta, uma
+# puxando pra cada lado.
+# Conferido no rig (pushup.py/check_poses.py): as mãos ficam no mesmo lugar (0,76
+# bloco na frente) em cima e embaixo; a boca vai de 0,87 a 0,47 de altura; com a
+# vítima a 1,5 bloco a câmera dela fica a 0,25 bloco da cabeça dele na descida.
+PUSH_UP = dict(root_y=-6, waist=60, legs=70, head=-45, arms=-76, arm_spread=18, leg_spread=10)
+PUSH_DOWN = dict(root_y=-5.5, waist=70, legs=70, head=0, arms=-82, arm_spread=18, leg_spread=10)
+
+
+def pushup_loop(tear=10.0, deep=5.0):
+    """Duas mordidas (0,6 s). tear: quanto a cabeça puxa pro lado na mordida."""
+    keys = []
+    for k, side in ((0, 1), (1, -1)):
+        o = k * 0.3
+        keys += [
+            (o + 0.00, pose(**PUSH_UP)),
+            (o + 0.06, pose(**{**PUSH_UP, "head": PUSH_UP["head"] - 6, "waist": PUSH_UP["waist"] - 2})),   # arma
+            (o + 0.12, pose(**{**PUSH_DOWN, "head_y": tear * side, "head_z": tear * 0.6 * side})),          # MORDE
+            (o + 0.15, pose(**{**PUSH_DOWN, "head": PUSH_DOWN["head"] + deep, "waist": PUSH_DOWN["waist"] + 1,
+                               "head_y": tear * 1.4 * side, "head_z": tear * 0.8 * side})),                   # rasga
+        ]
+    keys.append((0.60, pose(**PUSH_UP)))
+    return keys
+
+
+ANIMS["pin_hold"] = animation(0.6, pushup_loop(), True)
 
 # Esmagamento (vs AJ, 0:57-1:01, visto de quem está no chão): em pé na frente
 # da vítima, os dois braços juntos lá no alto, e desce tudo de uma vez - tronco
@@ -372,15 +390,19 @@ ANIMS["smash"] = animation(0.5, [
 # vítima com os braços prontos pro primeiro soco. Impulso no tick 8 (0,4 s),
 # topo no ~25 (1,25 s), chão no ~44 (2,2 s). Ao pousar vira o esmagamento.
 ANIMS["sky_drop"] = animation(2.2, [
-    (0.00, crouch()),
-    (0.30, pose(root_y=-8, waist=60, head=-45, arms=-60, legs=leg_back(-8), arm_spread=8, leg_spread=18)),   # agacha fundo
-    (0.40, pose(root_y=0, waist=-5, head=-10, arms=-175, arm_spread=6, legs=5)),                       # explode
-    (0.70, pose(root_y=0, waist=0, head=-5, arms=-178, arm_spread=10, legs=0)),                        # subindo esticado
-    (1.10, pose(root_y=0, waist=5, head=10, arms=-158, arm_spread=36, legs=0, leg_spread=22)),         # abre em Y
-    (1.30, pose(root_y=0, waist=8, head=24, arms=-158, arm_spread=38, legs=0, leg_spread=24)),         # topo, olhando pra baixo
-    (1.70, pose(root_y=0, waist=15, head=32, arms=-172, arm_spread=8, legs=-32, leg_spread=15)),       # despencando
-    (2.10, pose(root_y=0, waist=20, head=36, arms=-176, arm_spread=6, legs=-52, leg_spread=14)),
-    (2.20, pose(root_y=-2, waist=22, head=36, arms=-176, arm_spread=6, legs=-40, leg_spread=12)),
+    # (v0.4.0, vídeo do LM 48,8-50,1 s e 55,3-56,4 s) em pé de braços em V uns 0,3 s,
+    # agacha num piscar (1-2 quadros) e sai como foguete: some do quadro em ~0,1 s
+    (0.00, pose(root_y=0, waist=6, head=-8, arms=-40, arm_spread=12, legs=0, leg_spread=8)),
+    (0.10, pose(root_y=0, waist=-4, head=-14, arms=-158, arm_spread=30, legs=0, leg_spread=10)),   # braços em V
+    (0.31, pose(root_y=0, waist=-6, head=-16, arms=-162, arm_spread=32, legs=0, leg_spread=10)),
+    (0.36, pose(root_y=-6, waist=34, head=-30, arms=-150, arm_spread=24, legs=leg_back(-6), leg_spread=14)),  # agacha (estalo)
+    (0.40, pose(root_y=0, waist=-5, head=-10, arms=-176, arm_spread=8, legs=5)),                    # FOGUETE
+    (0.70, pose(root_y=0, waist=0, head=-5, arms=-178, arm_spread=10, legs=0)),                     # subindo esticado
+    (1.10, pose(root_y=0, waist=5, head=10, arms=-158, arm_spread=36, legs=0, leg_spread=22)),      # abre em Y
+    (1.30, pose(root_y=0, waist=8, head=24, arms=-158, arm_spread=38, legs=0, leg_spread=24)),      # topo, olhando pra baixo
+    (1.70, pose(root_y=0, waist=15, head=32, arms=-172, arm_spread=14, legs=-32, leg_spread=15)),   # despencando de braços erguidos
+    (2.10, pose(root_y=0, waist=20, head=36, arms=-176, arm_spread=10, legs=-52, leg_spread=14)),
+    (2.20, pose(root_y=-2, waist=22, head=36, arms=-176, arm_spread=8, legs=-40, leg_spread=12)),
 ], "hold_on_last_frame")
 
 # Arrancar o braço (vs AJ, 2:21, e o jeito de comer da "Eating a Zebra"):
@@ -574,32 +596,51 @@ def tongue_p(waist, arms, spread, root_y=0.0, legs=0, leg_l=None):
                 legs=legs, leg_l=leg_l, leg_spread=5)
 
 
+# Língua (vídeo do LM, raposa 68,5-69,7 s e a câmera 54,3-54,9 s): já de BOCA ABERTA
+# (FroggyCombatGoal abre no começo do ataque), ergue os dois braços em V em ~0,27 s,
+# e só então a língua sai - num estalo (alcança em ~0,07 s), fica esticada e volta.
+# A língua é uma fita chata (o renderer desenha); o osso "tongue" estica no eixo Z
+# pelas animações *_ext abaixo (0 = recolhida, 100 = até o alvo).
 ANIMS["tongue_whip"] = animation(0.7, [
     (0.00, pose()),
-    (0.15, tongue_p(-6, -150, 24)),                                 # braços pro alto
-    (0.25, tongue_p(18, -166, 30, root_y=-1)),                      # inclina
-    (0.40, tongue_p(24, -170, 34, root_y=-1)),                      # LÍNGUA
-    (0.55, tongue_p(20, -160, 30, root_y=-1)),
+    (0.14, tongue_p(-4, -120, 18)),                                 # braços subindo
+    (0.27, tongue_p(-6, -158, 28)),                                 # braços em V
+    (0.36, tongue_p(20, -168, 32, root_y=-1)),                      # LÍNGUA (estalo)
+    (0.50, tongue_p(22, -166, 32, root_y=-1)),
     (0.70, tongue_p(6, -60, 12)),
 ], "hold_on_last_frame")
 ANIMS["tongue_grab"] = animation(0.8, [
     (0.00, pose()),
-    (0.18, tongue_p(-6, -152, 24)),
-    (0.30, tongue_p(18, -168, 32, root_y=-1)),
-    (0.45, tongue_p(24, -172, 34, root_y=-1.5)),                    # LÍNGUA
+    (0.15, tongue_p(-4, -122, 18)),
+    (0.30, tongue_p(-6, -160, 28)),                                 # braços em V
+    (0.44, tongue_p(22, -170, 34, root_y=-1.5)),                    # LÍNGUA
     (0.65, tongue_p(14, -96, 14, root_y=-1.5, legs=-14, leg_l=14)),  # puxa
     (0.80, tongue_p(8, -70, 8)),
 ], "hold_on_last_frame")
 ANIMS["tongue_capture"] = animation(1.4, [
     (0.00, pose()),
-    (0.20, tongue_p(-8, -150, 24)),
-    (0.40, tongue_p(20, -168, 32, root_y=-1.5, legs=-12, leg_l=12)),
-    (0.60, tongue_p(26, -172, 36, root_y=-2, legs=-16, leg_l=16)),  # LÍNGUA
+    (0.18, tongue_p(-4, -120, 18)),
+    (0.35, tongue_p(-8, -160, 28)),                                 # braços em V
+    (0.56, tongue_p(26, -172, 36, root_y=-2, legs=-16, leg_l=16)),  # LÍNGUA
     (0.90, tongue_p(22, -150, 26, root_y=-2, legs=-16, leg_l=16)),
     (1.05, tongue_p(30, -100, 12, root_y=-2.5, legs=-18, leg_l=18)),  # puxa e abre os braços pra agarrar
     (1.25, tongue_p(34, -92, 6, root_y=-2.5, legs=-18, leg_l=18)),
     (1.40, tongue_p(24, -84, 8, root_y=-1.5)),
 ], "hold_on_last_frame")
+
+
+def tongue_ext(length, out, full, hold, back):
+    """Só o osso da língua: recolhida até `out`, esticada em `full` (o estalo), segura até
+    `hold` e volta até `back`. O impacto do servidor (NOTES.md) cai depois de `full`."""
+    z = lambda v: [1, 1, v]
+    return {"loop": "hold_on_last_frame", "animation_length": length, "bones": {"tongue": {"scale": {
+        "0.0": z(0.001), f"{out:.4g}": z(0.001), f"{full:.4g}": z(100), f"{hold:.4g}": z(100),
+        f"{back:.4g}": z(0.001)}}}}
+
+
+ANIMS["tongue_whip_ext"] = tongue_ext(0.7, 0.28, 0.35, 0.5, 0.68)
+ANIMS["tongue_grab_ext"] = tongue_ext(0.8, 0.36, 0.44, 0.6, 0.8)
+ANIMS["tongue_capture_ext"] = tongue_ext(1.4, 0.47, 0.56, 1.1, 1.4)
 
 # Devorando um mob (ref. "Eating a Zebra"): mergulha de cabeça na carcaça,
 # morde, puxa a carne pra cima jogando sangue e sacode a cabeça como cachorro.
@@ -615,6 +656,10 @@ ANIMS["feed"] = animation(1.0, [
     (1.00, pose(**FEED_UP)),
 ], True)
 
+
+# Comendo um mob caído (o "Taste testing": warden, golem, dragão...): a mesma
+# flexão do jogador, puxando mais forte pro lado (arranca pedaço).
+ANIMS["feed_mob"] = animation(0.6, pushup_loop(tear=16.0, deep=8.0), True)
 
 def sample(anim, t):
     out = {}
@@ -675,9 +720,10 @@ def yank():
     return pose(root_y=-0.5, waist=-14, head=-36, arms=-60, arm_l=-42, arm_spread=10, legs=10, leg_spread=16)
 
 
-def fin_shake(side, amount=50):
-    # em pé com o pedaço na boca sacudindo (2,5 por segundo), astride
-    return pose(root_y=0, waist=4, waist_y=14 * side, head=-12, head_y=amount * side, head_z=16 * side,
+def fin_shake(side, amount=50, body=5):
+    # em pé com o pedaço na boca sacudindo: quem sacode é a CABEÇA dele (o pedaço vai
+    # junto); o tronco quase não mexe (LM: "é a cabeça que ele sacode, não o corpo")
+    return pose(root_y=0, waist=4, waist_y=body * side, head=-12, head_y=amount * side, head_z=16 * side,
                 arms=-30, arm_l=-20, arm_spread=12, legs=4, leg_spread=16)
 
 
@@ -697,12 +743,12 @@ def bite_sequence(t_bend, t_bite, t_rip, side, neck=False):
     return keys
 
 
-def shaking(t0, t1, period=0.2, amount=50):
+def shaking(t0, t1, period=0.2, amount=50, body=5):
     keys = []
     k = 0
     t = t0
     while t < t1 - 0.01:
-        keys.append((round(t, 3), fin_shake(1 if k % 2 == 0 else -1, amount)))
+        keys.append((round(t, 3), fin_shake(1 if k % 2 == 0 else -1, amount, body)))
         k += 1
         t += period
     return keys
@@ -722,8 +768,11 @@ fin += [(T(124), pose(**FIN_HOLD)),
         (T(131), pose(**{**FIN_HOLD, "head": 2})), (T(138), pose(**FIN_HOLD)),
         (T(145), pose(**{**FIN_HOLD, "head": 2})), (T(150), pose(**FIN_HOLD))]
 fin += bite_sequence(T(152), T(158), T(166), 0, neck=True)
-# CLOSE: a cabeça na boca, sacudindo FORTE e mais rápido
-fin += shaking(T(168), T(224), period=0.15, amount=62)
+# CLOSE (vídeo 86,0-88,8 s, quadro a quadro em 60 fps): segura uns 0,4 s quase parado,
+# só tremendo, e então chicoteia a cabeça pros lados MUITO rápido - a cabeça da zebra
+# vira de face a cada ~0,05-0,1 s (umas 5 sacudidas por segundo); o corpo dele não mexe
+fin += [(T(168), fin_shake(1, 8, 0)), (T(172), fin_shake(-1, 10, 0)), (T(176), fin_shake(1, 8, 0))]
+fin += shaking(T(178), T(224), period=0.1, amount=70, body=0)
 fin += [(T(226), pose(root_y=0, waist=-8, head=-34, arms=-30, arm_l=-20, arm_spread=8, legs=2, leg_spread=16)),  # engole
         (T(232), pose(**{**OVER, "head": 24}))]
 fin.sort(key=lambda k: k[0])
@@ -789,7 +838,8 @@ def main():
             "climb": [0.0, 0.25],
             "jump_pin": [0.2, 0.45, 0.68, 0.76, 1.0],
             "high_jump": [0.2, 0.3, 0.55, 0.75, 0.95, 1.1],
-            "pin_hold": [0.0, 0.5],
+            "pin_hold": [0.0, 0.06, 0.12, 0.15, 0.3, 0.42],
+            "feed_mob": [0.0, 0.12, 0.15],
         }
         dbg = {"format_version": "1.8.0", "animations": {}}
         for name, ts in times.items():
