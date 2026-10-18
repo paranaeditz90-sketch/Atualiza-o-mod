@@ -21,6 +21,10 @@ public class ModParticles {
     public static final RegistryObject<SimpleParticleType> DUST_PUFF =
             PARTICLES.register("dust_puff", () -> new SimpleParticleType(false));
 
+    /** Sangue se espalhando na água (quem lava o sangue deixa a água vermelha em volta). */
+    public static final RegistryObject<SimpleParticleType> BLOOD_CLOUD =
+            PARTICLES.register("blood_cloud", () -> new SimpleParticleType(false));
+
     public static void register(IEventBus bus) {
         PARTICLES.register(bus);
     }

@@ -1,15 +1,25 @@
 package com.froggydude.client;
 
+import com.froggydude.client.cutscene.ClientFinisher;
+import com.froggydude.client.cutscene.Stumps;
+import com.froggydude.config.FroggyClientConfig;
+import com.froggydude.entity.Finisher;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.geom.PartPose;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.ResourceLocation;
@@ -28,7 +38,8 @@ import java.util.UUID;
  * - a língua: uma pirâmide grossa na boca e fina na ponta (no vídeo contra o
  *   AJ ela é assim, e não uma barra quadrada);
  * - o braço arrancado atravessado na boca (como cachorro com osso), com a
- *   skin de quem perdeu o braço; vai sumindo enquanto ele come.
+ *   skin de quem perdeu o braço; vai sumindo enquanto ele come;
+ * - no golpe final, o braço ou a cabeça da vítima na boca dele.
  */
 public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
 
@@ -63,6 +74,17 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                 RenderUtils.prepMatrixForBone(poseStack, bone);
                 drawTongue(poseStack, buffer, packedLight, packedOverlay);
                 poseStack.popPose();
+            } else if ("head".equals(name) && animatable.getFroggyState() == FroggyState.FINISHER) {
+                // golpe final: o que está na boca vem da tabela (braço esquerdo, direito, cabeça)
+                ClientFinisher.Entry e = ClientFinisher.forFroggy(animatable.getId());
+                int held = e == null || !FroggyClientConfig.gore().dismember() ? 0 : Finisher.held(e.t(partialTick), e.skipLeft);
+                if (held != 0) {
+                    poseStack.pushPose();
+                    RenderUtils.prepMatrixForBone(poseStack, bone);
+                    boolean drew = drawFinisherPart(poseStack, animatable, e, held, partialTick, bufferSource, packedLight);
+                    poseStack.popPose();
+                    if (drew) buffer = bufferSource.getBuffer(renderType);
+                }
             } else if ("head".equals(name) && animatable.getHeldArmOwner().isPresent()) {
                 poseStack.pushPose();
                 RenderUtils.prepMatrixForBone(poseStack, bone);
@@ -181,6 +203,66 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         float r = left < 0.99F ? 0.55F : 1F, gb = left < 0.99F ? 0.05F : 1F;
         face(vc, m, n, light, ov, r, gb, gb, x1, y1, z0, x1, y1, z1, x1, y0, z1, x1, y0, z0,
                 u + d + w, v, u + d + 2 * w, v + d, 1, 0, 0);
+    }
+
+    // ---------------------------------------------------------------- golpe final
+
+    /**
+     * O pedaço da vítima na boca dele (com a skin dela, manga/chapéu inclusos):
+     * o braço pendurado pela ponta do ombro, balançando, ou a cabeça presa pelo
+     * pescoço, virando de lado, de topo e de costas enquanto ele sacode (no
+     * vídeo da zebra é assim). Usa as partes do modelo de jogador do próprio
+     * jogo, então braço fino/normal e a segunda camada saem certos.
+     */
+    private boolean drawFinisherPart(PoseStack ps, FroggydudeEntity froggy, ClientFinisher.Entry e, int held,
+                                     float partial, MultiBufferSource buffers, int light) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return false;
+        if (!(mc.level.getEntity(e.victimId) instanceof AbstractClientPlayer victim)) return false;
+        if (!(mc.getEntityRenderDispatcher().getRenderer(victim) instanceof PlayerRenderer pr)) return false;
+        PlayerModel<AbstractClientPlayer> model = pr.getModel();
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityTranslucent(victim.getSkinTextureLocation()));
+        float wob = froggy.tickCount + partial;
+        float inv = 1F / FroggydudeEntity.MODEL_SCALE;
+
+        ps.translate(0F, MOUTH_Y / 16F, MOUTH_Z / 16F);
+        ps.scale(inv, inv, inv);
+        // balança de um lado pro outro (a cabeça dele já sacode na animação)
+        ps.mulPose(Axis.YP.rotationDegrees(Mth.sin(wob * 1.9F) * 26F));
+        // daqui pra frente: espaço do modelo de jogador (y pra baixo, frente em -z)
+        ps.scale(-1F, -1F, 1F);
+        if (held == 3) {
+            // topo da cabeça pra frente, o pescoço dentro da boca, girando no próprio eixo
+            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(wob * 1.1F) * 18F));
+            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(wob * 0.7F) * 120F));
+            ps.translate(0F, 1.5F / 16F, 0F);
+            renderPart(model.head, ps, vc, light);
+            renderPart(model.hat, ps, vc, light);
+            Stumps.box(ps, buffers, light, -3.3F, 3.3F, -0.9F, 0.5F, -3.3F, 3.3F);
+        } else {
+            boolean left = held == 1;
+            boolean slim = "slim".equals(victim.getModelName());
+            float cx = (left ? 1F : -1F) * (slim ? 0.5F : 1F);
+            // pendurado pra frente e pra baixo, sacudindo
+            ps.mulPose(Axis.XP.rotationDegrees(-60F + Mth.sin(wob * 2.2F) * 22F));
+            ps.mulPose(Axis.ZP.rotationDegrees(Mth.sin(wob * 1.3F + 1F) * 15F));
+            ps.translate(-cx / 16F, 2F / 16F, 0F);
+            renderPart(left ? model.leftArm : model.rightArm, ps, vc, light);
+            renderPart(left ? model.leftSleeve : model.rightSleeve, ps, vc, light);
+            Stumps.box(ps, buffers, light, cx - 2.3F, cx + 2.3F, -2.6F, -1.4F, -2.3F, 2.3F);
+        }
+        return true;
+    }
+
+    /** Desenha uma parte do modelo na pose zero (sem o que a última animação deixou nela). */
+    private static void renderPart(ModelPart part, PoseStack ps, VertexConsumer vc, int light) {
+        PartPose saved = part.storePose();
+        boolean visible = part.visible;
+        part.loadPose(PartPose.ZERO);
+        part.visible = true;
+        part.render(ps, vc, light, OverlayTexture.NO_OVERLAY);
+        part.loadPose(saved);
+        part.visible = visible;
     }
 
     private static void face(VertexConsumer vc, Matrix4f m, Matrix3f n, int light, int overlay,

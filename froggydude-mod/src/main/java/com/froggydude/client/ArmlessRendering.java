@@ -1,25 +1,28 @@
 package com.froggydude.client;
 
+import com.froggydude.client.cutscene.Stumps;
+import com.froggydude.client.cutscene.VictimRender;
 import com.froggydude.init.ModEntityTypes;
 import com.froggydude.network.ClientArmState;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.HumanoidArmorLayer;
+import net.minecraft.client.renderer.entity.layers.PlayerItemInHandLayer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.ModelManager;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.PlayerModelPart;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -29,8 +32,6 @@ import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
-import org.joml.Matrix3f;
-import org.joml.Matrix4f;
 
 import java.util.List;
 
@@ -39,13 +40,12 @@ import java.util.List;
  * - o braço (e a manga da skin) some do modelo;
  * - a manga da armadura do peitoral também some (camada de armadura trocada);
  * - no ombro aparece um toco vermelho com o osso;
- * - em primeira pessoa o braço esquerdo não é desenhado.
+ * - em primeira pessoa o braço esquerdo não é desenhado;
+ * - o item da mão que não existe mais não fica boiando.
+ * No golpe final (client.cutscene) vale o mesmo pro braço direito e a cabeça.
  */
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class ArmlessRendering {
-
-    private static final ResourceLocation STUMP =
-            new ResourceLocation(ModEntityTypes.MOD_ID, "textures/entity/arm_stump.png");
 
     /** A Forge já chamou setModelProperties antes deste evento: o que mudamos aqui vale pro desenho. */
     @SubscribeEvent
@@ -101,6 +101,8 @@ public class ArmlessRendering {
                             HumanoidModel outer = ObfuscationReflectionHelper.getPrivateValue(
                                     HumanoidArmorLayer.class, old, "f_117072_");
                             layers.set(i, new ArmlessArmorLayer(renderer, inner, outer, models));
+                        } else if (layers.get(i).getClass() == PlayerItemInHandLayer.class) {
+                            layers.set(i, new MissingArmItemLayer(renderer, event.getContext().getItemInHandRenderer()));
                         }
                     }
                 }
@@ -126,15 +128,21 @@ public class ArmlessRendering {
         protected Model getArmorModelHook(AbstractClientPlayer entity, ItemStack stack, EquipmentSlot slot,
                                           HumanoidModel<AbstractClientPlayer> model) {
             Model result = super.getArmorModelHook(entity, stack, slot, model);
-            if (slot == EquipmentSlot.CHEST && ClientArmState.isArmless(entity.getId())
-                    && result instanceof HumanoidModel<?> humanoid) {
-                humanoid.leftArm.visible = false;
+            if (!(result instanceof HumanoidModel<?> humanoid)) return result;
+            int miss = VictimRender.missing(entity, Minecraft.getInstance().getFrameTime());
+            if (slot == EquipmentSlot.CHEST) {
+                if (ClientArmState.isArmless(entity.getId()) || (miss & 1) != 0) humanoid.leftArm.visible = false;
+                if ((miss & 2) != 0) humanoid.rightArm.visible = false;
+            } else if (slot == EquipmentSlot.HEAD && (miss & 4) != 0) {
+                // capacete sem cabeça dentro: não
+                humanoid.head.visible = false;
+                humanoid.hat.visible = false;
             }
             return result;
         }
     }
 
-    /** O toco no ombro esquerdo: carne vermelha com o osso na ponta. */
+    /** Os tocos: ombro esquerdo (sem o braço) e, no golpe final, o direito e o pescoço. */
     private static class StumpLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
 
         StumpLayer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
@@ -145,39 +153,35 @@ public class ArmlessRendering {
         public void render(PoseStack poseStack, MultiBufferSource buffers, int light, AbstractClientPlayer player,
                            float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks,
                            float netHeadYaw, float headPitch) {
-            if (!ClientArmState.isArmless(player.getId()) || player.isInvisible()) return;
+            if (player.isInvisible()) return;
+            int miss = VictimRender.missing(player, partialTick);
+            boolean left = ClientArmState.isArmless(player.getId()) || (miss & 1) != 0;
+            if (!left && miss == 0) return;
             poseStack.pushPose();
             getParentModel().body.translateAndRotate(poseStack);
-            VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(STUMP));
-            // ombro esquerdo do modelo: x 4..7,5, y 0..3 (y cresce pra baixo), z -1,8..1,8
-            box(vc, poseStack.last().pose(), poseStack.last().normal(), light,
-                    4.0F / 16F, 7.6F / 16F, -0.2F / 16F, 3.0F / 16F, -1.8F / 16F, 1.8F / 16F);
+            if (left) Stumps.leftShoulder(poseStack, buffers, light);
+            if ((miss & 2) != 0) Stumps.rightShoulder(poseStack, buffers, light);
+            if ((miss & 4) != 0) Stumps.neck(poseStack, buffers, light);
             poseStack.popPose();
         }
+    }
 
-        private static void box(VertexConsumer vc, Matrix4f m, Matrix3f n, int light,
-                                float x0, float x1, float y0, float y1, float z0, float z1) {
-            quad(vc, m, n, light, x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0, 0, 0, -1);
-            quad(vc, m, n, light, x1, y0, z1, x0, y0, z1, x0, y1, z1, x1, y1, z1, 0, 0, 1);
-            quad(vc, m, n, light, x0, y0, z1, x1, y0, z1, x1, y0, z0, x0, y0, z0, 0, -1, 0);
-            quad(vc, m, n, light, x0, y1, z0, x1, y1, z0, x1, y1, z1, x0, y1, z1, 0, 1, 0);
-            quad(vc, m, n, light, x1, y0, z0, x1, y0, z1, x1, y1, z1, x1, y1, z0, 1, 0, 0);
-            quad(vc, m, n, light, x0, y0, z1, x0, y0, z0, x0, y1, z0, x0, y1, z1, -1, 0, 0);
+    /** Item na mão de um braço que não existe mais: não desenha (ficava boiando do lado do ombro). */
+    private static class MissingArmItemLayer
+            extends PlayerItemInHandLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
+
+        MissingArmItemLayer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent,
+                            ItemInHandRenderer itemInHandRenderer) {
+            super(parent, itemInHandRenderer);
         }
 
-        private static void quad(VertexConsumer vc, Matrix4f m, Matrix3f n, int light,
-                                 float ax, float ay, float az, float bx, float by, float bz,
-                                 float cx, float cy, float cz, float dx, float dy, float dz,
-                                 float nx, float ny, float nz) {
-            int ov = OverlayTexture.NO_OVERLAY;
-            vc.vertex(m, ax, ay, az).color(1F, 1F, 1F, 1F).uv(0F, 0F).overlayCoords(ov).uv2(light)
-                    .normal(n, nx, ny, nz).endVertex();
-            vc.vertex(m, bx, by, bz).color(1F, 1F, 1F, 1F).uv(1F, 0F).overlayCoords(ov).uv2(light)
-                    .normal(n, nx, ny, nz).endVertex();
-            vc.vertex(m, cx, cy, cz).color(1F, 1F, 1F, 1F).uv(1F, 1F).overlayCoords(ov).uv2(light)
-                    .normal(n, nx, ny, nz).endVertex();
-            vc.vertex(m, dx, dy, dz).color(1F, 1F, 1F, 1F).uv(0F, 1F).overlayCoords(ov).uv2(light)
-                    .normal(n, nx, ny, nz).endVertex();
+        @Override
+        protected void renderArmWithItem(LivingEntity entity, ItemStack stack, ItemDisplayContext context,
+                                         HumanoidArm arm, PoseStack poseStack, MultiBufferSource buffers, int light) {
+            int miss = VictimRender.missing(entity, Minecraft.getInstance().getFrameTime());
+            if (arm == HumanoidArm.LEFT && (ClientArmState.isArmless(entity.getId()) || (miss & 1) != 0)) return;
+            if (arm == HumanoidArm.RIGHT && (miss & 2) != 0) return;
+            super.renderArmWithItem(entity, stack, context, arm, poseStack, buffers, light);
         }
     }
 }

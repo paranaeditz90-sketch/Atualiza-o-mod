@@ -1,11 +1,14 @@
 package com.froggydude;
 
+import com.froggydude.config.FroggyClientConfig;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.init.ModEntityTypes;
 import com.froggydude.init.ModParticles;
 import com.froggydude.init.ModSounds;
 import com.froggydude.network.ModNetwork;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
@@ -27,6 +30,9 @@ public class FroggydudeMod {
         ModParticles.register(modBus);
         modBus.addListener(this::commonSetup);
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, FroggyConfig.SPEC, "froggydude-common.toml");
+        // o gore é de cada um (cada jogador vê o nível que escolheu)
+        ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, FroggyClientConfig.SPEC, "froggydude-client.toml");
+        DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> com.froggydude.client.ClientSetup::init);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {

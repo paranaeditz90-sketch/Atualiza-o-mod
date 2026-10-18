@@ -14,12 +14,32 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntityTypes.FROGGYDUDE.get(), FroggydudeRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.CORPSE.get(), PlayerCorpseRenderer::new);
+        // o cinegrafista da cutscene nunca aparece
+        event.registerEntityRenderer(ModEntityTypes.CUTSCENE_CAMERA.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
     }
 
-    /** Jogador sem o braço esquerdo: troca a armadura e põe o toco no ombro. */
+    /** Jogador sem o braço esquerdo: troca a armadura e põe o toco no ombro. E o sangue grudado na skin. */
     @SubscribeEvent
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public static void addLayers(EntityRenderersEvent.AddLayers event) {
         ArmlessRendering.addLayers(event);
+        for (String skin : event.getSkins()) {
+            net.minecraft.client.renderer.entity.LivingEntityRenderer renderer = event.getSkin(skin);
+            if (renderer instanceof net.minecraft.client.renderer.entity.player.PlayerRenderer pr) {
+                pr.addLayer(new com.froggydude.client.gore.BloodStains.Layer(pr));
+            }
+        }
+    }
+
+    /** Sangue na tela: por baixo do HUD (a barra de itens fica por cima). */
+    @SubscribeEvent
+    public static void registerOverlays(net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) {
+        event.registerBelowAll("blood_screen", (gui, gfx, partial, w, h) ->
+                com.froggydude.client.gore.ScreenBlood.render(gfx, partial, w, h));
+        // faixas pretas e o escuro da cutscene do golpe final: por cima de tudo
+        event.registerAboveAll("cutscene", (gui, gfx, partial, w, h) ->
+                com.froggydude.client.cutscene.CinematicCamera.renderOverlay(gfx, partial, w, h));
     }
 
     /** Os pedaços de sangue. */
@@ -27,5 +47,6 @@ public class ClientModEvents {
     public static void registerParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(ModParticles.BLOOD.get(), BloodParticle.Provider::new);
         event.registerSpriteSet(ModParticles.DUST_PUFF.get(), DustPuffParticle.Provider::new);
+        event.registerSpriteSet(ModParticles.BLOOD_CLOUD.get(), BloodCloudParticle.Provider::new);
     }
 }

@@ -616,8 +616,6 @@ ANIMS["feed"] = animation(1.0, [
 ], True)
 
 
-# ------------------------------------------------------------------ amostragem (pra teste)
-
 def sample(anim, t):
     out = {}
     for bone, chans in anim["bones"].items():
@@ -639,6 +637,126 @@ def sample(anim, t):
             out[bone][ch] = v
     return out
 
+
+# Golpe final (a cutscene, entity.Finisher): a matança da zebra quadro a quadro
+# (vídeo do LM, 77,3-88,8 s). Ele em pé por cima do quadril da vítima deitada de
+# costas (pés dos dois lados do corpo), virado pra cabeça dela. Tempos = ticks da
+# tabela / 20. As poses de morder foram ajustadas com o esqueleto (rig.py) pra
+# boca cair EM CIMA do ombro (0,68 bloco à frente, 0,37 pro lado, 0,27 de altura)
+# e do pescoço (0,82 à frente): o braço esquerdo dela fica do lado DIREITO dele.
+OVER = dict(root_y=0, waist=18, head=30, arms=-22, arm_l=-18, arm_spread=12, legs=0, leg_spread=16)
+FIN_HOLD = dict(root_y=0, waist=8, head=-6, arms=-26, arm_l=-16, arm_spread=12, legs=2, leg_spread=16)
+
+
+def bend(side, **over):
+    # side +1 = ombro esquerdo dela (direita dele), -1 = o direito dela
+    p = dict(root_y=-4, waist=100, head=15, waist_y=30 * side, arms=-75, legs=leg_back(-4),
+             arm_spread=16, leg_spread=18)
+    p.update(over)
+    return pose(**p)
+
+
+def neck_bite(**over):
+    p = dict(root_y=-4, waist=105, head=0, arms=-70, legs=leg_back(-4), arm_spread=18, leg_spread=18)
+    p.update(over)
+    return pose(**p)
+
+
+def tear(side, k, neck=False):
+    # cravado, rasgando: a cabeça sacode pros lados como cachorro (o resto quase parado)
+    w = 1 if k % 2 == 0 else -1
+    if neck:
+        return neck_bite(head=4, head_y=22 * w, head_z=10 * w, waist_z=4 * w)
+    return bend(side, waist=102, head=18, head_y=20 * w, head_z=10 * w, waist_z=4 * w)
+
+
+def yank():
+    # o TRANCO: arranca pra cima e pra trás com tudo, o pedaço sai na boca
+    return pose(root_y=-0.5, waist=-14, head=-36, arms=-60, arm_l=-42, arm_spread=10, legs=10, leg_spread=16)
+
+
+def fin_shake(side, amount=50):
+    # em pé com o pedaço na boca sacudindo (2,5 por segundo), astride
+    return pose(root_y=0, waist=4, waist_y=14 * side, head=-12, head_y=amount * side, head_z=16 * side,
+                arms=-30, arm_l=-20, arm_spread=12, legs=4, leg_spread=16)
+
+
+def bite_sequence(t_bend, t_bite, t_rip, side, neck=False):
+    keys = [(t_bend, pose(**OVER) if not neck else pose(**FIN_HOLD))]
+    target = (neck_bite if neck else (lambda **o: bend(side, **o)))
+    keys.append((round(t_bend + (t_bite - t_bend) * 0.6, 3), target(head=-6 if not neck else -14)))  # abre a boca
+    keys.append((t_bite, target()))                                                                  # CRAVA
+    k = 0
+    t = t_bite + 0.1
+    while t < t_rip - 0.12:
+        keys.append((round(t, 3), tear(side, k, neck)))
+        k += 1
+        t += 0.1
+    keys.append((round(t_rip - 0.08, 3), target(root_y=-6, waist=80, head=-20)))                      # puxa
+    keys.append((t_rip, yank()))
+    return keys
+
+
+def shaking(t0, t1, period=0.2, amount=50):
+    keys = []
+    k = 0
+    t = t0
+    while t < t1 - 0.01:
+        keys.append((round(t, 3), fin_shake(1 if k % 2 == 0 else -1, amount)))
+        k += 1
+        t += period
+    return keys
+
+
+T = lambda ticks: round(ticks / 20.0, 3)
+fin = [(0.00, pose(**OVER)),
+       (0.35, pose(**{**OVER, "head": 36, "head_y": 10})),
+       (T(14) - 0.05, pose(**OVER))]
+fin += bite_sequence(T(14), T(20), T(32), 1)
+fin += shaking(T(34), T(64))
+fin += [(T(66), pose(**FIN_HOLD))]
+fin += bite_sequence(T(74), T(80), T(92), -1)
+fin += shaking(T(94), T(122))
+# parado 1,4 s mastigando o braço (a boca mexe; a cabeça só dá umas puxadas)
+fin += [(T(124), pose(**FIN_HOLD)),
+        (T(131), pose(**{**FIN_HOLD, "head": 2})), (T(138), pose(**FIN_HOLD)),
+        (T(145), pose(**{**FIN_HOLD, "head": 2})), (T(150), pose(**FIN_HOLD))]
+fin += bite_sequence(T(152), T(158), T(166), 0, neck=True)
+# CLOSE: a cabeça na boca, sacudindo FORTE e mais rápido
+fin += shaking(T(168), T(224), period=0.15, amount=62)
+fin += [(T(226), pose(root_y=0, waist=-8, head=-34, arms=-30, arm_l=-20, arm_spread=8, legs=2, leg_spread=16)),  # engole
+        (T(232), pose(**{**OVER, "head": 24}))]
+fin.sort(key=lambda k: k[0])
+ANIMS["finisher"] = animation(T(232), fin, "hold_on_last_frame")
+
+# sem o braço esquerdo (a língua já arrancou): a mesma coisa a partir do tick 60
+ANIMS["finisher_r"] = animation(T(232) - 3.0,
+                                [(0.0, sample(ANIMS["finisher"], 3.0))] +
+                                [(round(t - 3.0, 3), p) for t, p in fin if t > 3.0 + 1e-6],
+                                "hold_on_last_frame")
+
+# Brincando com o corpo (Extremo): agarra embaixo, levanta tudo e arremessa pro alto
+# (solta no tick 8), e fica olhando subir rindo.
+ANIMS["corpse_toss"] = animation(1.2, [
+    (0.00, pose(root_y=-3, waist=70, head=-30, arms=-95, arm_spread=14, legs=leg_back(-3), leg_spread=14)),
+    (0.20, pose(root_y=-4, waist=84, head=-40, arms=-80, arm_spread=12, legs=leg_back(-4), leg_spread=14)),   # agarra
+    (0.36, pose(root_y=0, waist=-10, head=-34, arms=-170, arm_spread=10, legs=4, leg_spread=12)),             # levanta
+    (0.42, pose(root_y=0, waist=-14, head=-40, arms=-178, arm_spread=22, legs=4, leg_spread=12)),             # SOLTA
+    (0.70, pose(root_y=0, waist=-6, head=-36, arms=-60, arm_spread=24, legs=2, leg_spread=12)),               # olhando subir
+    (0.85, pose(root_y=0.5, waist=-2, head=-30, arms=-50, arm_spread=26, legs=2, leg_spread=12)),             # ri
+    (1.00, pose(root_y=0, waist=-6, head=-36, arms=-56, arm_spread=24, legs=2, leg_spread=12)),
+    (1.20, pose(root_y=0.5, waist=-2, head=-28, arms=-48, arm_spread=26, legs=2, leg_spread=12)),
+], "hold_on_last_frame")
+
+# O corpo na boca sacudindo como cachorro com brinquedo (loop de 0,4 s)
+ANIMS["corpse_shake"] = animation(0.4, [
+    (0.00, fin_shake(1, 55)),
+    (0.20, fin_shake(-1, 55)),
+    (0.40, fin_shake(1, 55)),
+], True)
+
+
+# ------------------------------------------------------------------ amostragem (pra teste)
 
 def static(p):
     return {"loop": True, "animation_length": 1.0,

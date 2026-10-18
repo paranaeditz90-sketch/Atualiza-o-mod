@@ -101,7 +101,7 @@ public class FroggyTrackGoal extends Goal {
         return ticks < TRACK_TICKS && (mode != Mode.SEARCH || modeTicks < SEARCH_TICKS);
     }
 
-    /** Sem alvo, sem estar preso a nada (invasão, fase 2, comendo). */
+    /** Sem alvo, sem estar preso a nada (manhunt parado, fase 2, comendo). */
     private boolean free() {
         if (froggy.getTarget() != null || froggy.isHolding() || froggy.isFrenzyActive()) return false;
         FroggyState st = froggy.getFroggyState();

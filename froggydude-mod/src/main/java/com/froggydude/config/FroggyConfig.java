@@ -11,8 +11,6 @@ public final class FroggyConfig {
 
     public static final ForgeConfigSpec SPEC;
 
-    public static final ForgeConfigSpec.BooleanValue ANTI_TRAPACA;
-    public static final ForgeConfigSpec.BooleanValue PERDOAR;
     public static final ForgeConfigSpec.EnumValue<ManhuntMode> MANHUNT_MODO;
     public static final ForgeConfigSpec.IntValue MANHUNT_DIAS;
     public static final ForgeConfigSpec.IntValue VANTAGEM_SEGUNDOS;
@@ -21,13 +19,6 @@ public final class FroggyConfig {
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
-
-        b.comment("Anti-trapaça (só vale durante um manhunt e nunca em mundo com -dev no nome)").push("anti_trapaca");
-        ANTI_TRAPACA = b.comment("Liga o anti-trapaça: 1a trapaça = aviso (I SEE YOU), 2a = invasão e banimento do mundo.")
-                .define("ligado", true);
-        PERDOAR = b.comment("true = na próxima vez que o jogador entrar, o banimento some (e as advertências zeram).")
-                .define("perdoar", false);
-        b.pop();
 
         b.comment("Manhunt: /froggydude manhunt iniciar").push("manhunt");
         MANHUNT_MODO = b.comment("speedrun = matar o Ender Dragon antes dele te pegar; sobrevivencia = sobreviver X dias.")

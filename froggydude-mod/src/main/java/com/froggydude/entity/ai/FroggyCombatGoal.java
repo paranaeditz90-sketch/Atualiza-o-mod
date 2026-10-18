@@ -660,16 +660,6 @@ public class FroggyCombatGoal extends Goal {
         return eating != null;
     }
 
-    /** Invasão (anti-trapaça): derruba na hora, sem bote. */
-    public void forcePin(LivingEntity target) {
-        pinVictim(FroggyState.JUMP_PIN, target, 1.4F);
-    }
-
-    /** Invasão: arranca o braço de quem já está no chão. */
-    public void forceArmRip(LivingEntity target) {
-        beginArmRip(target);
-    }
-
     // ---------------------------------------------------------------- apavorar
 
     /**

@@ -33,7 +33,7 @@ public final class FroggyKeeper {
         ANY,
         /** Fora da vista (atrás de alguma coisa ou nas costas): ele não "brota" na tua cara. */
         HIDDEN,
-        /** Na tua frente, à vista (o aviso do anti-trapaça: ele ali, te olhando). */
+        /** Na tua frente, à vista (o começo do manhunt: ele ali, te olhando). */
         IN_VIEW
     }
 
@@ -184,7 +184,7 @@ public final class FroggyKeeper {
 
     /**
      * O jogador enxerga esse ponto? Na frente dele e sem nada no caminho - vidro
-     * e vidraça não tapam (o aviso do anti-trapaça: ele te olhando pela janela).
+     * e vidraça não tapam (ele te olhando pela janela).
      */
     public static boolean visible(ServerLevel level, ServerPlayer player, BlockPos p) {
         Vec3 eye = player.getEyePosition();

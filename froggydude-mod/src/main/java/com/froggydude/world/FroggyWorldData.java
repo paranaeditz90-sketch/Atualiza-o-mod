@@ -10,9 +10,7 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.LevelResource;
 
 import javax.annotation.Nullable;
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -51,11 +49,6 @@ public class FroggyWorldData extends SavedData {
     public boolean released;
     public int lastDayShown;
 
-    // ----- anti-trapaça
-    public final Map<UUID, Integer> strikes = new HashMap<>();
-    /** Banidos do mundo (o registro fica aqui dentro do save; perdoar = true apaga). */
-    public final Map<UUID, String> bans = new HashMap<>();
-
     public static FroggyWorldData get(ServerLevel level) {
         return get(level.getServer());
     }
@@ -67,7 +60,7 @@ public class FroggyWorldData extends SavedData {
 
     /**
      * Mundo de desenvolvimento: "-dev" no nome do mundo (ou da pasta). Ali o
-     * anti-trapaça não existe e o cérebro conta no chat o que aprendeu.
+     * cérebro conta no chat o que aprendeu.
      */
     public static boolean isDev(MinecraftServer server) {
         String name = server.getWorldData().getLevelName().toLowerCase(Locale.ROOT);
@@ -98,10 +91,6 @@ public class FroggyWorldData extends SavedData {
         d.releaseAt = mh.getLong("ReleaseAt");
         d.released = mh.getBoolean("Released");
         d.lastDayShown = mh.getInt("LastDay");
-        CompoundTag st = tag.getCompound("Strikes");
-        for (String k : st.getAllKeys()) d.strikes.put(UUID.fromString(k), st.getInt(k));
-        CompoundTag bans = tag.getCompound("Bans");
-        for (String k : bans.getAllKeys()) d.bans.put(UUID.fromString(k), bans.getString(k));
         return d;
     }
 
@@ -124,12 +113,6 @@ public class FroggyWorldData extends SavedData {
         mh.putBoolean("Released", released);
         mh.putInt("LastDay", lastDayShown);
         tag.put("Manhunt", mh);
-        CompoundTag st = new CompoundTag();
-        strikes.forEach((k, v) -> st.putInt(k.toString(), v));
-        tag.put("Strikes", st);
-        CompoundTag bansTag = new CompoundTag();
-        bans.forEach((k, v) -> bansTag.putString(k.toString(), v));
-        tag.put("Bans", bansTag);
         return tag;
     }
 }

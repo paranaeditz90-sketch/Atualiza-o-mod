@@ -48,10 +48,6 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> PAIN = register("froggydude.pain");
     /** Cada soco do esmagamento. */
     public static final RegistryObject<SoundEvent> SMASH = register("froggydude.smash");
-    /** Invasão (anti-trapaça): a ligação pro 911 (o áudio original vem no pacote de voz). */
-    public static final RegistryObject<SoundEvent> INVASION_CALL = register("froggydude.invasion.call");
-    /** Invasão: a janela quebrando. */
-    public static final RegistryObject<SoundEvent> INVASION_GLASS = register("froggydude.invasion.glass");
     /** A voz a cada soco do esmagamento ("tai! tai! tai!"). */
     public static final RegistryObject<SoundEvent> SMASH_TAI = register("froggydude.smash_tai");
     /** O baque do pulo altíssimo no chão. */

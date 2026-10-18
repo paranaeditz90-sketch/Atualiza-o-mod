@@ -21,6 +21,29 @@ public class ModForgeEvents {
         if (event.phase == TickEvent.Phase.START && event.player instanceof ServerPlayer player) {
             PinTracker.tick(player);
             ArmLoss.tick(player);
+            // Extremo: assistiu ele comer o próprio corpo; agora morre
+            long due = com.froggydude.player.FinisherTracker.deathAt(player);
+            if (due >= 0) {
+                if (player.level().getGameTime() >= due || !player.isAlive()) finishVictim(player);
+                return;
+            }
+            // marcado pra cutscene mas o FroggyDude sumiu/desistiu: solta (senão ficava imortal)
+            if (com.froggydude.player.FinisherTracker.isVictim(player)) {
+                net.minecraft.world.entity.Entity f = player.level().getEntity(com.froggydude.player.FinisherTracker.froggyOf(player));
+                if (!(f instanceof com.froggydude.entity.FroggydudeEntity froggy) || !froggy.isAlive() || !froggy.isFinishing()) {
+                    com.froggydude.player.FinisherTracker.clear(player);
+                }
+            }
+        }
+    }
+
+    /** A morte marcada do golpe final (Extremo). */
+    public static void finishVictim(ServerPlayer player) {
+        net.minecraft.world.entity.Entity f = player.level().getEntity(com.froggydude.player.FinisherTracker.froggyOf(player));
+        com.froggydude.player.FinisherTracker.clear(player);
+        if (player.isAlive() && player.level() instanceof net.minecraft.server.level.ServerLevel level) {
+            player.hurt(com.froggydude.entity.ai.FroggyFinisherGoal.devoured(level,
+                    f instanceof com.froggydude.entity.FroggydudeEntity ? f : null), Float.MAX_VALUE);
         }
     }
 

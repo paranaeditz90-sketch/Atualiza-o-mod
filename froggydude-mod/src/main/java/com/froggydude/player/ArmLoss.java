@@ -72,12 +72,26 @@ public final class ArmLoss {
         }
     }
 
+    /**
+     * Arranca sem os efeitos (a cutscene faz os dela, com o corpo deitado no
+     * lugar certo): só a marca, a vida máxima, a mão secundária e o aviso pro cliente.
+     */
+    public static void removeArmQuiet(ServerPlayer player) {
+        if (!canLoseArm(player)) return;
+        player.getPersistentData().putBoolean(KEY, true);
+        applyHealthLoss(player);
+        dropOffhand(player);
+        ModNetwork.sendArmState(player, true);
+    }
+
     /** Chamado todo tick do jogador no servidor. */
     public static void tick(ServerPlayer player) {
         if (!isArmless(player) || !player.isAlive()) return;
         applyHealthLoss(player);
         dropOffhand(player);
-        bleed(player);
+        // no golpe final quem sangra é o corpo deitado (o FroggyFinisherGoal faz o jorro do toco);
+        // daqui sairia do ombro do jogador "em pé", atravessando a cena
+        if (!FinisherTracker.isVictim(player)) bleed(player);
     }
 
     /** A vida máxima menor (o modificador não é salvo; é recolocado aqui). */
@@ -111,9 +125,9 @@ public final class ArmLoss {
             BloodFx.spray(server, at.add(0, -0.1D, 0), new Vec3(0, -1, 0), 1, 0.04F);
         }
         if (t % SPURT_EVERY == 0) {
-            // esguicho pra fora do ombro, no ritmo do coração
+            // esguicho pra fora do ombro, no ritmo do coração (no Extremo: jorro de líquido)
             Vec3 out = side(player).scale(0.25D);
-            BloodFx.spray(server, at.add(out), side(player).add(0, 0.4D, 0), 10, 0.2F);
+            BloodFx.streamAt(server, at.add(out), side(player).add(0, 0.4D, 0), 0.2F, 9, BloodFx.RED);
         }
         if (t % 30 == 0 && player.onGround()) {
             // rastro: cada parada vira uma poça que vai engrossando

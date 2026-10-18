@@ -33,7 +33,19 @@ public enum FroggyState {
     /** Come o braço arrancado: mastiga, engole e digere. Distraído e vulnerável. */
     ARM_EAT(90),
     /** Fase 2, etapa 2: a cabeça joga pra trás num estalo, grita e já dispara correndo. */
-    ROAR(10);
+    ROAR(10),
+    /**
+     * O golpe final (cutscene): a vítima deitada, ele arranca o braço esquerdo,
+     * o direito e a cabeça (entity.Finisher tem a tabela; quem cuida é a
+     * FroggyFinisherGoal).
+     */
+    FINISHER(Finisher.END),
+    /** Extremo: comendo o corpo de quem ele matou na cutscene (e brincando com ele). */
+    CORPSE_EAT(40),
+    /** Extremo: joga o corpo pro alto e pega de novo (brincando com a comida). */
+    CORPSE_TOSS(24),
+    /** Extremo: o corpo na boca, sacudindo como cachorro com brinquedo (FroggyCorpseGoal.SHAKE_TICKS). */
+    CORPSE_SHAKE(34);
 
     public final int durationTicks;
 
@@ -52,7 +64,7 @@ public enum FroggyState {
 
     /** Em cima da vítima derrubada (ela fica presa no chão). */
     public boolean isOnVictim() {
-        return this == PIN_HOLD || this == SMASH || this == ARM_RIP;
+        return this == PIN_HOLD || this == SMASH || this == ARM_RIP || this == FINISHER;
     }
 
     /** Qualquer ação conduzida pela Goal de combate (ataques, montado, braço). */

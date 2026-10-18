@@ -1,7 +1,5 @@
 package com.froggydude.world;
 
-import com.froggydude.anticheat.AntiCheat;
-import com.froggydude.anticheat.Invasion;
 import com.froggydude.brain.Strategy;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggydudeEntity;
@@ -51,7 +49,6 @@ public final class Manhunt {
         data.releaseAt = now + head * 20L;
         data.released = false;
         data.lastDayShown = 0;
-        data.strikes.clear();
         data.respawnAt = -1;
         data.setDirty();
         missingTicks = farTicks = awayTicks = 0;
@@ -73,7 +70,6 @@ public final class Manhunt {
                 ? Component.translatable("froggydude.manhunt.goal.speedrun")
                 : Component.translatable("froggydude.manhunt.goal.survive", days);
         titleAll(server, Component.translatable("froggydude.manhunt.title"), sub);
-        AntiCheat.onManhuntStart(server);
     }
 
     public static void stop(MinecraftServer server) {
@@ -106,13 +102,11 @@ public final class Manhunt {
         if (!data.released) {
             long left = (data.releaseAt - now + 19) / 20;
             if (left > 0) {
-                if (Invasion.anyRunning()) return;
                 for (ServerPlayer p : server.getPlayerList().getPlayers()) {
                     p.displayClientMessage(Component.translatable("froggydude.manhunt.countdown", left), true);
                 }
                 return;
             }
-            if (Invasion.anyRunning()) return; // a invasão manda nele agora
             data.released = true;
             data.setDirty();
             FroggydudeEntity froggy = FroggyKeeper.find(server);

@@ -1,6 +1,5 @@
 package com.froggydude.command;
 
-import com.froggydude.anticheat.Invasion;
 import com.froggydude.brain.FroggyBrain;
 import com.froggydude.brain.PlayerMemory;
 import com.froggydude.brain.Strategy;
@@ -64,6 +63,7 @@ public final class FroggyCommand {
                                         FroggyConfig.get(FroggyConfig.MANHUNT_DIAS))))
                         .then(Commands.literal("parar").executes(c -> stopManhunt(c.getSource()))))
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
+                .then(Commands.literal("golpefinal").requires(FroggyCommand::admin).executes(c -> finisher(c.getSource())))
                 .then(Commands.literal("cerebro")
                         .executes(c -> brain(c.getSource(), c.getSource().getPlayerOrException()))
                         .then(Commands.argument("jogador", EntityArgument.player()).requires(FroggyCommand::admin)
@@ -88,25 +88,7 @@ public final class FroggyCommand {
                     data.setDirty();
                     c.getSource().sendSuccess(() -> Component.literal("Falas de volta pro começo (\"Hey, humans!\")."), true);
                     return 1;
-                })))
-                .then(Commands.literal("trapaca").requires(FroggyCommand::admin).then(Commands.literal("testar")
-                        .executes(c -> testInvasion(c.getSource(), c.getSource().getPlayerOrException()))
-                        .then(Commands.argument("jogador", EntityArgument.player())
-                                .executes(c -> testInvasion(c.getSource(), EntityArgument.getPlayer(c, "jogador"))))))
-                .then(Commands.literal("perdoar").requires(FroggyCommand::admin)
-                        .then(Commands.argument("jogador", GameProfileArgument.gameProfile())
-                                .executes(c -> {
-                                    int n = 0;
-                                    FroggyWorldData data = FroggyWorldData.get(c.getSource().getServer());
-                                    for (GameProfile gp : GameProfileArgument.getGameProfiles(c, "jogador")) {
-                                        if (data.bans.remove(gp.getId()) != null) n++;
-                                        data.strikes.remove(gp.getId());
-                                    }
-                                    data.setDirty();
-                                    int count = n;
-                                    c.getSource().sendSuccess(() -> Component.literal("Perdoado(s): " + count + "."), true);
-                                    return n;
-                                }))));
+                }))));
     }
 
     private static int summon(CommandSourceStack src) throws CommandSyntaxException {
@@ -146,10 +128,24 @@ public final class FroggyCommand {
         return 1;
     }
 
-    private static int testInvasion(CommandSourceStack src, ServerPlayer target) {
-        Invasion.start(target, true);
-        src.sendSuccess(() -> Component.literal("Invasão de teste em " + target.getScoreboardName()
-                + " (sem banimento; as tochas por perto apagam de verdade)."), true);
+    /** Teste: ele aparece atrás de ti e faz a cutscene do golpe final (em sobrevivência). */
+    private static int finisher(CommandSourceStack src) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null || f.level() != p.level()) {
+            src.sendFailure(Component.literal("O FroggyDude não está carregado (use /froggydude invocar)."));
+            return 0;
+        }
+        if (p.isCreative() || p.isSpectator()) {
+            src.sendFailure(Component.literal("Só em sobrevivência/aventura."));
+            return 0;
+        }
+        // de frente pra onde tu olha: a cabeça vai cair pra lá
+        net.minecraft.world.phys.Vec3 look = p.getLookAngle().multiply(1, 0, 1).normalize();
+        f.teleportTo(p.getX() - look.x * 1.4D, p.getY(), p.getZ() - look.z * 1.4D);
+        com.froggydude.player.FinisherTracker.mark(p, f.getId());
+        f.requestFinisher(p);
+        src.sendSuccess(() -> Component.literal("Golpe final."), true);
         return 1;
     }
 
@@ -158,8 +154,7 @@ public final class FroggyCommand {
         FroggyWorldData data = FroggyWorldData.get(server);
         boolean dev = FroggyWorldData.isDev(server);
         StringBuilder sb = new StringBuilder();
-        sb.append("Mundo: ").append(dev ? "-dev (anti-trapaça desligado)" : "normal")
-                .append(" | anti-trapaça no config: ").append(FroggyConfig.get(FroggyConfig.ANTI_TRAPACA) ? "ligado" : "desligado");
+        sb.append("Mundo: ").append(dev ? "-dev (o cérebro conta no chat o que aprende)" : "normal");
         FroggydudeEntity f = FroggyKeeper.find(server);
         sb.append("\nFroggyDude: ");
         if (f != null) {
@@ -181,7 +176,6 @@ public final class FroggyCommand {
         } else {
             sb.append("parado");
         }
-        if (!data.bans.isEmpty()) sb.append("\nBanidos: ").append(String.join(", ", data.bans.values()));
         String text = sb.toString();
         src.sendSuccess(() -> Component.literal(text), false);
         return 1;
