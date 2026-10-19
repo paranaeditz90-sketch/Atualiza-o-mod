@@ -40,7 +40,11 @@ public final class ScreenBlood {
         }
     }
 
-    private static final int MAX = 28;
+    /**
+     * No máximo 14 respingos na tela (eram 28: no celular, em luta, tapava metade da
+     * visão - prints do LM, v0.4.2). Menores, mais transparentes e com o meio livre.
+     */
+    private static final int MAX = 14;
     private static final List<Splat> SPLATS = new ArrayList<>();
     private static float film, filmO;
     /** 1 coração: daqui pra baixo a tela vai ficando vermelha. */
@@ -80,36 +84,38 @@ public final class ScreenBlood {
         if (!g.screen()) return;
         if (g == GoreLevel.MEDIUM && strength < 6F) return; // Médio: só golpe grande
         RandomSource r = RandomSource.create();
-        int n = Mth.clamp(Math.round((0.6F + strength / 3.5F) * (g == GoreLevel.EXTREME ? 1.6F : 1F)), 1, 6);
+        int n = Mth.clamp(Math.round((0.5F + strength / 5F) * (g == GoreLevel.EXTREME ? 1.25F : 1F)), 1, 4);
         for (int i = 0; i < n; i++) {
             if (SPLATS.size() >= MAX) SPLATS.remove(0);
             Splat s = new Splat();
-            // mais nas bordas que no meio (o meio fica livre pra ver), puxado pro lado da arma
+            // nas bordas (o meio fica livre pra ver quem está na frente), puxado pro lado da arma
             float x = r.nextFloat();
-            if (r.nextFloat() < 0.6F) x = x < 0.5F ? x * 0.55F : 1F - (1F - x) * 0.55F;
-            if (side != 0 && r.nextFloat() < 0.6F) x = side > 0 ? 0.55F + x * 0.45F : x * 0.45F;
+            if (r.nextFloat() < 0.85F) x = x < 0.5F ? x * 0.5F : 1F - (1F - x) * 0.5F;
+            if (side != 0 && r.nextFloat() < 0.6F) x = side > 0 ? 0.6F + x * 0.4F : x * 0.4F;
             s.x = x;
             s.y = 0.05F + r.nextFloat() * 0.7F;
-            s.size = Mth.clamp(0.16F + strength * 0.022F + r.nextFloat() * 0.14F, 0.12F, 0.55F)
-                    * (g == GoreLevel.EXTREME ? 1.25F : 1F);
+            s.size = Mth.clamp(0.11F + strength * 0.015F + r.nextFloat() * 0.09F, 0.09F, 0.36F)
+                    * (g == GoreLevel.EXTREME ? 1.1F : 1F);
+            // caiu no meio mesmo assim: menor
+            if (Math.abs(s.x - 0.5F) < 0.2F && s.y > 0.25F && s.y < 0.75F) s.size *= 0.6F;
             s.tex = r.nextInt(SPLAT.length);
             s.rot = r.nextInt(4);
             s.life = switch (g) {
                 case MEDIUM -> 100;
-                case HEAVY -> 220;
-                default -> 520;
-            } + r.nextInt(80);
+                case HEAVY -> 180;
+                default -> 360;
+            } + r.nextInt(60);
             float shade = 0.85F + r.nextFloat() * 0.3F;
             s.r = Math.min(1F, ((color >> 16) & 255) / 255F * 1.5F * shade);
             s.g = Math.min(1F, ((color >> 8) & 255) / 255F * 1.5F * shade);
             s.b = Math.min(1F, (color & 255) / 255F * 1.5F * shade);
-            s.a = 0.8F + r.nextFloat() * 0.2F;
-            int drips = r.nextInt(g == GoreLevel.EXTREME ? 5 : 3);
+            s.a = 0.55F + r.nextFloat() * 0.2F;
+            int drips = r.nextInt(g == GoreLevel.EXTREME ? 4 : 3);
             for (int k = 0; k < drips; k++) {
                 Drip d = new Drip();
                 d.x = 0.25F + r.nextFloat() * 0.5F;
-                d.w = 0.025F + r.nextFloat() * 0.03F;
-                d.max = 0.3F + r.nextFloat() * (g == GoreLevel.EXTREME ? 1.6F : 0.8F);
+                d.w = 0.02F + r.nextFloat() * 0.025F;
+                d.max = 0.2F + r.nextFloat() * (g == GoreLevel.EXTREME ? 0.8F : 0.5F);
                 d.speed = 0.004F + r.nextFloat() * 0.01F;
                 s.drips.add(d);
             }

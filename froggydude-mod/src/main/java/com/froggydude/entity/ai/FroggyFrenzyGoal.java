@@ -36,7 +36,15 @@ public class FroggyFrenzyGoal extends Goal {
     private static final int BEND_TICKS = FroggyState.CONTORTING.durationTicks;
     /** O grito sai quando a cabeça joga pra trás (animação "roar", 0,1 s). */
     private static final int ROAR_SCREAM_AT = 2;
-    /** Estalos (batem com a animação: dobra 0,53 s, dobrado 0,68 s, volta 0,98 s, a cabeça quebra 2,1-2,4 s). */
+    /**
+     * Os estalos da dobra, nos trancos da rotoscopia (os ticks em que a pose anda mais
+     * rápido em contort_fit.json: o 1º tranco 0,5-0,6 s, a cabeça afundando 1,1-1,3 s,
+     * o ombro subindo 2,2-2,5 s). Antes era um clipe de 2,4 s tocado no começo, que no
+     * pacote de voz era um grito sem nada a ver com a dobra.
+     */
+    private static final int[] CRACK_AT = {3, 10, 12, 18, 22, 25, 31, 37, 45, 51};
+    /** O gemido curto no 1º tranco e quando o ombro sobe (a voz tem 1,5 s de folga entre uma e outra). */
+    private static final int[] GRUNT_AT = {11, 45};
 
     private final FroggydudeEntity froggy;
     private int contortTicks;
@@ -88,8 +96,7 @@ public class FroggyFrenzyGoal extends Goal {
         // fica um tempão assim antes de disparar)
         contortTicks = BEND_TICKS + 40 + froggy.getRandom().nextInt(41);
         nextCrack = BEND_TICKS + 6;
-        // o som da contorção do original (short da fase 2, 4,6-6,9 s): estalos + o
-        // gemido torto, junto com a dobra. O grito de raiva fica pro ROAR.
+        // o primeiro estalo; os outros vêm no tick(), junto com os trancos. O grito fica pro ROAR.
         // boca FECHADA: no vídeo ele se contorce com a cara de choro de sempre, só abre no grito
         froggy.playSound(ModSounds.CONTORT.get(), 2.5F, 1.0F);
     }
@@ -101,11 +108,14 @@ public class FroggyFrenzyGoal extends Goal {
 
         if (froggy.getFroggyState() == FroggyState.CONTORTING) {
             holdYaw();
-            // (os estalos da dobra já estão no som da contorção; aqui só os de depois)
-            if (t >= BEND_TICKS && t >= nextCrack) {
-                // curvado: os ossos continuam estalando e ele geme
+            if (t < BEND_TICKS) {
+                for (int c : CRACK_AT) if (t == c) crack();
+                for (int g : GRUNT_AT) if (t == g) froggy.vocalize(ModSounds.HURT.get(), 1.6F, false);
+            } else if (t >= nextCrack) {
+                // curvado: os ossos continuam estalando e ele grunhe (o "pain" tem fala,
+                // "freaking spicy", que não cabe aqui)
                 crack();
-                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.PAIN.get(), 2.0F, false);
+                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.HURT.get(), 1.6F, false);
                 nextCrack = t + 8 + froggy.getRandom().nextInt(14);
             }
             if (t >= contortTicks) {

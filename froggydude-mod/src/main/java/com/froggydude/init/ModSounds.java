@@ -57,8 +57,8 @@ public class ModSounds {
     /** Ossos estalando na contorção da fase 2 (vs Grox, 5:16: "hughghuguuhuh *crack*"). */
     public static final RegistryObject<SoundEvent> CRACK = register("froggydude.crack");
     /**
-     * A contorção inteira (2,4 s): ossos estalando + o gemido/risada torta, do
-     * jeito que sai no original durante a dobra. Sem o pacote de voz: estalos.
+     * O primeiro estalo da contorção (os outros a FroggyFrenzyGoal toca nos trancos
+     * da animação). O pacote de voz não mexe mais nele: o clipe de antes era fala.
      */
     public static final RegistryObject<SoundEvent> CONTORT = register("froggydude.contort");
     /** Mastigando o braço. */

@@ -5,6 +5,7 @@ import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.PinTracker;
 import com.froggydude.brain.Strategy;
 import com.froggydude.brain.Style;
+import com.froggydude.config.AiLevel;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.voice.VoiceSituation;
 import com.froggydude.network.ModNetwork;
@@ -14,6 +15,7 @@ import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
@@ -21,6 +23,11 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -80,7 +87,7 @@ public class FroggyCombatGoal extends Goal {
      */
     static double huntSpeed() {
         double perTick = FroggyConfig.get(FroggyConfig.CACA_BLOCOS_POR_SEGUNDO) / 20.0D;
-        return Math.sqrt(perTick / 2.15D) / 0.28D;
+        return Math.sqrt(perTick / 2.15D) / 0.28D * FroggyConfig.ai().speed;
     }
     /** Apavorando: galope lento, de longe. */
     private static final double STALK_SPEED = 0.9D;
@@ -320,6 +327,8 @@ public class FroggyCombatGoal extends Goal {
         }
         // alcançou quem foge: corre COLADO atrás uns 0,4 s (a zebra do vídeo) e dá o bote
         if (tail(target, dist, elevated)) return;
+        // Extra/Máx: escudo levantado na cara dele - dá a volta antes de atacar
+        if (!elevated && sidestepShield(target, dist)) return;
 
         if (froggy.getAttackCooldown() <= 0) {
             FroggyState next = pickAttack(target, dist, elevated);
@@ -339,10 +348,10 @@ public class FroggyCombatGoal extends Goal {
         // lento" (LM). Agora é galope o caminho todo, como o guepardo do original.
         if (dist > 2.0D) {
             double speed = froggy.isFrenzyActive() ? 1.0D : huntSpeed();
-            if (beeline(target, dist, speed)) {
+            if (dodgeAim(target, dist, speed) || beeline(target, dist, speed)) {
                 repathTicks = 0;
             } else if (--repathTicks <= 0) {
-                repathTicks = 4;
+                repathTicks = FroggyConfig.ai().ticks(4);
                 if (!flank(target, dist) && !intercept(target, dist, speed)) {
                     froggy.getNavigation().moveTo(target, speed);
                 }
@@ -357,7 +366,8 @@ public class FroggyCombatGoal extends Goal {
         if (froggy.tickCount % 10 == 0 && atPathEnd(target, dist) && moves.startBuilding(target)) return;
         // preso: come a passagem, arromba a porta - ou põe bloco
         if (stuckFor(target, dist) >= STUCK_TICKS
-                && (startEatObstacle(target) || approachDoor(target) || moves.startBuilding(target))) return;
+                && ((FroggyConfig.ai().breakIn && (startEatObstacle(target) || approachDoor(target)))
+                || moves.startBuilding(target))) return;
         if (froggy.tickCount % 10 == 0) {
             net.minecraft.world.level.pathfinder.Path path = froggy.getNavigation().getPath();
             debug("persegue: dist=" + String.format("%.2f", dist) + " dy=" + String.format("%.2f", target.getY() - froggy.getY())
@@ -392,7 +402,8 @@ public class FroggyCombatGoal extends Goal {
      * chegando); de perto, vai direto. Devolve false se não é pra cercar agora.
      */
     private boolean flank(LivingEntity target, double dist) {
-        if (froggy.getStrategy() != Strategy.FLANK || froggy.isFrenzyActive() || dist < 9.0D || dist > 40.0D) return false;
+        if (!FroggyConfig.ai().flank || froggy.getStrategy() != Strategy.FLANK || froggy.isFrenzyActive()
+                || dist < 9.0D || dist > 40.0D) return false;
         Vec3 look = target.getViewVector(1.0F).multiply(1, 0, 1);
         if (look.lengthSqr() < 1.0E-4D) return false;
         Vec3 behind = target.position().subtract(look.normalize().scale(6.0D));
@@ -406,9 +417,13 @@ public class FroggyCombatGoal extends Goal {
      * se não é pra interceptar agora.
      */
     private boolean intercept(LivingEntity target, double dist, double speed) {
-        if (dist < 6.0D || dist > 40.0D || !target.onGround()) return false;
+        AiLevel ai = FroggyConfig.ai();
+        if (!ai.intercept) return false;
+        // Extra/Máx: corta caminho também de quem vai pulando enquanto corre (o pulo
+        // correndo deixava a vítima "no ar" metade do tempo, e aí ele só ia atrás)
+        if (dist < (ai.tricks ? 3.0D : 6.0D) || dist > 40.0D * ai.sense || (!target.onGround() && !ai.tricks)) return false;
         if (Math.abs(target.getY() - froggy.getY()) > 3.0D || approachSpeed(target) > -0.08D) return false;
-        double lead = Math.min(30.0D, dist / 0.75D);
+        double lead = Math.min(30.0D, dist / 0.75D) * ai.lead;
         Vec3 aim = target.position().add(targetVel.x * lead, 0, targetVel.z * lead);
         return froggy.getNavigation().moveTo(aim.x, target.getY(), aim.z, speed);
     }
@@ -421,9 +436,12 @@ public class FroggyCombatGoal extends Goal {
      * caminho calculado (que contorna, sobe e desce).
      */
     private boolean beeline(LivingEntity target, double dist, double speed) {
-        if (dist > 48.0D || froggy.isClimbing() || !froggy.onGround() || !target.onGround()) return false;
-        if (Math.abs(target.getY() - froggy.getY()) > 1.1D || !froggy.hasLineOfSight(target)) return false;
-        double lead = approachSpeed(target) < -0.08D ? Math.min(12.0D, dist / 0.75D) : 0.0D;
+        AiLevel ai = FroggyConfig.ai();
+        if (dist > 48.0D * ai.sense || froggy.isClimbing() || !froggy.onGround()) return false;
+        if (!target.onGround() && !ai.tricks) return false;
+        double up = target.onGround() ? 1.1D : 1.7D;
+        if (Math.abs(target.getY() - froggy.getY()) > up || !froggy.hasLineOfSight(target)) return false;
+        double lead = approachSpeed(target) < -0.08D ? Math.min(12.0D, dist / 0.75D) * ai.lead : 0.0D;
         Vec3 aim = target.position().add(targetVel.x * lead, 0, targetVel.z * lead);
         if (!clearRun(froggy.position(), aim)) {
             aim = target.position();
@@ -473,6 +491,70 @@ public class FroggyCombatGoal extends Goal {
                     || level.getBlockState(feet).is(net.minecraft.world.level.block.Blocks.COBWEB)) return false;
         }
         return Math.abs(y - b.y) < 1.6D;
+    }
+
+    /**
+     * Extra/Máx: miraram arco, besta ou tridente nele - em vez de vir reto (alvo
+     * fácil), vem em ziguezague, trocando de lado a cada 0,4 s.
+     */
+    private boolean dodgeAim(LivingEntity target, double dist, double speed) {
+        if (!FroggyConfig.ai().tricks || dist < 4.0D || dist > 40.0D || !froggy.onGround() || froggy.isClimbing()) {
+            return false;
+        }
+        if (!aimingAtMe(target)) return false;
+        Vec3 to = target.position().subtract(froggy.position()).multiply(1, 0, 1);
+        if (to.lengthSqr() < 1.0E-4D) return false;
+        to = to.normalize();
+        Vec3 side = new Vec3(-to.z, 0, to.x).scale((froggy.tickCount / 8) % 2 == 0 ? 1.0D : -1.0D);
+        Vec3 aim = froggy.position().add(to.scale(4.0D)).add(side.scale(2.5D));
+        if (!clearRun(froggy.position(), aim)) return false;
+        froggy.getNavigation().stop();
+        froggy.getMoveControl().setWantedPosition(aim.x, froggy.getY(), aim.z, speed);
+        return true;
+    }
+
+    /** Arco puxado, tridente pronto ou besta carregada, apontado pra ele (~20°). */
+    private boolean aimingAtMe(LivingEntity target) {
+        boolean ranged = false;
+        if (target.isUsingItem()) {
+            Item use = target.getUseItem().getItem();
+            ranged = use instanceof BowItem || use instanceof CrossbowItem || use instanceof TridentItem;
+        }
+        if (!ranged) {
+            for (InteractionHand hand : InteractionHand.values()) {
+                ItemStack held = target.getItemInHand(hand);
+                if (held.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(held)) {
+                    ranged = true;
+                    break;
+                }
+            }
+        }
+        if (!ranged) return false;
+        Vec3 toMe = froggy.getEyePosition().subtract(target.getEyePosition());
+        if (toMe.lengthSqr() < 1.0E-4D) return false;
+        return target.getViewVector(1.0F).dot(toMe.normalize()) > 0.93D;
+    }
+
+    /**
+     * Extra/Máx: a vítima com o escudo levantado virada pra ele - mordida e soco ali
+     * não entram. Ele dá a volta pelo lado mais perto até sair da frente do escudo
+     * e aí ataca (o escudo só para o que vem pela frente).
+     */
+    private boolean sidestepShield(LivingEntity target, double dist) {
+        if (!FroggyConfig.ai().tricks || !target.isBlocking() || dist > 6.0D || froggy.isClimbing()) return false;
+        Vec3 look = target.getViewVector(1.0F).multiply(1, 0, 1);
+        Vec3 toMe = froggy.position().subtract(target.position()).multiply(1, 0, 1);
+        if (look.lengthSqr() < 1.0E-4D || toMe.lengthSqr() < 1.0E-4D) return false;
+        look = look.normalize();
+        toMe = toMe.normalize();
+        if (look.dot(toMe) < 0.25D) return false; // já está fora da frente do escudo
+        Vec3 side = new Vec3(-look.z, 0, look.x);
+        if (side.dot(toMe) < 0) side = side.scale(-1.0D);
+        Vec3 spot = target.position().add(side.scale(2.2D)).subtract(look.scale(1.2D));
+        froggy.getNavigation().stop();
+        froggy.getMoveControl().setWantedPosition(spot.x, target.getY(), spot.z, huntSpeed() * 0.8D);
+        froggy.getLookControl().setLookAt(target, 40.0F, 40.0F);
+        return true;
     }
 
     /**
@@ -854,7 +936,7 @@ public class FroggyCombatGoal extends Goal {
         FroggyState only = debugAttackKind();
         if (only != null && only != FroggyState.JUMP_PIN) return false;
         debug("contra-ataque: vítima vindo a " + String.format("%.2f", approachSpeed(target)) + " b/t, dist=" + String.format("%.2f", dist));
-        counterCooldown = COUNTER_COOLDOWN;
+        counterCooldown = FroggyConfig.ai().ticks(COUNTER_COOLDOWN);
         beginAttack(FroggyState.JUMP_PIN, target, dist);
         return true;
     }
@@ -954,7 +1036,8 @@ public class FroggyCombatGoal extends Goal {
         double away = toTarget.lengthSqr() < 1.0E-4D ? 0
                 : (targetVel.x * toTarget.x + targetVel.z * toTarget.z) / toTarget.length();
         if (away > 0.25D) return false;
-        Vec3 aim = target.position().add(targetVel.x * totalTicks, 0, targetVel.z * totalTicks);
+        double lead = totalTicks * FroggyConfig.ai().lead;
+        Vec3 aim = target.position().add(targetVel.x * lead, 0, targetVel.z * lead);
         double dx = aim.x - froggy.getX();
         double dz = aim.z - froggy.getZ();
         return Math.sqrt(dx * dx + dz * dz) <= maxReach;
@@ -1240,14 +1323,15 @@ public class FroggyCombatGoal extends Goal {
         if (target != null) froggy.recordAttack(target, state, attackHit);
         attackHit = false;
         froggy.setLastAttack(state);
-        int cd = cooldownFor(state);
+        AiLevel ai = FroggyConfig.ai();
+        int cd = ai.ticks(cooldownFor(state));
         froggy.setCooldown(state, froggy.isFrenzyActive() ? cd / 2 : cd);
         if (state.isTongue()) {
             // depois de qualquer língua, a língua toda descansa um tempo
-            int rest = 160 + froggy.getRandom().nextInt(100);
+            int rest = ai.ticks(160 + froggy.getRandom().nextInt(100));
             tongueCooldown = froggy.isFrenzyActive() ? rest / 2 : rest;
         }
-        int gap = 12 + froggy.getRandom().nextInt(10);
+        int gap = ai.ticks(12 + froggy.getRandom().nextInt(10));
         froggy.setAttackCooldown(froggy.isFrenzyActive() ? gap / 2 : gap);
         froggy.setFroggyState(FroggyState.CHASE);
         froggy.setTongueLength(0F);
@@ -1650,7 +1734,8 @@ public class FroggyCombatGoal extends Goal {
      * esmagamento, pulo, comer vivo e arrancar o braço.
      */
     private float dmg(float base) {
-        return froggy.isFrenzyActive() ? base * FRENZY_DAMAGE : base;
+        float d = base * FroggyConfig.ai().damage;
+        return froggy.isFrenzyActive() ? d * FRENZY_DAMAGE : d;
     }
 
     /** Dano exato (sem o bônus da fase 2). */

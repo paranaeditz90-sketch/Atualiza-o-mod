@@ -21,7 +21,19 @@ import java.util.Locale;
 public class AnimCapture {
 
     private static final boolean ON = Boolean.getBoolean("froggydude.capture");
+    /** Teste da tela de configurações (froggydude.openSettings): abre ela por cima do menu principal. */
+    private static boolean openSettings = Boolean.getBoolean("froggydude.openSettings");
     private static int frames;
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (!openSettings || event.phase != TickEvent.Phase.END) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof net.minecraft.client.gui.screens.TitleScreen title) {
+            openSettings = false;
+            mc.setScreen(new com.froggydude.client.screen.FroggySettingsScreen(title));
+        }
+    }
 
     @SubscribeEvent
     public static void onRenderTick(TickEvent.RenderTickEvent event) {

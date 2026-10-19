@@ -1,11 +1,13 @@
 package com.froggydude.entity.ai;
 
+import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.BloodFx;
 import com.froggydude.entity.BloodType;
 import com.froggydude.entity.FeedLock;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Blaze;
 import net.minecraft.world.entity.monster.Monster;
@@ -23,6 +25,10 @@ import java.util.List;
  * próximo (de preferência já ferido) e corre até ele, derruba e devora pra
  * recuperar vida. Se apanhar durante a refeição, larga tudo e revida na
  * hora (ver FroggydudeEntity#hurt).
+ *
+ * E ele está sempre com fome (LM, v0.4.3): sem gente na mira e de barriga vazia
+ * (FroggydudeEntity#isHungry, uns 15-30 s depois de comer), qualquer bicho que
+ * estiver por perto vira comida - vaca, porco, ovelha, golem, o cachorro de alguém.
  *
  * Blaze é diferente: ele vai atrás de blaze sempre que vê um, com ou sem fome.
  * Comer blaze arde ("freaking spicy") e joga ele direto na fase 2.
@@ -88,7 +94,9 @@ public class FroggyFeedGoal extends Goal {
                 return true;
             }
         }
-        if (!froggy.isLowHealth()) return false;
+        // sempre com fome (LM): sem gente na mira e de barriga vazia, qualquer bicho serve
+        boolean starving = froggy.isHungry() && !(froggy.getTarget() instanceof Player) && !froggy.isHolding();
+        if (!froggy.isLowHealth() && !starving) return false;
 
         LivingEntity victim = findVictim();
         if (victim == null) {
@@ -277,9 +285,9 @@ public class FroggyFeedGoal extends Goal {
     }
 
     private LivingEntity findVictim() {
-        AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS);
+        AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS * FroggyConfig.ai().sense);
         List<LivingEntity> nearby = froggy.level().getEntitiesOfClass(LivingEntity.class, area,
-                e -> e.isAlive() && e != froggy && !(e instanceof Monster) && !(e instanceof Player)
+                e -> e.isAlive() && e != froggy && e instanceof Mob && !(e instanceof Monster) && !(e instanceof Player)
                         && !(e instanceof AbstractVillager v && v.isBaby()));
         if (nearby.isEmpty()) return null;
 

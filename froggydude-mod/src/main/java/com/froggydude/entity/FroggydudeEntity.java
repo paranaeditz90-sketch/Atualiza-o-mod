@@ -5,6 +5,8 @@ import com.froggydude.brain.FroggyBrain;
 import com.froggydude.brain.PlayerMemory;
 import com.froggydude.brain.Strategy;
 import com.froggydude.brain.Style;
+import com.froggydude.config.AiLevel;
+import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.ai.FroggyCombatGoal;
 import com.froggydude.entity.ai.FroggyFeedGoal;
 import com.froggydude.entity.ai.FroggyFinisherGoal;
@@ -192,6 +194,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     private int villagerAppetite = 0;
     private static final int VILLAGER_FULL_TICKS = 1200;
+    /**
+     * Sempre com fome (LM): a barriga enche e esvazia rápido. Comeu um bicho: 15 s
+     * satisfeito; aldeão ou gente: 30 s. Depois disso, sem ninguém pra caçar, qualquer
+     * bicho que ele veja vira comida (FroggyFeedGoal) e ele reclama de fome.
+     */
+    private static final int SNACK_FULL_TICKS = 300;
+    private static final int MEAL_FULL_TICKS = 600;
+    private int satiety = 0;
     private int movingHold = 0;
     private int pinnedVictimId = -1;
     private int vocalCooldown = 0;
@@ -352,11 +362,17 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
             @Override
             protected double getFollowDistance() {
-                return 64.0D;
+                return 64.0D * FroggyConfig.ai().sense;
             }
         });
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
                 e -> !isFedOn(e) && !underTruce(e)) {
+            @Override
+            protected double getFollowDistance() {
+                // o quanto ele enxerga longe depende do nível da IA (48 blocos no Alto)
+                return super.getFollowDistance() * FroggyConfig.ai().sense;
+            }
+
             @Override
             public boolean canContinueToUse() {
                 // o padrão esquece quem ficou 3 s sem ser visto - no meio do arrombamento
@@ -413,6 +429,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             // barriga cheia: 45 s sem caçar quem ele acabou de matar (antes ele
             // farejava quem renascia e matava de novo, sem parar)
             fedOn.put(killed.getUUID(), this.tickCount + FED_TICKS);
+            satiety = MEAL_FULL_TICKS;
             speak(VoiceSituation.ATE, true);
             if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
         }
@@ -420,7 +437,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     @Override
     public int getAmbientSoundInterval() {
-        return 160; // um ribbit a cada ~8 s em média
+        return 100; // os ribbits: um a cada ~5 s em média (eram ~8 s)
+    }
+
+    /** Ribbit não entra por cima de uma fala (e abre um pouco a boca). */
+    @Override
+    public void playAmbientSound() {
+        if (vocalCooldown > 0 || speakingLine != null) return;
+        super.playAmbientSound();
+        openMouth(6);
     }
 
     /** Quando acha uma vítima nova: som de caça (froggydude.hunt). */
@@ -469,7 +494,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         PlayerMemory m = data.brain.memory(target.getUUID(), target.getScoreboardName());
         m.hunts++;
         float[] bias = target instanceof ServerPlayer sp ? Manhunt.bias(sp) : null;
-        Strategy s = debugStalk ? Strategy.STALK : data.brain.choose(m, bias, this.getRandom());
+        AiLevel ai = FroggyConfig.ai();
+        // MIN: o cérebro não manda, ele chuta a estratégia
+        Strategy s = debugStalk ? Strategy.STALK
+                : ai.brain ? data.brain.choose(m, bias, this.getRandom(), ai.explore)
+                : Strategy.values()[this.getRandom().nextInt(Strategy.values().length)];
         boolean up = target.getY() - this.getY() > 2.5D;
         if (s == Strategy.STALK && !debugStalk && (up || debugAttack != null || this.getLastHurtByMob() == target)) {
             s = Strategy.RUSH;
@@ -675,7 +704,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Taxa de acerto plausível desse ataque contra esse alvo (Thompson; 0,5 = não sabe). */
     public float attackHitChance(LivingEntity target, FroggyState attack) {
         PlayerMemory m = memoryOf(target);
-        if (m == null) return 0.5F;
+        if (m == null || !FroggyConfig.ai().brain) return 0.5F;
         return FroggyWorldData.get((ServerLevel) this.level()).brain.sampleHitRate(m, attack.name(), this.getRandom());
     }
 
@@ -1291,6 +1320,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public void villagerEaten() {
         villagerAppetite = VILLAGER_FULL_TICKS;
+        satiety = MEAL_FULL_TICKS;
+    }
+
+    /** Barriga vazia (quase sempre): qualquer bicho que ele vê vira comida. */
+    public boolean isHungry() {
+        return satiety <= 0;
     }
 
     public int getFeedSearchCooldown() {
@@ -1400,6 +1435,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
         stateTicks++;
         if (stalkTicks > 0) stalkTicks--;
+        // os aldeões em volta entram em pânico e fogem correndo
+        VillagerFear.tick(this);
         if (this.tickCount % 20 == 0) {
             float m = getMouthStain();
             if (m > 0F) this.entityData.set(DATA_MOUTH_STAIN, Math.max(0F, m - MOUTH_FADE_PER_SECOND));
@@ -1460,6 +1497,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (attackCooldown > 0) attackCooldown--;
         if (feedSearchCooldown > 0) feedSearchCooldown--;
         if (villagerAppetite > 0) villagerAppetite--;
+        if (satiety > 0) satiety--;
+        // de barriga vazia e à toa: "I'm hungry", "I'm very hungry"... (uns 30 s entre uma e outra)
+        FroggyState idleNow = getFroggyState();
+        if (satiety <= 0 && this.getTarget() == null && (idleNow == FroggyState.IDLE || idleNow == FroggyState.CHASE)
+                && this.tickCount % 20 == 0 && this.getRandom().nextInt(30) == 0) {
+            speak(VoiceSituation.HUNGRY);
+        }
         if (frenzyCooldown > 0) frenzyCooldown--;
         if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;
@@ -1931,7 +1975,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             case FINISHER:
                 return state.setAndContinue(finisherSkipsLeft() ? ANIM_FINISHER_R : ANIM_FINISHER);
             case CORPSE_EAT:
-                return state.setAndContinue(ANIM_FEED_MOB);
+                // de pé do lado do corpo, mergulhando a cabeça (a flexão do lado de um corpo
+                // chato no chão virava uma mesa de quatro pés)
+                return state.setAndContinue(ANIM_FEED);
             case CORPSE_TOSS:
                 return state.setAndContinue(ANIM_CORPSE_TOSS);
             case CORPSE_SHAKE:
@@ -2065,6 +2111,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     }
 
     public void eatVictim(LivingEntity victim) {
+        satiety = Math.max(satiety, SNACK_FULL_TICKS);
         spawnBlood(victim, 25);
         BloodType type = BloodType.of(victim);
         if (type.bleeds()) {

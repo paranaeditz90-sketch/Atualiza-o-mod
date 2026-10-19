@@ -51,6 +51,9 @@ minecraft {
             if (project.hasProperty('animSlow')) {
                 property 'froggydude.animSlow', project.property('animSlow')
             }
+            if (project.hasProperty('openSettings')) {
+                property 'froggydude.openSettings', 'true'
+            }
             if (project.hasProperty('capture')) {
                 property 'froggydude.capture', 'true'
             }

@@ -4,6 +4,7 @@ import com.froggydude.brain.FroggyBrain;
 import com.froggydude.brain.PlayerMemory;
 import com.froggydude.brain.Strategy;
 import com.froggydude.brain.Style;
+import com.froggydude.config.AiLevel;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
@@ -14,6 +15,7 @@ import com.froggydude.world.ManhuntMode;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -49,6 +51,7 @@ public final class FroggyCommand {
         d.register(Commands.literal("froggydude").requires(FroggyCommand::player)
                 .then(Commands.literal("invocar").requires(FroggyCommand::admin).executes(c -> summon(c.getSource())))
                 .then(Commands.literal("info").executes(c -> info(c.getSource())))
+                .then(ai())
                 .then(Commands.literal("manhunt")
                         .then(Commands.literal("speedrun")
                                 .executes(c -> manhunt(c.getSource(), ManhuntMode.SPEEDRUN, 0)))
@@ -92,6 +95,25 @@ public final class FroggyCommand {
                     c.getSource().sendSuccess(() -> Component.literal("Falas de volta pro começo (\"Hey, humans!\")."), true);
                     return 1;
                 }))));
+    }
+
+    /** /froggydude ia [min|medio|alto|extra|max]: o quanto ele pensa (é escolha de quem joga, não trapaça). */
+    private static LiteralArgumentBuilder<CommandSourceStack> ai() {
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("ia").executes(c -> {
+            AiLevel now = FroggyConfig.ai();
+            c.getSource().sendSuccess(() -> Component.literal("IA do FroggyDude: ").append(Component.translatable(now.key()))
+                    .append(". Muda com /froggydude ia <min|medio|alto|extra|max>."), false);
+            return 1;
+        });
+        for (AiLevel level : AiLevel.values()) {
+            root.then(Commands.literal(level.id).requires(FroggyCommand::player).executes(c -> {
+                FroggyConfig.setAi(level);
+                c.getSource().sendSuccess(() -> Component.literal("IA do FroggyDude: ").append(Component.translatable(level.key()))
+                        .append(" - ").append(Component.translatable(level.key() + ".desc")), true);
+                return 1;
+            }));
+        }
+        return root;
     }
 
     private static int summon(CommandSourceStack src) throws CommandSyntaxException {

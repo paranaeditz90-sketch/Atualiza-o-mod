@@ -1,5 +1,6 @@
 package com.froggydude.entity.ai;
 
+import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.voice.VoiceSituation;
@@ -102,6 +103,7 @@ public class PlayerMoves {
      */
     public boolean startBuilding(LivingEntity target) {
         Level level = froggy.level();
+        if (!FroggyConfig.ai().build) return false;
         if (build != Build.NONE || !froggy.onGround() || froggy.isInWater() || froggy.isInLava()) return false;
         if (!ForgeEventFactory.getMobGriefingEvent(level, froggy)) return false;
         double dy = target.getY() - froggy.getY();

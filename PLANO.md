@@ -361,6 +361,13 @@ e te caça até tu zerar o jogo. Respostas do LM:
    - **anda que nem player** (não como mob);
    - a **"dancinha"**: agacha e levanta rápido (o "shift spam"), pulando ou
      batendo no ar.
+
+Depois (19/10): **só um jogador por enquanto** (nada de dois jogadores no
+mesmo mundo). A IA em níveis **Mín, Médio, Alto, Extra, Máx** ficou nas
+configurações do mod e no `/froggydude ia` (v0.4.3; o Alto é o de antes). O
+ritmo de dias acima ainda falta e vai usar o nível escolhido. E ele está
+**sempre com fome**: mata por fome qualquer bicho por perto quando não tem
+ninguém pra caçar, reclama de fome e solta os **ribbits** toda hora.
 5. **Multiplayer:** ainda sem resposta.
 
 ### O que pode dar errado (e as perguntas)

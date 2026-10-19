@@ -14,11 +14,10 @@ public enum VoiceLine {
     HEY_HUMANS("hunt_hey_humans", 30),
     IM_HUNGRY("hunt_im_hungry", 29),
     WANNA_EAT_YOU("hunt_wanna_eat_you", 23),
-    COME_HERE_EAT_DIGEST("hunt_come_here_eat_digest", 79),
     VERY_HUNGRY("hunt_very_hungry", 39),
     WANT_YOUR_FLESH("hunt_want_your_flesh", 25),
     // a presa fugindo
-    GET_BACK_HERE("hunt_get_back_here", 33),
+    GET_BACK_HERE("hunt_get_back_here", 14),
     CANT_RUN_CANT_HIDE("hunt_cant_run_cant_hide", 46),
     BECOME_FOOD("hunt_become_food", 35),
     NEVER_LOSE_PREY("hunt_never_lose_prey", 43),
@@ -32,14 +31,10 @@ public enum VoiceLine {
     LOVE_PAIN_1("hurt_love_pain_1", 47),
     LOVE_PAIN_2("hurt_love_pain_2", 53),
     LOVE_PAIN_3("hurt_love_pain_3", 31),
-    LOVE_PAIN_4("hurt_love_pain_4", 103),
     // derrubou / montado
     GIVE_ME_YOUR_BODY_1("pin_give_me_your_body_1", 40),
     GIVE_ME_YOUR_BODY_2("pin_give_me_your_body_2", 35),
     STAY_ON_GROUND("pin_stay_on_ground", 92),
-    YOU_ARE_MINE("pin_you_are_mine", 36),
-    BITE_YOUR_BALLS("pin_bite_your_balls", 30),
-    LAST_THING_YOU_SEE("pin_last_thing_you_see_1", 104),
     // comendo
     MMMM("eat_mmmm", 19),
     THAT_WAS_DELICIOUS("eat_that_was_delicious", 26),

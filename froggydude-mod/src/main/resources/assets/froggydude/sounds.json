@@ -488,15 +488,6 @@
     ],
     "subtitle": "subtitles.froggydude.voice.hunt_wanna_eat_you"
   },
-  "froggydude.voice.hunt_come_here_eat_digest": {
-    "sounds": [
-      {
-        "name": "froggydude:froggydude.hunt",
-        "type": "event"
-      }
-    ],
-    "subtitle": "subtitles.froggydude.voice.hunt_come_here_eat_digest"
-  },
   "froggydude.voice.hunt_very_hungry": {
     "sounds": [
       {
@@ -614,15 +605,6 @@
     ],
     "subtitle": "subtitles.froggydude.voice.hurt_love_pain_3"
   },
-  "froggydude.voice.hurt_love_pain_4": {
-    "sounds": [
-      {
-        "name": "froggydude:froggydude.love_pain",
-        "type": "event"
-      }
-    ],
-    "subtitle": "subtitles.froggydude.voice.hurt_love_pain_4"
-  },
   "froggydude.voice.pin_give_me_your_body_1": {
     "sounds": [
       {
@@ -649,33 +631,6 @@
       }
     ],
     "subtitle": "subtitles.froggydude.voice.pin_stay_on_ground"
-  },
-  "froggydude.voice.pin_you_are_mine": {
-    "sounds": [
-      {
-        "name": "froggydude:froggydude.pin",
-        "type": "event"
-      }
-    ],
-    "subtitle": "subtitles.froggydude.voice.pin_you_are_mine"
-  },
-  "froggydude.voice.pin_bite_your_balls": {
-    "sounds": [
-      {
-        "name": "froggydude:froggydude.pin",
-        "type": "event"
-      }
-    ],
-    "subtitle": "subtitles.froggydude.voice.pin_bite_your_balls"
-  },
-  "froggydude.voice.pin_last_thing_you_see_1": {
-    "sounds": [
-      {
-        "name": "froggydude:froggydude.pin",
-        "type": "event"
-      }
-    ],
-    "subtitle": "subtitles.froggydude.voice.pin_last_thing_you_see_1"
   },
   "froggydude.voice.eat_mmmm": {
     "sounds": [

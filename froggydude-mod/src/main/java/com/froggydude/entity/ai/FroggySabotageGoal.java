@@ -1,5 +1,6 @@
 package com.froggydude.entity.ai;
 
+import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.voice.VoiceSituation;
@@ -52,8 +53,9 @@ public class FroggySabotageGoal extends Goal {
         return block != null && timeout > 0 && froggy.level() instanceof ServerLevel level && allowed(level);
     }
 
-    /** Speedrun rolando, ele solto, sem luta por perto e o mundo deixa mob quebrar bloco. */
+    /** Speedrun rolando, ele solto, sem luta por perto e o mundo deixa mob quebrar bloco (e a IA sabota). */
     private boolean allowed(ServerLevel level) {
+        if (!FroggyConfig.ai().sabotage) return false;
         FroggyWorldData data = FroggyWorldData.get(level);
         if (!data.manhuntActive || !data.released || data.manhuntMode != ManhuntMode.SPEEDRUN) return false;
         if (froggy.isHolding() || froggy.isFrenzyActive()) return false;

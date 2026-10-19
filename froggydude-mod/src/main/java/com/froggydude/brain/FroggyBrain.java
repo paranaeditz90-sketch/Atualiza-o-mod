@@ -63,6 +63,14 @@ public class FroggyBrain {
      * preferência fixa por estratégia (a pressão do manhunt), pode ser null.
      */
     public Strategy choose(PlayerMemory m, float[] bias, RandomSource random) {
+        return choose(m, bias, random, 1.0F);
+    }
+
+    /**
+     * {@code explore}: quanto da curiosidade (UCB) ele usa - o nível da IA (Extra/Máx
+     * arriscam menos o que ainda não testou e ficam no que funciona contra esse jogador).
+     */
+    public Strategy choose(PlayerMemory m, float[] bias, RandomSource random, float explore) {
         Style ctx = m.dominantStyle();
         int c = ctx.ordinal();
         int total = 0;
@@ -75,7 +83,7 @@ public class FroggyBrain {
             // outros estilos; se nunca testou de jeito nenhum, é otimista
             float est = m.n[c][a] > 0 ? m.q[c][a] : overall(m, a);
             float score = est
-                    + UCB * (float) Math.sqrt(Math.log(total + 2.0D) / (m.n[c][a] + 1.0D))
+                    + UCB * explore * (float) Math.sqrt(Math.log(total + 2.0D) / (m.n[c][a] + 1.0D))
                     + (bias == null ? 0F : bias[a])
                     + (float) random.nextGaussian() * 0.15F; // desempate e um pouco de imprevisível
             if (score > bestScore) {

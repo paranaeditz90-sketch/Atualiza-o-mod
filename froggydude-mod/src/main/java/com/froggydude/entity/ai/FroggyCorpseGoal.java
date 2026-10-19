@@ -7,6 +7,7 @@ import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.PlayerCorpse;
 import com.froggydude.entity.voice.VoiceSituation;
+import com.froggydude.init.ModSounds;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.phys.Vec3;
@@ -24,6 +25,10 @@ import java.util.EnumSet;
 public class FroggyCorpseGoal extends Goal {
 
     private static final int SHAKE_TICKS = 34;
+    /** A animação "feed" (1 s): a cabeça chega no corpo aos 0,34 s e puxa a carne aos 0,52 s. */
+    private static final int FEED_CYCLE = 20;
+    private static final int FEED_BITE_AT = 7;
+    private static final int FEED_PULL_AT = 10;
 
     private final FroggydudeEntity froggy;
     private PlayerCorpse corpse;
@@ -133,18 +138,25 @@ public class FroggyCorpseGoal extends Goal {
     }
 
     /**
-     * Comendo em "flexão" (feed_mob): a cabeça desce no corpo a cada 0,3 s. A conta
-     * (quanto já comeu, falas) continua de segundo em segundo.
+     * Comendo de pé do lado do corpo ("feed", o Eating a Zebra): a cada 1 s mergulha a
+     * cabeça, morde (0,34 s), arranca a carne pra cima jogando sangue (0,52 s) e sacode
+     * a cabeça. Antes era a flexão dos mobs, mas o corpo é chato no chão e ele fica do
+     * lado dele: de longe virava uma mesa de quatro pés (print do LM, v0.4.2).
      */
     private void eat() {
         int t = froggy.getStateTicks();
         froggy.getNavigation().stop();
         froggy.faceDirection(corpse.getX() - froggy.getX(), corpse.getZ() - froggy.getZ());
-        if (FroggydudeEntity.pushupBite(t)) {
-            froggy.onPushupBite(t);
-            if ((t / FroggydudeEntity.PUSHUP_TICKS) % 3 == 1) froggy.spawnMouthBlood(2);
+        int c = t % FEED_CYCLE;
+        if (c == FEED_BITE_AT) {
+            froggy.playSound(ModSounds.BITE.get(), 0.9F, 0.9F + froggy.getRandom().nextFloat() * 0.25F);
+            froggy.openMouth(5);
         }
-        if (t % 20 == 9) {
+        if (c == FEED_PULL_AT) {
+            froggy.spawnMouthBlood(3);
+            froggy.playSound(ModSounds.CHEW.get(), 0.7F, 0.95F + froggy.getRandom().nextFloat() * 0.3F);
+        }
+        if (c == FEED_BITE_AT + 1) {
             corpse.bite(0.07F);
             froggy.stainMouth(BloodType.RED.color, 0.15F);
             froggy.addGore(0.15F);

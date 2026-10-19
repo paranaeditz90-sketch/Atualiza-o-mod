@@ -1,4 +1,4 @@
-# Froggydude - v0.4.2: contorção por rotoscopia e o jeito de jogador (sobre a v0.4.1/0.4.0)
+# Froggydude - v0.4.3: IA em 5 níveis, voz limpa, fome sem fim (sobre a v0.4.2)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,46 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.2):
+O que testar agora (v0.4.3):
+A) IA em 5 níveis: Mods > Froggydude > Configurar > "IA do FroggyDude" (ou
+   `/froggydude ia <min|medio|alto|extra|max>`; sem nada, mostra o atual).
+   Alto = o de sempre. Mín: vê de perto, reage devagar, não prevê, não cerca,
+   não põe bloco, não arromba, não sabota, chuta a tática. Médio: meio termo.
+   Extra: enxerga/fareja 25% mais longe, reage 20% mais rápido, corta caminho
+   até de quem vai pulando, vem em ZIGUEZAGUE quando tu mira arco/besta/tridente
+   nele e DÁ A VOLTA no teu escudo. Máx: tudo isso mais forte (alcance 1,5x,
+   reação 0,6x), quase não arrisca o que já falhou contra ti e não larga a pista.
+   Velocidade e dano mudam pouco (0,85x no Mín, 1,1x/1,2x no Máx). Só um jogador
+   por enquanto (a tela muda o config do mundo).
+B) Pacote de voz novo (FroggyDude-Voz.zip): fora as falas do FroggyDoom (o
+   "digest you", "you are mine", "bite your balls" e o "God damn it, I love
+   pain" eram do vídeo "My Next Opponent Is... Me", outro personagem), o
+   "last thing you see" que tinha sido cortado errado ("Listen."), os gritos de
+   OUTRAS pessoas (vítima gritando "STOP", "WHAT THE H-", "I'll do it", "BRO",
+   "Yes", "Bye") e as sobras do anti-trapaça. O "get back here" sem o "d-d-d-d"
+   que parecia áudio travando. Ribbits com mais peso no som ambiente.
+C) Contorção: o som era uma FALA ("This is what we want to do!") tocada no
+   começo da dobra. Agora são estalos de osso nos trancos da animação (os ticks
+   em que a pose anda mais rápido na rotoscopia) e um grunhido curto no 1º
+   tranco e quando o ombro sobe. O grito continua no fim (ROAR).
+D) Depois da cutscene (Extremo): ele não vira mais um boneco vinho sem cara (a
+   skin "acabou de comer" no último estágio cobria TUDO de sangue escuro; agora
+   é sangue no peito/mãos com a cara, a coroa e o terno aparecendo) e come o teu
+   corpo DE PÉ, curvado, mergulhando a cabeça (o "Eating a Zebra"), em vez da
+   flexão do lado do corpo - que de longe virava uma mesa de quatro pés.
+E) Sangue na tela: no máximo 14 respingos (eram 28), menores, mais transparentes,
+   escorridos mais curtos, nas bordas (o meio fica livre) e somem mais rápido.
+F) Aldeões apavorados: quem vê ele (ou está a 10 blocos) entra em pânico, solta
+   o "hmm!" e foge CORRENDO pra longe (mais rápido que o pânico de zumbi); com
+   ele a 16 blocos ou menos eles tremem, mais forte quanto mais perto.
+G) Sempre com fome: 15 s depois de comer um bicho (30 s se for aldeão ou gente),
+   sem ninguém na mira, qualquer bicho por perto vira comida (vaca, porco,
+   ovelha, golem, o cachorro de alguém) - no teste ele limpou 2 vacas, 1 porco,
+   1 ovelha e 1 aldeão em ~1 min. À toa e de barriga vazia ele reclama: "I'm
+   hungry", "I'm very hungry", "I want your flesh", "I want more". Ribbit a cada
+   ~5 s em média (eram ~8 s), sem falar por cima de uma fala.
+
+Da v0.4.2:
 A) Fase 2 (`/froggydude fase2`): a contorção agora é ROTOSCOPIA do teu vídeo
    (60 fps, 89,28-91,75 s). Cada pose foi ajustada contra o quadro do vídeo pela
    cor de cada pixel (cara, coroa e lágrima pesam mais que o terno), com o

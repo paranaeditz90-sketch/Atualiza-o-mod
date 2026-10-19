@@ -1,6 +1,7 @@
 package com.froggydude.entity.ai;
 
 import com.froggydude.brain.Scent;
+import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.voice.VoiceSituation;
@@ -85,8 +86,8 @@ public class FroggyTrackGoal extends Goal {
         if (froggy.tickCount % 10 != 0 || !(froggy.level() instanceof ServerLevel level)) return false;
         if (!free()) return false;
         UUID lost = froggy.getRecentlyLostPrey();
-        Scent.Sniff s = lost == null ? null : Scent.freshest(level, froggy.position(), LOST_PREY_RANGE, lost);
-        if (s == null || !valid(player(s.player()))) s = Scent.freshest(level, froggy.position(), SMELL_RANGE, null);
+        Scent.Sniff s = lost == null ? null : Scent.freshest(level, froggy.position(), LOST_PREY_RANGE * sense(), lost);
+        if (s == null || !valid(player(s.player()))) s = Scent.freshest(level, froggy.position(), SMELL_RANGE * sense(), null);
         if (s == null) return false;
         ServerPlayer p = player(s.player());
         if (!valid(p)) return false;
@@ -98,7 +99,7 @@ public class FroggyTrackGoal extends Goal {
     @Override
     public boolean canContinueToUse() {
         if (prey == null || found || !free() || !valid(player(prey))) return false;
-        return ticks < TRACK_TICKS && (mode != Mode.SEARCH || modeTicks < SEARCH_TICKS);
+        return ticks < TRACK_TICKS * sense() && (mode != Mode.SEARCH || modeTicks < SEARCH_TICKS * sense());
     }
 
     /** Sem alvo, sem estar preso a nada (manhunt parado, fase 2, comendo). */
@@ -190,7 +191,7 @@ public class FroggyTrackGoal extends Goal {
             Scent.Sniff next = Scent.freshest(level, froggy.position(), TRAIL_STEP, prey);
             Scent.Mark end = Scent.newest(prey, now);
             if (next == null) {
-                Scent.Sniff far = Scent.freshest(level, froggy.position(), LOST_PREY_RANGE, prey);
+                Scent.Sniff far = Scent.freshest(level, froggy.position(), LOST_PREY_RANGE * sense(), prey);
                 if (far != null) {
                     // de longe o cheiro só dá a direção: vai pra uma área em volta
                     // (erro de 1/4 da distância, sorteado de novo a cada 2 s)
@@ -328,5 +329,10 @@ public class FroggyTrackGoal extends Goal {
     private static double horizontal(Vec3 a, Vec3 b) {
         double dx = a.x - b.x, dz = a.z - b.z;
         return Math.sqrt(dx * dx + dz * dz);
+    }
+
+    /** Nível da IA: até onde o faro alcança e quanto tempo ele insiste no rastro (x). */
+    private static double sense() {
+        return FroggyConfig.ai().sense;
     }
 }
