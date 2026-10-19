@@ -44,6 +44,8 @@ public final class ClientFinisher {
         public boolean corpse;
         /** A entidade do cadáver (-1 até aparecer). */
         public int corpseId = -1;
+        /** O áudio da zebra já foi decidido pra essa cutscene (FinisherAudio). */
+        boolean audio;
         UUID victimUuid;
 
         Entry(int froggyId, int victimId, long start, Vec3 anchor, float yaw, boolean skipLeft) {
@@ -94,6 +96,11 @@ public final class ClientFinisher {
             }
             // a câmera de quem morreu fica (atrás da tela de morte); quem decide é o CinematicCamera
         }
+    }
+
+    /** Todas as cutscenes que o cliente conhece (rolando ou acabando). */
+    public static Iterable<Entry> all() {
+        return BY_VICTIM.values();
     }
 
     public static Entry forVictim(int entityId) {

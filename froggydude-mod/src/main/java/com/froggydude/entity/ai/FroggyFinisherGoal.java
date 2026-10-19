@@ -215,15 +215,22 @@ public class FroggyFinisherGoal extends Goal {
             rip(level, nk, h, 0.42F, Finisher.SWALLOW - Finisher.RIP_H);
             level.playSound(null, nk.x, nk.y, nk.z, ModSounds.CRACK.get(), SoundSource.HOSTILE, 1.5F, 0.8F);
         }
-        // sacudindo o pedaço na boca: jorra da boca dele
-        boolean shaking = (!skipLeft && t > Finisher.RIP_L && t < Finisher.CUT_1)
-                || (t > Finisher.RIP_R && t < Finisher.STILL) || (t > Finisher.RIP_H && t < Finisher.SWALLOW);
+        // sacudindo o pedaço na boca (rasgando): jorra da boca dele. Nos braços é só o começo;
+        // depois ele mastiga até o braço sumir na boca
+        boolean shaking = (!skipLeft && t > Finisher.RIP_L && t < Finisher.EAT_L)
+                || (t > Finisher.RIP_R && t < Finisher.EAT_R) || (t > Finisher.RIP_H && t < Finisher.SWALLOW);
         if (shaking && t % 2 == 0) froggy.openMouth(4);
         // pedaço voando da boca: pouco de cada vez (no close a câmera está perto e tampava tudo)
         if (shaking && t % 4 == 0) froggy.spawnMouthBlood(3);
-        // parado mastigando o braço; e o "mmmm"
-        if (t > Finisher.STILL && t < Finisher.BEND_H && (t - Finisher.STILL) % 14 == 0) froggy.onChew();
-        if (t == Finisher.STILL + 6) froggy.speak(VoiceSituation.CHEWING, true);
+        // comendo o braço: cada mastigada pesada (osso estalando uma sim, outra não) puxa um
+        // pedaço pra dentro da boca; no fim, engole
+        if (Finisher.chewTick(t, skipLeft)) {
+            int n = (t - (t >= Finisher.EAT_R ? Finisher.EAT_R : Finisher.EAT_L)) / Finisher.CHEW_EVERY;
+            froggy.onHeavyChew(n % 2 == 1);
+            if (n % 3 == 0) froggy.spawnMouthBlood(2);
+        }
+        if ((!skipLeft && t == Finisher.GONE_L) || t == Finisher.GONE_R) froggy.onGulp();
+        if (t == Finisher.EAT_R + 12) froggy.speak(VoiceSituation.CHEWING, true);
         if (t == Finisher.BEND_H - 18) froggy.speak(VoiceSituation.LAST_BITE, true);
         if (t > Finisher.RIP_H && t < Finisher.SWALLOW && (t - Finisher.RIP_H) % 10 == 0) froggy.onChew();
         if (t == Finisher.SWALLOW) {

@@ -255,10 +255,12 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
 
     /**
      * O pedaço da vítima na boca dele (com a skin dela, manga/chapéu inclusos):
-     * o braço pendurado pela ponta do ombro, balançando, ou a cabeça presa pelo
-     * pescoço, virando de lado, de topo e de costas enquanto ele sacode (no
-     * vídeo da zebra é assim). Usa as partes do modelo de jogador do próprio
-     * jogo, então braço fino/normal e a segunda camada saem certos.
+     * o braço FIRME nos dentes pela ponta do ombro, saindo da boca pra frente e um
+     * pouco pra baixo (só mexe junto com a cabeça dele - antes balançava solto, como
+     * se tivesse quebrado; LM, v0.4.2), e que vai entrando na boca a cada mastigada
+     * até sumir; ou a cabeça presa pelo pescoço, que no fim desce goela abaixo. Usa
+     * as partes do modelo de jogador do próprio jogo, então braço fino/normal e a
+     * segunda camada saem certos.
      */
     private boolean drawFinisherPart(PoseStack ps, FroggydudeEntity froggy, ClientFinisher.Entry e, int held,
                                      float partial, MultiBufferSource buffers, int light) {
@@ -280,16 +282,17 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         // 0,2 s; cabeça: a cada 0,1 s, depois de 0,4 s quase parado - vídeo da zebra, 86-88,8 s)
         float t = e.t(partial);
         boolean head = held == 3;
+        float eaten = Finisher.eaten(t, held);
         float amp = head && t < Finisher.RIP_H + 12 ? 0.25F : 1F;
-        float w = head ? wob * Mth.HALF_PI : wob * Mth.PI / 4F;
-        ps.mulPose(Axis.YP.rotationDegrees(Mth.sin(w) * (head ? 20F : 26F) * amp));
+        float w = wob * Mth.HALF_PI;
         // daqui pra frente: espaço do modelo de jogador (y pra baixo, frente em -z)
         ps.scale(-1F, -1F, 1F);
         if (head) {
-            // topo da cabeça pra frente, o pescoço dentro da boca; a cada chicotada ela vira de
-            // face (de lado, de topo, de costas), como a da zebra
-            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 25F * amp));
-            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 100F * amp));
+            // topo da cabeça pra frente, o pescoço dentro da boca, presa firme: vira um pouco
+            // na boca a cada chicotada (quem chicoteia é a cabeça dele) e no fim desce goela abaixo
+            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 12F * amp));
+            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 25F * amp));
+            swallow(ps, eaten, 6F);
             ps.translate(0F, 1.5F / 16F, 0F);
             renderPart(model.head, ps, vc, light);
             renderPart(model.hat, ps, vc, light);
@@ -298,15 +301,27 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             boolean left = held == 1;
             boolean slim = "slim".equals(victim.getModelName());
             float cx = (left ? 1F : -1F) * (slim ? 0.5F : 1F);
-            // pendurado pra frente e pra baixo, balançando atrás da chicotada
-            ps.mulPose(Axis.XP.rotationDegrees(-60F + Mth.sin(w + 0.8F) * 22F));
-            ps.mulPose(Axis.ZP.rotationDegrees(Mth.sin(w + 1.6F) * 18F));
+            // firme nos dentes pela ponta do ombro, saindo pra frente e pra baixo
+            ps.mulPose(Axis.XP.rotationDegrees(-62F));
+            ps.mulPose(Axis.ZP.rotationDegrees(left ? 8F : -8F));
+            swallow(ps, eaten, 3F);
             ps.translate(-cx / 16F, 2F / 16F, 0F);
             renderPart(left ? model.leftArm : model.rightArm, ps, vc, light);
             renderPart(left ? model.leftSleeve : model.rightSleeve, ps, vc, light);
             Stumps.box(ps, buffers, light, cx - 2.3F, cx + 2.3F, -2.6F, -1.4F, -2.3F, 2.3F);
         }
         return true;
+    }
+
+    /**
+     * Entrando na boca: recua o pedaço pra dentro dela ({@code depth} px, ao longo do
+     * comprimento) e encolhe o que ainda está pra fora, até sumir.
+     */
+    private static void swallow(PoseStack ps, float eaten, float depth) {
+        if (eaten <= 0F) return;
+        ps.translate(0F, -depth * eaten / 16F, 0F);
+        float k = Math.max(0.02F, 1F - eaten);
+        ps.scale(0.85F + 0.15F * k, k, 0.85F + 0.15F * k);
     }
 
     /**
@@ -326,22 +341,27 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         ps.scale(inv, inv, inv);
         float t = e.t(partial);
         boolean head = held == 3;
+        float eaten = Finisher.eaten(t, held);
         float amp = head && t < Finisher.RIP_H + 12 ? 0.25F : 1F;
-        float w = head ? wob * Mth.HALF_PI : wob * Mth.PI / 4F;
-        ps.mulPose(Axis.YP.rotationDegrees(Mth.sin(w) * (head ? 20F : 26F) * amp));
+        float w = wob * Mth.HALF_PI;
         ps.scale(-1F, -1F, 1F);
         if (head) {
-            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 25F * amp));
-            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 100F * amp));
+            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 12F * amp));
+            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 25F * amp));
+            swallow(ps, eaten, 6F);
             ps.translate(0F, 1.5F / 16F, 0F);
             for (ResourceLocation tex : textures) {
                 renderPart(model.getHead(), ps, buffers.getBuffer(RenderType.entityCutoutNoCull(tex)), light);
             }
             Stumps.box(ps, buffers, light, -3.6F, 3.6F, -0.9F, 0.5F, -3.6F, 3.6F);
         } else {
-            // presos pela barra do meio (y 2..6 da peça), os dois braços pendurados balançando
-            ps.mulPose(Axis.XP.rotationDegrees(-60F + Mth.sin(w + 0.8F) * 22F));
-            ps.mulPose(Axis.ZP.rotationDegrees(Mth.sin(w + 1.6F) * 18F));
+            // presos firmes pela barra do meio (y 2..6 da peça), atravessados na boca; vão
+            // encolhendo pra dentro dela a cada mastigada
+            ps.mulPose(Axis.XP.rotationDegrees(-62F));
+            if (eaten > 0F) {
+                float k = Math.max(0.02F, 1F - eaten);
+                ps.scale(k, k, k);
+            }
             ps.translate(0F, -4F / 16F, 0F);
             ModelPart arms = model.root().getChild("arms");
             for (ResourceLocation tex : textures) {

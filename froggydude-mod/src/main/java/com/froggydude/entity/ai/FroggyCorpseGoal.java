@@ -7,7 +7,6 @@ import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.PlayerCorpse;
 import com.froggydude.entity.voice.VoiceSituation;
-import com.froggydude.init.ModSounds;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.phys.Vec3;
@@ -25,10 +24,6 @@ import java.util.EnumSet;
 public class FroggyCorpseGoal extends Goal {
 
     private static final int SHAKE_TICKS = 34;
-    /** A animação "feed" (1 s): a cabeça chega no corpo aos 0,34 s e puxa a carne aos 0,52 s. */
-    private static final int FEED_CYCLE = 20;
-    private static final int FEED_BITE_AT = 7;
-    private static final int FEED_PULL_AT = 10;
 
     private final FroggydudeEntity froggy;
     private PlayerCorpse corpse;
@@ -61,6 +56,7 @@ public class FroggyCorpseGoal extends Goal {
 
     @Override
     public void start() {
+        froggy.setCorpseMeal(corpse);
         bites = 0;
         shakeLeft = 0;
         repath = 0;
@@ -69,6 +65,7 @@ public class FroggyCorpseGoal extends Goal {
 
     @Override
     public void stop() {
+        froggy.setCorpseMeal(null);
         if (corpse != null) {
             corpse.setHeldBy(null);
             if (!corpse.isAlive()) froggy.forgetCorpse();
@@ -114,7 +111,11 @@ public class FroggyCorpseGoal extends Goal {
         }
         froggy.getNavigation().stop();
         froggy.faceDirection(corpse.getX() - froggy.getX(), corpse.getZ() - froggy.getZ());
-        // o que fazer agora: quase sempre comer; às vezes brincar
+        next();
+    }
+
+    /** O que fazer agora: quase sempre comer (mais uma rodada de flexão); às vezes brincar. */
+    private void next() {
         int roll = froggy.getRandom().nextInt(10);
         if (bites >= 2 && roll < 2) {
             froggy.setFroggyState(FroggyState.CORPSE_TOSS);
@@ -138,25 +139,20 @@ public class FroggyCorpseGoal extends Goal {
     }
 
     /**
-     * Comendo de pé do lado do corpo ("feed", o Eating a Zebra): a cada 1 s mergulha a
-     * cabeça, morde (0,34 s), arranca a carne pra cima jogando sangue (0,52 s) e sacode
-     * a cabeça. Antes era a flexão dos mobs, mas o corpo é chato no chão e ele fica do
-     * lado dele: de longe virava uma mesa de quatro pés (print do LM, v0.4.2).
+     * Comendo em "flexão" (feed_mob), deitado por cima do corpo: a cabeça desce
+     * mordendo a cada 0,3 s. A conta (quanto já comeu, falas) anda de segundo em
+     * segundo. No fim de cada rodada já escolhe a próxima sem levantar (antes ele
+     * voltava pro "parado" um instante e aparecia de quatro do lado do corpo).
      */
     private void eat() {
         int t = froggy.getStateTicks();
         froggy.getNavigation().stop();
         froggy.faceDirection(corpse.getX() - froggy.getX(), corpse.getZ() - froggy.getZ());
-        int c = t % FEED_CYCLE;
-        if (c == FEED_BITE_AT) {
-            froggy.playSound(ModSounds.BITE.get(), 0.9F, 0.9F + froggy.getRandom().nextFloat() * 0.25F);
-            froggy.openMouth(5);
+        if (FroggydudeEntity.pushupBite(t)) {
+            froggy.onPushupBite(t);
+            if ((t / FroggydudeEntity.PUSHUP_TICKS) % 3 == 1) froggy.spawnMouthBlood(2);
         }
-        if (c == FEED_PULL_AT) {
-            froggy.spawnMouthBlood(3);
-            froggy.playSound(ModSounds.CHEW.get(), 0.7F, 0.95F + froggy.getRandom().nextFloat() * 0.3F);
-        }
-        if (c == FEED_BITE_AT + 1) {
+        if (t % 20 == 9) {
             corpse.bite(0.07F);
             froggy.stainMouth(BloodType.RED.color, 0.15F);
             froggy.addGore(0.15F);
@@ -164,7 +160,7 @@ public class FroggyCorpseGoal extends Goal {
             if (!talked && bites == 2) talked = froggy.speak(VoiceSituation.CHEWING, true);
             if (bites % 4 == 0) froggy.speakAfter(VoiceSituation.ATE, 12);
         }
-        if (t >= FroggyState.CORPSE_EAT.durationTicks) froggy.setFroggyState(FroggyState.IDLE);
+        if (t >= FroggyState.CORPSE_EAT.durationTicks && corpse.isAlive()) next();
     }
 
     /** Joga pro alto e olha subir (ri), e depois vai buscar. */

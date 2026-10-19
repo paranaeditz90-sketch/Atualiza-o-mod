@@ -747,19 +747,36 @@ def shaking(t0, t1, period=0.2, amount=50, body=5):
     return keys
 
 
+def chewing(t0, t1, period=0.25):
+    """Comendo o braço (v0.4.3): parado em pé, a cabeça dá uma mordida a cada 0,25 s
+    (desce e puxa, como quem arranca um pedaço), no mesmo tick em que o servidor toca a
+    mastigada e a boca abre e fecha (Finisher.CHEW_EVERY = 5 ticks)."""
+    keys = []
+    t = t0
+    k = 0
+    while t < t1 - 0.01:
+        side = 1 if k % 2 == 0 else -1
+        keys.append((round(t, 3), pose(**{**FIN_HOLD, "head": 10, "head_y": 4 * side, "waist": 11})))      # morde
+        keys.append((round(t + 0.1, 3), pose(**{**FIN_HOLD, "head": -10, "head_y": 6 * side, "waist": 7})))  # puxa
+        t += period
+        k += 1
+    keys.append((round(t1, 3), pose(**FIN_HOLD)))
+    return keys
+
+
 T = lambda ticks: round(ticks / 20.0, 3)
 fin = [(0.00, pose(**OVER)),
        (0.35, pose(**{**OVER, "head": 36, "head_y": 10})),
        (T(14) - 0.05, pose(**OVER))]
 fin += bite_sequence(T(14), T(20), T(32), 1)
-fin += shaking(T(34), T(64))
+# arrancou: 0,5 s sacudindo (rasgando) e depois come o braço até sumir na boca (Finisher.EAT_L/GONE_L)
+fin += shaking(T(34), T(42))
+fin += chewing(T(42), T(64))
 fin += [(T(66), pose(**FIN_HOLD))]
 fin += bite_sequence(T(74), T(80), T(92), -1)
-fin += shaking(T(94), T(122))
-# parado 1,4 s mastigando o braço (a boca mexe; a cabeça só dá umas puxadas)
-fin += [(T(124), pose(**FIN_HOLD)),
-        (T(131), pose(**{**FIN_HOLD, "head": 2})), (T(138), pose(**FIN_HOLD)),
-        (T(145), pose(**{**FIN_HOLD, "head": 2})), (T(150), pose(**FIN_HOLD))]
+fin += shaking(T(94), T(102))
+fin += chewing(T(102), T(148))
+fin += [(T(150), pose(**FIN_HOLD))]
 fin += bite_sequence(T(152), T(158), T(166), 0, neck=True)
 # CLOSE (vídeo 86,0-88,8 s, quadro a quadro em 60 fps): segura uns 0,4 s quase parado,
 # só tremendo, e então chicoteia a cabeça pros lados MUITO rápido - a cabeça da zebra

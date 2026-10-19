@@ -1,4 +1,4 @@
-# Froggydude - v0.4.3: IA em 5 níveis, voz limpa, fome sem fim (sobre a v0.4.2)
+# Froggydude - v0.4.4: come de verdade, ribbit de raiva, áudio da zebra (sobre a v0.4.3)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,29 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.3):
+O que testar agora (v0.4.4):
+A) Cutscene (`/froggydude golpefinal`): o braço fica FIRME nos dentes (antes
+   balançava solto, como se tivesse quebrado). Arrancou: meio segundo sacudindo,
+   depois uma mastigada a cada 0,25 s (boca abre e fecha, a cabeça morde e puxa,
+   som pesado com osso estalando uma sim, outra não), e o braço vai entrando na
+   boca até sumir; ele engole ("glup") e só então vai pro outro. A cabeça também
+   desce goela abaixo no fim.
+B) Com o pacote de voz novo: a cutscene inteira toca o áudio dele comendo a zebra,
+   tirado do próprio "Eating a Zebra" (a cutscene foi feita em cima desse vídeo, então
+   cada mordida, arrancada e troca de câmera cai no lugar; o áudio entra 0,2 s depois
+   do começo, que é onde o vídeo começa). Enquanto toca, os sons de cada golpe e o
+   gemido da vítima ficam mudos pra não embolar. Sem o pacote, fica como antes.
+C) Ele come o teu corpo (Extremo) em FLEXÃO de novo, deitado por cima, e emenda uma
+   rodada na outra: a "mesa de quatro" da tua print era ele parado de quatro entre
+   uma rodada e outra (a pose de "parado no meio da caçada").
+D) Ferido, ele se cura comendo: abaixo de 50% de vida vai matando e comendo o que
+   tiver por perto (procura mais longe) até voltar a 90%; cada mordida da flexão
+   cura um tico. Antes: só abaixo de 30%, e uma refeição já tirava ele dali.
+E) Ribbit = raiva (a lore): à toa ele quase não faz barulho (só o resmungo e a
+   risada, bem de vez em quando); o ribbit sai quando ele apanha, quando tu foge
+   dele, quando não consegue chegar em ti, quando tu escapa, e direto na fase 2.
+
+Da v0.4.3:
 A) IA em 5 níveis: Mods > Froggydude > Configurar > "IA do FroggyDude" (ou
    `/froggydude ia <min|medio|alto|extra|max>`; sem nada, mostra o atual).
    Alto = o de sempre. Mín: vê de perto, reage devagar, não prevê, não cerca,
@@ -253,7 +275,7 @@ certo. Se mudar um, mude o outro.
 | ARM_EAT         | arm_eat           | 4,5 s     | mordida + tranco a cada 0,75 s, engole aos 4 s |
 | FEEDING         | feed (1 s, loop)  | 6,0 s     | mergulha e morde 0,34 s, arranca 0,52 s |
 | FINISHER        | finisher / finisher_r | 11,6 s (8,6 sem o braço esq.) | arranca 1,6 s / 4,6 s / 8,3 s, engole 11,3 s |
-| CORPSE_EAT      | feed (loop)       | 2,0 s     | mordida no corpo aos 0,35 s de cada volta |
+| CORPSE_EAT      | feed_mob (loop)   | 2,0 s     | a flexão por cima do corpo; emenda as rodadas |
 | CORPSE_TOSS     | corpse_toss       | 1,2 s     | solta o corpo pro alto aos 0,4 s     |
 | CORPSE_SHAKE    | corpse_shake      | 1,7 s     | o corpo na boca sacudindo            |
 | PAD_HOP         | pad_hop (loop)    | 0,3 s     | de vitória-régia em vitória-régia, pousa aos 0,2 s |

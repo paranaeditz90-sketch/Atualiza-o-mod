@@ -341,6 +341,10 @@ public class FroggyCombatGoal extends Goal {
         // fugindo dele: "get back here!", "you can run but you can't hide"... (na ordem)
         if (chaseTalk <= 0 && target instanceof Player && dist > 6.0D && approachSpeed(target) < -0.12D) {
             chaseTalk = froggy.speak(VoiceSituation.CHASE) ? 200 + froggy.getRandom().nextInt(200) : 20;
+        } else if (dist > 6.0D && approachSpeed(target) < -0.12D && froggy.tickCount % 50 == 0
+                && froggy.getRandom().nextBoolean()) {
+            // fugindo dele, entre uma fala e outra: ribbit de raiva
+            froggy.ribbit(2.0F);
         }
 
         // sem salto de sapo na perseguição (v0.3.5): o salto cobria 7,5 blocos em 24
@@ -365,6 +369,8 @@ public class FroggyCombatGoal extends Goal {
         // e acabava entrando na lava
         if (froggy.tickCount % 10 == 0 && atPathEnd(target, dist) && moves.startBuilding(target)) return;
         // preso: come a passagem, arromba a porta - ou põe bloco
+        // não consegue chegar nela: raiva
+        if (stuckFor(target, dist) >= STUCK_TICKS / 2 && froggy.tickCount % 40 == 0) froggy.ribbit(2.0F);
         if (stuckFor(target, dist) >= STUCK_TICKS
                 && ((FroggyConfig.ai().breakIn && (startEatObstacle(target) || approachDoor(target)))
                 || moves.startBuilding(target))) return;

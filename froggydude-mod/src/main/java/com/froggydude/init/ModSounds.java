@@ -20,8 +20,13 @@ public class ModSounds {
     public static final DeferredRegister<SoundEvent> SOUNDS =
             DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, ModEntityTypes.MOD_ID);
 
-    /** Parado/andando: ribbit, "wibbit", risada. */
+    /** Parado/andando, à toa: o resmungo e a risada (o ribbit é de raiva, ver RIBBIT). */
     public static final RegistryObject<SoundEvent> AMBIENT = register("froggydude.ambient");
+    /**
+     * Ribbit = RAIVA (LM: "Ribbits = Raiva, na lore original"): apanhando, a presa
+     * fugindo ou fora do alcance, na fase 2.
+     */
+    public static final RegistryObject<SoundEvent> RIBBIT = register("froggydude.ribbit");
     /** Quando ele te acha ("I'm hungry", "you can't run, you can't hide"). */
     public static final RegistryObject<SoundEvent> HUNT = register("froggydude.hunt");
     /** Farejando o rastro (FroggyTrackGoal). */
@@ -61,6 +66,13 @@ public class ModSounds {
      * da animação). O pacote de voz não mexe mais nele: o clipe de antes era fala.
      */
     public static final RegistryObject<SoundEvent> CONTORT = register("froggydude.contort");
+    /**
+     * A cutscene inteira com o áudio dele comendo a zebra (o vídeo "Eating a Zebra"):
+     * só o pacote de voz tem o arquivo; no mod é vazio e ficam os sons de cada golpe.
+     * FINISHER_R é a mesma coisa a partir do braço direito (quem já não tinha o esquerdo).
+     */
+    public static final RegistryObject<SoundEvent> FINISHER = register("froggydude.finisher");
+    public static final RegistryObject<SoundEvent> FINISHER_R = register("froggydude.finisher_r");
     /** Mastigando o braço. */
     public static final RegistryObject<SoundEvent> CHEW = register("froggydude.chew");
     /** As patadas do galope de quatro (junto com o passo do bloco do chão). */

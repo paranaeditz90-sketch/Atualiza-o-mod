@@ -51,6 +51,21 @@ public final class Finisher {
     /** Sem o braço esquerdo: começa direto no direito (a tabela anda isso pra frente). */
     public static final int SKIP = 60;
 
+    // ---- comendo de verdade (LM, v0.4.3: "ele não come os braços, só arranca, fica um tempo
+    // na boca balançando solto e some"). Arrancou: 0,5 s sacudindo, o braço firme nos dentes;
+    // depois uma mastigada a cada 0,25 s, cada uma puxando um pedaço pra dentro da boca, até
+    // sumir. Engole e só então vai pro outro.
+    /** Começa a mastigar o braço esquerdo / some na boca. */
+    public static final int EAT_L = RIP_L + 10;
+    public static final int GONE_L = CUT_1 - 2;
+    /** Começa a mastigar o braço direito / some na boca. */
+    public static final int EAT_R = RIP_R + 10;
+    public static final int GONE_R = BEND_H - 4;
+    /** Uma mastigada a cada 5 ticks. */
+    public static final int CHEW_EVERY = 5;
+    /** A cabeça vai sumindo na boca no último 1,1 s antes de engolir. */
+    public static final int EAT_H = SWALLOW - 22;
+
     private Finisher() {
     }
 
@@ -79,9 +94,41 @@ public final class Finisher {
     /** O que está na boca dele agora: 0 nada, 1 braço esquerdo, 2 braço direito, 3 cabeça. */
     public static int held(float t, boolean skipLeft) {
         if (t >= RIP_H && t < SWALLOW) return 3;
-        if (t >= RIP_R && t < BEND_H) return 2;
-        if (!skipLeft && t >= RIP_L && t < CUT_1) return 1;
+        if (t >= RIP_R && t < GONE_R) return 2;
+        if (!skipLeft && t >= RIP_L && t < GONE_L) return 1;
         return 0;
+    }
+
+    /**
+     * Quanto do pedaço que está na boca já foi comido (0 inteiro, 1 sumiu). Nos braços
+     * anda aos trancos: cada mastigada puxa um pedaço em 2 ticks e o resto fica parado
+     * até a próxima; a cabeça desce de uma vez no fim.
+     */
+    public static float eaten(float t, int held) {
+        int from, to;
+        switch (held) {
+            case 1 -> { from = EAT_L; to = GONE_L; }
+            case 2 -> { from = EAT_R; to = GONE_R; }
+            case 3 -> {
+                return Mth.clamp((t - EAT_H) / (SWALLOW - EAT_H), 0F, 1F);
+            }
+            default -> {
+                return 0F;
+            }
+        }
+        if (t <= from) return 0F;
+        int chews = Math.max(1, (to - from) / CHEW_EVERY);
+        float pos = (t - from) / CHEW_EVERY;
+        int whole = (int) pos;
+        float step = Mth.clamp((pos - whole) * CHEW_EVERY / 2F, 0F, 1F);
+        return Mth.clamp((whole + step) / chews, 0F, 1F);
+    }
+
+    /** O tick é de mastigada (o servidor toca o som e abre a boca; a animação morde junto)? */
+    public static boolean chewTick(int t, boolean skipLeft) {
+        boolean left = !skipLeft && t >= EAT_L && t < GONE_L;
+        boolean right = t >= EAT_R && t < GONE_R;
+        return (left && (t - EAT_L) % CHEW_EVERY == 0) || (right && (t - EAT_R) % CHEW_EVERY == 0);
     }
 
     // ---- geometria

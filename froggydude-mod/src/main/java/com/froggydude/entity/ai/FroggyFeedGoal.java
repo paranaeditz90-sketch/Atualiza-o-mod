@@ -96,7 +96,7 @@ public class FroggyFeedGoal extends Goal {
         }
         // sempre com fome (LM): sem gente na mira e de barriga vazia, qualquer bicho serve
         boolean starving = froggy.isHungry() && !(froggy.getTarget() instanceof Player) && !froggy.isHolding();
-        if (!froggy.isLowHealth() && !starving) return false;
+        if (!froggy.wantsToHeal() && !starving) return false;
 
         LivingEntity victim = findVictim();
         if (victim == null) {
@@ -126,7 +126,8 @@ public class FroggyFeedGoal extends Goal {
         LivingEntity victim = froggy.getFeedTarget();
         if (victim != null) FeedLock.release(victim);
         froggy.setFeedTarget(null);
-        froggy.setFeedSearchCooldown(100);
+        // ferido: já procura a próxima presa logo (até se curar)
+        froggy.setFeedSearchCooldown(froggy.wantsToHeal() ? 30 : 100);
         FroggyState st = froggy.getFroggyState();
         if (st == FroggyState.FEEDING || pouncing && st == FroggyState.JUMP_PIN) {
             froggy.setFroggyState(FroggyState.CHASE);
@@ -238,6 +239,8 @@ public class FroggyFeedGoal extends Goal {
         }
         if (FroggydudeEntity.pushupBite(t)) {
             froggy.onPushupBite(t);
+            // cada mordida cura um tico (uns +20% numa refeição inteira, mais os 20% do fim)
+            froggy.heal(froggy.getMaxHealth() * 0.01F);
             BloodType type = BloodType.of(victim);
             Vec3 at = victim.position().add(0, Math.min(0.5D, victim.getBbWidth() * 0.5D), 0);
             if (type.bleeds()) {
@@ -285,7 +288,9 @@ public class FroggyFeedGoal extends Goal {
     }
 
     private LivingEntity findVictim() {
-        AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS * FroggyConfig.ai().sense);
+        // ferido procura mais longe
+        double r = SEARCH_RADIUS * FroggyConfig.ai().sense * (froggy.wantsToHeal() ? 1.5D : 1.0D);
+        AABB area = froggy.getBoundingBox().inflate(r);
         List<LivingEntity> nearby = froggy.level().getEntitiesOfClass(LivingEntity.class, area,
                 e -> e.isAlive() && e != froggy && e instanceof Mob && !(e instanceof Monster) && !(e instanceof Player)
                         && !(e instanceof AbstractVillager v && v.isBaby()));

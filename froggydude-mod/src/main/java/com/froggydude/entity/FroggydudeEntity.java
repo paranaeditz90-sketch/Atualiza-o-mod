@@ -205,6 +205,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int movingHold = 0;
     private int pinnedVictimId = -1;
     private int vocalCooldown = 0;
+    private int ribbitCooldown = 0;
     /** Calado (as falas nem entram na fila). */
     private int muteTicks = 0;
     /** A fala tocando agora (pra cortar quando precisa falar outra por cima). */
@@ -397,12 +398,29 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return ModSounds.HURT.get();
     }
 
-    /** Na maioria das vezes grunhe; às vezes, se não está falando, solta "I love pain". */
+    /**
+     * Apanhando: às vezes "I love pain" (se não está falando), às vezes o ribbit de
+     * raiva, no resto grunhe.
+     */
     @Override
     protected void playHurtSound(DamageSource source) {
-        if (vocalCooldown > 0 || this.getRandom().nextFloat() >= 0.35F || !speak(VoiceSituation.PAIN)) {
-            super.playHurtSound(source);
-        }
+        float r = this.getRandom().nextFloat();
+        if (vocalCooldown <= 0 && r < 0.35F && speak(VoiceSituation.PAIN)) return;
+        if (r >= 0.35F && r < 0.7F && ribbit(1.8F)) return;
+        super.playHurtSound(source);
+    }
+
+    /**
+     * Ribbit = raiva (LM: "Ribbits = Raiva, na lore original"). Não entra por cima de
+     * uma fala e não metralha (1,5 s entre um e outro).
+     */
+    public boolean ribbit(float volume) {
+        if (this.level().isClientSide || vocalCooldown > 0 || ribbitCooldown > 0) return false;
+        this.playSound(ModSounds.RIBBIT.get(), volume, 0.9F + this.getRandom().nextFloat() * 0.2F);
+        openMouth(8);
+        vocalCooldown = 14;
+        ribbitCooldown = 30;
+        return true;
     }
 
     /** Morrendo: "no, no, noooo" (corta o que estiver falando). */
@@ -437,10 +455,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     @Override
     public int getAmbientSoundInterval() {
-        return 100; // os ribbits: um a cada ~5 s em média (eram ~8 s)
+        return 240; // à toa ele quase não faz barulho (o ribbit é de raiva: ver ribbit())
     }
 
-    /** Ribbit não entra por cima de uma fala (e abre um pouco a boca). */
+    /** O som à toa não entra por cima de uma fala (e abre um pouco a boca). */
     @Override
     public void playAmbientSound() {
         if (vocalCooldown > 0 || speakingLine != null) return;
@@ -529,7 +547,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 m.kills++;
                 m.recordKill(server.getGameTime());
             }
-            case ESCAPED -> m.escapes++;
+            case ESCAPED -> {
+                m.escapes++;
+                ribbit(2.5F); // escapou dele: raiva
+            }
             case FROGGY_DIED -> m.froggyDeaths++;
             default -> {
             }
@@ -629,6 +650,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public void forgetCorpse() {
         corpseTarget = null;
+    }
+
+    /** O corpo que ele está comendo agora (FroggyCorpseGoal rodando), ou null. */
+    @Nullable
+    private PlayerCorpse corpseMeal;
+
+    public void setCorpseMeal(@Nullable PlayerCorpse corpse) {
+        this.corpseMeal = corpse;
     }
 
     // ---------------- perigo aprendido (brain/DangerMemory) ----------------
@@ -1255,6 +1284,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         openMouth(8);
     }
 
+    /**
+     * Mastigada de coisa pesada (o braço na cutscene): grave e alta, a boca abre e
+     * fecha (3 ticks) e, com {@code bone}, o osso estala junto.
+     */
+    public void onHeavyChew(boolean bone) {
+        this.playSound(ModSounds.CHEW.get(), 1.4F, 0.55F + this.getRandom().nextFloat() * 0.15F);
+        if (bone) this.playSound(ModSounds.CRACK.get(), 0.8F, 1.1F + this.getRandom().nextFloat() * 0.3F);
+        openMouth(3);
+    }
+
+    /** Engoliu o pedaço (o "glup"). */
+    public void onGulp() {
+        this.playSound(SoundEvents.GENERIC_DRINK, 1.2F, 0.45F);
+        this.playSound(ModSounds.CHEW.get(), 0.8F, 0.5F);
+    }
+
     // ---------------- usado só pelas Goals ----------------
 
     @Nullable
@@ -1338,6 +1383,21 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public boolean isLowHealth() {
         return this.getHealth() < this.getMaxHealth() * 0.3F;
+    }
+
+    /** Ferido, comendo pra se curar (ver {@link #wantsToHeal}). */
+    private boolean healing;
+
+    /**
+     * Ferido: mata e come o que tiver por perto pra recuperar vida. Começa abaixo de
+     * 50% e só para quando chega a 90% (LM: "ele come só uma vez e para" - antes era
+     * abaixo de 30%, e uma refeição, +20%, já tirava ele dali).
+     */
+    public boolean wantsToHeal() {
+        float f = this.getHealth() / this.getMaxHealth();
+        if (f < 0.5F) healing = true;
+        else if (f >= 0.9F) healing = false;
+        return healing;
     }
 
     // ----- fase 2 -----
@@ -1508,6 +1568,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;
         if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
+        if (ribbitCooldown > 0) ribbitCooldown--;
+        // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
+        if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
         if (muteTicks > 0) muteTicks--;
         if (pendingSpeech != null) {
             if (--pendingSpeechTicks <= 0 && vocalCooldown <= 0) {
@@ -1706,7 +1769,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         double dx = this.getX() - this.xo;
         double dz = this.getZ() - this.zo;
         double speed = Math.sqrt(dx * dx + dz * dz);
-        boolean chasing = this.getTarget() != null || isFrenzyActive() || tracking;
+        // comendo o corpo (Extremo) nunca fica "de quatro respirando" entre uma rodada e
+        // outra: aquela pose do lado do corpo era a "mesa" que o LM viu (print, v0.4.2)
+        boolean chasing = (this.getTarget() != null || isFrenzyActive() || tracking) && corpseMeal == null;
 
         if (speed > 0.02D) movingHold = 8;
         else if (movingHold > 0) movingHold--;
@@ -1975,9 +2040,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             case FINISHER:
                 return state.setAndContinue(finisherSkipsLeft() ? ANIM_FINISHER_R : ANIM_FINISHER);
             case CORPSE_EAT:
-                // de pé do lado do corpo, mergulhando a cabeça (a flexão do lado de um corpo
-                // chato no chão virava uma mesa de quatro pés)
-                return state.setAndContinue(ANIM_FEED);
+                // a flexão, deitado por cima do corpo (LM: come em "flexão", não de quatro)
+                return state.setAndContinue(ANIM_FEED_MOB);
             case CORPSE_TOSS:
                 return state.setAndContinue(ANIM_CORPSE_TOSS);
             case CORPSE_SHAKE:
