@@ -1,4 +1,4 @@
-# Froggydude - v0.4.0: gore, o golpe final (a zebra) e sem anti-trapaça
+# Froggydude - v0.4.1: contorção quadro a quadro, aldeão, vitória-régia (sobre a v0.4.0: gore e o golpe final)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,7 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.0):
+O que testar agora (v0.4.1; do 7 em diante é o que mudou depois da v0.4.0):
 1) Primeira vez que o jogo abre: a tela de aviso escolhe o gore (Desligado,
    Leve, Médio, Pesado, Extremo); o Extremo tem tela própria ("Atenção ⚠").
    Depois muda em Mods > Froggydude > Configurar.
