@@ -53,6 +53,11 @@ O que testar agora (v0.4.0):
 14) Aldeão é a comida favorita: bote, flexão, e arranca os braços (juntos)
    e a cabeça, com o gore (bebê não).
 15) A tela só começa a ficar vermelha com 1 coração.
+16) Vitória-régia (fim do teu vídeo, 95,6-98,9 s): atravessando água com
+   folha no rumo de quem ele caça, ele não nada - vai de folha em folha num
+   salto de sapo rasante (deitado no ar, braços pra frente), pousa em pé com
+   uma nuvem bege e já sai no próximo, um salto a cada 0,3 s (até 5,5 blocos).
+   O último salto é pra margem. Sem folha, nada como antes.
 
 Da v0.3.7 - o faro: esconde-te numa casa sem ele ver (ele fareja o rastro e
 arromba); foge e dobra a esquina (ele segue o cheiro); na água o rastro some.
@@ -192,6 +197,7 @@ certo. Se mudar um, mude o outro.
 | CORPSE_EAT      | feed (loop)       | 2,0 s     | mordida no corpo aos 0,35 s de cada volta |
 | CORPSE_TOSS     | corpse_toss       | 1,2 s     | solta o corpo pro alto aos 0,4 s     |
 | CORPSE_SHAKE    | corpse_shake      | 1,7 s     | o corpo na boca sacudindo            |
+| PAD_HOP         | pad_hop (loop)    | 0,3 s     | de vitória-régia em vitória-régia, pousa aos 0,2 s |
 | CONTORTING      | contort + contort_hold | 2,5 s + 2 a 4 s | dobra (losango), sobe, a cabeça quebra pra trás; torto, ombro deslocado |
 | ROAR            | roar              | 0,9 s     | grito aos 0,2 s, depois o ataque feroz |
 | perseguindo     | run / run_frenzy  | -         | galope de 4 (fase 2: mais esticado e rápido); poeira e barulho a cada patada |

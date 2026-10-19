@@ -9,6 +9,7 @@ import net.minecraft.client.particle.TextureSheetParticle;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 
@@ -50,6 +51,14 @@ public class DustPuffParticle extends TextureSheetParticle {
             r = ((col >> 16) & 255) / 255F * 0.3F + 0.68F;
             g = ((col >> 8) & 255) / 255F * 0.3F + 0.64F;
             b = (col & 255) / 255F * 0.3F + 0.62F;
+        }
+        // em cima da água/vitória-régia (os saltos de folha em folha, fim do vídeo do LM):
+        // a nuvem do vídeo é bege, não azul nem verde
+        if (state.is(Blocks.LILY_PAD) || !state.getFluidState().isEmpty()
+                || level.getBlockState(BlockPos.containing(x, y, z)).is(Blocks.LILY_PAD)) {
+            r = 0.86F;
+            g = 0.80F;
+            b = 0.68F;
         }
         float shade = 0.92F + this.random.nextFloat() * 0.08F;
         this.setColor(Math.min(1F, r * shade), Math.min(1F, g * shade), Math.min(1F, b * shade));

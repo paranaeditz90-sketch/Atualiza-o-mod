@@ -46,7 +46,12 @@ public enum FroggyState {
     /** Extremo: joga o corpo pro alto e pega de novo (brincando com a comida). */
     CORPSE_TOSS(24),
     /** Extremo: o corpo na boca, sacudindo como cachorro com brinquedo (FroggyCorpseGoal.SHAKE_TICKS). */
-    CORPSE_SHAKE(34);
+    CORPSE_SHAKE(34),
+    /**
+     * Atravessando água de vitória-régia em vitória-régia (fim do vídeo do LM,
+     * 95,6-98,9 s): um salto a cada 6 ticks (FroggyPadHopGoal), enquanto tiver folha.
+     */
+    PAD_HOP(6);
 
     public final int durationTicks;
 

@@ -320,6 +320,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(0, new FroggyFeedGoal(this));
         // 1: fase 2 (contorção + grito + 30 s correndo mais que um jogador)
         this.goalSelector.addGoal(1, new FroggyFrenzyGoal(this));
+        // 1: na água, de vitória-régia em vitória-régia (não nada quando tem folha no rumo)
+        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyPadHopGoal(this));
         // 1: speedrun - longe da vítima, come o portal do Nether que ela está fazendo
         this.goalSelector.addGoal(1, new FroggySabotageGoal(this));
         // 2: cérebro de combate - só ataca quando tem certeza que acerta
@@ -1760,6 +1762,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_CORPSE_TOSS =
             RawAnimation.begin().then("corpse_toss", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_CORPSE_SHAKE = RawAnimation.begin().thenLoop("corpse_shake");
+    private static final RawAnimation ANIM_PAD_HOP = RawAnimation.begin().thenLoop("pad_hop");
 
     // controlador separado só pro osso da língua (some quando não está atacando com ela)
     private static final RawAnimation TONGUE_HIDDEN = RawAnimation.begin().thenLoop("tongue_hidden");
@@ -1821,6 +1824,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_CORPSE_TOSS);
             case CORPSE_SHAKE:
                 return state.setAndContinue(ANIM_CORPSE_SHAKE);
+            case PAD_HOP:
+                return state.setAndContinue(ANIM_PAD_HOP);
             default:
                 break;
         }

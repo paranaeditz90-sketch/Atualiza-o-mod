@@ -623,6 +623,24 @@ ANIMS["roar"] = animation(0.5, [
 ], "hold_on_last_frame")
 
 
+# Vitória-régia (fim do vídeo do LM, 95,6-98,9 s): de folha em folha num salto de
+# sapo rasante, um a cada 0,3 s (FroggyPadHopGoal: 5 ticks no ar + 1 em pé). O
+# corpo inteiro deita no ar (pivô nos pés: root), braços esticados pra frente e
+# pernas pra trás, como um mergulho raspando a água; as pernas descem pra pousar,
+# ele bate na folha agachado, fica em pé um instante e já se joga de novo.
+# t = 0 é o 1º tick no ar (o salto sai no fim do tick em pé, 0,25).
+ANIMS["pad_hop"] = animation(0.3, [
+    (0.00, pose(root_x=50, waist=12, head=-45, arms=-150, arm_spread=14, legs=24, leg_l=18, leg_spread=4)),   # saindo
+    (0.05, pose(root_x=76, waist=6, head=-62, arms=-168, arm_spread=12, legs=8, leg_l=4, leg_spread=6)),       # deitado no ar
+    (0.10, pose(root_x=78, waist=4, head=-64, arms=-164, arm_spread=16, legs=6, leg_l=10, leg_spread=6)),
+    (0.15, pose(root_x=40, waist=8, head=-34, arms=-110, arm_spread=20, legs=-34, leg_l=-28, leg_spread=8)),   # pernas descendo
+    (0.20, pose(root_y=-1.5, root_x=10, waist=30, head=-10, arms=-40, arm_spread=16, legs=-22, leg_l=20,
+                leg_spread=6)),                                                                                # bate na folha agachado
+    (0.25, pose(root_x=18, waist=8, head=-14, arms=-30, arm_spread=10, legs=26, leg_l=20, leg_spread=4)),      # em pé, já empurrando
+    (0.30, pose(root_x=50, waist=12, head=-45, arms=-150, arm_spread=14, legs=24, leg_l=18, leg_spread=4)),
+], True, ground=False)
+
+
 # Língua: ele ergue os dois braços (garras pro alto), inclina o tronco pra
 # frente e cospe a língua. Os tempos batem com tongue_*_ext (a língua sai em
 # 0,25-0,4 s no chicote, 0,3-0,45 s na agarrada e 0,4-0,6 s na captura).

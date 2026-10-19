@@ -307,3 +307,59 @@ verdade (gravando a tela), te mando o `.jar` e o vídeo, tu testa no Zalith.
 
 **Ainda em aberto ❓:**
 - **O resto do Manhunt** (o LM disse que ainda vamos conversar): como ele aparece no mundo sem comando, se vale pra vários jogadores ao mesmo tempo (hoje: pegou um, acabou), e o equilíbrio. A 15 blocos/s ninguém escapa correndo em linha reta; o que salva é torre, água, porta e cabeça.
+
+## 10. "Froggy's in your world" (plano, nada feito ainda)
+
+O modo que o LM quer pro fim: ele age como um jogador que **invade o teu mundo**
+e te caça até tu zerar o jogo. Respostas do LM:
+
+- **Aviso no começo do mundo**, estilo analog horror / alerta de emergência de TV
+  (barras de cor, chiado, letra que treme): *"Seja rápido, ele sabe onde você tá.
+  E a vida do seu personagem depende de você. Zere o jogo antes que o froggydude
+  [CENSURADO]"*. Um alerta genérico ("ALERTA DE EMERGÊNCIA"), sem imitar emissora
+  de verdade.
+- **Ele entra no mundo entre o dia 3 e o dia 10** (sorteado ao criar, escondido),
+  com a mensagem amarela de "entrou no jogo" e a **LAN ligada**.
+- **Sempre sabe onde tu tá.**
+- **Se tu morre: renasce, e ele piora.**
+- **Nível de IA nas opções do mod: Mín, Médio, Alto, Extra, Máx.** O nível mexe
+  em tudo: esperteza (estratégia, emboscada), velocidade e dano, quanto ele sabe
+  de ti (de quanto em quanto tempo e com que precisão ele "vê" tua posição),
+  jeito de player e o mais humano possível (agachar, hesitar, olhar em volta,
+  pular à toa, errar de propósito).
+- **Acaba quando o dragão morre.**
+
+### Como eu faria (por etapas)
+
+1. Opção no mundo e no config (liga/desliga, nível), salva nos dados do mundo,
+   com o dia sorteado.
+2. A tela do aviso na primeira entrada (overlay do cliente + som de chiado).
+3. A entrada: "FroggyDude entrou no jogo" no chat. Ele nasce longe (200-400
+   blocos) e vem vindo; com o chunk descarregado, a posição dele anda "no papel"
+   e ele só aparece de verdade quando chega perto (senão pesa no Android).
+4. O faro global: ele mira tua posição de verdade, com atraso e erro conforme o
+   nível (Mín: a cada minuto, com 30 blocos de erro; Máx: sempre, exato).
+5. Jeito de player por nível: agachar na beira, pular andando, pilar bloco pra
+   subir, ponte pra atravessar, quebrar porta/parede (já existe o arrombar),
+   pausas e hesitação antes do bote, olhar pros lados.
+6. Morte: tu renasce e ele sobe um degrau (mais rápido, mais dano, sabe mais),
+   até o teto do nível escolhido.
+7. Dragão morto: ele para de caçar (e uma cena final, se o LM quiser).
+
+### O que pode dar errado (e as perguntas)
+
+- **Dá pra ganhar?** Zerar leva horas; ele corre 15 blocos/s e sempre sabe onde
+  tu tá. No Máx, quanto tempo um jogador normal dura? Se a resposta for "um
+  minuto", o modo vira tela de morte. Eu poria janelas de respiro (ele some uns
+  minutos depois de te pegar? de dia ele só segue e de noite ataca?). Qual tu
+  prefere?
+- **"Morreu, ele piora" é uma espiral:** quem tá apanhando apanha mais. Tem teto?
+  Ou depois de X mortes seguidas ele dá uma trégua?
+- **LAN de verdade abre uma porta na rede** (e no Zalith/Android quase não serve
+  pra nada). Minha recomendação: LAN de mentira - só a mensagem no chat e o menu
+  dizendo "aberto na LAN". Fica o susto, sem risco.
+- **"Jeito de player" é o mais caro**: mob não constrói nem quebra bloco como
+  gente. Pilar e ponte dá pra fazer; o resto é teatro (animação e pausa na hora
+  certa). Quais 3 coisas de player assustam mais? É por elas que eu começaria.
+- **Multiplayer:** com dois jogadores, ele caça quem? O mais perto, o que tá mais
+  avançado no jogo, ou um de cada vez?
