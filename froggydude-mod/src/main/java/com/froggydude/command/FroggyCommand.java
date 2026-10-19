@@ -63,6 +63,9 @@ public final class FroggyCommand {
                                         FroggyConfig.get(FroggyConfig.MANHUNT_DIAS))))
                         .then(Commands.literal("parar").executes(c -> stopManhunt(c.getSource()))))
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
+                // jeito de jogador, pra testar sem ter que morrer 3 vezes
+                .then(Commands.literal("zombar").requires(FroggyCommand::admin).executes(c -> mock(c.getSource())))
+                .then(Commands.literal("dancar").requires(FroggyCommand::admin).executes(c -> dance(c.getSource())))
                 .then(Commands.literal("golpefinal").requires(FroggyCommand::admin).executes(c -> finisher(c.getSource())))
                 .then(Commands.literal("cerebro")
                         .executes(c -> brain(c.getSource(), c.getSource().getPlayerOrException()))
@@ -114,6 +117,32 @@ public final class FroggyCommand {
     private static int stopManhunt(CommandSourceStack src) {
         Manhunt.stop(src.getServer());
         src.sendSuccess(() -> Component.literal("Manhunt parado."), true);
+        return 1;
+    }
+
+    /** Faz de conta que ele te matou 3 vezes hoje: vem zombar ("Não mexe comigo") e vai embora. */
+    private static int mock(CommandSourceStack src) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(Component.literal("O FroggyDude não está carregado (use /froggydude invocar)."));
+            return 0;
+        }
+        f.mockNow(p);
+        src.sendSuccess(() -> Component.literal("Ele vem zombar de ti e ir embora."), true);
+        return 1;
+    }
+
+    /** A dancinha de jogador, agora. */
+    private static int dance(CommandSourceStack src) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(Component.literal("O FroggyDude não está carregado (use /froggydude invocar)."));
+            return 0;
+        }
+        f.danceNow(p);
+        src.sendSuccess(() -> Component.literal("Dancinha."), true);
         return 1;
     }
 

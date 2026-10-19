@@ -146,6 +146,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     private static final EntityDataAccessor<Integer> DATA_FEED_ID =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+    /** Agachado como jogador (o shift): na dancinha e fazendo ponte (ai.PlayerMoves). */
+    private static final EntityDataAccessor<Boolean> DATA_CROUCH =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
 
     /**
      * Comendo em "flexão" (pin_hold, feed_mob): uma mordida a cada 0,3 s (6 ticks).
@@ -307,6 +310,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_CLIMBING, false);
         this.entityData.define(DATA_FINISH_SKIPLEFT, false);
         this.entityData.define(DATA_FEED_ID, -1);
+        this.entityData.define(DATA_CROUCH, false);
     }
 
     @Override
@@ -341,7 +345,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         // faro: quem está sem braço sangra e ele sente o cheiro de longe, mesmo sem ver
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, false, false,
-                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p)) {
+                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p) && !underTruce(p)) {
             {
                 this.targetConditions = this.targetConditions.ignoreLineOfSight();
             }
@@ -352,7 +356,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
         });
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
-                e -> !isFedOn(e)) {
+                e -> !isFedOn(e) && !underTruce(e)) {
             @Override
             public boolean canContinueToUse() {
                 // o padrão esquece quem ficou 3 s sem ser visto - no meio do arrombamento
@@ -422,6 +426,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Quando acha uma vítima nova: som de caça (froggydude.hunt). */
     @Override
     public void setTarget(@Nullable LivingEntity target) {
+        // trégua ("Não mexe comigo"): nem o faro, nem o manhunt, nem nada põe esse jogador
+        // na mira - só se ele bater primeiro (hurt() quebra a trégua antes)
+        if (target != null && !this.level().isClientSide && underTruce(target)) target = null;
         LivingEntity old = this.getTarget();
         super.setTarget(target);
         if (this.level().isClientSide) return;
@@ -469,6 +476,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
         engagement = new Engagement(target.getUUID(), m.dominantStyle(), s, this.tickCount);
         if (s == Strategy.STALK) startStalking(160 + this.getRandom().nextInt(140));
+        if (m.mockDue && debugAttack == null) {
+            // matou demais esse jogador: dessa vez ele só zomba e vai embora
+            mocking = target.getUUID();
+            stopStalking();
+            brainLog("matou " + m.name + " 3 vezes num dia: vai zombar e ir embora");
+        }
         data.setDirty();
     }
 
@@ -483,7 +496,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         float reward = FroggyBrain.reward(e.dealt, e.taken, e.pins, outcome, this.tickCount - e.startTick);
         data.brain.learn(m, e.context, e.strategy, reward);
         switch (outcome) {
-            case KILLED -> m.kills++;
+            case KILLED -> {
+                m.kills++;
+                m.recordKill(server.getGameTime());
+            }
             case ESCAPED -> m.escapes++;
             case FROGGY_DIED -> m.froggyDeaths++;
             default -> {
@@ -636,6 +652,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     /** Mundo -dev: conta no chat o que o cérebro decidiu/aprendeu. */
     public void brainLog(String msg) {
+        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] cérebro: " + msg);
         if (!(this.level() instanceof ServerLevel server) || !FroggyWorldData.isDev(server.getServer())) return;
         net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("[cérebro] " + msg)
                 .withStyle(net.minecraft.ChatFormatting.DARK_AQUA);
@@ -828,6 +845,83 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public boolean isRunning() {
         return this.entityData.get(DATA_RUNNING);
+    }
+
+    // ---------------- jeito de jogador (ai.PlayerMoves) ----------------
+
+    public void setCrouchingPose(boolean crouch) {
+        if (crouch != this.entityData.get(DATA_CROUCH)) this.entityData.set(DATA_CROUCH, crouch);
+    }
+
+    public boolean isCrouchingPose() {
+        return this.entityData.get(DATA_CROUCH);
+    }
+
+    /** O jogador que ele vai zombar agora (matou 3 vezes num dia), ou null. */
+    @Nullable
+    private UUID mocking;
+    private int walkAwayTicks;
+    @Nullable
+    private Vec3 walkAwayFrom;
+
+    public boolean isMocking(LivingEntity target) {
+        return mocking != null && mocking.equals(target.getUUID());
+    }
+
+    /** Zombou e disse "Não mexe comigo": um dia de trégua com esse jogador, e vai embora andando. */
+    public void finishMock(LivingEntity target) {
+        mocking = null;
+        if (this.level() instanceof ServerLevel server) {
+            PlayerMemory m = FroggyWorldData.get(server).brain.find(target.getUUID());
+            if (m != null) {
+                m.mockDue = false;
+                m.truceUntil = server.getGameTime() + PlayerMemory.DAY;
+                FroggyWorldData.get(server).setDirty();
+            }
+        }
+        if (engagement != null && engagement.player.equals(target.getUUID())) engagement = null;
+        walkAwayFrom = target.position();
+        walkAwayTicks = 200;
+        setTarget(null);
+        setFroggyState(FroggyState.IDLE);
+        brainLog("zombou e foi embora: trégua de um dia");
+    }
+
+    /** Comando de teste: zomba desse jogador agora. */
+    public void mockNow(Player p) {
+        if (this.level() instanceof ServerLevel server) {
+            PlayerMemory m = FroggyWorldData.get(server).brain.memory(p.getUUID(), p.getScoreboardName());
+            m.truceUntil = 0L;
+            m.mockDue = false;
+        }
+        walkAwayTicks = 0;
+        mocking = p.getUUID();
+        stopStalking();
+        setTarget(p);
+    }
+
+    /** Comando de teste: a dancinha agora, olhando pra esse jogador. */
+    public void danceNow(Player p) {
+        setTarget(p);
+        combatGoal.danceNow();
+    }
+
+    /** Em trégua com esse jogador (zombou dele e foi embora). */
+    public boolean underTruce(LivingEntity e) {
+        if (!(e instanceof Player) || !(this.level() instanceof ServerLevel server)) return false;
+        PlayerMemory m = FroggyWorldData.get(server).brain.find(e.getUUID());
+        return m != null && m.truceUntil > server.getGameTime();
+    }
+
+    private void breakTruce(Player attacker) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        PlayerMemory m = FroggyWorldData.get(server).brain.find(attacker.getUUID());
+        if (m != null && m.truceUntil > server.getGameTime()) {
+            m.truceUntil = 0L;
+            walkAwayTicks = 0;
+            FroggyWorldData.get(server).setDirty();
+            brainLog(m.name + " mexeu com ele: acabou a trégua");
+        }
     }
 
     public boolean isMovingSynced() {
@@ -1322,6 +1416,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             this.discard();
             return;
         }
+        if (walkAwayTicks > 0) {
+            walkAwayTicks--;
+            if (walkAwayFrom != null && walkAwayTicks % 20 == 0) {
+                Vec3 away = this.position().subtract(walkAwayFrom).multiply(1, 0, 1);
+                away = away.lengthSqr() < 1.0E-4D ? new Vec3(1, 0, 0) : away.normalize();
+                Vec3 to = this.position().add(away.scale(16.0D));
+                this.getNavigation().moveTo(to.x, this.getY(), to.z, 0.9D);
+            }
+        }
         if (holdTicks > 0) {
             holdTicks--;
             if (getFroggyState() != FroggyState.IDLE && !isFrenzyActive()) setFroggyState(FroggyState.IDLE);
@@ -1570,6 +1673,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // a intenção vale parado também: antes "correndo" exigia estar andando, então
         // bastava ele parar meio segundo (esperando o próximo bote) que levantava em pé
         boolean running = runningHold > 0;
+        // andando em pé, à toa, como jogador: de vez em quando um pulo sem motivo
+        if (!running && speed > 0.05D && this.onGround() && getFroggyState() == FroggyState.IDLE
+                && this.getRandom().nextInt(80) == 0) {
+            this.getJumpControl().jump();
+        }
         if (moving != this.entityData.get(DATA_MOVING)) this.entityData.set(DATA_MOVING, moving);
         if (running != this.entityData.get(DATA_RUNNING)) this.entityData.set(DATA_RUNNING, running);
     }
@@ -1619,6 +1727,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (hurt && !this.level().isClientSide) learnDanger(source);
         if (hurt && source.getEntity() instanceof Player attacker) {
             stopStalking(); // mexeu com ele: acabou o "só olhando"
+            breakTruce(attacker); // "não mexe comigo" - e mexeu
             if (engagement != null && attacker.getUUID().equals(engagement.player)) {
                 engagement.taken += Math.max(0F, before - this.getHealth());
             }
@@ -1773,10 +1882,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation TONGUE_CAPTURE =
             RawAnimation.begin().then("tongue_capture_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
 
+    /** Câmera lenta só pra gravar a animação quadro a quadro (froggydude.animSlow; 1 = normal). */
+    private static final double DEBUG_ANIM_SLOW = Double.parseDouble(System.getProperty("froggydude.animSlow", "1"));
+
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new PacedAnimationController<>(this, "main", 3, this::mainPredicate)
-                .setAnimationSpeedHandler(e -> e.mainAnimSpeed()));
+                .setAnimationSpeedHandler(e -> e.mainAnimSpeed() * DEBUG_ANIM_SLOW));
         controllers.add(new AnimationController<>(this, "tongue", 0, this::tonguePredicate));
     }
 
@@ -1826,6 +1938,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_CORPSE_SHAKE);
             case PAD_HOP:
                 return state.setAndContinue(ANIM_PAD_HOP);
+            case BUILD:
+            case TAUNT:
+                // em pé, como jogador (o agachar e o soco vêm por cima, no modelo)
+                return state.setAndContinue(isMovingSynced() ? ANIM_WALK : ANIM_IDLE);
             default:
                 break;
         }

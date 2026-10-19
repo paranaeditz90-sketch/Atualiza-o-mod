@@ -32,7 +32,7 @@ import java.util.EnumSet;
  */
 public class FroggyFrenzyGoal extends Goal {
 
-    /** Ticks da contorção (animação "contort", 2,5 s: encara, dobra, levanta, a cabeça quebra pra trás). */
+    /** Ticks da contorção (animação "contort", 2,95 s: a rotoscopia do vídeo do LM, 89,28-91,75 s). */
     private static final int BEND_TICKS = FroggyState.CONTORTING.durationTicks;
     /** O grito sai quando a cabeça joga pra trás (animação "roar", 0,1 s). */
     private static final int ROAR_SCREAM_AT = 2;
@@ -84,7 +84,7 @@ public class FroggyFrenzyGoal extends Goal {
         froggy.getNavigation().stop();
         lockedYaw = froggy.getYRot();
         holdYaw();
-        // contorção (2,5 s) e fica torto, com o ombro deslocado, de 2 a 4 s (no short ele
+        // contorção (2,95 s) e fica torto, com o ombro deslocado, de 2 a 4 s (no short ele
         // fica um tempão assim antes de disparar)
         contortTicks = BEND_TICKS + 40 + froggy.getRandom().nextInt(41);
         nextCrack = BEND_TICKS + 6;

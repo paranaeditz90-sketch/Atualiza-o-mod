@@ -346,6 +346,23 @@ e te caça até tu zerar o jogo. Respostas do LM:
    até o teto do nível escolhido.
 7. Dragão morto: ele para de caçar (e uma cena final, se o LM quiser).
 
+### Respostas do LM (19/10)
+
+1. **Ritmo, no MAX:** primeiro ele **brinca** com o jogador; depois vêm os
+   **"Ó, se eu quisesse..."** (chega perto, podia matar e não mata); só por
+   fim vem a **perseguição**. Isso leva **dias** de jogo e não é frequente.
+2. **Muitas mortes seguidas:** ele **zomba** do jogador por ser ruim e **vai
+   embora**, falando **"Não mexe comigo"**. É a trégua: a espiral não continua.
+3. **LAN de mentira:** pode ser (só a mensagem e o menu, sem abrir rede).
+4. **Jeito de player (a IA melhorada):**
+   - pensa como jogador: **caminho mais curto** e **sempre dá um jeito** de
+     chegar (põe bloco pra subir/atravessar, **virando a câmera** pra olhar
+     onde vai pôr, como gente faz);
+   - **anda que nem player** (não como mob);
+   - a **"dancinha"**: agacha e levanta rápido (o "shift spam"), pulando ou
+     batendo no ar.
+5. **Multiplayer:** ainda sem resposta.
+
 ### O que pode dar errado (e as perguntas)
 
 - **Dá pra ganhar?** Zerar leva horas; ele corre 15 blocos/s e sempre sabe onde

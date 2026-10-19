@@ -116,7 +116,7 @@ public class FroggyTrackGoal extends Goal {
 
     private boolean valid(@Nullable ServerPlayer p) {
         return p != null && p.isAlive() && !p.isCreative() && !p.isSpectator() && p.level() == froggy.level()
-                && !froggy.isFedOn(p);
+                && !froggy.isFedOn(p) && !froggy.underTruce(p);
     }
 
     @Override

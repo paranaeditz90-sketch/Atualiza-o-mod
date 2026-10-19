@@ -97,5 +97,7 @@
   "froggydude.settings.title": "Froggydude - Settings",
   "froggydude.settings.gore": "Graphic violence",
   "froggydude.settings.caution": "⚠ May be disturbing",
-  "froggydude.settings.warning": "Show the warning again..."
+  "froggydude.settings.warning": "Show the warning again...",
+  "froggydude.chat.too_bad": "lol you're so bad",
+  "froggydude.chat.dont_mess": "Don't mess with me."
 }

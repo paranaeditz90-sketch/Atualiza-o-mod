@@ -29,6 +29,12 @@ public class PlayerMemory {
 
     public int hunts;
     public int kills;
+    /** Quando ele matou esse jogador (gameTime), pra saber se foi "demais" num dia só. */
+    public final java.util.List<Long> killTimes = new java.util.ArrayList<>();
+    /** Matou 3 vezes num dia: da próxima vez ele zomba e vai embora ("Não mexe comigo"). */
+    public boolean mockDue;
+    /** Até quando (gameTime) ele deixa esse jogador em paz. */
+    public long truceUntil;
     public int escapes;
     public int froggyDeaths;
 
@@ -58,6 +64,20 @@ public class PlayerMemory {
         for (int i = 0; i < STYLES; i++) style[i] *= 0.998F;
         style[s.ordinal()] += amount;
     }
+
+    /** Mais uma morte desse jogador por ele. Devolve true quando passou do ponto (3 num dia). */
+    public boolean recordKill(long now) {
+        killTimes.add(now);
+        killTimes.removeIf(t -> now - t > DAY);
+        if (killTimes.size() >= 3) {
+            killTimes.clear();
+            mockDue = true;
+            return true;
+        }
+        return false;
+    }
+
+    public static final long DAY = 24000L;
 
     public float[] attack(String attack) {
         return attacks.computeIfAbsent(attack, k -> new float[2]);
@@ -94,6 +114,9 @@ public class PlayerMemory {
         tag.putInt("Kills", kills);
         tag.putInt("Escapes", escapes);
         tag.putInt("FroggyDeaths", froggyDeaths);
+        tag.putLongArray("KillTimes", killTimes.stream().mapToLong(Long::longValue).toArray());
+        tag.putBoolean("MockDue", mockDue);
+        tag.putLong("TruceUntil", truceUntil);
         return tag;
     }
 
@@ -122,6 +145,9 @@ public class PlayerMemory {
         m.kills = tag.getInt("Kills");
         m.escapes = tag.getInt("Escapes");
         m.froggyDeaths = tag.getInt("FroggyDeaths");
+        for (long t : tag.getLongArray("KillTimes")) m.killTimes.add(t);
+        m.mockDue = tag.getBoolean("MockDue");
+        m.truceUntil = tag.getLong("TruceUntil");
         return m;
     }
 }

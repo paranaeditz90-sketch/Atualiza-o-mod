@@ -1,4 +1,4 @@
-# Froggydude - v0.4.1: contorção quadro a quadro, aldeão, vitória-régia (sobre a v0.4.0: gore e o golpe final)
+# Froggydude - v0.4.2: contorção por rotoscopia e o jeito de jogador (sobre a v0.4.1/0.4.0)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,27 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.1; do 7 em diante é o que mudou depois da v0.4.0):
+O que testar agora (v0.4.2):
+A) Fase 2 (`/froggydude fase2`): a contorção agora é ROTOSCOPIA do teu vídeo
+   (60 fps, 89,28-91,75 s). Cada pose foi ajustada contra o quadro do vídeo pela
+   cor de cada pixel (cara, coroa e lágrima pesam mais que o terno), com o
+   esqueleto conferido contra prints do jogo de verdade tirados com a mesma
+   câmera. 2,95 s. A v0.4.1 errava a cabeça (virava pra trás e mostrava o
+   cocuruto) porque o ajuste antigo achava a cara e o topo da cabeça "o mesmo verde".
+B) Jeito de jogador (a IA melhorada):
+   - Sem caminho até ti (fosso de lava, buraco, tu numa plataforma no ar que ele
+     não escala nem come), ele PÕE BLOCO: torre embaixo dele (olha pro pé, pula
+     e põe o bloco onde estava) ou ponte agachado (olha pro lugar, põe, anda).
+     Pedregulho, até 64 por vez. Respeita mobGriefing.
+   - A dancinha: agacha e levanta rápido (shift spam), pulando ou socando o ar.
+     Às vezes quando ele está "só olhando" de longe. `/froggydude dancar` testa.
+   - Matou o mesmo jogador 3 vezes num dia: da próxima vez ele chega andando,
+     ri, dança na tua frente, fala "kkkkkkk muito ruim" e "Não mexe comigo" no
+     chat e vai embora. Um dia de trégua - se tu bater nele, acabou a trégua.
+     `/froggydude zombar` testa.
+   - Andando à toa (e no "só olhando"), uns pulos sem motivo, como gente.
+
+Da v0.4.1 (do 7 em diante é o que mudou depois da v0.4.0):
 1) Primeira vez que o jogo abre: a tela de aviso escolhe o gore (Desligado,
    Leve, Médio, Pesado, Extremo); o Extremo tem tela própria ("Atenção ⚠").
    Depois muda em Mods > Froggydude > Configurar.
@@ -198,7 +218,9 @@ certo. Se mudar um, mude o outro.
 | CORPSE_TOSS     | corpse_toss       | 1,2 s     | solta o corpo pro alto aos 0,4 s     |
 | CORPSE_SHAKE    | corpse_shake      | 1,7 s     | o corpo na boca sacudindo            |
 | PAD_HOP         | pad_hop (loop)    | 0,3 s     | de vitória-régia em vitória-régia, pousa aos 0,2 s |
-| CONTORTING      | contort + contort_hold | 2,5 s + 2 a 4 s | dobra (losango), sobe, a cabeça quebra pra trás; torto, ombro deslocado |
+| CONTORTING      | contort + contort_hold | 2,95 s + 2 a 4 s | rotoscopia do vídeo (tools/anim/contort_fit.json); torto, ombro deslocado |
+| BUILD           | walk / idle + agachar e braço (modelo) | - | pondo bloco: torre e ponte (ai.PlayerMoves) |
+| TAUNT           | walk / idle + agachar e braço (modelo) | - | a dancinha; zombando                 |
 | ROAR            | roar              | 0,9 s     | grito aos 0,2 s, depois o ataque feroz |
 | perseguindo     | run / run_frenzy  | -         | galope de 4 (fase 2: mais esticado e rápido); poeira e barulho a cada patada |
 | parou caçando   | crouch_idle       | -         | fica agachado (só levanta após 1,5 s)|
@@ -264,7 +286,16 @@ O RandomLookAroundGoal (olhar pros lados sem motivo) também saiu.
 - `{DebugHeldArm:1b}` põe o braço do jogador mais perto na boca dele;
   `{DebugArmless:1b}` arranca o braço do jogador mais perto (sobrevivência).
 - `./gradlew runClient -PquickWorld=<mundo> -PfroggyDebug=1` liga logs
-  `[FROGGYDEBUG]` (pouso dos pulos, jogador preso, cada fala que ele diz).
+  `[FROGGYDEBUG]` (pouso dos pulos, jogador preso, cada fala que ele diz,
+  e o que o cérebro decide: pôr bloco, zombar...).
+- Comparar animação com vídeo quadro a quadro (como foi feita a contorção da
+  v0.4.2): `-PwinW=720 -PwinH=1280 -PanimSlow=0.05 -Pcapture=1` abre a janela
+  em pé (igual TikTok), roda a animação 20x mais devagar e salva um print por
+  quadro em `run/screenshots/cap_<tempo da animação>.png`. Com `{DebugAnim:"contort"}`,
+  o jogador em espectador no lugar da câmera do vídeo e `fovEffectScale:0.0`
+  (voando o jogo abre o campo de visão em 10%), cada print casa com o quadro
+  do vídeo do mesmo tempo. As poses da contorção ficam em
+  `tools/anim/contort_fit.json` (uma por tick; o build_anims lê de lá).
 
 ## Texturas (skins reais do FroggyDude)
 O modelo é o de jogador com braços de 4 px (skin "clássica"), 64x64.

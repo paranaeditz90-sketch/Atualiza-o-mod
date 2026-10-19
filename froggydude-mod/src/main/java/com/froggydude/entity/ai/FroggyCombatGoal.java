@@ -130,6 +130,8 @@ public class FroggyCombatGoal extends Goal {
     private static final int[] EAT_BITES = {6, 29, 52};
 
     private final FroggydudeEntity froggy;
+    /** Jeito de jogador: pôr bloco, a dancinha, zombar e ir embora. */
+    private final PlayerMoves moves;
 
     private LivingEntity trackedTarget;
     private Vec3 lastTargetPos;
@@ -175,6 +177,7 @@ public class FroggyCombatGoal extends Goal {
 
     public FroggyCombatGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
+        this.moves = new PlayerMoves(froggy);
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
@@ -197,7 +200,8 @@ public class FroggyCombatGoal extends Goal {
         if (state == FroggyState.ARM_EAT) return true; // termina de comer, com ou sem alvo
         LivingEntity target = froggy.getTarget();
         return target != null && target.isAlive()
-                && (state == FroggyState.CHASE || state.isCombatAction() || eating != null);
+                && (state == FroggyState.CHASE || state.isCombatAction() || eating != null
+                || state == FroggyState.BUILD || state == FroggyState.TAUNT);
     }
 
     @Override
@@ -208,8 +212,17 @@ public class FroggyCombatGoal extends Goal {
         }
     }
 
+    /** Comando de teste (/froggydude dancar). */
+    public void danceNow() {
+        moves.forceDance();
+    }
+
     @Override
     public void stop() {
+        moves.reset();
+        if (froggy.getFroggyState() == FroggyState.BUILD || froggy.getFroggyState() == FroggyState.TAUNT) {
+            froggy.setFroggyState(FroggyState.CHASE);
+        }
         stopEating();
         releaseVictim();
         froggy.setHeldArm(null);
@@ -263,6 +276,21 @@ public class FroggyCombatGoal extends Goal {
         }
         if (state.isAttack()) {
             runAttack(state, target, dist);
+            return;
+        }
+        moves.tickCooldowns();
+        // zombar (matou demais esse jogador), pôr bloco, a dancinha
+        if (froggy.isMocking(target)) {
+            moves.tickMock(target, dist);
+            return;
+        }
+        if (moves.building()) {
+            if (moves.tickBuild(target)) return;
+            stuckTicks = 0;
+            bestDist = dist;
+        }
+        if (moves.dancing()) {
+            moves.tickDance(target);
             return;
         }
         if (state != FroggyState.CHASE) {
@@ -323,7 +351,13 @@ public class FroggyCombatGoal extends Goal {
             froggy.getNavigation().stop();
         }
         // preso do lado de fora (a vítima se trancou em casa / num buraco): come a passagem
-        if (stuckFor(target, dist) >= STUCK_TICKS && (startEatObstacle(target) || approachDoor(target))) return;
+        // o caminho acabou na beirada (lava, buraco, ela numa plataforma no ar) e ela está
+        // ali, à vista: põe bloco na hora, como jogador - antes ele dava a volta procurando
+        // e acabava entrando na lava
+        if (froggy.tickCount % 10 == 0 && atPathEnd(target, dist) && moves.startBuilding(target)) return;
+        // preso: come a passagem, arromba a porta - ou põe bloco
+        if (stuckFor(target, dist) >= STUCK_TICKS
+                && (startEatObstacle(target) || approachDoor(target) || moves.startBuilding(target))) return;
         if (froggy.tickCount % 10 == 0) {
             net.minecraft.world.level.pathfinder.Path path = froggy.getNavigation().getPath();
             debug("persegue: dist=" + String.format("%.2f", dist) + " dy=" + String.format("%.2f", target.getY() - froggy.getY())
@@ -493,6 +527,18 @@ public class FroggyCombatGoal extends Goal {
             stuckTicks = 0;
         }
         return ++stuckTicks;
+    }
+
+    /**
+     * Ele já está no ponto mais perto que dá pra chegar andando (o fim do caminho
+     * parcial), a vítima ainda longe e à vista: andar não resolve mais.
+     */
+    private boolean atPathEnd(LivingEntity target, double dist) {
+        if (dist <= 2.5D || dist > 24.0D || !froggy.onGround() || !froggy.hasLineOfSight(target)) return false;
+        net.minecraft.world.level.pathfinder.Path p = froggy.getNavigation().createPath(target, 0);
+        if (p == null || p.canReach() || p.getEndNode() == null) return false;
+        // até 3 blocos antes: galopando ele passava da beirada e caía na lava antes de checar
+        return p.getEndNode().asBlockPos().distSqr(froggy.blockPosition()) <= 9;
     }
 
     /**
@@ -773,6 +819,12 @@ public class FroggyCombatGoal extends Goal {
      */
     private void runStalk(LivingEntity target, double dist) {
         froggy.getLookControl().setLookAt(target, 30.0F, 30.0F);
+        // brincando com a vítima de longe: às vezes a dancinha de jogador
+        if (froggy.tickCount % 20 == 0 && moves.maybeDance(target, dist)) return;
+        // andando como gente: de vez em quando um pulo à toa
+        if (froggy.onGround() && froggy.getNavigation().isInProgress() && froggy.getRandom().nextInt(60) == 0) {
+            froggy.getJumpControl().jump();
+        }
         if (--repathTicks > 0) return;
         repathTicks = 10;
         if (dist > 13.0D) {

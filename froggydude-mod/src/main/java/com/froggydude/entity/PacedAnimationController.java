@@ -13,6 +13,10 @@ import software.bernie.geckolib.core.animation.AnimationController;
  */
 public class PacedAnimationController<T extends GeoAnimatable> extends AnimationController<T> {
 
+    /** Só pra gravar quadro a quadro (froggydude.capture): o tempo da animação, em segundos, no último quadro desenhado. */
+    public static volatile double debugLastSeconds = -1D;
+    private static final boolean CAPTURE = Boolean.getBoolean("froggydude.capture");
+
     private double lastTick = -1D;
     private double elapsed = 0D;
 
@@ -30,6 +34,7 @@ public class PacedAnimationController<T extends GeoAnimatable> extends Animation
             this.shouldResetTick = false;
             this.lastTick = tick;
             this.elapsed = 0D;
+            if (CAPTURE) debugLastSeconds = 0D;
             return 0D;
         }
         if (this.lastTick < 0D || tick < this.lastTick) {
@@ -38,6 +43,7 @@ public class PacedAnimationController<T extends GeoAnimatable> extends Animation
         double speed = this.animationSpeedModifier.apply(this.animatable);
         this.elapsed += (tick - this.lastTick) * speed;
         this.lastTick = tick;
+        if (CAPTURE) debugLastSeconds = this.elapsed / 20D;
         return this.elapsed;
     }
 }

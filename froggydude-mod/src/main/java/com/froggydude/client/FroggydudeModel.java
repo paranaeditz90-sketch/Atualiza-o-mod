@@ -76,8 +76,9 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
         EntityModelData data = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
         FroggyState state = animatable.getFroggyState();
         if (head != null && data != null && animatable.getDebugAnim().isEmpty()) {
-            boolean upright = (state == FroggyState.IDLE || state == FroggyState.CHASE)
-                    && !animatable.isRunning() && !animatable.isClimbing() && !animatable.isFrenzyTired();
+            boolean upright = ((state == FroggyState.IDLE || state == FroggyState.CHASE)
+                    && !animatable.isRunning() && !animatable.isClimbing() && !animatable.isFrenzyTired())
+                    || state == FroggyState.BUILD || state == FroggyState.TAUNT;
             boolean aiming = state.isTongue() || state == FroggyState.BITE;
             if (upright) {
                 // o corpo inteiro vira atrás do olhar (FroggyBodyControl): o pescoço só ajusta o resto
@@ -93,6 +94,7 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
             // marca aqui, o próximo quadro sempre parte da pose da animação.
             head.resetStateChanges();
         }
+        playerMoves(animatable, animationState);
 
         CoreGeoBone tongue = getAnimationProcessor().getBone("tongue");
         if (tongue == null) return;
@@ -101,6 +103,42 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
         float lengthPx = blocks * 16F / FroggydudeEntity.MODEL_SCALE;
         tongue.setScaleZ(fraction * lengthPx);
         tongue.resetStateChanges(); // mesmo motivo da cabeça: senão a escala ia se multiplicando
+    }
+
+    /**
+     * Jeito de jogador (ai.PlayerMoves), por cima da animação em pé: agachado como
+     * o shift (tronco pra frente, cabeça olhando reto, corpo mais baixo) e o soco no
+     * ar / pôr bloco (o braço direito vai pra frente e volta, como o do jogador).
+     */
+    private void playerMoves(FroggydudeEntity animatable, AnimationState<FroggydudeEntity> animationState) {
+        if (!animatable.getDebugAnim().isEmpty()) return;
+        boolean crouch = animatable.isCrouchingPose();
+        float swing = animatable.getAttackAnim(animationState.getPartialTick());
+        if (!crouch && swing <= 0F) return;
+        CoreGeoBone root = getAnimationProcessor().getBone("root");
+        CoreGeoBone waist = getAnimationProcessor().getBone("waist");
+        CoreGeoBone head = getAnimationProcessor().getBone("head");
+        CoreGeoBone right = getAnimationProcessor().getBone("right_arm");
+        CoreGeoBone left = getAnimationProcessor().getBone("left_arm");
+        if (root == null || waist == null || head == null || right == null || left == null) return;
+        if (crouch) {
+            waist.setRotX(waist.getRotX() + 0.5F);
+            head.setRotX(head.getRotX() - 0.5F);
+            root.setPosY(root.getPosY() - 3.5F);
+            right.setRotX(right.getRotX() + 0.4F);
+            left.setRotX(left.getRotX() + 0.4F);
+        }
+        if (swing > 0F) {
+            float s = Mth.sin(swing * Mth.PI);
+            right.setRotX(right.getRotX() - s * 1.5F - Mth.sin(Mth.sqrt(swing) * Mth.PI) * 0.4F);
+            right.setRotY(right.getRotY() + Mth.sin(Mth.sqrt(swing) * Mth.TWO_PI) * 0.2F);
+        }
+        // mesmo motivo da cabeça: sem isso o ajuste se acumula nos quadros seguintes
+        root.resetStateChanges();
+        waist.resetStateChanges();
+        head.resetStateChanges();
+        right.resetStateChanges();
+        left.resetStateChanges();
     }
 
     private static ResourceLocation resolve(String variant, int stage) {

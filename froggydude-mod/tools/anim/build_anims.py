@@ -489,27 +489,19 @@ eat_keys += [
 ]
 ANIMS["arm_eat"] = animation(4.5, eat_keys, "hold_on_last_frame")
 
-# Contorção da fase 2 (v0.4.1) - o vídeo do LM em 60 fps (real60 89,2-91,6 s, a mesma
-# filmagem de 10,8-13,4 s), quadro a quadro contra o esqueleto com a skin de verdade e a
-# câmera do vídeo (longe, ~7 blocos, lente fechada, na altura de 1 bloco). Tempo da
-# animação = tempo do vídeo - 88,82 s. Em pé encarando; a cabeça cai e ele DOBRA num
-# estalo até o tronco quase deitar (~80°), com o TOPO da cabeça virado pra quem olha e
-# girado no próprio eixo (o "losango" da coroa), a perna esquerda dele bem aberta e as
-# mãos penduradas; a cabeça desce até a altura do quadril balançando pro lado direito
-# dele (a esquerda de quem olha); SOBE rápido (~0,3 s) com a cabeça ainda pendurada pra
-# frente até o tronco estar em pé, e só então a cabeça levanta, tombada pro ombro
-# esquerdo, com o braço direito jogado pra fora; aí a cabeça vai CAINDO PRA TRÁS sem
-# parar (a cara apontando cada vez mais pro céu, o queixo aparecendo em cima da gola) até
-# QUEBRAR pra trás e tombar pro ombro esquerdo, enquanto o OMBRO direito sobe (desloca:
-# o braço continua pendurado, a mão na altura do peito). As pernas ficam abertas, a
-# direita dele pra trás e a esquerda pra frente. A boca fica FECHADA (a cara de choro de
-# sempre): só abre no grito. 2,5 s (50 ticks); depois "contort_hold" (pose torta em loop,
-# quem decide o tempo é o servidor) e "roar": o grito, já disparando na corrida.
-# Na quebra o pescoço desloca: a cabeça cai 2 px, vem 4,5 px pra frente e 5 px pro
-# ombro esquerdo (no vídeo ela fica deitada na frente do ombro esquerdo, a gola aparecendo
-# do lado); sem o "pra frente" a nuca atravessa o peito e o ombro esquerdo fura a cabeça.
-CROOK = dict(waist=-10, waist_z=-8, head=-90, head_z=62, head_y=20, head_pos=(5.0, -2.0, -4.5), arm_py=6.5,
-             arms=6, arm_spread=8, arm_l=12, spread_l=6, legs=22, leg_l=-26, leg_spread=10, leg_spread_l=13)
+# Contorção da fase 2 (v0.4.2) - ROTOSCOPIA do vídeo do LM (real60, 89,28-91,75 s, 60 fps).
+# Cada pose de contort_fit.json foi ajustada contra o quadro do vídeo comparando a COR de
+# cada pixel (cara, coroa, lágrima, mãos pesam 4x o terno), com o esqueleto (rig.py)
+# conferido contra prints do jogo de verdade tirados com a mesma câmera. Uma pose a cada
+# 3 quadros do vídeo (20 por segundo, uma por tick; o jogo interpola entre elas).
+# Antes (v0.4.1) o ajuste era por "classe de cor", e pra ele a cara e o topo da cabeça
+# eram o mesmo verde: a cabeça saía virada pra trás, mostrando o cocuruto, quando no vídeo
+# ela afunda nos ombros e tomba de lado com a cara aparecendo.
+# Tempo da animação = tempo do vídeo - 88,82 s. De 0 a 0,46 s o vídeo corta pra outra cena:
+# aí ele só sai da pose em pé até a primeira pose ajustada. 2,95 s (59 ticks); depois
+# "contort_hold" (a última pose, travado torto, em loop) e "roar" (o grito).
+_FIT = json.load(open(os.path.join(HERE, "contort_fit.json"), encoding="utf-8"))
+CROOK = dict(_FIT["frames"][-1]["pose"])
 
 
 def crook(**over):
@@ -534,79 +526,27 @@ def contort_p(**kw):
     return planted(pose(**kw))
 
 
-# a cabeça indo pra trás (90,2-91,1 s no vídeo) e os ombros encolhendo: primeiro o
-# ESQUERDO dele sobe (90,3-90,8: no vídeo o alto do braço chega nos olhos; aqui 2,5 px, mais
-# que isso o ombro fura a cabeça jogada pra trás), depois o
-# direito sobe e o esquerdo volta (o direito não para: é o ombro deslocado da pose torta).
-# (tempo, inclinação pra trás, tombo pro ombro, ombro direito, ombro esquerdo, quanto da quebra)
-_BACK = [(1.58, -28, 14, 0.0, 1.5, 0.0, 0.0), (1.68, -40, 12, 0.0, 2.2, 0.05, 0.5),
-         (1.78, -52, 10, 0.3, 2.5, 0.12, 1.2), (1.88, -63, 9, 1.0, 2.5, 0.25, 2.0),
-         (1.98, -72, 9, 2.0, 1.8, 0.45, 2.6), (2.08, -79, 13, 3.0, 1.4, 0.6, 2.8),
-         (2.18, -85, 24, 4.2, 1.0, 0.7, 2.0), (2.28, -88, 38, 5.3, 0.5, 0.85, 0.5),
-         (2.38, -89, 50, 6.0, 0.0, 0.95, -1.2)]
-
-
-def _back_key(t, head, hz, py, lpy, neck, up):
-    # pernas/braços indo pra pose torta; o pescoço vai pro ombro esquerdo junto com a
-    # quebra e SOBE enquanto a cabeça passa pelos 60-85° (senão a borda de trás do queixo
-    # entra no peito e a gola corta a cabeça), descendo de novo quando ela tomba de lado
-    c = CROOK
-    mix = lambda a, b: round(a + (b - a) * neck, 2)
-    k = dict(waist=mix(-2, c["waist"]), waist_z=mix(0, c["waist_z"]), head=head, head_z=hz, head_y=mix(0, c["head_y"]),
-             arms=mix(-2, c["arms"]), arm_spread=mix(8, c["arm_spread"]), arm_l=mix(-4, c["arm_l"]),
-             spread_l=c["spread_l"], arm_py=py, arm_lpy=lpy, legs=c["legs"], leg_l=mix(-18, c["leg_l"]),
-             leg_spread=mix(8, c["leg_spread"]), leg_spread_l=mix(21, c["leg_spread_l"]))
-    hx, _, hzp = c["head_pos"]
-    if neck > 0 or up:
-        # pro lado só depois (antes o ombro esquerdo, ainda erguido, fura a cabeça)
-        k["head_pos"] = (round(hx * neck * neck, 2), up, round(hzp * neck, 2))
-    return (t, contort_p(**k))
-
-
-ANIMS["contort"] = animation(2.5, [
-    (0.00, pose()),
-    (0.20, pose(waist=8, head=48, arms=-4)),                                                  # cabeça baixa
-    (0.43, contort_p(waist=2, head=12, head_z=14, leg_spread=4, leg_spread_l=8)),             # sobe e ENCARA, tombada
-    (0.48, contort_p(waist=8, head=40, head_z=10, arm_l=-14, spread_l=8, leg_spread=2, leg_spread_l=18)),  # a cabeça cai (89,30)
-    (0.53, contort_p(waist=32, head=40, head_y=22, arms=-32, arm_l=-36, spread_l=18, leg_spread=3,
-                     leg_spread_l=22)),                                                       # CRACK: dobra (89,35)
-    (0.58, contort_p(waist=63, waist_z=3, head=24, head_y=37, arms=-63, arm_spread=6, arm_l=-52, spread_l=30,
-                     leg_spread=3, leg_spread_l=26)),                                         # o topo da cabeça pra frente (89,40)
-    (0.68, contort_p(waist=80, waist_y=15, waist_z=8, head=21, head_y=40, arms=-50, arm_l=-66, spread_l=16,
-                     leg_spread=8, leg_spread_l=26)),                                         # dobrado, losango (89,50)
-    (0.78, contort_p(waist=82, waist_y=21, waist_z=-6, head=24, head_y=49, head_z=6, arms=-34, arm_l=-74,
-                     spread_l=2, leg_l=6, leg_spread=10, leg_spread_l=12)),                   # desce pro lado direito dele (89,60)
-    (0.88, contort_p(waist=78, waist_y=26, waist_z=-14, head=28, head_y=60, head_z=16, arms=-62, arm_spread=12,
-                     arm_l=-68, spread_l=4, legs=-6, leg_spread=4, leg_spread_l=18)),          # mais baixo, girando (89,70)
-    (0.98, contort_p(waist=72, waist_y=14, waist_z=-8, head=38, head_y=64, head_z=-6, arms=-34, arm_l=-68,
-                     spread_l=6, leg_spread=8, leg_spread_l=14)),                             # CRACK, volta (89,80)
-    (1.08, contort_p(waist=54, waist_y=12, head=44, head_y=52, arms=-18, arm_l=-34, spread_l=-6, leg_l=-8,
-                     leg_spread=5, leg_spread_l=24)),                                         # SOBE, topo da cabeça ainda pra frente (89,90)
-    (1.18, contort_p(waist=16, waist_y=8, head=86, head_y=25, head_z=28, arms=-16, arm_spread=11, arm_l=-18,
-                     spread_l=-4, legs=14, leg_spread=14, leg_l=-12, leg_spread_l=24)),       # em pé, a cabeça pendurada (90,00)
-    (1.28, contort_p(waist=-8, waist_y=-8, head=18, head_y=18, head_z=16, arms=-10, arm_spread=26, arm_l=-12,
-                     spread_l=2, legs=24, leg_spread=11, leg_l=-13, leg_spread_l=22)),        # a cabeça levanta (90,10)
-    (1.38, contort_p(waist=4, waist_y=8, head=-6, head_y=9, head_z=18, arms=-40, arm_spread=36, arm_l=-26,
-                     spread_l=-2, legs=26, leg_spread=10, leg_l=-18, leg_spread_l=21)),       # braço direito pra fora (90,20)
-    (1.48, contort_p(waist=2, head=-18, head_y=10, head_z=15, arms=-10, arm_spread=16, arm_l=-12, spread_l=4,
-                     legs=24, leg_spread=8, leg_l=-18, leg_spread_l=21)),                     # (90,30)
-] + [_back_key(*b) for b in _BACK] + [
-    (2.50, crook()),                                                                          # TRAVA torto (91,32)
+ANIMS["contort"] = animation(_FIT["length"], [(0.00, pose())] + [
+    (f["t"], contort_p(**f["pose"])) for f in _FIT["frames"]
 ], "hold_on_last_frame")
 
 # Pose torta (short 6,27-7,2 s; horror mod 1,71-2,64 s): quase parado - só uns
 # trancos da cabeça, o ombro e a mão tremendo. Os ossos continuam estalando (servidor).
 ANIMS["contort_hold"] = animation(2.0, [
     (0.00, crook()),
-    (0.45, crook(head=CROOK["head"] + 3, head_z=CROOK["head_z"] + 3, arm_spread=8)),
-    (0.70, crook(head=CROOK["head"] - 4, head_z=CROOK["head_z"] - 5, waist_z=12, arm_py=CROOK["arm_py"] + 0.5)),
-    (0.76, crook(head=CROOK["head"] + 9, head_z=CROOK["head_z"] + 8, head_y=12, arm_spread=15, arms=CROOK["arms"] - 6)),  # tranco
+    (0.45, crook(head=CROOK["head"] + 3, head_z=CROOK["head_z"] + 3, arm_spread=CROOK["arm_spread"] - 2)),
+    (0.70, crook(head=CROOK["head"] - 4, head_z=CROOK["head_z"] - 5, waist_z=CROOK["waist_z"] + 6,
+                 arm_py=CROOK.get("arm_py", 0) + 0.5)),
+    (0.76, crook(head=CROOK["head"] + 9, head_z=CROOK["head_z"] + 8, head_y=CROOK["head_y"] + 10,
+                 arm_spread=CROOK["arm_spread"] + 6, arms=CROOK["arms"] - 6)),                    # tranco
     (0.90, crook(head=CROOK["head"] - 2, head_z=CROOK["head_z"])),
-    (1.35, crook(head=CROOK["head"] + 1, head_z=CROOK["head_z"] - 3, waist_z=8, arm_spread=9,
-                 arm_py=CROOK["arm_py"] - 0.5, root_px=0.2)),
-    (1.62, crook(head=CROOK["head"] - 3, head_z=CROOK["head_z"] + 2, head_y=6)),
-    (1.68, crook(head=CROOK["head"] - 9, head_z=CROOK["head_z"] - 9, head_y=-6, arm_spread=16, arms=CROOK["arms"] - 8,
-                 arm_py=CROOK["arm_py"] + 1)),                                                # tranco
+    (1.35, crook(head=CROOK["head"] + 1, head_z=CROOK["head_z"] - 3, waist_z=CROOK["waist_z"] + 3,
+                 arm_spread=CROOK["arm_spread"] + 1, arm_py=CROOK.get("arm_py", 0) - 0.5,
+                 root_px=CROOK.get("root_px", 0) + 0.2)),
+    (1.62, crook(head=CROOK["head"] - 3, head_z=CROOK["head_z"] + 2, head_y=CROOK["head_y"] + 4)),
+    (1.68, crook(head=CROOK["head"] - 9, head_z=CROOK["head_z"] - 9, head_y=CROOK["head_y"] - 8,
+                 arm_spread=CROOK["arm_spread"] + 8, arms=CROOK["arms"] - 8,
+                 arm_py=CROOK.get("arm_py", 0) + 1)),                                              # tranco
     (1.82, crook(head=CROOK["head"] + 1, head_z=CROOK["head_z"])),
     (2.00, crook()),
 ], True)
@@ -883,7 +823,7 @@ def main():
             "sky_drop": [0.3, 0.4, 1.1, 1.3, 1.7, 2.2],
             "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
             "arm_eat": [0.5, 0.64, 4.0],
-            "contort": [0.48, 0.53, 0.58, 0.68, 0.78, 0.88, 0.98, 1.08, 1.18, 1.28, 1.38, 1.48, 1.68, 1.88, 2.08, 2.18, 2.28, 2.38, 2.5],
+            "contort": [0.46, 0.7, 0.95, 1.2, 1.45, 1.7, 1.95, 2.2, 2.45, 2.7, 2.95],
             "contort_hold": [0.0, 0.76, 1.68],
             "roar": [0.1, 0.25, 0.38],
             "tongue_capture": [0.2, 0.6, 1.05],

@@ -16,13 +16,12 @@ public enum FroggyState {
     BITE(12),
     FEEDING(120),
     /**
-     * Fase 2, etapa 1 (o vídeo do LM em 60 fps, 89,2-91,6 s): encara, os ossos
-     * estalam, ele dobra até quase deitar com o topo da cabeça pra frente, levanta,
-     * a cabeça vai caindo pra trás até quebrar e o ombro direito sobe. Os 50 ticks
-     * são a animação "contort" (2,5 s); o tempo torto depois disso quem decide é a
-     * FroggyFrenzyGoal.
+     * Fase 2, etapa 1 (o vídeo do LM em 60 fps, 89,28-91,75 s): os ossos estalam,
+     * ele dobra até quase deitar, levanta, a cabeça afunda nos ombros e tomba, o
+     * ombro direito sobe. Os 59 ticks são a animação "contort" (2,95 s, rotoscopia
+     * do vídeo); o tempo torto depois disso quem decide é a FroggyFrenzyGoal.
      */
-    CONTORTING(50),
+    CONTORTING(59),
     /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */
     PIN_HOLD(100),
     /** Esmagamento: em pé por cima da vítima derrubada, desce os dois punhos juntos (vs AJ, 0:57). */
@@ -51,7 +50,11 @@ public enum FroggyState {
      * Atravessando água de vitória-régia em vitória-régia (fim do vídeo do LM,
      * 95,6-98,9 s): um salto a cada 6 ticks (FroggyPadHopGoal), enquanto tiver folha.
      */
-    PAD_HOP(6);
+    PAD_HOP(6),
+    /** Pondo bloco como jogador pra chegar na vítima (ai.PlayerMoves: torre e ponte). */
+    BUILD(0),
+    /** A "dancinha" de jogador: agacha e levanta, pula, soca o ar (ai.PlayerMoves). */
+    TAUNT(0);
 
     public final int durationTicks;
 

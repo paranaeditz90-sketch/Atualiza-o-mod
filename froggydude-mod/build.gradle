@@ -43,6 +43,17 @@ minecraft {
             if (project.hasProperty('froggyDebug')) {
                 property 'froggydude.debug', 'true'
             }
+            // Gravar animação quadro a quadro (comparar com vídeo): -PwinW=720 -PwinH=1280
+            // -PanimSlow=0.05 -Pcapture=1 (ver client.AnimCapture)
+            if (project.hasProperty('winW')) {
+                args '--width', project.property('winW'), '--height', project.property('winH')
+            }
+            if (project.hasProperty('animSlow')) {
+                property 'froggydude.animSlow', project.property('animSlow')
+            }
+            if (project.hasProperty('capture')) {
+                property 'froggydude.capture', 'true'
+            }
         }
 
         server {
