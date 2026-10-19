@@ -22,8 +22,9 @@ A) Cutscene (`/froggydude golpefinal`) refeita quadro a quadro em cima do "Eatin
    frente e repete, até sumir (o esquerdo some em 3,2 s, o direito em 6 s). Depois do
    direito fica uns 2 s parado, em pé, boca fechada, como no vídeo.
 B) A cabeça: morde, arranca, close quase parado, chicoteia rápido e então engole em
-   duas vezes (pra trás, uma chicotada pro lado, pra trás de novo); ela DIMINUI de
-   verdade na boca até sumir (antes encolhia só no comprimento, que aponta pra câmera
+   duas vezes (pra trás, uma chicotada pro lado, pra trás de novo); ela fica PRESA na
+   boca (antes era empurrada pra fora e flutuava solta em cima dele) e DIMINUI de
+   verdade até sumir (antes encolhia só no comprimento, que aponta pra câmera
    do close, então parecia do mesmo tamanho). O escuro do fim só vem depois que ela
    desce.
 C) O corpo dele andava uns 5 ticks atrasado em relação ao áudio, à câmera e ao pedaço
