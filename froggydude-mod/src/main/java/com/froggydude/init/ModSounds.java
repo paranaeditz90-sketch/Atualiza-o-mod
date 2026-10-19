@@ -62,10 +62,18 @@ public class ModSounds {
     /** Ossos estalando na contorção da fase 2 (vs Grox, 5:16: "hughghuguuhuh *crack*"). */
     public static final RegistryObject<SoundEvent> CRACK = register("froggydude.crack");
     /**
-     * O primeiro estalo da contorção (os outros a FroggyFrenzyGoal toca nos trancos
-     * da animação). O pacote de voz não mexe mais nele: o clipe de antes era fala.
+     * O começo da contorção. No mod é o primeiro estalo (os outros a FroggyFrenzyGoal toca
+     * nos trancos da animação); o pacote de voz põe o som original inteiro (3,4 s de gemido
+     * com os ossos estalando, o mesmo no short da fase 2, na versão longa e no "horror mod").
      */
     public static final RegistryObject<SoundEvent> CONTORT = register("froggydude.contort");
+    /**
+     * Os estalos e os gemidos que a contorção toca por conta própria (no mod: o CRACK e o
+     * HURT). O pacote de voz cala os dois, porque o som original já traz tudo; senão
+     * embolavam com ele (o "bloco de osso sendo posto no chão" que o LM ouviu).
+     */
+    public static final RegistryObject<SoundEvent> CONTORT_CRACK = register("froggydude.contort_crack");
+    public static final RegistryObject<SoundEvent> CONTORT_GRUNT = register("froggydude.contort_grunt");
     /**
      * A cutscene inteira com o áudio dele comendo a zebra (o vídeo "Eating a Zebra"):
      * só o pacote de voz tem o arquivo; no mod é vazio e ficam os sons de cada golpe.

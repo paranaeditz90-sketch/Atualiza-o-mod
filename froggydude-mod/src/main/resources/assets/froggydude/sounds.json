@@ -849,5 +849,23 @@
   "froggydude.finisher_r": {
     "sounds": [],
     "subtitle": "subtitles.froggydude.finisher"
+  },
+  "froggydude.contort_crack": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.crack",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.crack"
+  },
+  "froggydude.contort_grunt": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hurt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.hurt"
   }
 }

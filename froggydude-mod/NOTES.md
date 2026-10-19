@@ -1,4 +1,4 @@
-# Froggydude - v0.4.5: cutscene refeita quadro a quadro em cima da zebra (sobre a v0.4.4)
+# Froggydude - v0.4.6: som original da transformação (sobre a v0.4.5)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,18 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.5):
+O que testar agora (v0.4.6):
+A) Fase 2 (`/froggydude fase2`) com o pacote de voz NOVO: a transformação toca o som
+   original dele se contorcendo (3,4 s de gemido gutural com os ossos estalando, o mesmo
+   som no short da fase 2, na versão longa e no TikTok "I'm the horror mod"). Ele entra
+   quando a dobra rápida aparece (8 ticks depois do começo, a animação começa devagar).
+   Os estalos de "bloco de osso" e os gemidos que o mod tocava por cima ficam mudos com
+   o pacote (eventos próprios, froggydude.contort_crack/contort_grunt); sem o pacote,
+   fica como era. O clipe que saiu do pacote na 0.4.3 era esse mesmo som, só que
+   cortado (2,4 s), de qualidade pior e embolado com os estalos do mod; a transcrição
+   automática tinha "ouvido" uma frase no gemido.
+
+Da v0.4.5:
 A) Cutscene (`/froggydude golpefinal`) refeita quadro a quadro em cima do "Eating a
    Zebra" (60 fps, em câmera lenta). O braço arrancado fica ATRAVESSADO na boca, de um
    lado ao outro do rosto (cachorro com osso, igual a perna da zebra), e não mais
