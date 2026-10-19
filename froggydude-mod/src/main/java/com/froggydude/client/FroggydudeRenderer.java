@@ -301,7 +301,7 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             // na boca a cada chicotada (quem chicoteia é a cabeça dele) e no fim desce goela abaixo
             ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 12F * amp));
             ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 25F * amp));
-            swallow(ps, eaten, 6F);
+            swallow(ps, eaten, 3F);
             ps.translate(0F, 1.5F / 16F, 0F);
             renderPart(model.head, ps, vc, light);
             renderPart(model.hat, ps, vc, light);
@@ -332,7 +332,9 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
      */
     private static void swallow(PoseStack ps, float eaten, float depth) {
         if (eaten <= 0F) return;
-        ps.translate(0F, -depth * eaten / 16F, 0F);
+        // a cabeça sai do pescoço pra -y (o braço sai do ombro pra +y): pra dentro da boca é +y.
+        // (com -y ela era empurrada pra FORA e flutuava solta em cima dele na engolida)
+        ps.translate(0F, depth * eaten / 16F, 0F);
         float k = Math.max(0.02F, 1F - eaten);
         float side = 0.25F + 0.75F * k;
         ps.scale(side, k, side);
@@ -363,7 +365,7 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         if (head) {
             ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 12F * amp));
             ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 25F * amp));
-            swallow(ps, eaten, 6F);
+            swallow(ps, eaten, 3F);
             ps.translate(0F, 1.5F / 16F, 0F);
             for (ResourceLocation tex : textures) {
                 renderPart(model.getHead(), ps, buffers.getBuffer(RenderType.entityCutoutNoCull(tex)), light);
