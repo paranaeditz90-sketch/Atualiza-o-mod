@@ -1,6 +1,7 @@
 package com.froggydude.entity.ai;
 
 import com.froggydude.entity.BloodFx;
+import com.froggydude.entity.FeedLock;
 import com.froggydude.entity.Finisher;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
@@ -21,7 +22,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -38,6 +41,11 @@ import java.util.EnumSet;
  * sair no tick certo (com o sangue jorrando dos tocos, as falas e os sons) e
  * mata no fim. A câmera, a pose deitada e a cabeça na boca dele são do
  * cliente (client.cutscene), contando a partir do mesmo tick.
+ *
+ * Aldeão (LM: "comida favorita dele: players e aldeões, mesmas animações"):
+ * a mesma tabela, sem câmera de cinema (quem está perto vê de fora). Os braços
+ * do aldeão são uma peça só, cruzada: saem juntos, no tempo do braço direito
+ * (a tabela começa do jeito de quem já estava sem o esquerdo). Não sobra corpo.
  */
 public class FroggyFinisherGoal extends Goal {
 
@@ -45,7 +53,7 @@ public class FroggyFinisherGoal extends Goal {
     public static final int CORPSE_WATCH = 130;
 
     private final FroggydudeEntity froggy;
-    private ServerPlayer victim;
+    private LivingEntity victim;
     private Vec3 anchor;
     private Vec3 h;
     private float yaw;
@@ -72,10 +80,12 @@ public class FroggyFinisherGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        ServerPlayer p = froggy.takePendingFinisher();
+        LivingEntity p = froggy.takePendingFinisher();
         if (p == null) return false;
-        if (!p.isAlive() || p.level() != froggy.level() || p.isCreative() || p.isSpectator()) {
-            FinisherTracker.clear(p);
+        if (!p.isAlive() || p.level() != froggy.level() || p.isSpectator()
+                || p instanceof Player pl && pl.isCreative()) {
+            if (p instanceof Player pl) FinisherTracker.clear(pl);
+            if (!(p instanceof Player)) FeedLock.release(p);
             return false;
         }
         victim = p;
@@ -92,7 +102,8 @@ public class FroggyFinisherGoal extends Goal {
         done = false;
         lastT = -1;
         anyLimb = false;
-        skipLeft = ArmLoss.isArmless(victim);
+        ServerPlayer player = victim instanceof ServerPlayer sp ? sp : null;
+        skipLeft = player == null || ArmLoss.isArmless(player);
         ServerLevel level = (ServerLevel) froggy.level();
         // ele vem por trás dos pés: a cabeça da vítima aponta pra longe dele
         Vec3 d = victim.position().subtract(froggy.position()).multiply(1, 0, 1);
@@ -102,18 +113,20 @@ public class FroggyFinisherGoal extends Goal {
         anchor = ground(level, victim.position());
         start = level.getGameTime();
 
-        PinTracker.release(victim);
         victim.stopRiding();
         victim.stopUsingItem();
         victim.setSprinting(false);
-        FinisherTracker.mark(victim, froggy.getId());
+        if (player != null) {
+            PinTracker.release(player);
+            FinisherTracker.mark(player, froggy.getId());
+        } else {
+            // o aldeão não foge nem reage (a IA volta se ele escapar vivo: abort)
+            FeedLock.lock(victim);
+        }
         froggy.beginFinisher(victim, skipLeft);
         place();
         // a vítima deitada olha pro céu; o corpo no servidor fica parado onde caiu
-        float vYaw = yaw + 180F;
-        victim.connection.teleport(anchor.x, anchor.y, anchor.z, vYaw, 25F);
-        victim.setDeltaMovement(Vec3.ZERO);
-        victim.hurtMarked = true;
+        holdVictim();
 
         ModNetwork.CHANNEL.send(PacketDistributor.NEAR.with(() -> new PacketDistributor.TargetPoint(
                         anchor.x, anchor.y, anchor.z, 128.0D, level.dimension())),
@@ -122,6 +135,24 @@ public class FroggyFinisherGoal extends Goal {
         froggy.speak(VoiceSituation.PIN, true);
         level.playSound(null, anchor.x, anchor.y, anchor.z, ModSounds.PIN.get(), SoundSource.HOSTILE, 1.2F, 0.9F);
         froggy.brainLog("golpe final em " + victim.getScoreboardName() + (skipLeft ? " (já sem o braço esquerdo)" : ""));
+    }
+
+    /** A vítima parada no lugar onde caiu (o jogador pelo teleporte, senão o cliente dele a move). */
+    private void holdVictim() {
+        float vYaw = yaw + 180F;
+        if (victim instanceof ServerPlayer sp) {
+            sp.connection.teleport(anchor.x, anchor.y, anchor.z, vYaw, 25F);
+            sp.hurtMarked = true;
+        } else {
+            victim.moveTo(anchor.x, anchor.y, anchor.z, vYaw, 0F);
+            victim.setYBodyRot(vYaw);
+        }
+        victim.setDeltaMovement(Vec3.ZERO);
+    }
+
+    private boolean gone(ServerLevel level) {
+        return victim == null || victim.isRemoved() || !victim.isAlive() || victim.level() != level
+                || victim instanceof ServerPlayer sp && sp.hasDisconnected();
     }
 
     /** Chão embaixo de onde a vítima caiu (até 6 blocos); no ar/na água fica onde está. */
@@ -147,15 +178,13 @@ public class FroggyFinisherGoal extends Goal {
     @Override
     public void tick() {
         ServerLevel level = (ServerLevel) froggy.level();
-        if (victim == null || victim.isRemoved() || !victim.isAlive() || victim.level() != level || victim.hasDisconnected()) {
+        if (gone(level)) {
             abort(false);
             return;
         }
         int t = (int) (level.getGameTime() - start) + (skipLeft ? Finisher.SKIP : 0);
         place();
-        if (victim.position().distanceToSqr(anchor) > 0.04D) {
-            victim.connection.teleport(anchor.x, anchor.y, anchor.z, yaw + 180F, 25F);
-        }
+        if (victim.position().distanceToSqr(anchor) > 0.04D) holdVictim();
         victim.setDeltaMovement(Vec3.ZERO);
         // eventos que caem entre o último tick e este (o servidor pode pular tick)
         for (int k = lastT + 1; k <= t; k++) event(level, k);
@@ -173,7 +202,7 @@ public class FroggyFinisherGoal extends Goal {
         bite(level, t, Finisher.BITE_H, Finisher.RIP_H, nk, h);
 
         if (!skipLeft && t == Finisher.RIP_L) {
-            ArmLoss.removeArmQuiet(victim);
+            if (victim instanceof ServerPlayer sp) ArmLoss.removeArmQuiet(sp);
             anyLimb = true;
             rip(level, ls, l, 0.34F, Finisher.CUT_1 - Finisher.RIP_L);
         }
@@ -233,7 +262,18 @@ public class FroggyFinisherGoal extends Goal {
     private void finish(ServerLevel level) {
         if (done) return;
         done = true;
-        ServerPlayer p = victim;
+        if (!(victim instanceof ServerPlayer p)) {
+            // aldeão: engoliu a cabeça, acabou (não sobra corpo)
+            sendEnd(level);
+            froggy.endFinisher(true);
+            froggy.heal(froggy.getMaxHealth() * 0.2F);
+            froggy.setSkinVariant(SkinVariant.FED);
+            froggy.addGore(1.0F);
+            froggy.villagerEaten();
+            victim.hurt(devoured(level, froggy), Float.MAX_VALUE);
+            froggy.speakAfter(VoiceSituation.ATE, 15);
+            return;
+        }
         boolean corpse = GorePrefs.of(p).corpse();
         sendEnd(level);
         froggy.endFinisher(true);
@@ -257,10 +297,12 @@ public class FroggyFinisherGoal extends Goal {
         if (done) return;
         done = true;
         if (victim != null) {
-            FinisherTracker.clear(victim);
+            if (victim instanceof ServerPlayer sp) FinisherTracker.clear(sp);
+            else FeedLock.release(victim);
             if (froggy.level() instanceof ServerLevel level) {
                 sendEnd(level);
-                if (anyLimb && victim.isAlive() && !victim.hasDisconnected()) {
+                boolean here = !(victim instanceof ServerPlayer sp) || !sp.hasDisconnected();
+                if (anyLimb && victim.isAlive() && here) {
                     victim.hurt(devoured(level, froggy), Float.MAX_VALUE);
                 }
             }

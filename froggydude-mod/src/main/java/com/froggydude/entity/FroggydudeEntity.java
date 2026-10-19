@@ -183,6 +183,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Nullable
     private LivingEntity feedTarget;
     private int feedSearchCooldown = 0;
+    /**
+     * Aldeão é a comida favorita (junto com gente): sem ninguém pra caçar ele vai
+     * atrás do aldeão que vir. Depois de comer um, fica um minuto de barriga cheia.
+     */
+    private int villagerAppetite = 0;
+    private static final int VILLAGER_FULL_TICKS = 1200;
     private int movingHold = 0;
     private int pinnedVictimId = -1;
     private int vocalCooldown = 0;
@@ -222,7 +228,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private FroggyFinisherGoal finisherGoal;
     /** Quem vai pro golpe final no próximo tick (o golpe que mataria foi cancelado). */
     @Nullable
-    private ServerPlayer pendingFinisher;
+    private LivingEntity pendingFinisher;
     private boolean finishing;
     /** Teste: NBT "DebugHunt" faz ele caçar o porco mais perto (pra filmar de lado). */
     private boolean debugHunt = false;
@@ -499,14 +505,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /**
      * O golpe dele ia matar esse jogador: em vez de morrer na hora, no próximo
      * tick vem a cutscene (FroggyFinisherGoal). Chamado pelo event.FinisherEvents.
+     * Com aldeão (a outra comida favorita) é a mesma sequência, vista de fora:
+     * chamado pela FroggyFeedGoal depois da flexão.
      */
-    public void requestFinisher(ServerPlayer victim) {
+    public void requestFinisher(LivingEntity victim) {
         if (!finishing) pendingFinisher = victim;
     }
 
     @Nullable
-    public ServerPlayer takePendingFinisher() {
-        ServerPlayer p = pendingFinisher;
+    public LivingEntity takePendingFinisher() {
+        LivingEntity p = pendingFinisher;
         pendingFinisher = null;
         return p;
     }
@@ -516,12 +524,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     }
 
     /** Começou: larga tudo (vítima presa, braço na boca, língua) e entra no estado. */
-    public void beginFinisher(ServerPlayer victim, boolean skipLeft) {
+    public void beginFinisher(LivingEntity victim, boolean skipLeft) {
         finishing = true;
         holdTicks = 0;
         stopStalking();
         setPinnedVictim(victim);
-        setHeldArm(victim);
+        setHeldArm(victim instanceof Player p ? p : null);
         setTongueLength(0F);
         this.entityData.set(DATA_FINISH_SKIPLEFT, skipLeft);
         setFroggyState(FroggyState.FINISHER);
@@ -978,11 +986,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     /** Grunhe/geme (som de categoria), mas não por cima de outra fala (evita encavalar a voz). */
     public void vocalize(SoundEvent sound, float volume) {
+        vocalize(sound, volume, true);
+    }
+
+    /** mouth = false: geme de boca fechada (na contorção a cara fica a de choro). */
+    public void vocalize(SoundEvent sound, float volume, boolean mouth) {
         if (vocalCooldown > 0) return;
         this.playSound(sound, volume, 0.95F + this.getRandom().nextFloat() * 0.1F);
         vocalCooldown = 30;
         speakingLine = null;
-        openMouth(22);
+        if (mouth) openMouth(22);
     }
 
     // ---------------- falas (na ordem dos vídeos, ver entity/voice) ----------------
@@ -1175,6 +1188,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         openMouth(PUSHUP_TICKS + 2);
     }
 
+    /** Pode ir atrás de aldeão agora (não acabou de comer um)? */
+    public boolean wantsVillager() {
+        return villagerAppetite <= 0;
+    }
+
+    public void villagerEaten() {
+        villagerAppetite = VILLAGER_FULL_TICKS;
+    }
+
     public int getFeedSearchCooldown() {
         return feedSearchCooldown;
     }
@@ -1332,6 +1354,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
         if (attackCooldown > 0) attackCooldown--;
         if (feedSearchCooldown > 0) feedSearchCooldown--;
+        if (villagerAppetite > 0) villagerAppetite--;
         if (frenzyCooldown > 0) frenzyCooldown--;
         if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;

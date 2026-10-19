@@ -949,7 +949,7 @@ public class FroggyCombatGoal extends Goal {
         return (float) Math.min(mouth.distanceTo(chest), max) + 0.25F;
     }
 
-    private static double horizontalFactor(int airTicks) {
+    static double horizontalFactor(int airTicks) {
         return 1.0D + GROUND_FRICTION * (1.0D - Math.pow(AIR_FRICTION, airTicks - 1)) / (1.0D - AIR_FRICTION);
     }
 

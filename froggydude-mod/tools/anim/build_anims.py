@@ -339,24 +339,25 @@ ANIMS["high_jump"] = animation(1.6, [
 # em ~0,07 s, fica embaixo ~0,03, sobe em ~0,17 e segura ~0,07. Aqui 0,3 s por
 # mordida (6 ticks, o servidor morde junto) e duas mordidas por volta, uma
 # puxando pra cada lado.
-# Conferido no rig (pushup.py/check_poses.py): as mãos ficam no mesmo lugar (0,76
-# bloco na frente) em cima e embaixo; a boca vai de 0,87 a 0,47 de altura; com a
-# vítima a 1,5 bloco a câmera dela fica a 0,25 bloco da cabeça dele na descida.
-PUSH_UP = dict(root_y=-6, waist=60, legs=70, head=-45, arms=-76, arm_spread=18, leg_spread=10)
-PUSH_DOWN = dict(root_y=-5.5, waist=70, legs=70, head=0, arms=-82, arm_spread=18, leg_spread=10)
+# Conferido no rig (pushup.py/check_poses.py): as mãos ficam no mesmo lugar (~0,4
+# bloco na frente, embaixo do peito) em cima e embaixo; a boca vai de 0,69 a 0,42 de
+# altura; com a vítima a 1,5 bloco a câmera dela fica a 0,19 bloco da cabeça dele.
+# (LM) A cabeça fica RETA: alinhada com o corpo, sem virar pros lados e sem levantar -
+# quem sobe e desce é o peito (e um tico o quadril, que vai pro outro lado).
+PUSH_UP = dict(root_y=-6, waist=60, legs=70, head=-15, arms=-44, arm_spread=18, leg_spread=10)
+PUSH_DOWN = dict(root_y=-3.5, waist=84, legs=58, head=-15, arms=-58, arm_spread=18, leg_spread=10)
 
 
-def pushup_loop(tear=10.0, deep=5.0):
-    """Duas mordidas (0,6 s). tear: quanto a cabeça puxa pro lado na mordida."""
+def pushup_loop():
+    """Duas mordidas (0,6 s): desce rápido, fica embaixo um tico, sobe devagar, segura."""
     keys = []
-    for k, side in ((0, 1), (1, -1)):
+    for k in (0, 1):
         o = k * 0.3
         keys += [
             (o + 0.00, pose(**PUSH_UP)),
-            (o + 0.06, pose(**{**PUSH_UP, "head": PUSH_UP["head"] - 6, "waist": PUSH_UP["waist"] - 2})),   # arma
-            (o + 0.12, pose(**{**PUSH_DOWN, "head_y": tear * side, "head_z": tear * 0.6 * side})),          # MORDE
-            (o + 0.15, pose(**{**PUSH_DOWN, "head": PUSH_DOWN["head"] + deep, "waist": PUSH_DOWN["waist"] + 1,
-                               "head_y": tear * 1.4 * side, "head_z": tear * 0.8 * side})),                   # rasga
+            (o + 0.06, pose(**PUSH_UP)),                                                  # segura em cima
+            (o + 0.12, pose(**PUSH_DOWN)),                                                # MORDE
+            (o + 0.15, pose(**{**PUSH_DOWN, "waist": PUSH_DOWN["waist"] + 2})),           # crava
         ]
     keys.append((0.60, pose(**PUSH_UP)))
     return keys
@@ -488,91 +489,125 @@ eat_keys += [
 ]
 ANIMS["arm_eat"] = animation(4.5, eat_keys, "hold_on_last_frame")
 
-# Contorção da fase 2 (v0.3.4) - short "Throwing hands with AJTHEBOLD" (8b375ecc,
-# 4,50-6,45 s) e "Minecraft but I'm the horror mod" (49b65850, 0,00-2,64 s), os
-# dois quadro a quadro (scratchpad/REFS_v034.md). Tempo da animação = tempo do
-# short - 4,07 s. Em pé encarando; a cabeça cai e ele DOBRA num estalo (~0,15 s)
-# até o tronco ficar quase na horizontal, com o TOPO da cabeça virado pra quem
-# olha e girado uns 45° (o "losango" da coroa nos dois vídeos), pernas abertas,
-# mãos penduradas quase no chão; balança pro lado direito dele (a cabeça desce e
-# vai pra esquerda de quem olha); SOBE rápido (~0,2 s) com a cabeça ainda virada
-# pra frente até o tronco estar em pé, e só então a cabeça levanta; fica em pé
-# meio torto (braço direito aberto pra frente, cabeça olha pra cima, depois pra
-# baixo) e por fim TRAVA torto: o OMBRO direito sobe (desloca, não é o braço
-# erguido: o braço continua pendurado, a mão na altura do peito, um pouco pra
-# fora), o tronco inclina um pouco pra TRÁS, a perna esquerda dele vai pra frente e a
-# direita pra trás, e a cabeça QUEBRA PRA TRÁS num estalo (~95°, a cara apontando pra
-# cima) com o pescoço esticado (2 px pra cima, 1,5 pra frente e 2,5 pro ombro esquerdo -
-# sem isso a frente do tronco tapa o queixo, e com mais de ~110° a nuca atravessa o
-# peito) e tomba pro ombro esquerdo: de frente aparece o queixo inteiro em cima da gola
-# (os dois pixels azuis da skin) com a fileira da boca na borda de cima, inclinado
-# descendo pro ombro; olha pra cima de lado. Conferido no jogo contra o short 6,4-7,2 s.
-# 2,2 s (44 ticks); depois "contort_hold" (pose torta em loop, quem decide o tempo é
-# o servidor) e "roar": o grito, já disparando na corrida.
-CROOK = dict(waist=-8, waist_z=10, head=-95, head_z=35, head_pos=(2.5, 2, -1.5), arm_py=4, arms=-6, arm_spread=10,
-             arm_l=6, spread_l=4, legs=14, leg_l=-16, leg_spread=5, leg_spread_l=8)
+# Contorção da fase 2 (v0.4.1) - o vídeo do LM em 60 fps (real60 89,2-91,6 s, a mesma
+# filmagem de 10,8-13,4 s), quadro a quadro contra o esqueleto com a skin de verdade e a
+# câmera do vídeo (longe, ~7 blocos, lente fechada, na altura de 1 bloco). Tempo da
+# animação = tempo do vídeo - 88,82 s. Em pé encarando; a cabeça cai e ele DOBRA num
+# estalo até o tronco quase deitar (~80°), com o TOPO da cabeça virado pra quem olha e
+# girado no próprio eixo (o "losango" da coroa), a perna esquerda dele bem aberta e as
+# mãos penduradas; a cabeça desce até a altura do quadril balançando pro lado direito
+# dele (a esquerda de quem olha); SOBE rápido (~0,3 s) com a cabeça ainda pendurada pra
+# frente até o tronco estar em pé, e só então a cabeça levanta, tombada pro ombro
+# esquerdo, com o braço direito jogado pra fora; aí a cabeça vai CAINDO PRA TRÁS sem
+# parar (a cara apontando cada vez mais pro céu, o queixo aparecendo em cima da gola) até
+# QUEBRAR pra trás e tombar pro ombro esquerdo, enquanto o OMBRO direito sobe (desloca:
+# o braço continua pendurado, a mão na altura do peito). As pernas ficam abertas, a
+# direita dele pra trás e a esquerda pra frente. A boca fica FECHADA (a cara de choro de
+# sempre): só abre no grito. 2,5 s (50 ticks); depois "contort_hold" (pose torta em loop,
+# quem decide o tempo é o servidor) e "roar": o grito, já disparando na corrida.
+# Na quebra o pescoço desloca: a cabeça cai 2 px, vem 4,5 px pra frente e 5 px pro
+# ombro esquerdo (no vídeo ela fica deitada na frente do ombro esquerdo, a gola aparecendo
+# do lado); sem o "pra frente" a nuca atravessa o peito e o ombro esquerdo fura a cabeça.
+CROOK = dict(waist=-10, waist_z=-8, head=-90, head_z=62, head_y=20, head_pos=(5.0, -2.0, -4.5), arm_py=6.5,
+             arms=6, arm_spread=8, arm_l=12, spread_l=6, legs=22, leg_l=-26, leg_spread=10, leg_spread_l=13)
 
 
 def crook(**over):
     p = dict(CROOK)
     p.update(over)
-    return pose(**p)
+    return planted(pose(**p))
 
 
-# dobrado: tronco a ~70° (a cabeça fica a meia altura, as pernas aparecendo embaixo),
-# cabeça alinhada com ele (o topo pra frente) e
-# girada 45° no próprio eixo, pernas abertas (a esquerda mais), mãos penduradas
-FOLD = dict(waist=68, head=6, head_y=45, arm_spread=4, spread_l=6, leg_spread=5, leg_spread_l=14)
+def planted(p):
+    """Perna aberta encurta: baixa o corpo até o pé mais baixo encostar no chão (sem
+    isso ele flutua 1-2 px com as pernas abertas)."""
+    low = rig.lowest(rig.frames(p))
+    m = min(low["right_leg"], low["left_leg"])
+    if m <= 0.05:
+        return p
+    p = copy.deepcopy(p)
+    p["root"]["position"][1] = round(p["root"]["position"][1] - m, 2)
+    return p
 
 
-def fold(**over):
-    p = dict(FOLD)
-    p.update(over)
-    p.setdefault("arms", -p["waist"])
-    return pose(**p)
+def contort_p(**kw):
+    return planted(pose(**kw))
 
 
-ANIMS["contort"] = animation(2.2, [
+# a cabeça indo pra trás (90,2-91,1 s no vídeo) e os ombros encolhendo: primeiro o
+# ESQUERDO dele sobe (90,3-90,8: no vídeo o alto do braço chega nos olhos; aqui 2,5 px, mais
+# que isso o ombro fura a cabeça jogada pra trás), depois o
+# direito sobe e o esquerdo volta (o direito não para: é o ombro deslocado da pose torta).
+# (tempo, inclinação pra trás, tombo pro ombro, ombro direito, ombro esquerdo, quanto da quebra)
+_BACK = [(1.58, -28, 14, 0.0, 1.5, 0.0, 0.0), (1.68, -40, 12, 0.0, 2.2, 0.05, 0.5),
+         (1.78, -52, 10, 0.3, 2.5, 0.12, 1.2), (1.88, -63, 9, 1.0, 2.5, 0.25, 2.0),
+         (1.98, -72, 9, 2.0, 1.8, 0.45, 2.6), (2.08, -79, 13, 3.0, 1.4, 0.6, 2.8),
+         (2.18, -85, 24, 4.2, 1.0, 0.7, 2.0), (2.28, -88, 38, 5.3, 0.5, 0.85, 0.5),
+         (2.38, -89, 50, 6.0, 0.0, 0.95, -1.2)]
+
+
+def _back_key(t, head, hz, py, lpy, neck, up):
+    # pernas/braços indo pra pose torta; o pescoço vai pro ombro esquerdo junto com a
+    # quebra e SOBE enquanto a cabeça passa pelos 60-85° (senão a borda de trás do queixo
+    # entra no peito e a gola corta a cabeça), descendo de novo quando ela tomba de lado
+    c = CROOK
+    mix = lambda a, b: round(a + (b - a) * neck, 2)
+    k = dict(waist=mix(-2, c["waist"]), waist_z=mix(0, c["waist_z"]), head=head, head_z=hz, head_y=mix(0, c["head_y"]),
+             arms=mix(-2, c["arms"]), arm_spread=mix(8, c["arm_spread"]), arm_l=mix(-4, c["arm_l"]),
+             spread_l=c["spread_l"], arm_py=py, arm_lpy=lpy, legs=c["legs"], leg_l=mix(-18, c["leg_l"]),
+             leg_spread=mix(8, c["leg_spread"]), leg_spread_l=mix(21, c["leg_spread_l"]))
+    hx, _, hzp = c["head_pos"]
+    if neck > 0 or up:
+        # pro lado só depois (antes o ombro esquerdo, ainda erguido, fura a cabeça)
+        k["head_pos"] = (round(hx * neck * neck, 2), up, round(hzp * neck, 2))
+    return (t, contort_p(**k))
+
+
+ANIMS["contort"] = animation(2.5, [
     (0.00, pose()),
-    (0.20, pose(waist=8, head=48, arms=-4)),                                     # cabeça baixa
-    (0.43, pose(waist=2, head=12, head_z=14, leg_spread=4, leg_spread_l=8)),     # sobe e ENCARA, cabeça tombada (short 4,50)
-    (0.48, pose(waist=8, head=42, head_z=16, arms=-8, leg_spread=4, leg_spread_l=8)),    # a cabeça cai (4,55)
-    (0.53, pose(waist=35, head=48, head_y=15, arms=-35, leg_spread=4, leg_spread_l=10)),  # CRACK: dobra (4,60)
-    (0.57, pose(waist=62, head=14, head_y=35, arms=-60, leg_spread=5, leg_spread_l=12)),  # (4,64)
-    (0.62, fold()),                                                              # dobrado, topo da cabeça pra frente (4,69)
-    (0.70, fold(waist=70, waist_y=6, head_y=40, head_z=4)),                      # balança pro lado direito dele (4,77)
-    (0.80, fold(waist=72, waist_y=12, head=10, head_y=32, head_z=6)),
-    (0.92, fold(waist=76, waist_y=18, head=14, head_y=22, head_z=8, arm_l=-80)),  # mais baixo e de lado (4,99)
-    (1.02, fold(waist=70, waist_y=10, head=8, head_y=30)),                      # CRACK, volta (5,09)
-    (1.07, pose(waist=50, waist_y=4, head=36, head_y=40, arms=-48, leg_spread=5, leg_spread_l=12)),  # SOBE, topo da cabeça ainda pra frente (5,14)
-    (1.12, pose(waist=18, head=70, head_y=40, arms=-16, leg_spread=5, leg_spread_l=11)),   # tronco quase em pé, cabeça dobrada (5,19)
-    (1.20, pose(waist=10, head=55, head_y=20, head_z=10, arms=-8, arm_spread=10, leg_spread=5, leg_spread_l=10)),  # (5,27)
-    # em pé (5,3-6,1 s no short): tronco levemente pra TRÁS, a perna esquerda dele na
-    # frente e aberta, a direita pra trás (é a da direita de quem olha que fica à frente)
-    (1.27, pose(waist=-2, head=20, head_z=16, arms=-20, arm_spread=28, spread_l=10, legs=4, leg_l=-6, leg_spread=5, leg_spread_l=11)),  # cabeça subindo (5,34)
-    (1.38, pose(waist=-4, head=-2, head_z=14, head_y=-6, arms=-40, arm_spread=36, spread_l=8, legs=6, leg_l=-8, leg_spread=5, leg_spread_l=12)),  # braço aberto pra frente (5,45)
-    (1.52, pose(waist=-6, head=-22, head_z=8, arms=-10, arm_spread=18, spread_l=8, legs=6, leg_l=-8, leg_spread=5, leg_spread_l=12)),  # olha pra cima (5,59)
-    (1.62, pose(waist=-6, head=-20, head_z=4, arm_spread=8, spread_l=6, legs=6, leg_l=-8, leg_spread=5, leg_spread_l=12)),
-    (1.75, pose(waist=-2, head=26, head_z=6, arm_spread=8, spread_l=6, legs=6, leg_l=-8, leg_spread=5, leg_spread_l=12)),     # olha pra baixo (5,82)
-    (1.90, pose(waist=0, head=44, head_z=10, arms=-8, arm_spread=8, spread_l=6, legs=6, leg_l=-8, leg_spread=5, leg_spread_l=12)),
-    (2.02, pose(waist=0, head=48, head_z=18, arm_py=2, arms=-8, arm_spread=8, spread_l=5, legs=8, leg_l=-10, leg_spread=5, leg_spread_l=11)),  # ombro começa (6,09)
-    (2.10, crook(head=30, head_z=30, head_pos=(0.5, 0, 1), arm_py=3, waist=-4, waist_z=4, legs=11, leg_l=-13,
-                 leg_spread=5, leg_spread_l=9)),                                   # CRACK do ombro, cabeça ainda baixa (6,17)
-    (2.20, crook()),                                                             # TRAVA torto (6,27)
+    (0.20, pose(waist=8, head=48, arms=-4)),                                                  # cabeça baixa
+    (0.43, contort_p(waist=2, head=12, head_z=14, leg_spread=4, leg_spread_l=8)),             # sobe e ENCARA, tombada
+    (0.48, contort_p(waist=8, head=40, head_z=10, arm_l=-14, spread_l=8, leg_spread=2, leg_spread_l=18)),  # a cabeça cai (89,30)
+    (0.53, contort_p(waist=32, head=40, head_y=22, arms=-32, arm_l=-36, spread_l=18, leg_spread=3,
+                     leg_spread_l=22)),                                                       # CRACK: dobra (89,35)
+    (0.58, contort_p(waist=63, waist_z=3, head=24, head_y=37, arms=-63, arm_spread=6, arm_l=-52, spread_l=30,
+                     leg_spread=3, leg_spread_l=26)),                                         # o topo da cabeça pra frente (89,40)
+    (0.68, contort_p(waist=80, waist_y=15, waist_z=8, head=21, head_y=40, arms=-50, arm_l=-66, spread_l=16,
+                     leg_spread=8, leg_spread_l=26)),                                         # dobrado, losango (89,50)
+    (0.78, contort_p(waist=82, waist_y=21, waist_z=-6, head=24, head_y=49, head_z=6, arms=-34, arm_l=-74,
+                     spread_l=2, leg_l=6, leg_spread=10, leg_spread_l=12)),                   # desce pro lado direito dele (89,60)
+    (0.88, contort_p(waist=78, waist_y=26, waist_z=-14, head=28, head_y=60, head_z=16, arms=-62, arm_spread=12,
+                     arm_l=-68, spread_l=4, legs=-6, leg_spread=4, leg_spread_l=18)),          # mais baixo, girando (89,70)
+    (0.98, contort_p(waist=72, waist_y=14, waist_z=-8, head=38, head_y=64, head_z=-6, arms=-34, arm_l=-68,
+                     spread_l=6, leg_spread=8, leg_spread_l=14)),                             # CRACK, volta (89,80)
+    (1.08, contort_p(waist=54, waist_y=12, head=44, head_y=52, arms=-18, arm_l=-34, spread_l=-6, leg_l=-8,
+                     leg_spread=5, leg_spread_l=24)),                                         # SOBE, topo da cabeça ainda pra frente (89,90)
+    (1.18, contort_p(waist=16, waist_y=8, head=86, head_y=25, head_z=28, arms=-16, arm_spread=11, arm_l=-18,
+                     spread_l=-4, legs=14, leg_spread=14, leg_l=-12, leg_spread_l=24)),       # em pé, a cabeça pendurada (90,00)
+    (1.28, contort_p(waist=-8, waist_y=-8, head=18, head_y=18, head_z=16, arms=-10, arm_spread=26, arm_l=-12,
+                     spread_l=2, legs=24, leg_spread=11, leg_l=-13, leg_spread_l=22)),        # a cabeça levanta (90,10)
+    (1.38, contort_p(waist=4, waist_y=8, head=-6, head_y=9, head_z=18, arms=-40, arm_spread=36, arm_l=-26,
+                     spread_l=-2, legs=26, leg_spread=10, leg_l=-18, leg_spread_l=21)),       # braço direito pra fora (90,20)
+    (1.48, contort_p(waist=2, head=-18, head_y=10, head_z=15, arms=-10, arm_spread=16, arm_l=-12, spread_l=4,
+                     legs=24, leg_spread=8, leg_l=-18, leg_spread_l=21)),                     # (90,30)
+] + [_back_key(*b) for b in _BACK] + [
+    (2.50, crook()),                                                                          # TRAVA torto (91,32)
 ], "hold_on_last_frame")
 
 # Pose torta (short 6,27-7,2 s; horror mod 1,71-2,64 s): quase parado - só uns
 # trancos da cabeça, o ombro e a mão tremendo. Os ossos continuam estalando (servidor).
 ANIMS["contort_hold"] = animation(2.0, [
     (0.00, crook()),
-    (0.45, crook(head=-92, head_z=39, arm_spread=8)),
-    (0.70, crook(head=-99, head_z=31, waist_z=12, arm_py=4.5)),
-    (0.76, crook(head=-86, head_z=44, head_y=12, arm_spread=15, arms=-12)),      # tranco
-    (0.90, crook(head=-97, head_z=36)),
-    (1.35, crook(head=-94, head_z=33, waist_z=8, arm_spread=9, arm_py=3.5, root_px=0.2)),
-    (1.62, crook(head=-98, head_z=38, head_y=6)),
-    (1.68, crook(head=-104, head_z=27, head_y=-6, arm_spread=16, arms=-14, arm_py=5)),  # tranco
-    (1.82, crook(head=-94, head_z=36)),
+    (0.45, crook(head=CROOK["head"] + 3, head_z=CROOK["head_z"] + 3, arm_spread=8)),
+    (0.70, crook(head=CROOK["head"] - 4, head_z=CROOK["head_z"] - 5, waist_z=12, arm_py=CROOK["arm_py"] + 0.5)),
+    (0.76, crook(head=CROOK["head"] + 9, head_z=CROOK["head_z"] + 8, head_y=12, arm_spread=15, arms=CROOK["arms"] - 6)),  # tranco
+    (0.90, crook(head=CROOK["head"] - 2, head_z=CROOK["head_z"])),
+    (1.35, crook(head=CROOK["head"] + 1, head_z=CROOK["head_z"] - 3, waist_z=8, arm_spread=9,
+                 arm_py=CROOK["arm_py"] - 0.5, root_px=0.2)),
+    (1.62, crook(head=CROOK["head"] - 3, head_z=CROOK["head_z"] + 2, head_y=6)),
+    (1.68, crook(head=CROOK["head"] - 9, head_z=CROOK["head_z"] - 9, head_y=-6, arm_spread=16, arms=CROOK["arms"] - 8,
+                 arm_py=CROOK["arm_py"] + 1)),                                                # tranco
+    (1.82, crook(head=CROOK["head"] + 1, head_z=CROOK["head_z"])),
     (2.00, crook()),
 ], True)
 
@@ -658,8 +693,8 @@ ANIMS["feed"] = animation(1.0, [
 
 
 # Comendo um mob caído (o "Taste testing": warden, golem, dragão...): a mesma
-# flexão do jogador, puxando mais forte pro lado (arranca pedaço).
-ANIMS["feed_mob"] = animation(0.6, pushup_loop(tear=16.0, deep=8.0), True)
+# flexão de quando come o jogador.
+ANIMS["feed_mob"] = animation(0.6, pushup_loop(), True)
 
 def sample(anim, t):
     out = {}
@@ -830,7 +865,7 @@ def main():
             "sky_drop": [0.3, 0.4, 1.1, 1.3, 1.7, 2.2],
             "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
             "arm_eat": [0.5, 0.64, 4.0],
-            "contort": [0.43, 0.47, 0.5, 0.53, 0.56, 0.6, 0.63, 0.69, 0.76, 0.82, 0.89, 0.95, 1.02, 1.08, 1.12, 1.15, 1.18, 1.21, 1.25, 1.31, 1.38, 1.51, 1.63, 1.78, 1.99, 2.06, 2.12, 2.2],
+            "contort": [0.48, 0.53, 0.58, 0.68, 0.78, 0.88, 0.98, 1.08, 1.18, 1.28, 1.38, 1.48, 1.68, 1.88, 2.08, 2.18, 2.28, 2.38, 2.5],
             "contort_hold": [0.0, 0.76, 1.68],
             "roar": [0.1, 0.25, 0.38],
             "tongue_capture": [0.2, 0.6, 1.05],

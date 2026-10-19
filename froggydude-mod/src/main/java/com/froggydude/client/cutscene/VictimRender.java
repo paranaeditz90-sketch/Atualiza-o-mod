@@ -50,9 +50,9 @@ public final class VictimRender {
     }
 
     /** WalkAnimationState.position / speed / speedOld: as pernas e o braço chutando ao se debater. */
-    private static final Field WALK_POS = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267358_");
-    private static final Field WALK_SPEED = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267371_");
-    private static final Field WALK_SPEED_O = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267406_");
+    static final Field WALK_POS = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267358_");
+    static final Field WALK_SPEED = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267371_");
+    static final Field WALK_SPEED_O = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267406_");
 
     /**
      * Quanto ela se debate agora (0 a 1). Igual à zebra do vídeo: da mordida até arrancar,
@@ -220,11 +220,11 @@ public final class VictimRender {
     }
 
     /** Vai e volta irregular (-1 a 1), sem ficar com cara de pêndulo. */
-    private static float jitter(float time, float speed) {
+    static float jitter(float time, float speed) {
         return Mth.sin(time * speed) * 0.7F + Mth.sin(time * speed * 2.27F + 1.3F) * 0.3F;
     }
 
-    private static float getF(Field f, Object o) {
+    static float getF(Field f, Object o) {
         try {
             return f.getFloat(o);
         } catch (IllegalAccessException ex) {
@@ -232,7 +232,7 @@ public final class VictimRender {
         }
     }
 
-    private static void setF(Field f, Object o, float v) {
+    static void setF(Field f, Object o, float v) {
         try {
             f.setFloat(o, v);
         } catch (IllegalAccessException ignored) {

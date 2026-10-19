@@ -43,6 +43,8 @@ public final class ScreenBlood {
     private static final int MAX = 28;
     private static final List<Splat> SPLATS = new ArrayList<>();
     private static float film, filmO;
+    /** 1 coração: daqui pra baixo a tela vai ficando vermelha. */
+    private static final float LOW_HEALTH = 2.0F;
     private static int filmHold;
     private static float filmR = 0.55F, filmG = 0.02F, filmB = 0.02F;
 
@@ -115,11 +117,17 @@ public final class ScreenBlood {
         }
     }
 
-    /** Película vermelha por igual (esmagado embaixo dele): soma a cada soco. */
+    /**
+     * Película vermelha por igual (esmagado embaixo dele): soma a cada soco - mas só
+     * com 1 coração ou menos (LM: "começa a ficar vermelha somente quando o player tá
+     * quase morrendo"). Acima disso o soco só respinga.
+     */
     public static void film(float add, int color) {
         if (com.froggydude.client.cutscene.CinematicCamera.active()) return;
         GoreLevel g = gore();
         if (!g.screen()) return;
+        LocalPlayer me = Minecraft.getInstance().player;
+        if (me == null || me.getHealth() > LOW_HEALTH) return;
         float mul = g == GoreLevel.EXTREME ? 1.4F : g == GoreLevel.MEDIUM ? 0.5F : 1F;
         film = Math.min(g == GoreLevel.EXTREME ? 1.0F : 0.85F, film + add * mul);
         filmHold = 40;
@@ -151,11 +159,18 @@ public final class ScreenBlood {
         boolean underwater = p.isEyeInFluid(net.minecraft.tags.FluidTags.WATER);
         boolean rain = p.level().isRainingAt(p.blockPosition().above());
         filmO = film;
-        if (filmHold > 0) {
+        // quase morrendo: o vermelho sobe aos poucos (a opacidade aumentando, como no vídeo),
+        // mais forte quanto menos vida sobra; com mais de 1 coração vai sumindo
+        float hp = p.getHealth();
+        float low = p.isAlive() && hp <= LOW_HEALTH ? 0.3F + 0.6F * (1F - hp / LOW_HEALTH) : 0F;
+        if (film < low) {
+            film = Math.min(low, film + 0.015F);
+            filmHold = Math.max(filmHold, 10);
+        } else if (filmHold > 0) {
             filmHold--;
         } else {
             float keep = g == GoreLevel.EXTREME ? 0.997F : 0.985F;
-            film *= keep;
+            film *= hp > LOW_HEALTH ? 0.95F : keep;
         }
         if (underwater) film *= 0.9F;
         if (film < 0.003F) film = 0F;

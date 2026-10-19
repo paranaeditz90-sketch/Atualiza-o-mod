@@ -11,6 +11,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
+import net.minecraft.client.model.VillagerModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -19,11 +20,18 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.VillagerData;
+import net.minecraft.world.entity.npc.VillagerDataHolder;
+import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.entity.npc.WanderingTrader;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -31,6 +39,8 @@ import software.bernie.geckolib.cache.object.GeoBone;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import software.bernie.geckolib.util.RenderUtils;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -254,6 +264,9 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                                      float partial, MultiBufferSource buffers, int light) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return false;
+        if (mc.level.getEntity(e.victimId) instanceof AbstractVillager villager) {
+            return drawVillagerPart(ps, froggy, e, held, partial, buffers, light, villager);
+        }
         if (!(mc.level.getEntity(e.victimId) instanceof AbstractClientPlayer victim)) return false;
         if (!(mc.getEntityRenderDispatcher().getRenderer(victim) instanceof PlayerRenderer pr)) return false;
         PlayerModel<AbstractClientPlayer> model = pr.getModel();
@@ -294,6 +307,70 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             Stumps.box(ps, buffers, light, cx - 2.3F, cx + 2.3F, -2.6F, -1.4F, -2.3F, 2.3F);
         }
         return true;
+    }
+
+    /**
+     * O pedaço do aldeão na boca dele (a comida favorita, mesma sequência): os braços
+     * cruzados (uma peça só, presa pelo meio) ou a cabeça com o chapéu da profissão,
+     * com as mesmas camadas que o jogo pinta nele (base, bioma, profissão).
+     */
+    private boolean drawVillagerPart(PoseStack ps, FroggydudeEntity froggy, ClientFinisher.Entry e, int held,
+                                     float partial, MultiBufferSource buffers, int light, AbstractVillager villager) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!(mc.getEntityRenderDispatcher().getRenderer(villager) instanceof LivingEntityRenderer<?, ?> lr)
+                || !(lr.getModel() instanceof VillagerModel<?> model)) return false;
+        List<ResourceLocation> textures = villagerTextures(villager);
+        float wob = froggy.tickCount + partial;
+        float inv = 1F / FroggydudeEntity.MODEL_SCALE;
+        ps.translate(0F, MOUTH_Y / 16F, MOUTH_Z / 16F);
+        ps.scale(inv, inv, inv);
+        float t = e.t(partial);
+        boolean head = held == 3;
+        float amp = head && t < Finisher.RIP_H + 12 ? 0.25F : 1F;
+        float w = head ? wob * Mth.HALF_PI : wob * Mth.PI / 4F;
+        ps.mulPose(Axis.YP.rotationDegrees(Mth.sin(w) * (head ? 20F : 26F) * amp));
+        ps.scale(-1F, -1F, 1F);
+        if (head) {
+            ps.mulPose(Axis.XP.rotationDegrees(90F + Mth.sin(w + 1F) * 25F * amp));
+            ps.mulPose(Axis.YP.rotationDegrees(180F + Mth.sin(w + 0.6F) * 100F * amp));
+            ps.translate(0F, 1.5F / 16F, 0F);
+            for (ResourceLocation tex : textures) {
+                renderPart(model.getHead(), ps, buffers.getBuffer(RenderType.entityCutoutNoCull(tex)), light);
+            }
+            Stumps.box(ps, buffers, light, -3.6F, 3.6F, -0.9F, 0.5F, -3.6F, 3.6F);
+        } else {
+            // presos pela barra do meio (y 2..6 da peça), os dois braços pendurados balançando
+            ps.mulPose(Axis.XP.rotationDegrees(-60F + Mth.sin(w + 0.8F) * 22F));
+            ps.mulPose(Axis.ZP.rotationDegrees(Mth.sin(w + 1.6F) * 18F));
+            ps.translate(0F, -4F / 16F, 0F);
+            ModelPart arms = model.root().getChild("arms");
+            for (ResourceLocation tex : textures) {
+                renderPart(arms, ps, buffers.getBuffer(RenderType.entityCutoutNoCull(tex)), light);
+            }
+            // os ombros arrancados nas pontas de cima
+            Stumps.box(ps, buffers, light, -8.3F, -3.7F, -2.6F, -1.4F, -2.3F, 2.3F);
+            Stumps.box(ps, buffers, light, 3.7F, 8.3F, -2.6F, -1.4F, -2.3F, 2.3F);
+        }
+        return true;
+    }
+
+    /** As camadas do aldeão: corpo, roupa do bioma, roupa da profissão (o mascate tem uma só). */
+    private static List<ResourceLocation> villagerTextures(AbstractVillager v) {
+        if (v instanceof WanderingTrader) return List.of(new ResourceLocation("textures/entity/wandering_trader.png"));
+        List<ResourceLocation> out = new ArrayList<>();
+        out.add(new ResourceLocation("textures/entity/villager/villager.png"));
+        if (v instanceof VillagerDataHolder holder) {
+            VillagerData d = holder.getVillagerData();
+            out.add(villagerLayer("type", BuiltInRegistries.VILLAGER_TYPE.getKey(d.getType())));
+            if (d.getProfession() != VillagerProfession.NONE) {
+                out.add(villagerLayer("profession", BuiltInRegistries.VILLAGER_PROFESSION.getKey(d.getProfession())));
+            }
+        }
+        return out;
+    }
+
+    private static ResourceLocation villagerLayer(String kind, ResourceLocation key) {
+        return new ResourceLocation(key.getNamespace(), "textures/entity/villager/" + kind + "/" + key.getPath() + ".png");
     }
 
     /** Desenha uma parte do modelo na pose zero (sem o que a última animação deixou nela). */

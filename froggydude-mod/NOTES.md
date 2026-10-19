@@ -42,6 +42,17 @@ O que testar agora (v0.4.0):
 11) Cutscene: a câmera ficou mais longe nos planos de corpo inteiro (no vídeo
    ele ocupa metade da tela) e o close é na frente-direita dele, com a tua
    cabeça saindo da boca pro lado (não tampa mais a cara dele).
+12) Contorção da fase 2 refeita quadro a quadro com o teu vídeo em 60 fps
+   (89,2-91,6 s): dobra até quase deitar com o topo da cabeça pra frente
+   (losango da coroa), desce pro lado direito dele, sobe com a cabeça ainda
+   pendurada, levanta tombada com o braço direito pra fora, e a cabeça vai
+   caindo PRA TRÁS até quebrar e deitar na frente do ombro esquerdo, enquanto
+   os ombros encolhem (o esquerdo primeiro, depois o direito sobe e fica
+   deslocado). 2,5 s. A boca fica fechada (cara de choro) até o grito.
+13) Flexão com a cabeça reta (alinhada com o corpo).
+14) Aldeão é a comida favorita: bote, flexão, e arranca os braços (juntos)
+   e a cabeça, com o gore (bebê não).
+15) A tela só começa a ficar vermelha com 1 coração.
 
 Da v0.3.7 - o faro: esconde-te numa casa sem ele ver (ele fareja o rastro e
 arromba); foge e dobra a esquina (ele segue o cheiro); na água o rastro some.
@@ -181,7 +192,7 @@ certo. Se mudar um, mude o outro.
 | CORPSE_EAT      | feed (loop)       | 2,0 s     | mordida no corpo aos 0,35 s de cada volta |
 | CORPSE_TOSS     | corpse_toss       | 1,2 s     | solta o corpo pro alto aos 0,4 s     |
 | CORPSE_SHAKE    | corpse_shake      | 1,7 s     | o corpo na boca sacudindo            |
-| CONTORTING      | contort + contort_hold | 1,0 s + 2 a 4 s | tronco chicoteia; encurvado, cabeça tombada |
+| CONTORTING      | contort + contort_hold | 2,5 s + 2 a 4 s | dobra (losango), sobe, a cabeça quebra pra trás; torto, ombro deslocado |
 | ROAR            | roar              | 0,9 s     | grito aos 0,2 s, depois o ataque feroz |
 | perseguindo     | run / run_frenzy  | -         | galope de 4 (fase 2: mais esticado e rápido); poeira e barulho a cada patada |
 | parou caçando   | crouch_idle       | -         | fica agachado (só levanta após 1,5 s)|
@@ -275,7 +286,8 @@ que é vazia nas skins normais. Sem isso a língua fica invisível.
 grito (a skin do NameMC dele, 01/10/2026; a de boca com sangue, 31/08; e a
 de boca preta, 09/08 pras carbonizadas/destroçadas). Ele abre a boca pra
 soltar a língua, gritar, morder, mastigar e falar, e fecha logo depois; na
-fase 2 fica com ela aberta o tempo todo. Pra refazer depois de trocar uma
+contorção fica FECHADA (geme de boca fechada) e no frenesi da fase 2 fica
+aberta o tempo todo. Pra refazer depois de trocar uma
 skin: `python tools/make_mouth_open.py`.
 
 **Sangue grudado:** cada mordida, braço e vítima devorada suja ele mais

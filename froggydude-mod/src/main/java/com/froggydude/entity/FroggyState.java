@@ -16,12 +16,13 @@ public enum FroggyState {
     BITE(12),
     FEEDING(120),
     /**
-     * Fase 2, etapa 1 (short "Throwing hands with AJTHEBOLD"): encara, os ossos
-     * estalam, ele dobra até o chão com a cabeça pendurada, levanta e trava torto
-     * com o braço na cabeça. Os 44 ticks são a animação "contort" (2,2 s); o tempo
-     * torto depois disso quem decide é a FroggyFrenzyGoal.
+     * Fase 2, etapa 1 (o vídeo do LM em 60 fps, 89,2-91,6 s): encara, os ossos
+     * estalam, ele dobra até quase deitar com o topo da cabeça pra frente, levanta,
+     * a cabeça vai caindo pra trás até quebrar e o ombro direito sobe. Os 50 ticks
+     * são a animação "contort" (2,5 s); o tempo torto depois disso quem decide é a
+     * FroggyFrenzyGoal.
      */
-    CONTORTING(44),
+    CONTORTING(50),
     /** Montado em cima da vítima derrubada, mordendo e rasgando ("devorar"). */
     PIN_HOLD(100),
     /** Esmagamento: em pé por cima da vítima derrubada, desce os dois punhos juntos (vs AJ, 0:57). */

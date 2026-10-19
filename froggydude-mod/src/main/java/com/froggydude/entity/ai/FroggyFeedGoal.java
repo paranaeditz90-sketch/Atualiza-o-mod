@@ -9,6 +9,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Blaze;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -25,6 +26,11 @@ import java.util.List;
  *
  * Blaze é diferente: ele vai atrás de blaze sempre que vê um, com ou sem fome.
  * Comer blaze arde ("freaking spicy") e joga ele direto na fase 2.
+ *
+ * Aldeão é a comida favorita (LM: "players e aldeões, mesmas animações"): sem
+ * ninguém pra caçar, ele vai atrás do aldeão que vir; dá o bote, come em
+ * flexão uns segundos e passa pra sequência da zebra (FroggyFinisherGoal):
+ * arranca os braços (uma peça só, cruzada) e a cabeça. Aldeão criança fica fora.
  */
 public class FroggyFeedGoal extends Goal {
 
@@ -34,9 +40,16 @@ public class FroggyFeedGoal extends Goal {
      * dos pés (rig da flexão) - em cima do meio do corpo deitado.
      */
     private static final double FEED_DISTANCE = 1.0D;
+    /** Aldeão: 3 s de flexão (10 mordidas) antes de arrancar os braços e a cabeça. */
+    private static final int VILLAGER_PUSHUPS = 60;
+    /** O bote (animação jump_pin, igual ao do jogador): impulso no tick 4, 11 ticks no ar. */
+    private static final int POUNCE_LAUNCH = 4;
+    private static final int POUNCE_AIR = 11;
+    private static final double POUNCE_VY = 0.40D;
 
     private final FroggydudeEntity froggy;
     private int chaseTimeout;
+    private boolean pouncing;
 
     public FroggyFeedGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -66,6 +79,15 @@ public class FroggyFeedGoal extends Goal {
             froggy.brainLog("comendo o aldeão perto da vítima (sem troca pra quem quer zerar)");
             return true;
         }
+        // a comida favorita: sem gente pra caçar, o aldeão que ele vê vira a refeição
+        if (froggy.wantsVillager() && !(froggy.getTarget() instanceof Player) && !froggy.isHolding()) {
+            LivingEntity v = findFavoriteVillager();
+            if (v != null) {
+                froggy.setFeedTarget(v);
+                froggy.brainLog("aldeão à vista: comida favorita");
+                return true;
+            }
+        }
         if (!froggy.isLowHealth()) return false;
 
         LivingEntity victim = findVictim();
@@ -87,6 +109,7 @@ public class FroggyFeedGoal extends Goal {
     @Override
     public void start() {
         chaseTimeout = 100;
+        pouncing = false;
         froggy.setFroggyState(FroggyState.CHASE);
     }
 
@@ -96,9 +119,11 @@ public class FroggyFeedGoal extends Goal {
         if (victim != null) FeedLock.release(victim);
         froggy.setFeedTarget(null);
         froggy.setFeedSearchCooldown(100);
-        if (froggy.getFroggyState() == FroggyState.FEEDING) {
+        FroggyState st = froggy.getFroggyState();
+        if (st == FroggyState.FEEDING || pouncing && st == FroggyState.JUMP_PIN) {
             froggy.setFroggyState(FroggyState.CHASE);
         }
+        pouncing = false;
     }
 
     @Override
@@ -110,6 +135,13 @@ public class FroggyFeedGoal extends Goal {
             eat(victim);
             return;
         }
+        if (pouncing) {
+            if (froggy.getFroggyState() == FroggyState.JUMP_PIN) {
+                pounce(victim);
+                return;
+            }
+            pouncing = false; // apanhou no ar e largou
+        }
         // apanhou no meio (largou a comida pra revidar): o bicho levanta
         FeedLock.release(victim);
 
@@ -117,14 +149,59 @@ public class FroggyFeedGoal extends Goal {
         froggy.getLookControl().setLookAt(victim, 30F, 30F);
         froggy.getNavigation().moveTo(victim, 1.3D);
 
-        if (froggy.distanceTo(victim) <= (victim instanceof Blaze ? 2.8D : 2.2D)) {
-            // derruba e começa a devorar
-            froggy.faceTarget(victim);
-            victim.hurt(froggy.damageSources().mobAttack(froggy), 4.0F);
-            FeedLock.lock(victim);
-            froggy.setFroggyState(FroggyState.FEEDING);
+        double dist = froggy.distanceTo(victim);
+        if (favorite(victim) && dist >= 2.6D && dist <= 6.5D && froggy.onGround() && victim.onGround()
+                && froggy.hasLineOfSight(victim) && Math.abs(victim.getY() - froggy.getY()) < 1.2D) {
+            // aldeão: o bote, igual ao do jogador
+            pouncing = true;
+            chaseTimeout = Math.max(chaseTimeout, 40);
             froggy.getNavigation().stop();
+            froggy.faceTarget(victim);
+            froggy.setFroggyState(FroggyState.JUMP_PIN);
+            return;
         }
+        if (dist <= (victim instanceof Blaze ? 2.8D : 2.2D)) tackle(victim);
+    }
+
+    /** Derruba e começa a devorar. */
+    private void tackle(LivingEntity victim) {
+        froggy.faceTarget(victim);
+        victim.hurt(froggy.damageSources().mobAttack(froggy), 4.0F);
+        FeedLock.lock(victim);
+        froggy.setFroggyState(FroggyState.FEEDING);
+        froggy.getNavigation().stop();
+    }
+
+    /** No ar até cair em cima (a animação jump_pin): no pouso já começa a flexão. */
+    private void pounce(LivingEntity victim) {
+        int t = froggy.getStateTicks();
+        if (t < POUNCE_LAUNCH) {
+            froggy.faceTarget(victim);
+            return;
+        }
+        if (t == POUNCE_LAUNCH) {
+            // o aldeão trava de medo; ele cai na distância de comer
+            FeedLock.lock(victim);
+            double dx = victim.getX() - froggy.getX(), dz = victim.getZ() - froggy.getZ();
+            double d = Math.max(1.0E-3D, Math.sqrt(dx * dx + dz * dz));
+            double vh = Math.max(0D, d - FEED_DISTANCE) / FroggyCombatGoal.horizontalFactor(POUNCE_AIR);
+            froggy.faceDirection(dx, dz);
+            froggy.setDeltaMovement(dx / d * vh, POUNCE_VY, dz / d * vh);
+            froggy.setNoFallTicks(60);
+            froggy.hasImpulse = true;
+            froggy.onLeapLaunch();
+            return;
+        }
+        if ((froggy.onGround() && t >= POUNCE_LAUNCH + 5) || t >= POUNCE_LAUNCH + POUNCE_AIR + 4) {
+            pouncing = false;
+            froggy.spawnBlood(victim, 4);
+            tackle(victim);
+        }
+    }
+
+    /** Aldeão adulto: a comida favorita, que leva a sequência inteira (bote, flexão, braços, cabeça). */
+    private static boolean favorite(LivingEntity e) {
+        return e instanceof AbstractVillager v && !v.isBaby();
     }
 
     /**
@@ -144,6 +221,13 @@ public class FroggyFeedGoal extends Goal {
             froggy.setPos(spot.x, froggy.getY(), spot.z);
         }
         if (t % 10 == 0) froggy.faceTarget(victim);
+        if (favorite(victim) && t >= VILLAGER_PUSHUPS) {
+            // chega de flexão: agora arranca os braços e a cabeça (mesma tabela do jogador).
+            // Sem alvo de comida esta Goal sai, e a do golpe final pega a mesma vítima
+            froggy.setFeedTarget(null);
+            froggy.requestFinisher(victim);
+            return;
+        }
         if (FroggydudeEntity.pushupBite(t)) {
             froggy.onPushupBite(t);
             BloodType type = BloodType.of(victim);
@@ -195,14 +279,24 @@ public class FroggyFeedGoal extends Goal {
     private LivingEntity findVictim() {
         AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS);
         List<LivingEntity> nearby = froggy.level().getEntitiesOfClass(LivingEntity.class, area,
-                e -> e.isAlive() && e != froggy && !(e instanceof Monster) && !(e instanceof Player));
+                e -> e.isAlive() && e != froggy && !(e instanceof Monster) && !(e instanceof Player)
+                        && !(e instanceof AbstractVillager v && v.isBaby()));
         if (nearby.isEmpty()) return null;
 
-        // prioriza alvos feridos (% de vida menor) e depois os mais próximos
+        // aldeão primeiro (a comida favorita); depois os feridos (% de vida menor) e os mais próximos
         return nearby.stream()
                 .min(Comparator
-                        .comparingDouble((LivingEntity e) -> e.getHealth() / e.getMaxHealth())
+                        .comparingInt((LivingEntity e) -> favorite(e) ? 0 : 1)
+                        .thenComparingDouble((LivingEntity e) -> e.getHealth() / e.getMaxHealth())
                         .thenComparingDouble(froggy::distanceTo))
                 .orElse(null);
+    }
+
+    /** O aldeão adulto mais perto que ele está vendo. */
+    private LivingEntity findFavoriteVillager() {
+        AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS, 6.0D, SEARCH_RADIUS);
+        return froggy.level().getEntitiesOfClass(AbstractVillager.class, area,
+                        v -> v.isAlive() && !v.isBaby() && froggy.hasLineOfSight(v))
+                .stream().min(Comparator.comparingDouble(froggy::distanceTo)).orElse(null);
     }
 }

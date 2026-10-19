@@ -24,6 +24,12 @@ public class ClientModEvents {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static void addLayers(EntityRenderersEvent.AddLayers event) {
         ArmlessRendering.addLayers(event);
+        // aldeão na sequência da zebra: os tocos dos braços e do pescoço
+        for (net.minecraft.world.entity.EntityType<?> type : java.util.List.of(
+                net.minecraft.world.entity.EntityType.VILLAGER, net.minecraft.world.entity.EntityType.WANDERING_TRADER)) {
+            net.minecraft.client.renderer.entity.LivingEntityRenderer r = event.getRenderer((net.minecraft.world.entity.EntityType) type);
+            if (r != null) r.addLayer(new com.froggydude.client.cutscene.VillagerVictimRender.StumpLayer(r));
+        }
         for (String skin : event.getSkins()) {
             net.minecraft.client.renderer.entity.LivingEntityRenderer renderer = event.getSkin(skin);
             if (renderer instanceof net.minecraft.client.renderer.entity.player.PlayerRenderer pr) {

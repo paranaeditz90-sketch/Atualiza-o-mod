@@ -82,7 +82,8 @@ public final class FeedVictimRender {
     public static void onPre(RenderLivingEvent.Pre<?, ?> event) {
         LivingEntity v = event.getEntity();
         Down d = DOWN.get(v.getId());
-        if (d == null) return;
+        // já passou pra sequência da zebra (aldeão): quem deita é o VillagerVictimRender
+        if (d == null || com.froggydude.client.cutscene.ClientFinisher.forVictim(v.getId()) != null) return;
         float partial = event.getPartialTick();
         if (d.side == null) {
             Entity f = v.level().getEntity(d.froggyId);

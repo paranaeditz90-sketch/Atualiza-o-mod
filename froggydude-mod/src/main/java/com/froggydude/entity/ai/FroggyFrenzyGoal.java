@@ -32,11 +32,11 @@ import java.util.EnumSet;
  */
 public class FroggyFrenzyGoal extends Goal {
 
-    /** Ticks da contorção (animação "contort", 2,2 s: encara, dobra, levanta, trava torto). */
+    /** Ticks da contorção (animação "contort", 2,5 s: encara, dobra, levanta, a cabeça quebra pra trás). */
     private static final int BEND_TICKS = FroggyState.CONTORTING.durationTicks;
     /** O grito sai quando a cabeça joga pra trás (animação "roar", 0,1 s). */
     private static final int ROAR_SCREAM_AT = 2;
-    /** Estalos (batem com a animação: começa a dobrar 0,55 s, dobrado 0,7 s, tranco 1,15 s, trava 2,2 s). */
+    /** Estalos (batem com a animação: dobra 0,53 s, dobrado 0,68 s, volta 0,98 s, a cabeça quebra 2,1-2,4 s). */
 
     private final FroggydudeEntity froggy;
     private int contortTicks;
@@ -84,14 +84,14 @@ public class FroggyFrenzyGoal extends Goal {
         froggy.getNavigation().stop();
         lockedYaw = froggy.getYRot();
         holdYaw();
-        // contorção (2,2 s) e fica torto, com o braço na cabeça, de 2 a 4 s (no short ele
+        // contorção (2,5 s) e fica torto, com o ombro deslocado, de 2 a 4 s (no short ele
         // fica um tempão assim antes de disparar)
         contortTicks = BEND_TICKS + 40 + froggy.getRandom().nextInt(41);
         nextCrack = BEND_TICKS + 6;
         // o som da contorção do original (short da fase 2, 4,6-6,9 s): estalos + o
         // gemido torto, junto com a dobra. O grito de raiva fica pro ROAR.
+        // boca FECHADA: no vídeo ele se contorce com a cara de choro de sempre, só abre no grito
         froggy.playSound(ModSounds.CONTORT.get(), 2.5F, 1.0F);
-        froggy.openMouth(48);
     }
 
     @Override
@@ -105,7 +105,7 @@ public class FroggyFrenzyGoal extends Goal {
             if (t >= BEND_TICKS && t >= nextCrack) {
                 // curvado: os ossos continuam estalando e ele geme
                 crack();
-                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.PAIN.get(), 2.0F);
+                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.PAIN.get(), 2.0F, false);
                 nextCrack = t + 8 + froggy.getRandom().nextInt(14);
             }
             if (t >= contortTicks) {
