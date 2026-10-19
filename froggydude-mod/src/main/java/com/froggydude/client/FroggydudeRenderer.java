@@ -6,6 +6,7 @@ import com.froggydude.config.FroggyClientConfig;
 import com.froggydude.entity.Finisher;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
+import com.froggydude.entity.PacedAnimationController;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -76,6 +77,14 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         this.shadowRadius = 0.5F;
         this.withScale(FroggydudeEntity.MODEL_SCALE);
         addRenderLayer(new MouthStainLayer(this));
+        // o corpo dele na cutscene anda no relógio da tabela, junto com o áudio e o pedaço na boca
+        PacedAnimationController.externalClock = (animatable, animation, tick) -> {
+            if (!(animatable instanceof FroggydudeEntity f) || !animation.startsWith("finisher")) return -1D;
+            ClientFinisher.Entry e = ClientFinisher.forFroggy(f.getId());
+            if (e == null) return -1D;
+            float partial = (float) (tick - Math.floor(tick));
+            return Math.max(0D, e.t(partial) - (e.skipLeft ? Finisher.SKIP : 0));
+        };
     }
 
     @Override
@@ -255,12 +264,11 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
 
     /**
      * O pedaço da vítima na boca dele (com a skin dela, manga/chapéu inclusos):
-     * o braço FIRME nos dentes pela ponta do ombro, saindo da boca pra frente e um
-     * pouco pra baixo (só mexe junto com a cabeça dele - antes balançava solto, como
-     * se tivesse quebrado; LM, v0.4.2), e que vai entrando na boca a cada mastigada
-     * até sumir; ou a cabeça presa pelo pescoço, que no fim desce goela abaixo. Usa
-     * as partes do modelo de jogador do próprio jogo, então braço fino/normal e a
-     * segunda camada saem certos.
+     * o braço ATRAVESSADO na boca, de um lado ao outro do rosto, como a perna da zebra
+     * no vídeo (cachorro com osso; só mexe junto com a cabeça dele), que encurta a cada
+     * engolida até sumir; ou a cabeça presa pelo pescoço, que no fim desce goela
+     * abaixo. Usa as partes do modelo de jogador do próprio jogo, então braço
+     * fino/normal e a segunda camada saem certos.
      */
     private boolean drawFinisherPart(PoseStack ps, FroggydudeEntity froggy, ClientFinisher.Entry e, int held,
                                      float partial, MultiBufferSource buffers, int light) {
@@ -283,7 +291,8 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         float t = e.t(partial);
         boolean head = held == 3;
         float eaten = Finisher.eaten(t, held);
-        float amp = head && t < Finisher.RIP_H + 12 ? 0.25F : 1F;
+        // engolindo: firme na boca, quase não balança
+        float amp = !head ? 1F : t < Finisher.RIP_H + 12 ? 0.25F : t >= Finisher.GULPS_H[0][0] ? 0.4F : 1F;
         float w = wob * Mth.HALF_PI;
         // daqui pra frente: espaço do modelo de jogador (y pra baixo, frente em -z)
         ps.scale(-1F, -1F, 1F);
@@ -301,11 +310,13 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             boolean left = held == 1;
             boolean slim = "slim".equals(victim.getModelName());
             float cx = (left ? 1F : -1F) * (slim ? 0.5F : 1F);
-            // firme nos dentes pela ponta do ombro, saindo pra frente e pra baixo
-            ps.mulPose(Axis.XP.rotationDegrees(-62F));
-            ps.mulPose(Axis.ZP.rotationDegrees(left ? 8F : -8F));
-            swallow(ps, eaten, 3F);
-            ps.translate(-cx / 16F, 2F / 16F, 0F);
+            // atravessado na boca (o comprimento de lado a lado do rosto), o ombro arrancado
+            // pro lado de onde ele veio; encurta pelas duas pontas a cada engolida
+            ps.mulPose(Axis.ZP.rotationDegrees(left ? 90F : -90F));
+            ps.mulPose(Axis.XP.rotationDegrees(8F));
+            float k = Math.max(0.02F, 1F - eaten);
+            ps.scale(0.9F + 0.1F * k, k, 0.9F + 0.1F * k);
+            ps.translate(-cx / 16F, -4F / 16F, 0F);
             renderPart(left ? model.leftArm : model.rightArm, ps, vc, light);
             renderPart(left ? model.leftSleeve : model.rightSleeve, ps, vc, light);
             Stumps.box(ps, buffers, light, cx - 2.3F, cx + 2.3F, -2.6F, -1.4F, -2.3F, 2.3F);
@@ -314,14 +325,17 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     }
 
     /**
-     * Entrando na boca: recua o pedaço pra dentro dela ({@code depth} px, ao longo do
-     * comprimento) e encolhe o que ainda está pra fora, até sumir.
+     * Descendo goela abaixo: recua a cabeça pra dentro da boca ({@code depth} px, ao
+     * longo do pescoço) e encolhe inteira, não só no comprimento (o comprimento aponta
+     * pra câmera do close, que assim não via diminuir; na zebra ela fica visivelmente
+     * menor a cada engolida).
      */
     private static void swallow(PoseStack ps, float eaten, float depth) {
         if (eaten <= 0F) return;
         ps.translate(0F, -depth * eaten / 16F, 0F);
         float k = Math.max(0.02F, 1F - eaten);
-        ps.scale(0.85F + 0.15F * k, k, 0.85F + 0.15F * k);
+        float side = 0.25F + 0.75F * k;
+        ps.scale(side, k, side);
     }
 
     /**
@@ -342,7 +356,8 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         float t = e.t(partial);
         boolean head = held == 3;
         float eaten = Finisher.eaten(t, held);
-        float amp = head && t < Finisher.RIP_H + 12 ? 0.25F : 1F;
+        // engolindo: firme na boca, quase não balança
+        float amp = !head ? 1F : t < Finisher.RIP_H + 12 ? 0.25F : t >= Finisher.GULPS_H[0][0] ? 0.4F : 1F;
         float w = wob * Mth.HALF_PI;
         ps.scale(-1F, -1F, 1F);
         if (head) {
@@ -356,8 +371,8 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             Stumps.box(ps, buffers, light, -3.6F, 3.6F, -0.9F, 0.5F, -3.6F, 3.6F);
         } else {
             // presos firmes pela barra do meio (y 2..6 da peça), atravessados na boca; vão
-            // encolhendo pra dentro dela a cada mastigada
-            ps.mulPose(Axis.XP.rotationDegrees(-62F));
+            // encolhendo pra dentro dela a cada engolida
+            ps.mulPose(Axis.XP.rotationDegrees(-10F));
             if (eaten > 0F) {
                 float k = Math.max(0.02F, 1F - eaten);
                 ps.scale(k, k, k);

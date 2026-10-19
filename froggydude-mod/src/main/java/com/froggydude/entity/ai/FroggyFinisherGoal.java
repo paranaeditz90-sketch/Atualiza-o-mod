@@ -215,24 +215,26 @@ public class FroggyFinisherGoal extends Goal {
             rip(level, nk, h, 0.42F, Finisher.SWALLOW - Finisher.RIP_H);
             level.playSound(null, nk.x, nk.y, nk.z, ModSounds.CRACK.get(), SoundSource.HOSTILE, 1.5F, 0.8F);
         }
-        // sacudindo o pedaço na boca (rasgando): jorra da boca dele. Nos braços é só o começo;
-        // depois ele mastiga até o braço sumir na boca
-        boolean shaking = (!skipLeft && t > Finisher.RIP_L && t < Finisher.EAT_L)
-                || (t > Finisher.RIP_R && t < Finisher.EAT_R) || (t > Finisher.RIP_H && t < Finisher.SWALLOW);
+        // sacudindo o pedaço na boca (rasgando): jorra da boca dele. Nos braços é só o
+        // instante entre arrancar e a 1ª engolida; a cabeça ele sacode até engolir
+        boolean shaking = (!skipLeft && t > Finisher.RIP_L && t < Finisher.GULPS_L[0][0])
+                || (t > Finisher.RIP_R && t < Finisher.GULPS_R[0][0])
+                || (t > Finisher.RIP_H && t < Finisher.GULPS_H[0][0]);
         if (shaking && t % 2 == 0) froggy.openMouth(4);
         // pedaço voando da boca: pouco de cada vez (no close a câmera está perto e tampava tudo)
         if (shaking && t % 4 == 0) froggy.spawnMouthBlood(3);
-        // comendo o braço: cada mastigada pesada (osso estalando uma sim, outra não) puxa um
-        // pedaço pra dentro da boca; no fim, engole
-        if (Finisher.chewTick(t, skipLeft)) {
-            int n = (t - (t >= Finisher.EAT_R ? Finisher.EAT_R : Finisher.EAT_L)) / Finisher.CHEW_EVERY;
-            froggy.onHeavyChew(n % 2 == 1);
-            if (n % 3 == 0) froggy.spawnMouthBlood(2);
+        // engolindo (a cabeça vai pra trás com a boca aberta pro céu): estalo pesado de osso
+        int gulp = Finisher.gulpAt(t, skipLeft);
+        if (gulp > 0) {
+            froggy.onHeavyChew(true);
+            froggy.openMouth(gulp);
+            froggy.spawnMouthBlood(2);
         }
         if ((!skipLeft && t == Finisher.GONE_L) || t == Finisher.GONE_R) froggy.onGulp();
-        if (t == Finisher.EAT_R + 12) froggy.speak(VoiceSituation.CHEWING, true);
+        // parado de boca fechada depois do 2º braço: o "mmmm"
+        if (t == Finisher.GONE_R + 6) froggy.speak(VoiceSituation.CHEWING, true);
         if (t == Finisher.BEND_H - 18) froggy.speak(VoiceSituation.LAST_BITE, true);
-        if (t > Finisher.RIP_H && t < Finisher.SWALLOW && (t - Finisher.RIP_H) % 10 == 0) froggy.onChew();
+        if (t > Finisher.RIP_H && t < Finisher.GULPS_H[0][0] && (t - Finisher.RIP_H) % 10 == 0) froggy.onChew();
         if (t == Finisher.SWALLOW) {
             level.playSound(null, froggy.getX(), froggy.getY(), froggy.getZ(), ModSounds.EAT.get(), SoundSource.HOSTILE, 1.4F, 0.8F);
         }

@@ -42,29 +42,35 @@ public final class Finisher {
     public static final int RIP_R = 92;
     /** Para de sacudir e fica mastigando, parado (1,4 s). */
     public static final int STILL = 124;
-    public static final int BEND_H = 152;
-    public static final int BITE_H = 158;
-    public static final int RIP_H = 166;
+    // a cabeça: no vídeo ele abaixa pra ela 0,3 s depois do que estava aqui (v0.4.5, conferido
+    // quadro a quadro com o áudio do vídeo tocando junto)
+    public static final int BEND_H = 158;
+    public static final int BITE_H = 163;
+    public static final int RIP_H = 169;
     /** Engoliu a cabeça. */
-    public static final int SWALLOW = 226;
+    public static final int SWALLOW = 228;
     public static final int END = 232;
     /** Sem o braço esquerdo: começa direto no direito (a tabela anda isso pra frente). */
     public static final int SKIP = 60;
 
-    // ---- comendo de verdade (LM, v0.4.3: "ele não come os braços, só arranca, fica um tempo
-    // na boca balançando solto e some"). Arrancou: 0,5 s sacudindo, o braço firme nos dentes;
-    // depois uma mastigada a cada 0,25 s, cada uma puxando um pedaço pra dentro da boca, até
-    // sumir. Engole e só então vai pro outro.
-    /** Começa a mastigar o braço esquerdo / some na boca. */
-    public static final int EAT_L = RIP_L + 10;
-    public static final int GONE_L = CUT_1 - 2;
-    /** Começa a mastigar o braço direito / some na boca. */
-    public static final int EAT_R = RIP_R + 10;
-    public static final int GONE_R = BEND_H - 4;
-    /** Uma mastigada a cada 5 ticks. */
-    public static final int CHEW_EVERY = 5;
-    /** A cabeça vai sumindo na boca no último 1,1 s antes de engolir. */
-    public static final int EAT_H = SWALLOW - 22;
+    // ---- comendo (v0.4.5, o "Eating a Zebra" quadro a quadro, 60 fps): arrancou, a perna fica
+    // ATRAVESSADA na boca, de um lado ao outro do rosto (como cachorro com osso), e ele engole
+    // jogando a cabeça pra trás duas vezes - a boca virada pro céu, o pedaço descendo, a cabeça
+    // volta pra frente - até sumir, 1,5 s depois de arrancar. Do 2º braço até abaixar pra
+    // cabeça ele fica 2 s parado, de boca fechada. A cabeça: 0,6 s quase parada no close,
+    // sacode rápido e no fim é engolida também em duas jogadas pra trás.
+    // Ticks no tempo da tabela (o vídeo começa no tick 4, ver client.cutscene.FinisherAudio).
+    /** Engolidas do braço esquerdo: {começa a jogar a cabeça pra trás, termina}. */
+    public static final int[][] GULPS_L = {{37, 46}, {50, 60}};
+    /** O braço esquerdo sumiu na boca. */
+    public static final int GONE_L = 64;
+    public static final int[][] GULPS_R = {{94, 102}, {110, 118}};
+    public static final int GONE_R = 120;
+    /** A cabeça: sacode até a 1ª engolida; a 2ª acaba com ela (SWALLOW). */
+    public static final int[][] GULPS_H = {{215, 219}, {222, SWALLOW}};
+    /** Quanto já desceu depois de cada engolida (braço / cabeça). */
+    private static final float[] ARM_STEPS = {0F, 0.5F, 1F};
+    private static final float[] HEAD_STEPS = {0F, 0.45F, 1F};
 
     private Finisher() {
     }
@@ -99,36 +105,39 @@ public final class Finisher {
         return 0;
     }
 
-    /**
-     * Quanto do pedaço que está na boca já foi comido (0 inteiro, 1 sumiu). Nos braços
-     * anda aos trancos: cada mastigada puxa um pedaço em 2 ticks e o resto fica parado
-     * até a próxima; a cabeça desce de uma vez no fim.
-     */
-    public static float eaten(float t, int held) {
-        int from, to;
-        switch (held) {
-            case 1 -> { from = EAT_L; to = GONE_L; }
-            case 2 -> { from = EAT_R; to = GONE_R; }
-            case 3 -> {
-                return Mth.clamp((t - EAT_H) / (SWALLOW - EAT_H), 0F, 1F);
-            }
-            default -> {
-                return 0F;
-            }
-        }
-        if (t <= from) return 0F;
-        int chews = Math.max(1, (to - from) / CHEW_EVERY);
-        float pos = (t - from) / CHEW_EVERY;
-        int whole = (int) pos;
-        float step = Mth.clamp((pos - whole) * CHEW_EVERY / 2F, 0F, 1F);
-        return Mth.clamp((whole + step) / chews, 0F, 1F);
+    /** As engolidas do pedaço que está na boca (1 braço esquerdo, 2 direito, 3 cabeça), ou null. */
+    public static int[][] gulps(int held) {
+        return switch (held) {
+            case 1 -> GULPS_L;
+            case 2 -> GULPS_R;
+            case 3 -> GULPS_H;
+            default -> null;
+        };
     }
 
-    /** O tick é de mastigada (o servidor toca o som e abre a boca; a animação morde junto)? */
-    public static boolean chewTick(int t, boolean skipLeft) {
-        boolean left = !skipLeft && t >= EAT_L && t < GONE_L;
-        boolean right = t >= EAT_R && t < GONE_R;
-        return (left && (t - EAT_L) % CHEW_EVERY == 0) || (right && (t - EAT_R) % CHEW_EVERY == 0);
+    /**
+     * Quanto do pedaço que está na boca já desceu (0 inteiro, 1 sumiu): só anda durante
+     * as engolidas (cabeça pra trás); entre uma e outra fica parado.
+     */
+    public static float eaten(float t, int held) {
+        int[][] g = gulps(held);
+        if (g == null) return 0F;
+        float[] steps = held == 3 ? HEAD_STEPS : ARM_STEPS;
+        for (int i = g.length - 1; i >= 0; i--) {
+            if (t >= g[i][0]) {
+                float k = Mth.clamp((t - g[i][0]) / (float) (g[i][1] - g[i][0]), 0F, 1F);
+                return Mth.lerp(k, steps[i], steps[i + 1]);
+            }
+        }
+        return 0F;
+    }
+
+    /** O tick é o começo de uma engolida de braço? (o servidor abre a boca e toca o som) */
+    public static int gulpAt(int t, boolean skipLeft) {
+        for (int[] g : GULPS_R) if (t == g[0]) return g[1] - g[0];
+        if (!skipLeft) for (int[] g : GULPS_L) if (t == g[0]) return g[1] - g[0];
+        for (int[] g : GULPS_H) if (t == g[0]) return g[1] - g[0];
+        return 0;
     }
 
     // ---- geometria

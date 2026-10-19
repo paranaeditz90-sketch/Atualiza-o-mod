@@ -1,4 +1,4 @@
-# Froggydude - v0.4.4: come de verdade, ribbit de raiva, áudio da zebra (sobre a v0.4.3)
+# Froggydude - v0.4.5: cutscene refeita quadro a quadro em cima da zebra (sobre a v0.4.4)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,27 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.4):
+O que testar agora (v0.4.5):
+A) Cutscene (`/froggydude golpefinal`) refeita quadro a quadro em cima do "Eating a
+   Zebra" (60 fps, em câmera lenta). O braço arrancado fica ATRAVESSADO na boca, de um
+   lado ao outro do rosto (cachorro com osso, igual a perna da zebra), e não mais
+   espetado pra frente. Ele come cada braço em duas engolidas: joga a cabeça pra trás,
+   com a boca pro céu, dá um tranco lá em cima e o braço encurta; volta a cabeça pra
+   frente e repete, até sumir (o esquerdo some em 3,2 s, o direito em 6 s). Depois do
+   direito fica uns 2 s parado, em pé, boca fechada, como no vídeo.
+B) A cabeça: morde, arranca, close quase parado, chicoteia rápido e então engole em
+   duas vezes (pra trás, uma chicotada pro lado, pra trás de novo); ela DIMINUI de
+   verdade na boca até sumir (antes encolhia só no comprimento, que aponta pra câmera
+   do close, então parecia do mesmo tamanho). O escuro do fim só vem depois que ela
+   desce.
+C) O corpo dele andava uns 5 ticks atrasado em relação ao áudio, à câmera e ao pedaço
+   na boca (o GeckoLib só começa a contar a animação depois da transição e de o estado
+   chegar no cliente). Agora a animação da cutscene anda no mesmo relógio da tabela:
+   mordida, arrancada, engolida e som caem juntos.
+D) Vídeo lado a lado (zebra x mod, com o áudio original) e o mesmo em câmera lenta,
+   pra comparar.
+
+Da v0.4.4:
 A) Cutscene (`/froggydude golpefinal`): o braço fica FIRME nos dentes (antes
    balançava solto, como se tivesse quebrado). Arrancou: meio segundo sacudindo,
    depois uma mastigada a cada 0,25 s (boca abre e fecha, a cabeça morde e puxa,
@@ -161,7 +181,8 @@ Código (src/main/java/com/froggydude):
 - entity/FroggyState.java - estados e duração de cada um
 - entity/PinTracker.java - jogador derrubado e preso (lado do servidor)
 - entity/PacedAnimationController.java - controlador do GeckoLib que aceita
-  velocidade mudando o tempo todo (o galope acelera e freia liso)
+  velocidade mudando o tempo todo (o galope acelera e freia liso) e um relógio de
+  fora (a cutscene anda no tick da tabela, junto com o áudio)
 - player/ArmLoss.java - braço arrancado: vida máxima, mão secundária, sangramento
 - entity/ai/ - FroggyCombatGoal (persegue aos saltos, escolhe o ataque,
   monta na vítima), FroggyFeedGoal (devora mobs com pouca vida, em "flexão"; o bicho fica

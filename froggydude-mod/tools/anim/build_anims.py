@@ -747,21 +747,31 @@ def shaking(t0, t1, period=0.2, amount=50, body=5):
     return keys
 
 
-def chewing(t0, t1, period=0.25):
-    """Comendo o braço (v0.4.3): parado em pé, a cabeça dá uma mordida a cada 0,25 s
-    (desce e puxa, como quem arranca um pedaço), no mesmo tick em que o servidor toca a
-    mastigada e a boca abre e fecha (Finisher.CHEW_EVERY = 5 ticks)."""
-    keys = []
-    t = t0
-    k = 0
-    while t < t1 - 0.01:
-        side = 1 if k % 2 == 0 else -1
-        keys.append((round(t, 3), pose(**{**FIN_HOLD, "head": 10, "head_y": 4 * side, "waist": 11})))      # morde
-        keys.append((round(t + 0.1, 3), pose(**{**FIN_HOLD, "head": -10, "head_y": 6 * side, "waist": 7})))  # puxa
-        t += period
-        k += 1
-    keys.append((round(t1, 3), pose(**FIN_HOLD)))
-    return keys
+# Em pé comendo o pedaço (vídeo da zebra, 2,1-2,9 s e 4,7-5,8 s): ereto, braços
+# soltos do lado, o pedaço ATRAVESSADO na boca (cachorro com osso)
+EAT = dict(root_y=0, waist=2, head=0, arms=-12, arm_l=-8, arm_spread=10, legs=2, leg_spread=16)
+
+
+def eat_p(**over):
+    return pose(**{**EAT, **over})
+
+
+def gulp(t0, t1, side):
+    """Uma engolida (v0.4.5, vídeo da zebra quadro a quadro): joga a cabeça pra trás
+    com a boca pro céu e virada pra um lado, dá um tranco curto lá em cima (o pedaço
+    desce pela goela; Finisher.GULPS_*, o pedaço encolhe no mesmo intervalo) e volta."""
+    d = t1 - t0
+    at = lambda f: round(t0 + d * f, 3)
+    return [(round(t0, 3), eat_p(head=8, head_z=4 * side)),
+            (at(0.25), eat_p(head=-44, head_y=14 * side, head_z=10 * side, waist=-6)),
+            (at(0.5), eat_p(head=-52, head_y=-4 * side, head_z=-6 * side, waist=-8)),
+            (at(0.75), eat_p(head=-42, head_y=10 * side, head_z=8 * side, waist=-6)),
+            (round(t1, 3), eat_p(head=-16, waist=-3))]
+
+
+def forward(side):
+    # entre uma engolida e outra: a cabeça vem pra frente e pra baixo, tombada (2,8 s)
+    return eat_p(head=12, head_y=6 * side, head_z=12 * side, waist=4)
 
 
 T = lambda ticks: round(ticks / 20.0, 3)
@@ -769,22 +779,31 @@ fin = [(0.00, pose(**OVER)),
        (0.35, pose(**{**OVER, "head": 36, "head_y": 10})),
        (T(14) - 0.05, pose(**OVER))]
 fin += bite_sequence(T(14), T(20), T(32), 1)
-# arrancou: 0,5 s sacudindo (rasgando) e depois come o braço até sumir na boca (Finisher.EAT_L/GONE_L)
-fin += shaking(T(34), T(42))
-fin += chewing(T(42), T(64))
-fin += [(T(66), pose(**FIN_HOLD))]
+# arrancou: um tranco curto rasgando e logo duas engolidas, a cabeça pra frente no meio;
+# o braço some na boca no tick 64 (Finisher.GULPS_L/GONE_L)
+fin += shaking(T(34), T(37), period=0.1, amount=40)
+fin += gulp(T(37), T(46), 1)
+fin += [(T(48), forward(-1))]
+fin += gulp(T(50), T(60), -1)
+fin += [(T(62), forward(1)), (T(64), eat_p()), (T(69), eat_p(head=4, waist=4))]
 fin += bite_sequence(T(74), T(80), T(92), -1)
-fin += shaking(T(94), T(102))
-fin += chewing(T(102), T(148))
-fin += [(T(150), pose(**FIN_HOLD))]
-fin += bite_sequence(T(152), T(158), T(166), 0, neck=True)
-# CLOSE (vídeo 86,0-88,8 s, quadro a quadro em 60 fps): segura uns 0,4 s quase parado,
-# só tremendo, e então chicoteia a cabeça pros lados MUITO rápido - a cabeça da zebra
-# vira de face a cada ~0,05-0,1 s (umas 5 sacudidas por segundo); o corpo dele não mexe
-fin += [(T(168), fin_shake(1, 8, 0)), (T(172), fin_shake(-1, 10, 0)), (T(176), fin_shake(1, 8, 0))]
-fin += shaking(T(178), T(224), period=0.1, amount=70, body=0)
-fin += [(T(226), pose(root_y=0, waist=-8, head=-34, arms=-30, arm_l=-20, arm_spread=8, legs=2, leg_spread=16)),  # engole
-        (T(232), pose(**{**OVER, "head": 24}))]
+fin += gulp(T(94), T(102), -1)
+fin += [(T(105), forward(1)), (T(108), forward(-1))]
+fin += gulp(T(110), T(118), 1)
+# sumiu (tick 120): uns 2 s parado, em pé, boca fechada, olhando pra frente (5,9-7,7 s)
+fin += [(T(120), eat_p(head=-4)), (T(124), eat_p()), (T(134), eat_p(head=3, waist=3)),
+        (T(144), eat_p()), (T(152), eat_p(head=3, waist=3))]
+fin += bite_sequence(T(158), T(163), T(169), 0, neck=True)
+# CLOSE (8,3-10,5 s): segura uns 0,5 s quase parado, só tremendo, e então chicoteia a
+# cabeça pros lados MUITO rápido; o corpo dele não mexe
+fin += [(T(171), fin_shake(1, 8, 0)), (T(175), fin_shake(-1, 10, 0)), (T(179), fin_shake(1, 8, 0))]
+fin += shaking(T(181), T(214), period=0.1, amount=70, body=0)
+# engole a cabeça (10,55-11,2 s): pra trás, uma chicotada pro lado, pra trás de novo
+# encolhendo até sumir (Finisher.GULPS_H/SWALLOW) e fica parado olhando pra câmera
+fin += gulp(T(215), T(219), 1)
+fin += [(T(220), fin_shake(1, 55, 0)), (T(221), fin_shake(1, 45, 0))]
+fin += gulp(T(222), T(228), -1)
+fin += [(T(229), eat_p(head=-6)), (T(232), eat_p())]
 fin.sort(key=lambda k: k[0])
 ANIMS["finisher"] = animation(T(232), fin, "hold_on_last_frame")
 

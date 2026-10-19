@@ -62,8 +62,8 @@ public final class CinematicCamera {
 
     /** Close: começa logo depois de arrancar a cabeça (no vídeo, 0,2 s depois). */
     private static final int CLOSE = Finisher.RIP_H + 4;
-    /** Some no preto antes de engolir. */
-    private static final int FADE_OUT = Finisher.SWALLOW - 2;
+    /** Some no preto quando a cabeça acaba de descer (a última engolida aparece inteira). */
+    private static final int FADE_OUT = Finisher.SWALLOW;
 
     private static ClientFinisher.Entry entry;
     private static CutsceneCamera cam;
@@ -430,7 +430,7 @@ public final class CinematicCamera {
         float black = 0F;
         // corte do tombo pro cinema
         black = Math.max(black, 1F - Mth.clamp((t - start) / 5F, 0F, 1F));
-        // no fim: preto antes de engolir. No Extremo volta do preto pra ela ver ele comendo o
+        // no fim: preto depois de engolir. No Extremo volta do preto pra ela ver ele comendo o
         // corpo; quando morre de verdade (e sem o cadáver, logo no fim) fica preto atrás da tela de morte
         if (t >= FADE_OUT) {
             float out = Mth.clamp((t - FADE_OUT) / 6F, 0F, 1F);
