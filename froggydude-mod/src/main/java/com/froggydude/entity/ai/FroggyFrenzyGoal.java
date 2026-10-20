@@ -17,10 +17,11 @@ import java.util.EnumSet;
  *
  * 1. Contorção (vs AJTHEBOLD, 7:26 no YouTube): os ossos estalam e o tronco
  *    chicoteia - dobra de lado, a cabeça vai de ponta-cabeça, dobra até o chão
- *    e volta -, e ele fica encurvado com a cabeça tombada, balançando e dando
- *    trancos, de 2 a 4 segundos, gemendo (é quando dá pra bater nele).
- * 2. Ataque feroz: a cabeça levanta num estalo soltando o grito que se ouve
- *    de longe, ele cai de quatro e parte no galope por 30 segundos - mais
+ *    e volta -, e ele fica encurvado com a cabeça tombada, gemendo, depois um
+ *    segundo calado e então solta o grito que se ouve de longe, ainda parado e
+ *    torto (é quando dá pra bater nele; os tempos são os do vídeo do Grox).
+ * 2. Ataque feroz: no meio do grito a cabeça levanta num estalo, ele cai de
+ *    quatro e parte no galope por 30 segundos - mais
  *    rápido que um jogador correndo, de boca aberta, imune a projétil e com
  *    todos os ataques (língua, esmagamento, comer vivo...) batendo mais forte
  *    (ver FroggyCombatGoal).
@@ -34,7 +35,7 @@ public class FroggyFrenzyGoal extends Goal {
 
     /** Ticks da contorção (animação "contort", 2,95 s: a rotoscopia do vídeo do LM, 89,28-91,75 s). */
     private static final int BEND_TICKS = FroggyState.CONTORTING.durationTicks;
-    /** O grito sai quando a cabeça joga pra trás (animação "roar", 0,1 s). */
+    /** A cabeça joga pra trás (animação "roar", 0,1 s): o estalo (e o grito, se ainda não saiu). */
     private static final int ROAR_SCREAM_AT = 2;
     /**
      * Os estalos da dobra, nos trancos da rotoscopia (os ticks em que a pose anda mais
@@ -50,10 +51,21 @@ public class FroggyFrenzyGoal extends Goal {
     private static final int CONTORT_AT = 8;
     /** O gemido curto no 1º tranco e quando o ombro sobe (a voz tem 1,5 s de folga entre uma e outra). */
     private static final int[] GRUNT_AT = {11, 45};
+    /**
+     * O grito, ainda parado e torto (vídeo do Grox, "Manhunt but I have RABIES", depois dos
+     * blazes): o gemido começa em 315,4 s, acaba, 1 s de silêncio, e o "AAAAAAHHH!!!" sai em
+     * 319,86 (4,5 s depois do começo do gemido), morrendo por 3,7 s com ele parado lá no fundo
+     * do corredor; a continuação, alta e colada, entra quando ele dispara (323,55). O pacote de
+     * voz toca os dois num clipe só (froggydude.scream); sem ele é o urro do mod no mesmo lugar.
+     */
+    private static final int SCREAM_AT = CONTORT_AT + 90;
+    /** A arrancada: o ROAR começa 7 ticks antes da continuação, pra ela cair no "inclina e arranca". */
+    private static final int CONTORT_TOTAL = SCREAM_AT + 74 - 7;
 
     private final FroggydudeEntity froggy;
     private int contortTicks;
     private int nextCrack;
+    private boolean screamed;
     /** Pra onde ele estava virado quando começou: contorce sem girar atrás de quem bate. */
     private float lockedYaw;
 
@@ -97,11 +109,12 @@ public class FroggyFrenzyGoal extends Goal {
         froggy.getNavigation().stop();
         lockedYaw = froggy.getYRot();
         holdYaw();
-        // contorção (2,95 s) e fica torto, com o ombro deslocado, de 2 a 4 s (no short ele
-        // fica um tempão assim antes de disparar)
-        contortTicks = BEND_TICKS + 40 + froggy.getRandom().nextInt(41);
+        // contorção (2,95 s) e fica torto, com o ombro deslocado, gemendo, calado e então
+        // gritando, até disparar (8,25 s ao todo, os tempos do vídeo do Grox)
+        contortTicks = CONTORT_TOTAL;
         nextCrack = BEND_TICKS + 6;
-        // os sons vêm no tick(), junto com os trancos. O grito fica pro ROAR.
+        screamed = false;
+        // os sons vêm no tick(), junto com os trancos.
         // boca FECHADA: no vídeo ele se contorce com a cara de choro de sempre, só abre no grito
     }
 
@@ -117,12 +130,18 @@ public class FroggyFrenzyGoal extends Goal {
                 if (t == CONTORT_AT) froggy.playSound(ModSounds.CONTORT.get(), 2.5F, 1.0F);
                 for (int c : CRACK_AT) if (t == c) crack();
                 for (int g : GRUNT_AT) if (t == g) froggy.vocalize(ModSounds.CONTORT_GRUNT.get(), 1.6F, false);
-            } else if (t >= nextCrack) {
+            } else if (t < SCREAM_AT && t >= nextCrack) {
                 // curvado: os ossos continuam estalando e ele grunhe (o "pain" tem fala,
-                // "freaking spicy", que não cabe aqui)
+                // "freaking spicy", que não cabe aqui); com o pacote, fica o silêncio do vídeo
                 crack();
-                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.HURT.get(), 1.6F, false);
+                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.CONTORT_GRUNT.get(), 1.6F, false);
                 nextCrack = t + 8 + froggy.getRandom().nextInt(14);
+            }
+            if (t == SCREAM_AT) {
+                // grita ainda torto, de boca aberta até disparar
+                froggy.playScream();
+                froggy.openMouth(contortTicks - SCREAM_AT + 20);
+                screamed = true;
             }
             if (t >= contortTicks) {
                 // etapa 2: levanta e grita
@@ -134,7 +153,7 @@ public class FroggyFrenzyGoal extends Goal {
 
         // ROAR
         if (t == ROAR_SCREAM_AT) {
-            froggy.playScream();
+            if (!screamed) froggy.playScream();
             crack();
         }
         if (t < ROAR_SCREAM_AT) facePrey();

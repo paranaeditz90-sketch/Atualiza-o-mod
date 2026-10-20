@@ -1,4 +1,4 @@
-# Froggydude - v0.4.6: som original da transformação (sobre a v0.4.5)
+# Froggydude - v0.4.7: o grito depois da transformação (sobre a v0.4.6)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,16 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.6):
+O que testar agora (v0.4.7):
+A) Fase 2 (`/froggydude fase2`) com o pacote de voz NOVO, nos tempos do vídeo do Grox
+   ("Manhunt but I have RABIES", depois dos blazes, 5:15-5:25): o gemido da contorção,
+   1 s de silêncio, e o grito "AAAAAAHHH!!!" ainda parado e torto (4,5 s depois do
+   começo do gemido), que vai morrendo por 3,7 s; a continuação, alta, entra quando ele
+   dispara (8,2 s). O grito é o do vídeo, cortado antes da fala do Grox; o "ah! ah! ah!"
+   picotado de antes saiu do pacote. A contorção agora dura sempre 8,25 s (antes eram
+   5-7 s sorteados) e, com o pacote, não tem grunhido no silêncio.
+
+Da v0.4.6:
 A) Fase 2 (`/froggydude fase2`) com o pacote de voz NOVO: a transformação toca o som
    original dele se contorcendo (3,4 s de gemido gutural com os ossos estalando, o mesmo
    som no short da fase 2, na versão longa e no TikTok "I'm the horror mod"). Ele entra
