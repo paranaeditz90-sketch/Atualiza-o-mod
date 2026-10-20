@@ -89,6 +89,8 @@ public final class FinisherAudio {
                     (e.skipLeft ? ModSounds.FINISHER_R : ModSounds.FINISHER).get().getLocation(),
                     SoundSource.HOSTILE, 1.0F, 1.0F, RandomSource.create(), false, 0,
                     SoundInstance.Attenuation.LINEAR, e.anchor.x, e.anchor.y + 0.5D, e.anchor.z, false);
+            // o grito da fase 2 (9 s) não continua por baixo da zebra
+            mc.getSoundManager().stop(ModSounds.SCREAM.get().getLocation(), null);
             mc.getSoundManager().play(s);
             PLAYING.put(e, s);
             if (DEBUG) System.out.println("[FROGGYDEBUG] zebra: tocando " + s.getLocation() + " no tick " + t);

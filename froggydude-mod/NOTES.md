@@ -1,4 +1,4 @@
-# Froggydude - v0.4.7: o grito depois da transformação (sobre a v0.4.6)
+# Froggydude - v0.4.8: o grito longo da fase 2 (sobre a v0.4.7)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.7):
+O que testar agora (v0.4.8):
+A) Fase 2 com o pacote de voz NOVO: o grito agora segue como no vídeo do Grox, uns 9 s.
+   Começa com o "AAAAAAHHH!!!" parado, entra a continuação quando ele dispara, e ele
+   continua gritando enquanto corre atrás de ti (no vídeo o Grox atira e não adianta).
+   Tirei do clipe as duas falas do Grox que ficavam no meio ("AHH! AHH! Leave me
+   alone!" e "He's bulletproof now!"): são três pedaços do mesmo grito emendados.
+   Atenção: o clipe da 0.4.7 ainda tinha o "AHH! AHH!" do Grox no finalzinho.
+B) Enquanto ele grita, nenhuma fala entra por cima (nem o "give me your body" quando
+   derruba, que antes cortava tudo), e o esmagamento soca sem o "tai!". Da contorção
+   até o grito ele fica calado (antes podia sair um "I'm hungry" no silêncio). Se a
+   cutscene final começar no meio do grito, o grito para e entra o áudio da zebra.
+
+Da v0.4.7:
 A) Fase 2 (`/froggydude fase2`) com o pacote de voz NOVO, nos tempos do vídeo do Grox
    ("Manhunt but I have RABIES", depois dos blazes, 5:15-5:25): o gemido da contorção,
    1 s de silêncio, e o grito "AAAAAAHHH!!!" ainda parado e torto (4,5 s depois do

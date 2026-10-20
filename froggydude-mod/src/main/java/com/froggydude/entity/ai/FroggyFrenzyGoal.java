@@ -55,10 +55,13 @@ public class FroggyFrenzyGoal extends Goal {
      * O grito, ainda parado e torto (vídeo do Grox, "Manhunt but I have RABIES", depois dos
      * blazes): o gemido começa em 315,4 s, acaba, 1 s de silêncio, e o "AAAAAAHHH!!!" sai em
      * 319,86 (4,5 s depois do começo do gemido), morrendo por 3,7 s com ele parado lá no fundo
-     * do corredor; a continuação, alta e colada, entra quando ele dispara (323,55). O pacote de
-     * voz toca os dois num clipe só (froggydude.scream); sem ele é o urro do mod no mesmo lugar.
+     * do corredor; a continuação, alta e colada, entra quando ele dispara (323,55), e ele segue
+     * gritando correndo enquanto o Grox atira (até 333,6). O pacote de voz toca tudo num clipe
+     * só (froggydude.scream, 9 s, sem as falas do Grox); sem ele é o urro do mod no mesmo lugar.
      */
     private static final int SCREAM_AT = CONTORT_AT + 90;
+    /** O clipe do grito (9,05 s): ele não fala nem grunhe por cima. */
+    private static final int SCREAM_TICKS = 182;
     /** A arrancada: o ROAR começa 7 ticks antes da continuação, pra ela cair no "inclina e arranca". */
     private static final int CONTORT_TOTAL = SCREAM_AT + 74 - 7;
 
@@ -114,6 +117,8 @@ public class FroggyFrenzyGoal extends Goal {
         contortTicks = CONTORT_TOTAL;
         nextCrack = BEND_TICKS + 6;
         screamed = false;
+        // calado do começo ao grito (nada de "I'm hungry" no meio do gemido ou do silêncio)
+        froggy.mute(SCREAM_AT);
         // os sons vêm no tick(), junto com os trancos.
         // boca FECHADA: no vídeo ele se contorce com a cara de choro de sempre, só abre no grito
     }
@@ -139,7 +144,7 @@ public class FroggyFrenzyGoal extends Goal {
             }
             if (t == SCREAM_AT) {
                 // grita ainda torto, de boca aberta até disparar
-                froggy.playScream();
+                froggy.playScream(SCREAM_TICKS);
                 froggy.openMouth(contortTicks - SCREAM_AT + 20);
                 screamed = true;
             }

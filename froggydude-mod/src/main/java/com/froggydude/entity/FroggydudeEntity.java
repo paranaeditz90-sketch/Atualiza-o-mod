@@ -205,6 +205,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int movingHold = 0;
     private int pinnedVictimId = -1;
     private int vocalCooldown = 0;
+    /** Gritando (o grito da fase 2): nenhuma fala entra, nem as que cortam as outras. */
+    private int screamTicks = 0;
     private int ribbitCooldown = 0;
     /** Calado (as falas nem entram na fila). */
     private int muteTicks = 0;
@@ -1166,7 +1168,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     public boolean speak(VoiceSituation situation, boolean interrupt) {
         if (!(this.level() instanceof ServerLevel server)) return false;
-        if (muteTicks > 0) return false;
+        if (muteTicks > 0 || screamTicks > 0) return false;
         if (vocalCooldown > 0) {
             if (!interrupt) return false;
             stopSpeaking(server);
@@ -1268,8 +1270,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Cada soco do esmagamento. */
     public void onSmashHit() {
         this.playSound(ModSounds.SMASH.get(), 1.3F, 0.8F + this.getRandom().nextFloat() * 0.25F);
-        // a cada soco ele solta um "tai!" (nos vídeos: "tai tai tai tai tai")
-        this.playSound(ModSounds.SMASH_TAI.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
+        // a cada soco ele solta um "tai!" (nos vídeos: "tai tai tai tai tai"); gritando, soca calado
+        if (screamTicks <= 0) this.playSound(ModSounds.SMASH_TAI.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
         openMouth(4);
     }
 
@@ -1448,9 +1450,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     /** O grito da fase 2: volume 8 é ouvido de bem longe. */
     public void playScream() {
+        playScream(50);
+    }
+
+    /** {@code quietTicks}: quanto tempo ele não fala nem grunhe por cima (o grito do pacote de voz tem 9 s). */
+    public void playScream(int quietTicks) {
         this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
                 ModSounds.SCREAM.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
-        vocalCooldown = 50; // não fala por cima do grito
+        vocalCooldown = Math.max(vocalCooldown, quietTicks); // não fala por cima do grito
+        screamTicks = Math.max(screamTicks, quietTicks);     // nem o "give me your body" que corta
         openMouth(50);
     }
 
@@ -1568,6 +1576,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;
         if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
+        if (screamTicks > 0) screamTicks--;
         if (ribbitCooldown > 0) ribbitCooldown--;
         // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
         if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
