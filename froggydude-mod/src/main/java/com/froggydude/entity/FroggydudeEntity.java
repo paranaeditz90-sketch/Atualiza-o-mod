@@ -1453,10 +1453,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         playScream(50);
     }
 
-    /** {@code quietTicks}: quanto tempo ele não fala nem grunhe por cima (o grito do pacote de voz tem 9 s). */
+    /** {@code quietTicks}: quanto tempo ele não fala nem grunhe por cima (o grito do pacote de voz tem 13,6 s). */
     public void playScream(int quietTicks) {
-        this.level().playSound(null, this.getX(), this.getY(), this.getZ(),
-                ModSounds.SCREAM.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
+        // preso nele (o grito do pacote dura 13,6 s e ele sai correndo no meio: no vídeo o grito
+        // vem junto com ele, não fica lá onde começou)
+        this.level().playSound(null, this, ModSounds.SCREAM.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
         vocalCooldown = Math.max(vocalCooldown, quietTicks); // não fala por cima do grito
         screamTicks = Math.max(screamTicks, quietTicks);     // nem o "give me your body" que corta
         openMouth(50);

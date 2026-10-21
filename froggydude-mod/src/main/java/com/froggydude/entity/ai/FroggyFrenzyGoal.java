@@ -57,11 +57,12 @@ public class FroggyFrenzyGoal extends Goal {
      * 319,86 (4,5 s depois do começo do gemido), morrendo por 3,7 s com ele parado lá no fundo
      * do corredor; a continuação, alta e colada, entra quando ele dispara (323,55), e ele segue
      * gritando correndo enquanto o Grox atira (até 333,6). O pacote de voz toca tudo num clipe
-     * só (froggydude.scream, 9 s, sem as falas do Grox); sem ele é o urro do mod no mesmo lugar.
+     * só (froggydude.scream, 13,6 s: o grito isolado, sem as falas nem os tiros do Grox); sem
+     * ele é o urro do mod no mesmo lugar.
      */
     private static final int SCREAM_AT = CONTORT_AT + 90;
-    /** O clipe do grito (9,05 s): ele não fala nem grunhe por cima. */
-    private static final int SCREAM_TICKS = 182;
+    /** O clipe do grito (13,6 s): ele não fala nem grunhe por cima. */
+    private static final int SCREAM_TICKS = 272;
     /** A arrancada: o ROAR começa 7 ticks antes da continuação, pra ela cair no "inclina e arranca". */
     private static final int CONTORT_TOTAL = SCREAM_AT + 74 - 7;
 

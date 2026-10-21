@@ -1,4 +1,4 @@
-# Froggydude - v0.4.8: o grito longo da fase 2 (sobre a v0.4.7)
+# Froggydude - v0.4.9: grito inteiro e o soco do vídeo do Grox (sobre a v0.4.8)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,16 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.8):
+O que testar agora (v0.4.9):
+A) Fase 2 com o pacote de voz NOVO: o grito inteiro do vídeo do Grox (5:20-5:34), 13,6 s,
+   com as falas do Grox e os dois tiros tirados (os buracos foram tapados com o próprio
+   grito, então a duração é a do vídeo). O grito agora vai junto com ele (antes ficava no
+   lugar onde ele começou a gritar e sumia quando ele corria pra longe).
+B) Esmagamento com o pacote: o som de cada soco é o da caverna do vídeo do Grox (2:02-2:08,
+   23 socos, um a cada 0,25 s), limpo: alinhei os 23 e tirei a média, que apaga a voz e a
+   música por baixo e deixa só a pancada.
+
+Da v0.4.8:
 A) Fase 2 com o pacote de voz NOVO: o grito agora segue como no vídeo do Grox, uns 9 s.
    Começa com o "AAAAAAHHH!!!" parado, entra a continuação quando ele dispara, e ele
    continua gritando enquanto corre atrás de ti (no vídeo o Grox atira e não adianta).
