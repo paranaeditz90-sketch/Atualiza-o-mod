@@ -99,6 +99,19 @@ public final class BloodFx {
                 source == null ? -1 : source.getId(), -1, 0));
     }
 
+    /**
+     * O FroggyDude matou: o corpo se desmonta em pedaços com física em quem está vendo
+     * (cada cliente decide pelo gore dele). dir = o empurrão, já com a força.
+     */
+    public static void breakBody(LivingEntity victim, Vec3 dir, float power) {
+        if (!(victim.level() instanceof ServerLevel)) return;
+        BloodType type = BloodType.of(victim);
+        ModNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> victim),
+                new BloodFxPacket(BloodFxPacket.BREAK, victim.getX(), victim.getY(), victim.getZ(), dir.x, dir.y, dir.z,
+                        type.bleeds() ? 1 : 0, power, type.bleeds() ? type.color : BloodType.residue(victim),
+                        victim.getId(), -1, 0));
+    }
+
     private static Vec3 unit(Vec3 dir) {
         return dir.lengthSqr() < 1.0E-6D ? new Vec3(0, 1, 0) : dir.normalize();
     }

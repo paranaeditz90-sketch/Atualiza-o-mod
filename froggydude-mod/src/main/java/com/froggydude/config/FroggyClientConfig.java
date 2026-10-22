@@ -13,6 +13,8 @@ public final class FroggyClientConfig {
 
     public static final ForgeConfigSpec.EnumValue<GoreLevel> GORE;
     public static final ForgeConfigSpec.BooleanValue WARNING_SEEN;
+    public static final ForgeConfigSpec.IntValue PIECES_SECONDS;
+    public static final ForgeConfigSpec.IntValue PIECES_MAX;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -22,6 +24,13 @@ public final class FroggyClientConfig {
         WARNING_SEEN = b.comment("false = mostra a tela de aviso de novo na próxima vez que o jogo abrir.")
                 .define("aviso_visto", false);
         b.pop();
+        b.comment("Quem o FroggyDude mata se desmonta em pedaços com física (gore Desligado = morte normal).")
+                .push("pedacos");
+        PIECES_SECONDS = b.comment("Quanto tempo os pedaços ficam no chão (segundos).")
+                .defineInRange("segundos", 90, 10, 600);
+        PIECES_MAX = b.comment("Máximo de pedaços no mundo ao mesmo tempo (celular fraco: diminua).")
+                .defineInRange("maximo", 160, 20, 600);
+        b.pop();
         SPEC = b.build();
     }
 
@@ -30,6 +39,14 @@ public final class FroggyClientConfig {
 
     public static GoreLevel gore() {
         return SPEC.isLoaded() ? GORE.get() : GORE.getDefault();
+    }
+
+    public static int piecesSeconds() {
+        return SPEC.isLoaded() ? PIECES_SECONDS.get() : PIECES_SECONDS.getDefault();
+    }
+
+    public static int piecesMax() {
+        return SPEC.isLoaded() ? PIECES_MAX.get() : PIECES_MAX.getDefault();
     }
 
     public static boolean warningSeen() {

@@ -63,7 +63,14 @@ public enum FroggyState {
      * (v0.6.2) O boom do warden jogou ele longe: voa dando cambalhota pra trás, cai de
      * costas e levanta (Grox, cidade antiga). Depois corre o dobro e come o warden.
      */
-    FLUNG(34);
+    FLUNG(34),
+    /**
+     * (v0.7) O banquete: matou, o corpo se desmontou em pedaços (client.pieces) e ele
+     * deita por cima em "flexão", "comendo" sem engolir nada, com o nhum nhum NHOM
+     * (vídeo "WHAT HAPPENED TO ME???" 2:50; Grox, RABIES 0:57). 3 a 7 s, no ritmo da
+     * raiva e da fome (FroggyFeastGoal).
+     */
+    FEAST(0);
 
     public final int durationTicks;
 

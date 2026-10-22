@@ -48,6 +48,11 @@ public class FroggyFeedGoal extends Goal {
     private static final double FEED_DISTANCE = 1.0D;
     /** Aldeão: 3 s de flexão (10 mordidas) antes de arrancar os braços e a cabeça. */
     private static final int VILLAGER_PUSHUPS = 60;
+    /**
+     * Bicho: 2,5 s de flexão nele vivo e ele morre - o corpo se desmonta em pedaços e
+     * ele continua em cima, comendo os pedaços (FroggyFeastGoal, v0.7).
+     */
+    private static final int KILL_TICKS = 50;
     /** O bote (animação jump_pin, igual ao do jogador): impulso no tick 4, 11 ticks no ar. */
     private static final int POUNCE_LAUNCH = 4;
     private static final int POUNCE_AIR = 11;
@@ -279,7 +284,7 @@ public class FroggyFeedGoal extends Goal {
                 froggy.spawnMouthBlood(2, BloodType.residue(victim), type.bleeds());
             }
         }
-        if (t >= FroggyState.FEEDING.durationTicks) {
+        if (t >= KILL_TICKS) {
             FeedLock.release(victim);
             froggy.eatVictim(victim);
             froggy.setFeedTarget(null);

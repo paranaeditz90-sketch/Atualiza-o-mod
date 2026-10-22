@@ -48,7 +48,17 @@ public class GoreEvents {
         LivingEntity victim = event.getEntity();
         if (victim.level().isClientSide()) return;
         DamageSource src = event.getSource();
-        if (!cuts(src, 4F) || byFroggy(src) || src.is(com.froggydude.init.ModDamageTypes.DEVOURED)) return;
+        if (byFroggy(src) || src.is(com.froggydude.init.ModDamageTypes.DEVOURED)) {
+            // o FroggyDude matou: o corpo se desmonta em pedaços (v0.7, no lugar do Physics Mod)
+            if (!(victim instanceof FroggydudeEntity) && !victim.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES)) {
+                Entity killer = src.getEntity() != null ? src.getEntity() : src.getDirectEntity();
+                Vec3 away = killer == null ? Vec3.ZERO : victim.position().subtract(killer.position()).multiply(1, 0, 1);
+                away = away.lengthSqr() < 1.0E-4D ? Vec3.ZERO : away.normalize();
+                BloodFx.breakBody(victim, away, 1.0F);
+            }
+            return;
+        }
+        if (!cuts(src, 4F)) return;
         BloodType type = BloodType.of(victim);
         if (!type.bleeds()) return;
         Vec3[] hd = hitPoint(victim, src);

@@ -85,6 +85,16 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> CHEW = register("froggydude.chew");
     /** As patadas do galope de quatro (junto com o passo do bloco do chão). */
     public static final RegistryObject<SoundEvent> GALLOP = register("froggydude.gallop");
+    /**
+     * O banquete em cima dos pedaços (v0.7): o "nhum nhum NHOM" com o sangue, em loop
+     * perfeito no cliente (client.pieces.FeastSounds) no ritmo da raiva e da fome. Sem o
+     * pacote de voz é mudo - aí quem soa são as mordidas (FEAST_BITE, FEAST_SQUISH).
+     */
+    public static final RegistryObject<SoundEvent> FEAST = register("froggydude.feast");
+    /** Cada mordida do banquete sem o pacote: dente e mastigada (o pacote cala). */
+    public static final RegistryObject<SoundEvent> FEAST_BITE = register("froggydude.feast_bite");
+    /** O molhado do sangue a cada mordida sem o pacote (o pacote cala). */
+    public static final RegistryObject<SoundEvent> FEAST_SQUISH = register("froggydude.feast_squish");
 
     /**
      * Uma fala por som (froggydude.voice.&lt;clipe&gt;), pra tocar na ordem dos vídeos

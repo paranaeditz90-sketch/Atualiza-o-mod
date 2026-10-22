@@ -118,5 +118,6 @@
   "subtitles.froggydude.voice.retreat_low_health": "FroggyDude: \"I'm very low on health! I need food and a plan\"",
   "subtitles.froggydude.voice.retreat_back_to_full": "FroggyDude: \"Back to full health!\"",
   "subtitles.froggydude.voice.retreat_plan_smash": "FroggyDude: \"Time for the plan! Smash, eat, swallow\"",
-  "subtitles.froggydude.voice.retreat_plan_attack": "FroggyDude: \"Time for a plan! Attack, bite, eat\""
+  "subtitles.froggydude.voice.retreat_plan_attack": "FroggyDude: \"Time for a plan! Attack, bite, eat\"",
+  "subtitles.froggydude.feast": "FroggyDude devours"
 }

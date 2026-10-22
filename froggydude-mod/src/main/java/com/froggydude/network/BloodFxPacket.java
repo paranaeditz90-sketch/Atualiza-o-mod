@@ -24,6 +24,11 @@ public class BloodFxPacket {
     public static final byte STREAM = 3;
     /** Explosão de sangue (membro arrancado, morte): pedaços, poça grande e respingo em quem está perto. */
     public static final byte BURST = 4;
+    /**
+     * O FroggyDude matou entityA: o corpo se desmonta em pedaços com física
+     * (client.pieces.BodyPieces). d = o empurrão, power = força, count = 1 se sangra.
+     */
+    public static final byte BREAK = 5;
 
     final byte kind;
     final float x, y, z;
@@ -84,6 +89,8 @@ public class BloodFxPacket {
                         msg.power, msg.ticks, msg.color);
                 case BURST -> ClientBloodFx.burst(msg.x, msg.y, msg.z, msg.dx, msg.dy, msg.dz, msg.count,
                         msg.power, msg.color, msg.entityA);
+                case BREAK -> com.froggydude.client.pieces.BodyPieces.breakEntity(msg.entityA, msg.dx, msg.dy, msg.dz,
+                        msg.power, msg.color, msg.count != 0);
                 default -> ClientBloodFx.spray(msg.x, msg.y, msg.z, msg.dx, msg.dy, msg.dz, msg.count,
                         msg.power, msg.color);
             }

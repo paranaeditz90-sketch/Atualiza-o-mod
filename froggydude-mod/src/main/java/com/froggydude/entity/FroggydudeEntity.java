@@ -8,6 +8,7 @@ import com.froggydude.brain.Style;
 import com.froggydude.config.AiLevel;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.ai.FroggyCombatGoal;
+import com.froggydude.entity.ai.FroggyFeastGoal;
 import com.froggydude.entity.ai.FroggyFeedGoal;
 import com.froggydude.entity.ai.FroggyFinisherGoal;
 import com.froggydude.entity.ai.FroggyFrenzyGoal;
@@ -154,6 +155,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Agachado como jogador (o shift): na dancinha e fazendo ponte (ai.PlayerMoves). */
     private static final EntityDataAccessor<Boolean> DATA_CROUCH =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /** O ritmo do banquete (1 = 4 mordidas por segundo): o pitch do loop e a velocidade da flexão. */
+    private static final EntityDataAccessor<Float> DATA_FEAST_RATE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
 
     /**
      * Comendo em "flexão" (pin_hold, feed_mob): uma mordida a cada 0,3 s (6 ticks).
@@ -339,6 +343,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_FINISH_SKIPLEFT, false);
         this.entityData.define(DATA_FEED_ID, -1);
         this.entityData.define(DATA_CROUCH, false);
+        this.entityData.define(DATA_FEAST_RATE, 1.0F);
     }
 
     @Override
@@ -348,6 +353,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(0, finisherGoal);
         // 0: IA Real - apanhando demais, foge pra longe da vista antes de ir comer (vem antes do comer)
         this.goalSelector.addGoal(0, new FroggyRetreatGoal(this));
+        // 0: matou: deita nos pedaços e come (antes de procurar outra comida)
+        this.goalSelector.addGoal(0, new FroggyFeastGoal(this));
         // 0: comer tem prioridade sobre tudo, inclusive lutar
         this.goalSelector.addGoal(0, new FroggyFeedGoal(this));
         // 1: fase 2 (contorção + grito + 30 s correndo mais que um jogador)
@@ -479,8 +486,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             // farejava quem renascia e matava de novo, sem parar)
             fedOn.put(killed.getUUID(), this.tickCount + FED_TICKS);
             satiety = MEAL_FULL_TICKS;
-            speak(VoiceSituation.ATE, true);
-            if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
+            // deita nos pedaços e come; o "that was so delicious" é no fim
+            if (!startFeast((Player) killed, VoiceSituation.ATE)) {
+                speak(VoiceSituation.ATE, true);
+                if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
+            }
+        } else if (killed instanceof LivingEntity living && !(killed instanceof net.minecraft.world.entity.monster.Blaze)
+                && !killed.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES)) {
+            startFeast(living, afterMeal(living));
         }
     }
 
@@ -952,7 +965,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public boolean isVulnerableState() {
         FroggyState s = getFroggyState();
-        return s == FroggyState.FEEDING || s == FroggyState.CONTORTING;
+        return s == FroggyState.FEEDING || s == FroggyState.CONTORTING || s == FroggyState.FEAST;
     }
 
     public boolean isRunning() {
@@ -1991,6 +2004,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         } else {
             clientStateAge++;
         }
+        // banquete: a mordida deste tick (os pedaços embaixo pulam - client.pieces.BodyPieces)
+        if (st == FroggyState.FEAST.ordinal()) {
+            clientFeastPhase += getFeastRate() * FEAST_BITES_PER_TICK;
+            clientFeastBite = clientFeastPhase >= 1.0D;
+            if (clientFeastBite) clientFeastPhase -= 1.0D;
+        } else {
+            clientFeastPhase = 0.6D;
+            clientFeastBite = false;
+        }
 
         double dx = this.getX() - this.xo;
         double dz = this.getZ() - this.zo;
@@ -2085,6 +2107,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         FroggyState s = getFroggyState();
         // esmagamento: um soco a cada 6 ticks (o ciclo "smash" tem 0,5 s = 10 ticks)
         if (s == FroggyState.SMASH && getDebugAnim().isEmpty()) return 10.0D / FroggyCombatGoal.SMASH_EVERY;
+        // banquete: a flexão (6 ticks por mordida) no ritmo do nhum nhum (5 ticks na velocidade 1)
+        if (s == FroggyState.FEAST && getDebugAnim().isEmpty()) return getFeastRate() * 1.2D;
         if (isClimbing() && !this.onGround() && getDebugAnim().isEmpty()) {
             return isFrenzyActive() ? 2.2D : 1.6D;
         }
@@ -2164,7 +2188,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public boolean hurt(DamageSource source, float amount) {
         FroggyState state = getFroggyState();
-        boolean wasFeeding = state == FroggyState.FEEDING;
+        boolean wasFeeding = state == FroggyState.FEEDING || state == FroggyState.FEAST;
         if (wasFeeding || state == FroggyState.ARM_EAT) {
             amount *= 1.5F; // mais vulnerável enquanto come
         }
@@ -2231,8 +2255,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 setSkinVariant(SkinVariant.SMASHED);
             }
             if (wasFeeding) {
-                // interrompido comendo: larga a vítima e revida na hora
+                // interrompido comendo: larga a vítima (ou os pedaços) e revida na hora
                 setFeedTarget(null);
+                if (state == FroggyState.FEAST) endFeast(false);
                 setFroggyState(FroggyState.CHASE);
                 if (source.getEntity() instanceof LivingEntity attacker) {
                     setTarget(attacker);
@@ -2433,6 +2458,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_CEILING_DIVE);
             case FLUNG:
                 return state.setAndContinue(ANIM_FLUNG);
+            case FEAST:
+                return state.setAndContinue(ANIM_FEED_MOB);
             case BUILD:
             case TAUNT:
                 // em pé, como jogador (o agachar e o soco vêm por cima, no modelo)
@@ -2559,6 +2586,96 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
     }
 
+    // ----- o banquete em cima dos pedaços (v0.7) -----
+
+    /** Na velocidade 1: uma mordida a cada 5 ticks (4 por segundo, o ritmo do vídeo). */
+    public static final double FEAST_BITES_PER_TICK = 0.2D;
+    /** Onde estão os pedaços (null = nada pra comer). */
+    @Nullable
+    private Vec3 feastSpot;
+    /** O corpo deitado não fica na posição da vítima (o golpe final): quem matou avisa onde. */
+    @Nullable
+    private Vec3 presetFeastSpot;
+    private int feastTicksLeft;
+    @Nullable
+    private VoiceSituation feastSpeech;
+    private int feastColor = BloodType.RED.color;
+    private double clientFeastPhase;
+    private boolean clientFeastBite;
+
+    /** O golpe final avisa onde o corpo está deitado (a vítima de pé fica em outro lugar). */
+    public void presetFeastSpot(Vec3 spot) {
+        this.presetFeastSpot = spot;
+    }
+
+    /**
+     * Matou: deita em cima dos pedaços e "come" por 3 a 7 s (FroggyFeastGoal). A fala
+     * de depois ("that was so delicious") fica pro fim. Devolve false se não vai comer.
+     */
+    public boolean startFeast(LivingEntity victim, @Nullable VoiceSituation speech) {
+        if (!this.isAlive() || victim instanceof FroggydudeEntity) return false;
+        feastSpot = presetFeastSpot != null ? presetFeastSpot : victim.position();
+        presetFeastSpot = null;
+        feastTicksLeft = 60 + this.getRandom().nextInt(81);
+        feastSpeech = speech;
+        BloodType type = BloodType.of(victim);
+        feastColor = type.bleeds() ? type.color : BloodType.residue(victim);
+        this.entityData.set(DATA_FEAST_RATE, feastRate());
+        return true;
+    }
+
+    /**
+     * O ritmo: com raiva (fase 2, o boom do warden, irritado, apanhou agora há pouco) e
+     * com fome (ferido, barriga vazia) come mais rápido; de barriga cheia, devagar.
+     */
+    private float feastRate() {
+        float rage = 0F;
+        if (isFrenzyActive()) rage += 0.3F;
+        if (isEnraged()) rage += 0.2F;
+        if (isIrked()) rage += 0.15F;
+        if (this.getLastHurtByMob() != null && this.tickCount - this.getLastHurtByMobTimestamp() < 200) rage += 0.1F;
+        float hunger = wantsToHeal() ? 0.2F : satiety <= SNACK_FULL_TICKS ? 0.06F : -0.1F;
+        return Mth.clamp(0.95F + rage + hunger + (float) this.getRandom().nextGaussian() * 0.04F, 0.8F, 1.4F);
+    }
+
+    public boolean hasFeast() {
+        return feastSpot != null && feastTicksLeft > 0;
+    }
+
+    @Nullable
+    public Vec3 getFeastSpot() {
+        return feastSpot;
+    }
+
+    public int getFeastColor() {
+        return feastColor;
+    }
+
+    public float getFeastRate() {
+        return this.entityData.get(DATA_FEAST_RATE);
+    }
+
+    /** Um tick de banquete; false quando acabou o tempo. */
+    public boolean tickFeast() {
+        return --feastTicksLeft > 0;
+    }
+
+    /** No cliente: a cabeça desceu mordendo neste tick? */
+    public boolean feastBiteNow() {
+        return clientFeastBite;
+    }
+
+    /** Acabou de comer (ou largou): a fala de depois, se terminou. */
+    public void endFeast(boolean finished) {
+        if (finished && feastSpeech != null) {
+            speak(feastSpeech, true);
+            if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
+        }
+        feastSpot = null;
+        feastTicksLeft = 0;
+        feastSpeech = null;
+    }
+
     public void eatVictim(LivingEntity victim) {
         satiety = Math.max(satiety, SNACK_FULL_TICKS);
         spawnBlood(victim, 25);
@@ -2578,10 +2695,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (victim instanceof net.minecraft.world.entity.monster.Blaze) {
             speak(VoiceSituation.SPICY, true);
             requestPhase2(); // "freaking spicy"
-        } else {
-            if (type.bleeds()) setSkinVariant(SkinVariant.FED);
-            speak(afterMeal(victim), true);
-            if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
+        } else if (type.bleeds()) {
+            // a fala de depois ("that was delicious") vem no fim do banquete (awardKillScore)
+            setSkinVariant(SkinVariant.FED);
         }
     }
 

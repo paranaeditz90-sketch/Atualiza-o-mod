@@ -1,4 +1,4 @@
-# Froggydude - v0.6.4: irritado do nada, ele se transforma (sobre a v0.6.3)
+# Froggydude - v0.7.0: o corpo despedaçado com física e ele comendo em cima (sobre a v0.6.4)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,30 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.6.4) - SÓ a transformação do nada:
+O que testar agora (v0.7.0) - o corpo despedaçado e o banquete:
+POR QUE NÃO O PHYSICS MOD: o motor dele é o PhysX da NVIDIA, que vem compilado só pra PC (Windows,
+   Linux x86, Mac). No celular (Linux ARM) ele tenta carregar a biblioteca do PC, dá erro e o jogo fecha -
+   não tem plano B no código dele, e a licença (All rights reserved) não deixa mexer no jar. Então a
+   física foi feita aqui dentro, em Java puro: roda no celular.
+A) DESPEDAÇADO: quem o FroggyDude mata (jogador, aldeão, bicho, monstro) se desmonta nos cubos do próprio
+   modelo - cabeça, tronco, braços, pernas, a aba do chapéu, com a skin, a roupa e a armadura - que caem,
+   quicam, tombam, rolam e se amontoam de verdade (colidem com os blocos e uns com os outros), tingidos de
+   sangue, pingando e deixando poça onde param. O que ele já arrancou (braço, cabeça) não aparece no monte.
+   Ficam 90 s e afundam no chão (config do cliente: pedacos.segundos e pedacos.maximo). Gore Desligado =
+   morte normal, sem pedaços. Testado: aldeão em 8 pedaços, porco em 6, o jogador de armadura em 3 (sem
+   os braços e a cabeça, que ele comeu no golpe final).
+B) O BANQUETE: depois de matar, ele deita em cima dos pedaços em "flexão" e fica "comendo" sem engolir nada
+   (o vídeo do Grox e o "WHAT HAPPENED TO ME???" 2:50) por 3 a 7 s; a cada mordida os pedaços embaixo dele
+   pulam e espirra sangue. O ritmo muda com a raiva (fase 2, boom do warden, irritado, apanhou agora) e
+   a fome (ferido, barriga vazia): de 0,8x (cheio, calmo) a 1,4x (furioso e faminto). Só no fim vem o
+   "that was so delicious". Se alguém bater nele, larga e revida.
+C) O SOM: com o pacote de voz NOVO (FroggyDude-Voz.zip desta versão), o nhum nhum NHOM com o sangue
+   escorrendo, tirado do vídeo que tu mandou, em loop perfeito (emenda no vale entre duas mordidas) e
+   acelerado/desacelerado junto com o ritmo. Sem o pacote: mastigada + molhado do sangue a cada mordida.
+D) Bicho: agora ele come 2,5 s com o bicho vivo e aí o bicho morre e se desmonta - o resto do tempo é em
+   cima dos pedaços.
+
+Da v0.6.4 - a transformação do nada:
 A) IRRITADO DO NADA: na hora que ele decide partir pra cima de ti (o bote, a mordida, a língua...),
    às vezes, mesmo com a vida cheia, em vez do ataque vem a raiva: 5 ribbits cada vez mais altos,
    mais graves e mais colados (~2,4 s), ele vem chegando sem atacar, para na tua frente e se

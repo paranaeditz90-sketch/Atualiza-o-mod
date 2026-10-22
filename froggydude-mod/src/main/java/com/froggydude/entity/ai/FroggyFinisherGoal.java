@@ -275,8 +275,10 @@ public class FroggyFinisherGoal extends Goal {
             froggy.setSkinVariant(SkinVariant.FED);
             froggy.addGore(1.0F);
             froggy.villagerEaten();
+            // o que sobrou se desmonta em pedaços (client.pieces) e ele come em cima (FroggyFeastGoal);
+            // a fala vem no fim do banquete
+            froggy.presetFeastSpot(anchor);
             victim.hurt(devoured(level, froggy), Float.MAX_VALUE);
-            froggy.speakAfter(VoiceSituation.ATE, 15);
             return;
         }
         sendEnd(level);
@@ -284,8 +286,10 @@ public class FroggyFinisherGoal extends Goal {
         froggy.heal(froggy.getMaxHealth() * 0.25F);
         froggy.setSkinVariant(SkinVariant.FED);
         froggy.addGore(1.5F);
-        // engoliu a cabeça: acabou (v0.5.0, LM: sem a cena de depois, ele comendo o corpo)
+        // engoliu a cabeça: o resto se desmonta em pedaços e ele deita em cima comendo
+        // (v0.7, LM: o FroggyDude comendo o jogador despedaçado, "WHAT HAPPENED TO ME???" 2:50)
         FinisherTracker.clear(p);
+        froggy.presetFeastSpot(anchor);
         p.hurt(devoured(level, froggy), Float.MAX_VALUE);
     }
 
