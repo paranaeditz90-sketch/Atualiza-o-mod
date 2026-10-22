@@ -99,7 +99,7 @@ public class FroggyCombatGoal extends Goal {
     // seguram/socam a vítima, a cabeça nunca entra na câmera dela (fica a 0,2-0,5
     // bloco no ponto mais perto) e os pés dele ficam no chão.
     private static final double PIN_DISTANCE = 1.5D;
-    private static final double SMASH_DISTANCE = 1.5D;
+    private static final double SMASH_DISTANCE = 1.1D;
     private static final double RIP_DISTANCE = 1.5D;
 
     // Devorar: 5 s comendo em "flexão" (pin_hold): a cabeça desce mordendo a cada 0,3 s.
@@ -181,6 +181,8 @@ public class FroggyCombatGoal extends Goal {
     private boolean fired1;
     private boolean fired2;
     private boolean launched;
+    /** Bote do teto (ceilingDive): true = só empurra. */
+    private boolean diveShove;
     private int stateLength;
     private int hits;
     private boolean ripPlanned;
@@ -1005,10 +1007,56 @@ public class FroggyCombatGoal extends Goal {
         return stuckTicks;
     }
 
+    /**
+     * IA Real (v0.6): de tocaia no canto do teto, ele se solta e se joga em cima dela
+     * (LM: "pulando contra o jogador, empurrando ou derrubando o jogador"). Metade das
+     * vezes só empurra: ela voa de costas e ele já sai correndo atrás; na outra cai
+     * montado, como no bote (o fim que a tocaia mandou: devorar).
+     */
+    public void ceilingDive(LivingEntity target) {
+        beginAttack(FroggyState.CEILING_DIVE, target, froggy.distanceTo(target));
+        launched = true;
+        diveShove = froggy.getRandom().nextBoolean();
+        double dx = target.getX() - froggy.getX(), dz = target.getZ() - froggy.getZ();
+        double d = Math.sqrt(dx * dx + dz * dz);
+        // se solta sem impulso pra cima: conta os ticks da queda até a altura dela
+        double dy = target.getY() - froggy.getY(), y = 0.0D, vy = 0.0D;
+        int n = 1;
+        for (; n < 40 && y > dy; n++) {
+            y += vy;
+            vy = (vy - 0.08D) * 0.98D;
+        }
+        // no ar a velocidade de lado perde 9% por tick: chega meio bloco antes dela
+        double vh = Math.min(1.4D, Math.max(0.0D, d - 0.5D) * (1.0D - AIR_FRICTION) / (1.0D - Math.pow(AIR_FRICTION, n)));
+        if (d > 1.0E-3D) {
+            froggy.faceDirection(dx, dz);
+            froggy.setDeltaMovement(dx / d * vh, 0.0D, dz / d * vh);
+        }
+        froggy.setNoFallTicks(60);
+        froggy.hasImpulse = true;
+        debug(String.format("bote do teto: dist=%.1f queda=%.1f ticks=%d %s", d, -dy, n, diveShove ? "empurra" : "monta"));
+    }
+
+    /** O bote do teto que só empurra: ela voa de costas, tonta, e ele já vai atrás. */
+    private void shove(LivingEntity target) {
+        hurtNoKnockback(target, 4.0F);
+        froggy.spawnBlood(target, 3);
+        target.knockback(1.3D, froggy.getX() - target.getX(), froggy.getZ() - target.getZ());
+        target.setDeltaMovement(target.getDeltaMovement().add(0.0D, 0.25D, 0.0D));
+        target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 30, 2, false, false));
+        if (target instanceof ServerPlayer player) {
+            player.setSprinting(false);
+            player.hurtMarked = true;
+            ModNetwork.sendEffects(player, 1.3F, 14, 0, froggy.getId());
+        }
+        attackHit = true;
+        froggy.ribbit(1.5F);
+    }
+
     /** IA Real indo pra um ponto de onde vê a vítima (pro pulo calculado): não larga o alvo. */
     public boolean holdsTarget() {
         if (!real.active()) return false;
-        if (real.planningReach()) return true;
+        if (real.planningReach() || real.teasing()) return true;
         // ela subiu num lugar logo acima dele (plataforma, torre): ele sabe onde ela está,
         // mesmo sem ver lá debaixo (antes largava o alvo antes de procurar de onde pular)
         LivingEntity t = froggy.getTarget();
@@ -1308,6 +1356,24 @@ public class FroggyCombatGoal extends Goal {
                         finishAttack(state);
                         return;
                     }
+                }
+            }
+            case CEILING_DIVE -> {
+                // caindo do teto: confere todo tick se já pegou nela
+                boolean contact = touching(target, 0.45D);
+                if (contact || (froggy.onGround() && t >= 2) || t >= state.durationTicks - 1) {
+                    debug((contact ? "bote do teto pegou" : "bote do teto pousou") + ": t=" + t
+                            + " dist=" + froggy.distanceTo(target));
+                    if (contact || froggy.distanceTo(target) <= 2.2D) {
+                        froggy.setDeltaMovement(0, Math.min(0, froggy.getDeltaMovement().y), 0);
+                        if (!diveShove) {
+                            pounceHit(state, target);
+                            return;
+                        }
+                        shove(target);
+                    }
+                    finishAttack(state);
+                    return;
                 }
             }
             case SKY_DROP -> {

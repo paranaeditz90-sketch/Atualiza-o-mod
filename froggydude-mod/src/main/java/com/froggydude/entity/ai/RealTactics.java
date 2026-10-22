@@ -61,6 +61,8 @@ import java.util.UUID;
  *   cima, do outro lado da lava), com a conta de verdade da física do jogo pra
  *   cair do lado dela - e raro (um a cada 2 min no máximo).
  * - Fugir pra se curar e voltar com um plano: FroggyRetreatGoal.
+ * - (v0.6) Antes de comer, brinca com ela uns minutos - o "tempero" (RealTease) - e
+ *   espera ela onde ela sempre volta (FroggyStakeoutGoal).
  */
 final class RealTactics {
 
@@ -86,6 +88,7 @@ final class RealTactics {
 
     private final FroggydudeEntity froggy;
     private final FroggyCombatGoal combat;
+    private final RealTease tease;
 
     @Nullable
     private UUID who;
@@ -116,6 +119,12 @@ final class RealTactics {
     RealTactics(FroggydudeEntity froggy, FroggyCombatGoal combat) {
         this.froggy = froggy;
         this.combat = combat;
+        this.tease = new RealTease(froggy, this, combat);
+    }
+
+    /** Brincando com a presa (o "tempero"): não larga o alvo mesmo sumido de propósito. */
+    boolean teasing() {
+        return tease.active();
     }
 
     boolean active() {
@@ -125,6 +134,7 @@ final class RealTactics {
     /** O combate parou (sem alvo): larga o que estava fazendo. */
     void reset() {
         endSequences();
+        tease.reset();
         who = null;
     }
 
@@ -142,6 +152,7 @@ final class RealTactics {
             unseen = Math.max(0, PlayerSight.unseenFor(player, froggy));
             engagedAt = froggy.tickCount;
             endSequences();
+            tease.begin(player);
         }
         boolean was = seen;
         seen = PlayerSight.sees(player, froggy);
@@ -156,6 +167,8 @@ final class RealTactics {
             endSequences();
             return false;
         }
+        // antes de comer, o tempero: susto, some, outro susto (RealTease)
+        if (tease.tick(player, dist, seen)) return true;
         judgeEarly(player);
         // trancada/inalcançável: quem cuida é o cerco (stuck); a chegada de mansinho brigava com ele
         if (combat.stuckTicks() >= 20 && approach != Approach.ANNOUNCE) approach = null;
@@ -369,7 +382,7 @@ final class RealTactics {
     }
 
     /** Atrás dela e um pouco pro lado em que ele já está (sem cruzar a frente dela). */
-    private Vec3 blindSpot(ServerPlayer p, double r) {
+    Vec3 blindSpot(ServerPlayer p, double r) {
         Vec3 look = p.getViewVector(1.0F).multiply(1, 0, 1);
         look = look.lengthSqr() < 1.0E-4D ? new Vec3(0, 0, 1) : look.normalize();
         Vec3 side = new Vec3(-look.z, 0, look.x);
@@ -378,7 +391,7 @@ final class RealTactics {
         return p.position().add(dir.scale(r));
     }
 
-    private void moveTo(Vec3 at, double speed) {
+    void moveTo(Vec3 at, double speed) {
         froggy.getNavigation().moveTo(at.x, at.y, at.z, speed);
     }
 
@@ -433,6 +446,15 @@ final class RealTactics {
         froggy.speak(VoiceSituation.STANDOFF, true);
         froggy.brainLog("encarando " + p.getScoreboardName() + " de longe antes de ir");
         return true;
+    }
+
+    /** Fim da brincadeira: "I can smell the fear in you! Time to eat!", encara e vai. */
+    void standoff(ServerPlayer p) {
+        endSequences();
+        stare = STARE_TICKS;
+        stareReadyAt = froggy.tickCount + STARE_COOLDOWN;
+        froggy.speak(VoiceSituation.STANDOFF, true);
+        froggy.brainLog("encarando " + p.getScoreboardName() + ": hora de comer");
     }
 
     // ---------------------------------------------------------------- sem caminho
@@ -806,7 +828,7 @@ final class RealTactics {
      * passar por bloco com colisão); -1 se não é fechado (escapa pro céu ou pra
      * longe, 12 de raio, 8 pra cima).
      */
-    private int enclosure(ServerPlayer p) {
+    int enclosure(ServerPlayer p) {
         Level level = froggy.level();
         BlockPos start = p.blockPosition();
         Set<BlockPos> seenCells = new HashSet<>();
@@ -830,7 +852,7 @@ final class RealTactics {
     }
 
     @Nullable
-    private LivingEntity findMeal(ServerPlayer p) {
+    LivingEntity findMeal(ServerPlayer p) {
         AABB area = froggy.getBoundingBox().inflate(32.0D, 8.0D, 32.0D);
         List<LivingEntity> food = froggy.level().getEntitiesOfClass(LivingEntity.class, area,
                 e -> e.isAlive() && e instanceof Mob && !(e instanceof Monster) && !(e instanceof Player)
@@ -847,7 +869,7 @@ final class RealTactics {
      * Devolve onde ele fica (os pés).
      */
     @Nullable
-    private BlockPos findWindow(ServerPlayer p) {
+    BlockPos findWindow(ServerPlayer p) {
         Level level = froggy.level();
         BlockPos c = p.blockPosition();
         List<BlockPos> spots = new ArrayList<>();
@@ -878,7 +900,7 @@ final class RealTactics {
         return null;
     }
 
-    private static boolean free(Level level, BlockPos pos) {
+    static boolean free(Level level, BlockPos pos) {
         return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty() && level.getFluidState(pos).isEmpty();
     }
 

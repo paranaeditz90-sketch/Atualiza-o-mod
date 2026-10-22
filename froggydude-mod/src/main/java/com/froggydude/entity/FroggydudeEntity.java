@@ -52,7 +52,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.OpenDoorGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
@@ -356,8 +355,19 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // em volta até achar quem se escondeu (mesma prioridade do combate: um
         // precisa de alvo, o outro só roda sem alvo)
         this.goalSelector.addGoal(2, new FroggyTrackGoal(this));
+        // 1: IA Real (v0.6) - longe da presa, vai pro lugar que ela está pra voltar (o baú,
+        // a cama, a mina) e espera lá dentro: no canto do teto ou no breu. Na frente do faro
+        // (às vezes vai atrás pelo cheiro, às vezes espera): na mesma prioridade, o faro
+        // que começasse primeiro não deixava a tocaia sair nunca. Só roda sem alvo, então
+        // não passa na frente do combate.
+        // 1: IA Real (v0.6) - ela mora numa vila e foi minerar: ele vai lá e come os aldeões.
+        // Antes da tocaia (as duas na mesma hora: primeiro a vila, depois espera na cama dela)
+        this.massacreGoal = new com.froggydude.entity.ai.FroggyMassacreGoal(this);
+        this.goalSelector.addGoal(1, massacreGoal);
+        this.stakeoutGoal = new com.froggydude.entity.ai.FroggyStakeoutGoal(this);
+        this.goalSelector.addGoal(1, stakeoutGoal);
         // abre porta de madeira (quem não trancou a porta... - vs "how many days", 7:18)
-        this.goalSelector.addGoal(1, new OpenDoorGoal(this, false));
+        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyDoorGoal(this));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         // sem RandomLookAroundGoal: ele virava a cabeça pros lados do nada (parecia tique).
         // Só encara quem estiver perto.
@@ -366,7 +376,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         // faro: quem está sem braço sangra e ele sente o cheiro de longe, mesmo sem ver
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, false, false,
-                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p) && !underTruce(p) && !hidingFrom(p)) {
+                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p) && !underTruce(p) && !hidingFrom(p) && !stakingOut) {
             {
                 this.targetConditions = this.targetConditions.ignoreLineOfSight();
             }
@@ -377,7 +387,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
         });
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
-                e -> !isFedOn(e) && !underTruce(e) && !hidingFrom(e)) {
+                e -> !isFedOn(e) && !underTruce(e) && !hidingFrom(e) && !stakingOut) {
             @Override
             protected double getFollowDistance() {
                 // o quanto ele enxerga longe depende do nível da IA (48 blocos no Alto)
@@ -390,7 +400,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 // (comendo o telhado, a parede na frente) ele largava a vítima. Arrombando
                 // ou colado nela, ele sabe onde está; longe e sem ver, quem cuida é o faro.
                 LivingEntity t = this.mob.getTarget();
-                // IA Real indo pra um ponto de onde vê ela lá em cima (o pulo calculado): sabe onde ela está
+                // IA Real indo pra um ponto de onde vê ela lá em cima (o pulo calculado), ou brincando com
+                // ela (RealTease, escondido longe de propósito): sabe onde ela está
                 if (t != null && t.isAlive() && (combatGoal.isBreaking() || combatGoal.holdsTarget()
                         || this.mob.distanceTo(t) < 6.0F)) {
                     return true;
@@ -1080,9 +1091,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             return pos.add(fx * 0.86D, 0.94D, fz * 0.86D);
         }
         if (state == FroggyState.SMASH) {
-            // em pé na frente: um ponto fixo entre o peito e o rosto, pra câmera não
-            // pular a cada soco (a cabeça vai de 1,8 de altura até ~1,0 no impacto)
-            return pos.add(fx * 0.45D, 1.35D, fz * 0.45D);
+            // de joelhos na frente (v0.5.2): um ponto fixo entre o peito e o rosto, pra
+            // câmera não pular a cada soco (a cabeça fica entre 1,55 e 1,4 de altura)
+            return pos.add(fx * 0.4D, 1.15D, fz * 0.4D);
         }
         return this.getEyePosition(partialTick);
     }
@@ -1239,6 +1250,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void mute(int ticks) {
         muteTicks = Math.max(muteTicks, ticks);
         pendingSpeech = null;
+    }
+
+    /** Calado (de mansinho): não faz barulho nenhum, nem arromba porta (FroggyDoorGoal). */
+    public boolean isMuted() {
+        return muteTicks > 0;
     }
 
     /** Fala depois que terminar a de agora (espera até ~6 s; depois desiste). */
@@ -1575,6 +1591,50 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public boolean hidingFrom(Entity e) {
         return retreatedFrom != null && e.getUUID().equals(retreatedFrom) && this.tickCount < hideUntil
                 && healing && this.distanceTo(e) > 10.0F;
+    }
+
+    /** IA Real (v0.6): de tocaia esperando a presa (FroggyStakeoutGoal). Ver ela não vira alvo: ele espera a hora. */
+    private boolean stakingOut;
+    @Nullable
+    private com.froggydude.entity.ai.FroggyStakeoutGoal stakeoutGoal;
+    private com.froggydude.entity.ai.FroggyMassacreGoal massacreGoal;
+    /** No meio do massacre da vila (FroggyMassacreGoal): arromba porta sem dó. */
+    private boolean massacring;
+
+    /** Comando de teste (/froggydude estudo massacre). */
+    public void forceMassacre() {
+        if (massacreGoal != null) massacreGoal.forceNext();
+    }
+
+    public boolean isMassacring() {
+        return massacring;
+    }
+
+    public void setMassacring(boolean on) {
+        massacring = on;
+    }
+
+    /** O massacre da vila: a fome de aldeão não passa depois de cada um. */
+    public void craveVillagers() {
+        villagerAppetite = 0;
+    }
+
+    /** IA Real (v0.6): da tocaia no teto, o bote em cima dela (FroggyCombatGoal.ceilingDive). */
+    public void ceilingDive(LivingEntity target) {
+        combatGoal.ceilingDive(target);
+    }
+
+    /** Comando de teste (/froggydude estudo tocaia). */
+    public void forceStakeout() {
+        if (stakeoutGoal != null) stakeoutGoal.forceNext();
+    }
+
+    public boolean isStakingOut() {
+        return stakingOut;
+    }
+
+    public void setStakingOut(boolean on) {
+        stakingOut = on;
     }
 
     public void setSiegeMeal(@Nullable LivingEntity meal) {
@@ -2129,6 +2189,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        // salvou pendurado no teto (sem gravidade): volta ao normal, o estado não é salvo
+        this.setNoGravity(false);
         if (tag.contains("MouthColor")) this.entityData.set(DATA_MOUTH_COLOR, tag.getInt("MouthColor"));
         this.entityData.set(DATA_MOUTH_STAIN, tag.getFloat("MouthStain"));
         String id = tag.getString("SkinVariant");
@@ -2217,6 +2279,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_FINISHER_R =
             RawAnimation.begin().then("finisher_r", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_PAD_HOP = RawAnimation.begin().thenLoop("pad_hop");
+    private static final RawAnimation ANIM_CEILING_HANG = RawAnimation.begin().thenLoop("ceiling_hang");
+    private static final RawAnimation ANIM_CEILING_DIVE =
+            RawAnimation.begin().then("ceiling_dive", Animation.LoopType.HOLD_ON_LAST_FRAME);
 
     // controlador separado só pro osso da língua (some quando não está atacando com ela)
     private static final RawAnimation TONGUE_HIDDEN = RawAnimation.begin().thenLoop("tongue_hidden");
@@ -2277,6 +2342,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(finisherSkipsLeft() ? ANIM_FINISHER_R : ANIM_FINISHER);
             case PAD_HOP:
                 return state.setAndContinue(ANIM_PAD_HOP);
+            case CEILING_HANG:
+                return state.setAndContinue(ANIM_CEILING_HANG);
+            case CEILING_DIVE:
+                return state.setAndContinue(ANIM_CEILING_DIVE);
             case BUILD:
             case TAUNT:
                 // em pé, como jogador (o agachar e o soco vêm por cima, no modelo)

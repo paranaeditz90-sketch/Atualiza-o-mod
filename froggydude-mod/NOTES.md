@@ -1,4 +1,4 @@
-# Froggydude - v0.5.1: golem e warden viram comida, sem escalar feito aranha (sobre a v0.5.0)
+# Froggydude - v0.6.0: estudo da presa, bote do teto, porta arrombada, massacre da vila, esmagamento de joelhos
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,40 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.5.1) - os bugs que tu achou na 0.4.8:
+O que testar agora (v0.6.0). B a E são da IA Real (Mods > Froggydude > Configurar > IA: Real, ou
+`/froggydude ia real`); o A vale em todos os níveis.
+A) ESMAGAMENTO DE JOELHOS (vs AJTHEBOLD 2:06, debaixo d'água): o modelo ganhou JOELHO (a perna virou coxa
+   + canela, sem mexer na skin: a canela usa as mesmas 6 fileiras de baixo da perna). No esmagamento ele cai
+   de joelhos do teu lado, canelas deitadas pra trás, tronco quase reto, ergue os punhos acima da cabeça e
+   desce. Tu fica a 1,1 bloco dele (antes 1,5): os punhos param a ~0,4 bloco do teu olho e a cabeça dele
+   fica alta, longe da câmera. As outras animações não mudaram (a canela fica reta nelas).
+B) ESTUDO DA PRESA: ele aprende a tua rotina - onde tu guarda as coisas (baú), dorme (cama), trabalha
+   (bancada) e minera - e de quanto em quanto tempo tu volta pra cada lugar. Mede o teu medo pelo jeito que
+   tu mexe a câmera (girando mais que o normal, olhando pra trás de repente, olhando pro teto).
+   1. TEMPERO: uma vez por dia, antes de comer, brinca contigo uns 2-4 min: aparece de longe e some, chega
+      calado e ri no teu ouvido, aparece na janela, faz barulho sem aparecer, come um bicho na tua frente.
+      Cada susto ele mede (ficou paranoico? saiu correndo?) e repete o que funciona CONTIGO. Quando o medo
+      chega no ponto: "I can smell the fear in you! Time to eat!" e aí é caçada. Bateu nele ou fugiu pra
+      longe: acaba na hora.
+   2. TOCAIA: longe de ti, ele vai pro lugar que tu está pra voltar e espera lá dentro - grudado no CANTO
+      DO TETO (cômodo de 3+ de altura) ou parado no breu (caverna, mina).
+C) O BOTE DO CANTO DO TETO (o teu pedido): de tocaia no teto, quando tu chega (ou abre o baú de costas),
+   ele se solta, rola de barriga pra baixo no ar e mergulha em ti. Metade das vezes só EMPURRA: tu voa de
+   costas, tonto e lento, e ele já sai correndo atrás. Na outra cai MONTADO e devora.
+D) PORTA (o teu pedido): porta de madeira no caminho, caçando de cara limpa ele às vezes ARROMBA no tranco
+   (4 em 10; com raiva, fase 2 ou o warden que jogou ele longe, quase sempre) - a porta voa em pedaços e
+   quem está dentro ouve. De mansinho (calado, de tocaia) sempre abre quietinho. Precisa do mobGriefing.
+E) MASSACRE DA VILA (o teu pedido): tu mora numa vila (a tua cama ou baú com 3+ aldeões em volta) e foi
+   minerar (longe da vila, ou lá embaixo sem céu em cima)? Ele vai até lá e come os aldeões um por um, casa
+   por casa (arromba a porta de mais da metade). Tu voltou e apareceu perto: ele larga a vila e vem atrás de
+   ti. No máximo um massacre por dia do jogo. OS PEDAÇOS dos aldeões espalhados pelas casas dependem da
+   física dos pedaços (o Physics Mod que tu mandou) - isso fica pra depois do teu veredito, como tu pediu.
+F) Comandos de teste (`/froggydude estudo`): mostra o que ele sabe da tua rotina e o teu medo;
+   `lugar bau|cama|bancada|mina` marca onde tu está; `tocaia` manda ele te esperar agora; `brincar <s>`
+   começa o tempero (0 = sem brincadeira); `massacre` manda ele já pra tua vila.
+
+Da v0.5.1:
+Os bugs que tu achou na 0.4.8:
 A) GOLEM: golem de ferro que vem brigar com ele vira comida, igual aos outros bichos. Ele não troca
    soco: dá o bote, prende no chão e come (antes ele brigava do jeito que briga com gente e morria).
    Vale pra qualquer bicho que venha pra cima dele (lobo, urso, abelha...), menos chefe e creeper.

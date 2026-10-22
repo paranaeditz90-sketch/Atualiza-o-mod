@@ -48,7 +48,17 @@ public enum FroggyState {
     /** Pondo bloco como jogador pra chegar na vítima (ai.PlayerMoves: torre e ponte). */
     BUILD(0),
     /** A "dancinha" de jogador: agacha e levanta, pula, soca o ar (ai.PlayerMoves). */
-    TAUNT(0);
+    TAUNT(0),
+    /**
+     * IA Real (v0.6): grudado no canto do teto esperando a presa voltar pro baú, pra
+     * cama (FroggyStakeoutGoal; Grox, RABIES 0:58-1:23). Sem gravidade enquanto dura.
+     */
+    CEILING_HANG(0),
+    /**
+     * IA Real (v0.6): do canto do teto ele se solta e se joga em cima dela (o pedido do
+     * LM: "pulando contra o jogador, empurrando ou derrubando"). Termina ao pousar.
+     */
+    CEILING_DIVE(24);
 
     public final int durationTicks;
 
@@ -58,7 +68,8 @@ public enum FroggyState {
 
     public boolean isAttack() {
         return this == TONGUE_WHIP || this == TONGUE_GRAB || this == TONGUE_CAPTURE
-                || this == JUMP_PIN || this == HIGH_JUMP || this == BITE || this == SKY_DROP;
+                || this == JUMP_PIN || this == HIGH_JUMP || this == BITE || this == SKY_DROP
+                || this == CEILING_DIVE;
     }
 
     public boolean isTongue() {

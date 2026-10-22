@@ -32,18 +32,20 @@ ANIM_DIR = os.path.join(HERE, "..", "..", "src", "main", "resources", "assets", 
 MAIN = os.path.join(ANIM_DIR, "froggydude.animation.json")
 DEBUG = os.path.join(ANIM_DIR, "froggydude_debug.animation.json")
 
-BONES = ("root", "waist", "head", "right_arm", "left_arm", "right_leg", "left_leg")
+BONES = ("root", "waist", "head", "right_arm", "left_arm", "right_leg", "left_leg", "right_shin", "left_shin")
 
 
 def pose(root_y=0.0, root_x=0.0, waist=0.0, head=0.0, arms=0.0, legs=0.0,
          arm_l=None, leg_l=None, head_z=0.0, waist_z=0.0, arm_spread=0.0, leg_spread=0.0,
          root_px=0.0, head_y=0.0, waist_y=0.0, arm_ry=0.0, arm_ly=None, spread_l=None,
-         arm_py=0.0, arm_lpy=0.0, leg_spread_l=None, head_pos=None):
+         arm_py=0.0, arm_lpy=0.0, leg_spread_l=None, head_pos=None, knee=None, knee_l=None):
     """Uma pose completa. arms/legs valem pros dois lados, a não ser que
     arm_l/leg_l digam outra coisa pro esquerdo. spread abre os membros pros lados
     (spread_l pro braço esquerdo, se for diferente). arm_ry gira o braço no
     próprio eixo (Y). arm_py/arm_lpy sobem o OMBRO (px; o braço inteiro sobe,
-    como um ombro deslocado - a pose torta da fase 2)."""
+    como um ombro deslocado - a pose torta da fase 2). knee/knee_l dobram o
+    joelho (X+ joga a canela pra trás); sem eles a canela fica reta e o
+    osso nem entra na animação."""
     al = arms if arm_l is None else arm_l
     ll = legs if leg_l is None else leg_l
     aly = arm_ry if arm_ly is None else arm_ly
@@ -63,6 +65,10 @@ def pose(root_y=0.0, root_x=0.0, waist=0.0, head=0.0, arms=0.0, legs=0.0,
         p["left_arm"]["position"] = [0, arm_lpy, 0]
     if head_pos:
         p["head"]["position"] = list(head_pos)  # pescoço deslocado (px, eixos do json)
+    if knee is not None or knee_l is not None:
+        k = knee or 0.0
+        p["right_shin"] = {"rotation": [k, 0, 0]}
+        p["left_shin"] = {"rotation": [k if knee_l is None else knee_l, 0, 0]}
     return p
 
 
@@ -365,8 +371,8 @@ def pushup_loop():
 
 ANIMS["pin_hold"] = animation(0.6, pushup_loop(), True)
 
-# Esmagamento (vs AJ, 0:57-1:01, visto de quem está no chão): em pé na frente
-# da vítima, os dois braços juntos lá no alto, e desce tudo de uma vez - tronco
+# Esmagamento (vs AJ, 0:57-1:01, visto de quem está no chão): na frente da
+# vítima, os dois braços juntos lá no alto, e desce tudo de uma vez - tronco
 # e punhos - na cara dela. Dois socos por segundo; impacto aos 0,25 s de cada
 # volta de 0,5 s.
 # (v0.3.4) O impacto antigo (tronco a 78 graus, cabeça olhando pra baixo, vítima a
@@ -374,15 +380,21 @@ ANIMS["pin_hold"] = animation(0.6, pushup_loop(), True)
 # soco) e os punhos batiam no chão 0,8 bloco antes dela. Agora (check_poses.py,
 # vítima a 1,5 bloco): no impacto os punhos param a ~0,45 bloco da câmera, a cabeça
 # fica a meio bloco, levantada, olhando pra ela, e os pés não afundam.
-SMASH_UP = dict(root_y=0, waist=-6, head=30, arms=-170, arm_spread=4, legs=0, leg_spread=6)
-SMASH_HIT = dict(root_y=-1, waist=85, head=-40, arms=-120, arm_spread=3, legs=28, leg_spread=8)
+# (v0.5.2, vs AJTHEBOLD 2:06, print do LM) DE JOELHOS: os dois joelhos no chão,
+# coxas em pé e canelas deitadas pra trás; o tronco quase reto ergue os punhos
+# acima da cabeça e desce inclinando só uns 30 graus, braços esticados pra
+# frente e pra baixo. A cabeça fica alta (longe da câmera), então a vítima chega
+# mais perto: 1,1 bloco (SMASH_DISTANCE), e os punhos param a ~0,4 bloco do olho dela.
+KNEEL = dict(root_y=-4, legs=0, knee=90, leg_spread=8, arm_spread=4)
+SMASH_UP = dict(**KNEEL, waist=-8, head=35, arms=-170)
+SMASH_HIT = dict(**KNEEL, waist=30, head=15, arms=-70)
 ANIMS["smash"] = animation(0.5, [
     (0.00, pose(**SMASH_UP)),
-    (0.14, pose(**{**SMASH_UP, "root_y": 0.5, "waist": -14, "head": 20, "arms": -186})),       # arma o golpe
-    (0.20, pose(root_y=0, waist=40, head=0, arms=-150, arm_spread=4, legs=10, leg_spread=6)),  # descendo
-    (0.25, pose(**SMASH_HIT)),                                                                 # IMPACTO
-    (0.31, pose(**{**SMASH_HIT, "root_y": -1.2, "waist": 86, "head": -41, "arms": -116, "legs": 30})),
-    (0.40, pose(root_y=0, waist=40, head=0, arms=-150, arm_spread=4, legs=14, leg_spread=6)),     # sobe de novo
+    (0.14, pose(**{**SMASH_UP, "waist": -14, "head": 30, "arms": -186})),      # arma o golpe
+    (0.20, pose(**{**KNEEL, "waist": 10, "head": 24, "arms": -125})),          # descendo
+    (0.25, pose(**SMASH_HIT)),                                                 # IMPACTO
+    (0.31, pose(**{**SMASH_HIT, "waist": 33, "head": 13, "arms": -66})),
+    (0.40, pose(**{**KNEEL, "waist": 10, "head": 26, "arms": -140})),          # sobe de novo
     (0.50, pose(**SMASH_UP)),
 ], True)
 
@@ -812,6 +824,50 @@ ANIMS["finisher_r"] = animation(T(232) - 3.0,
                                 [(0.0, sample(ANIMS["finisher"], 3.0))] +
                                 [(round(t - 3.0, 3), p) for t, p in fin if t > 3.0 + 1e-6],
                                 "hold_on_last_frame")
+
+# ------------------------------------------------------------------ no canto do teto (v0.6)
+
+# Esperando a presa grudado no canto do teto (o print do LM; Grox, "Minecraft but I
+# have rabies" 0:58-1:23): o agachado de sapo de cabeça pra baixo - mãos e pés no
+# teto, o corpo pendurado embaixo deles, a cabeça torta olhando pra baixo, pro quarto.
+# É o CROUCH virado 180 graus no eixo da frente (rz): continua de frente pra onde ele
+# olha, e o que era o chão (mãos e pés) vira o teto. A entidade fica com o topo da
+# caixa encostado no teto (FroggyStakeoutGoal): o teto está a 1,95 bloco dos pés dela.
+CEILING_PX = 1.95 / rig.PX
+
+
+def ceiling_p(waist=80, head=-100, head_z=0.0, sag=0.0):
+    # tronco mais deitado que o agachado (colado no teto), braços abertos pra frente
+    # agarrando o teto, pernas abertas (conferido no rig: mãos e pés a ~1,95-2,03, a
+    # cabeça pendurada até 0,86 - acima do olho de quem está embaixo, num quarto de 3)
+    p = crouch(waist=waist, head=head, head_z=head_z, arms=-140, arm_spread=30, leg_spread=30)
+    p["root"]["rotation"] = [0, 0, 180]
+    # virado, y vira -y: o chão do agachado (y = 0) fica no teto (CEILING_PX)
+    p["root"]["position"][1] = round(CEILING_PX - CROUCH["root_y"] - sag, 2)
+    return p
+
+
+# respira devagar (o peito desce e sobe) e a cabeça vai tombando de um lado pro outro
+ANIMS["ceiling_hang"] = animation(3.2, [
+    (0.0, ceiling_p(head_z=-14)),
+    (0.8, ceiling_p(waist=84, head=-104, head_z=-4, sag=0.4)),
+    (1.6, ceiling_p(head_z=12)),
+    (2.4, ceiling_p(waist=84, head=-104, head_z=4, sag=0.4)),
+    (3.2, ceiling_p(head_z=-14)),
+], True, ground=False)
+
+# O bote do canto do teto (LM: "pulando contra o jogador, empurrando ou derrubando"):
+# se solta, rola de barriga pra baixo no ar e mergulha de cabeça, braços esticados
+# pra agarrar (o voo do jump_pin, inclinado 30 graus pra baixo). Fica no último
+# quadro até pousar (FroggyCombatGoal.ceilingDive).
+_DIVE = pose(root_x=30, waist=78, head=-70, arms=-165, legs=80, arm_spread=12, leg_spread=8)
+_flip = blend(ceiling_p(), _DIVE, 0.5)
+ANIMS["ceiling_dive"] = animation(0.4, [
+    (0.0, ceiling_p()),
+    (0.1, _flip),
+    (0.2, _DIVE),
+    (0.4, pose(root_x=36, waist=86, head=-56, arms=-150, legs=86, arm_spread=16, leg_spread=10)),  # agarra
+], "hold_on_last_frame", ground=False)
 
 # ------------------------------------------------------------------ amostragem (pra teste)
 

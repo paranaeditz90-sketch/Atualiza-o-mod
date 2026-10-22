@@ -88,6 +88,7 @@ public final class FroggyCommand {
                                     c.getSource().sendSuccess(() -> Component.literal("Ele esqueceu tudo sobre " + count + " jogador(es)."), true);
                                     return n;
                                 })))
+                .then(study())
                 .then(Commands.literal("falas").requires(FroggyCommand::admin).then(Commands.literal("reiniciar").executes(c -> {
                     FroggyWorldData data = FroggyWorldData.get(c.getSource().getServer());
                     data.voice.load(new net.minecraft.nbt.CompoundTag());
@@ -95,6 +96,104 @@ public final class FroggyCommand {
                     c.getSource().sendSuccess(() -> Component.literal("Falas de volta pro começo (\"Hey, humans!\")."), true);
                     return 1;
                 }))));
+    }
+
+    /**
+     * /froggydude estudo: o que ele sabe da tua rotina (IA Real, v0.6). Pra testar:
+     * "lugar <tipo>" marca onde tu está como um lugar que tu usa (já na hora de voltar),
+     * "tocaia" manda ele esperar lá agora, "brincar <s>" começa o tempero agora,
+     * "massacre" manda ele já pra tua vila (a cama/baú marcados perto de aldeões).
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> study() {
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("estudo")
+                .executes(c -> showStudy(c.getSource()));
+        LiteralArgumentBuilder<CommandSourceStack> place = Commands.literal("lugar").requires(FroggyCommand::admin);
+        for (com.froggydude.brain.PreyStudy.Kind kind : com.froggydude.brain.PreyStudy.Kind.values()) {
+            String name = switch (kind) {
+                case STORAGE -> "bau";
+                case BED -> "cama";
+                case WORK -> "bancada";
+                case MINE -> "mina";
+            };
+            place.then(Commands.literal(name).executes(c -> markPlace(c.getSource(), kind)));
+        }
+        root.then(place);
+        root.then(Commands.literal("tocaia").requires(FroggyCommand::admin).executes(c -> {
+            FroggydudeEntity f = FroggyKeeper.find(c.getSource().getServer());
+            if (f == null) {
+                c.getSource().sendFailure(Component.literal("O FroggyDude não está carregado."));
+                return 0;
+            }
+            f.forceStakeout();
+            c.getSource().sendSuccess(() -> Component.literal("Ele vai te esperar no lugar que tu mais usa."), true);
+            return 1;
+        }));
+        root.then(Commands.literal("massacre").requires(FroggyCommand::admin).executes(c -> {
+            FroggydudeEntity f = FroggyKeeper.find(c.getSource().getServer());
+            if (f == null) {
+                c.getSource().sendFailure(Component.literal("O FroggyDude não está carregado."));
+                return 0;
+            }
+            f.forceMassacre();
+            c.getSource().sendSuccess(() -> Component.literal("Ele vai na tua vila comer os aldeões (se tu mora numa)."), true);
+            return 1;
+        }));
+        root.then(Commands.literal("brincar").requires(FroggyCommand::admin)
+                .then(Commands.argument("segundos", IntegerArgumentType.integer(0, 3600)).executes(c -> {
+                    ServerPlayer p = c.getSource().getPlayerOrException();
+                    int secs = IntegerArgumentType.getInteger(c, "segundos");
+                    FroggyWorldData data = FroggyWorldData.get(c.getSource().getServer());
+                    var st = data.brain.memory(p.getUUID(), p.getScoreboardName()).study;
+                    long now = p.serverLevel().getGameTime();
+                    st.teaseStarted = now;
+                    st.teaseUntil = now + secs * 20L;
+                    data.setDirty();
+                    c.getSource().sendSuccess(() -> Component.literal(secs > 0 ? "Ele vai brincar contigo " + secs + " s antes de comer."
+                            : "Sem brincadeira: direto pra caçada."), true);
+                    return 1;
+                })));
+        return root;
+    }
+
+    private static int showStudy(CommandSourceStack src) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        var st = FroggyWorldData.get(src.getServer()).brain.memory(p.getUUID(), p.getScoreboardName()).study;
+        long now = p.serverLevel().getGameTime();
+        StringBuilder sb = new StringBuilder();
+        sb.append(String.format(Locale.ROOT, "Medo: %.0f/100, paranoia agora: %.0f", st.fear(now),
+                com.froggydude.player.Paranoia.score(p)));
+        if (st.teasing(now)) sb.append(String.format(Locale.ROOT, ", brincando contigo mais %d s", (st.teaseUntil - now) / 20));
+        if (st.places.isEmpty()) sb.append("\nAinda não sabe onde tu passa o tempo.");
+        for (var q : st.places) {
+            sb.append(String.format(Locale.ROOT, "\n%s em %d %d %d: %d volta(s), %s, peso %.1f%s", q.kind.name().toLowerCase(Locale.ROOT),
+                    q.pos.getX(), q.pos.getY(), q.pos.getZ(), q.visits,
+                    q.gap > 0 ? String.format(Locale.ROOT, "volta a cada %.0f s (%.0f%% da hora)", q.gap / 20F, q.due(now) * 100F) : "sem ritmo ainda",
+                    q.weight, q.roofed ? ", com teto" : ""));
+        }
+        String text = sb.toString();
+        src.sendSuccess(() -> Component.literal(text), false);
+        return 1;
+    }
+
+    private static int markPlace(CommandSourceStack src, com.froggydude.brain.PreyStudy.Kind kind) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggyWorldData data = FroggyWorldData.get(src.getServer());
+        var st = data.brain.memory(p.getUUID(), p.getScoreboardName()).study;
+        long now = p.serverLevel().getGameTime();
+        net.minecraft.core.BlockPos at = p.blockPosition();
+        st.visit(kind, at, p.level().dimension().location().toString(), now, !p.level().canSeeSky(at.above()));
+        // como se ela voltasse ali a cada minuto e já fizesse 2 minutos que saiu
+        for (var q : st.places) {
+            if (q.kind == kind && q.pos.distSqr(at) <= 16) {
+                q.visits = Math.max(q.visits, 3);
+                q.gap = 1200F;
+                q.last = now - 2400L;
+                q.weight = Math.max(q.weight, 4F);
+            }
+        }
+        data.setDirty();
+        src.sendSuccess(() -> Component.literal("Ele anotou: tu usa " + kind.name().toLowerCase(Locale.ROOT) + " aqui."), true);
+        return 1;
     }
 
     /** /froggydude ia [min|medio|alto|extra|max|real]: o quanto ele pensa (é escolha de quem joga, não trapaça). */

@@ -37,6 +37,8 @@ public class PlayerMemory {
     public long truceUntil;
     public int escapes;
     public int froggyDeaths;
+    /** IA Real: a rotina dela e o medo acumulado (o "tempero"). */
+    public final PreyStudy study = new PreyStudy();
 
     public Style dominantStyle() {
         float total = 0F;
@@ -117,6 +119,7 @@ public class PlayerMemory {
         tag.putLongArray("KillTimes", killTimes.stream().mapToLong(Long::longValue).toArray());
         tag.putBoolean("MockDue", mockDue);
         tag.putLong("TruceUntil", truceUntil);
+        tag.put("Study", study.save());
         return tag;
     }
 
@@ -148,6 +151,7 @@ public class PlayerMemory {
         for (long t : tag.getLongArray("KillTimes")) m.killTimes.add(t);
         m.mockDue = tag.getBoolean("MockDue");
         m.truceUntil = tag.getLong("TruceUntil");
+        m.study.load(tag.getCompound("Study"));
         return m;
     }
 }

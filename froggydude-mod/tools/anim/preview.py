@@ -55,8 +55,10 @@ for _arm in ("right_arm", "left_arm"):
               (_arm, (-2.02, -7, -2.02), (2.02, -6.5, 2.02), WHITE),
               (_arm, (-2, -10, -2), (2, -7, 2), HAND)]
 for _leg in ("right_leg", "left_leg"):
-    PARTS += [(_leg, (-2, -11, -2), (2, 0, 2), SUIT),
-              (_leg, (-2, -12, -2), (2, -11, 2), SHOE)]
+    _shin = _leg.replace("leg", "shin")    # canela: pivô no joelho, 6 px abaixo do quadril
+    PARTS += [(_leg, (-2, -6, -2), (2, 0, 2), SUIT),
+              (_shin, (-2, -5, -2), (2, 0, 2), SUIT),
+              (_shin, (-2, -6, -2), (2, -5, 2), SHOE)]
 
 # faces de um cubo: (índices dos cantos, normal local)
 _FACES = [

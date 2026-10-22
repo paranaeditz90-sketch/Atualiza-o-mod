@@ -46,10 +46,13 @@ CUBES = {
     "head": ((-4.5, -0.5, -4.5), (4.5, 8.5, 4.5)),
     "right_arm": ((-2.25, -10.25, -2.25), (2.25, 2.25, 2.25)),
     "left_arm": ((-2.25, -10.25, -2.25), (2.25, 2.25, 2.25)),
-    "right_leg": ((-2.25, -12.25, -2.25), (2.25, 0.25, 2.25)),
-    "left_leg": ((-2.25, -12.25, -2.25), (2.25, 0.25, 2.25)),
+    # (v0.5.2) perna em duas: coxa (osso *_leg) e canela (*_shin, pivô no joelho, 6 px abaixo)
+    "right_leg": ((-2.25, -6.25, -2.25), (2.25, 0.25, 2.25)),
+    "left_leg": ((-2.25, -6.25, -2.25), (2.25, 0.25, 2.25)),
+    "right_shin": ((-2.25, -6.25, -2.25), (2.25, 0.25, 2.25)),
+    "left_shin": ((-2.25, -6.25, -2.25), (2.25, 0.25, 2.25)),
 }
-TIPS = {"right_arm": (0, -10, 0), "left_arm": (0, -10, 0), "right_leg": (0, -12, 0), "left_leg": (0, -12, 0)}
+TIPS = {"right_arm": (0, -10, 0), "left_arm": (0, -10, 0), "right_shin": (0, -6, 0), "left_shin": (0, -6, 0)}
 
 
 def frames(p):
@@ -78,14 +81,18 @@ def frames(p):
         out[arm] = (R_w @ rot(*ar), o_w + R_w @ np.array([0, 10.0 + ap[1], sx]))
     for leg, sx in (("right_leg", 1.9), ("left_leg", -1.9)):
         lr = g(leg, "rotation")
-        out[leg] = (R_root @ rot(*lr), o_root + R_root @ np.array([0, 12.0, sx]))
+        R_l = R_root @ rot(*lr)
+        o_l = o_root + R_root @ np.array([0, 12.0, sx])
+        out[leg] = (R_l, o_l)
+        # canela: mesmo espelhamento do resto (o json já traz o lado esquerdo pronto)
+        out[leg.replace("leg", "shin")] = (R_l @ rot(*g(leg.replace("leg", "shin"), "rotation")), o_l + R_l @ np.array([0, -6.0, 0]))
     return out
 
 
 def lowest(fr):
-    """Ponto mais baixo (px) de mãos, pés e cabeça."""
+    """Ponto mais baixo (px) de mãos, pés (perna = coxa + canela) e cabeça."""
     res = {}
-    for b in ("right_arm", "left_arm", "right_leg", "left_leg", "head"):
+    for b in ("right_arm", "left_arm", "right_leg", "left_leg", "right_shin", "left_shin", "head"):
         R, o = fr[b]
         lo, hi = CUBES[b]
         ys = []
@@ -94,6 +101,8 @@ def lowest(fr):
                 for z in (lo[2], hi[2]):
                     ys.append((o + R @ np.array([x, y, z]))[1])
         res[b] = min(ys)
+    for leg in ("right_leg", "left_leg"):
+        res[leg] = min(res[leg], res.pop(leg.replace("leg", "shin")))
     return res
 
 

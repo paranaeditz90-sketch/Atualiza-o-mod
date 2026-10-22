@@ -89,6 +89,8 @@ public class FroggyFeedGoal extends Goal {
             fight = true;
             return true;
         }
+        // IA Real: de tocaia no canto do teto não desce pra comer a vaca que passou
+        if (froggy.isStakingOut()) return false;
         if (froggy.getFeedSearchCooldown() > 0) return false;
 
         LivingEntity blaze = findBlaze();
