@@ -6,8 +6,8 @@ import com.froggydude.config.GoreLevel;
 import com.froggydude.init.ModEntityTypes;
 import com.froggydude.init.ModParticles;
 import com.froggydude.network.ClientArmState;
-import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -19,7 +19,6 @@ import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.FluidTags;
@@ -79,10 +78,6 @@ public final class BloodStains {
         /** Quanto ainda está molhado (1 = acabou de cair): molhado escorre; seco escurece. */
         final float[] wet = new float[N * N];
         int dripCooldown;
-        NativeImage img;
-        DynamicTexture tex;
-        ResourceLocation loc;
-        boolean dirty;
         float total;
         int lastColor = 0x8E0A0A;
         int dead;
@@ -90,28 +85,6 @@ public final class BloodStains {
         Stain(UUID id, boolean slim) {
             this.id = id;
             this.slim = slim;
-        }
-
-        /**
-         * Cria a textura. Só fora do desenho (tick do cliente): criar/enviar textura no
-         * meio do desenho das entidades mexia na textura presa da unidade ativa no
-         * celular (v0.5.1). A unidade 0 é a das texturas de entidade; a 1 e a 2 são
-         * a do brilho de dano e a da luz - se a ativa fosse uma delas, ia o sangue nela.
-         */
-        void ensureTexture() {
-            if (tex != null) return;
-            int unit = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
-            com.mojang.blaze3d.systems.RenderSystem.activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0);
-            img = new NativeImage(N, N, true);
-            img.fillRect(0, 0, N, N, 0);
-            tex = new DynamicTexture(img);
-            loc = Minecraft.getInstance().getTextureManager().register("froggydude_stain", tex);
-            com.mojang.blaze3d.systems.RenderSystem.activeTexture(unit);
-        }
-
-        /** Pronta pra desenhar (o desenho nunca cria nem envia textura). */
-        boolean ready() {
-            return tex != null && loc != null;
         }
 
         void add(int x, int y, float a, int color) {
@@ -125,46 +98,25 @@ public final class BloodStains {
             amt[i] = now;
             wet[i] = Math.min(1F, wet[i] + a * 1.5F);
             total += now - old;
-            dirty = true;
             lastColor = color;
         }
 
-        void upload() {
-            if (!dirty) return;
-            ensureTexture();
-            for (int y = 0; y < N; y++) {
-                for (int x = 0; x < N; x++) {
-                    int i = y * N + x;
-                    float a = amt[i];
-                    if (a < 0.06F) {
-                        img.setPixelRGBA(x, y, 0);
-                        continue;
-                    }
-                    int c = col[i];
-                    // seco por fora, molhado no meio: quanto mais sangue, mais escuro e opaco
-                    float shade = 0.75F + 0.35F * (1F - a) + ((x * 31 + y * 17) % 7) * 0.025F;
-                    // fresco é vermelho vivo e brilha; secando vai escurecendo (quase marrom)
-                    shade *= 0.6F + 0.45F * wet[i];
-                    int r = Mth.clamp((int) (((c >> 16) & 255) * shade), 0, 255);
-                    int g = Mth.clamp((int) (((c >> 8) & 255) * shade), 0, 255);
-                    int b = Mth.clamp((int) ((c & 255) * shade), 0, 255);
-                    int alpha = Mth.clamp((int) (90 + a * 165), 0, 255);
-                    img.setPixelRGBA(x, y, (alpha << 24) | (b << 16) | (g << 8) | r);
-                }
-            }
-            int unit = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
-            com.mojang.blaze3d.systems.RenderSystem.activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0);
-            tex.upload();
-            com.mojang.blaze3d.systems.RenderSystem.activeTexture(unit);
-            dirty = false;
-        }
-
-        void close() {
-            if (tex != null) {
-                Minecraft.getInstance().getTextureManager().release(loc);
-                tex = null;
-                img = null;
-            }
+        /** A cor (ARGB) do pixel sujo, ou 0 se ali está limpo. */
+        int color(int x, int y) {
+            if (x < 0 || y < 0 || x >= N || y >= N) return 0;
+            int i = y * N + x;
+            float a = amt[i];
+            if (a < 0.06F) return 0;
+            int c = col[i];
+            // seco por fora, molhado no meio: quanto mais sangue, mais escuro e opaco
+            float shade = 0.75F + 0.35F * (1F - a) + ((x * 31 + y * 17) % 7) * 0.025F;
+            // fresco é vermelho vivo e brilha; secando vai escurecendo (quase marrom)
+            shade *= 0.6F + 0.45F * wet[i];
+            int r = Mth.clamp((int) (((c >> 16) & 255) * shade), 0, 255);
+            int g = Mth.clamp((int) (((c >> 8) & 255) * shade), 0, 255);
+            int b = Mth.clamp((int) ((c & 255) * shade), 0, 255);
+            int alpha = Mth.clamp((int) (90 + a * 165), 0, 255);
+            return (alpha << 24) | (r << 16) | (g << 8) | b;
         }
     }
 
@@ -184,14 +136,6 @@ public final class BloodStains {
 
     private static boolean slim(Player p) {
         return p instanceof AbstractClientPlayer acp && "slim".equals(acp.getModelName());
-    }
-
-    /** A textura de sangue grudado de um jogador (pro cadáver), ou null se ele está limpo. */
-    @javax.annotation.Nullable
-    public static ResourceLocation textureFor(UUID id) {
-        Stain s = STAINS.get(id);
-        if (s == null || s.total < 0.5F || !gore().skinStains() || !s.ready()) return null;
-        return s.loc;
     }
 
     private static Stain stain(Player p) {
@@ -385,27 +329,18 @@ public final class BloodStains {
             Player p = mc.level.getPlayerByUUID(s.id);
             if (p == null) {
                 // sumiu de vista (ou saiu): esquece depois de um tempo, menos o teu
-                if (++s.dead > 600) {
-                    s.close();
-                    it.remove();
-                }
+                if (++s.dead > 600) it.remove();
                 continue;
             }
             s.dead = 0;
             if (p.isDeadOrDying()) {
                 // morreu: o corpo novo vem limpo
-                s.close();
                 it.remove();
                 continue;
             }
             wash(mc, p, s, g);
             flow(mc, p, s);
-            if (s.total < 0.05F) {
-                s.close();
-                it.remove();
-                continue;
-            }
-            if (p.tickCount % 3 == 0) s.upload();
+            if (s.total < 0.05F) it.remove();
         }
     }
 
@@ -425,7 +360,6 @@ public final class BloodStains {
             if (s.wet[i] > 0F) {
                 s.wet[i] = s.wet[i] < 0.01F ? 0F : s.wet[i] * 0.992F;
                 any = true;
-                if ((i & 7) == 0) s.dirty = true;
             }
         }
         if (s.dripCooldown > 0) s.dripCooldown--;
@@ -448,7 +382,6 @@ public final class BloodStains {
                                 dripFrom(p, part, s.col[i]);
                             }
                             s.amt[i] = a - mv * 0.5F;
-                            s.dirty = true;
                             continue;
                         }
                         int tx = x;
@@ -462,7 +395,6 @@ public final class BloodStains {
                         }
                         s.wet[ti] = Math.max(s.wet[ti], w * 0.96F);
                         s.amt[i] = a - mv;
-                        s.dirty = true;
                     }
                 }
             }
@@ -562,7 +494,6 @@ public final class BloodStains {
                 float now = Math.max(0F, a - rate);
                 washed += a - now;
                 s.amt[i] = now;
-                s.dirty = true;
                 a = now;
             }
             total += a;
@@ -590,12 +521,10 @@ public final class BloodStains {
 
     /** Renasceu: o corpo novo vem limpo. */
     public static void forget(UUID id) {
-        Stain s = STAINS.remove(id);
-        if (s != null) s.close();
+        STAINS.remove(id);
     }
 
     private static void clearAll() {
-        STAINS.values().forEach(Stain::close);
         STAINS.clear();
     }
 
@@ -643,7 +572,6 @@ public final class BloodStains {
                 total += s.amt[i];
             }
             s.total = total;
-            s.dirty = true;
         } catch (IOException e) {
             System.err.println("[froggydude] não leu o sangue da skin: " + e);
         }
@@ -651,7 +579,145 @@ public final class BloodStains {
 
     // ---------------------------------------------------------------- desenho
 
-    /** A camada: o modelo de novo, só a camada de fora, com a textura de sangue. */
+    /** Textura branca fixa: a cor de cada pingo vem do vértice (como a poça de sangue no chão). */
+    private static final ResourceLocation DOT = new ResourceLocation(ModEntityTypes.MOD_ID, "textures/misc/stain_dot.png");
+    private static final Decals DECALS = new Decals();
+
+    /**
+     * (v0.6.1) O sangue grudado sem textura gerada na hora. No celular (MobileGlues) a
+     * textura dinâmica desenhada por cima apagava o corpo inteiro (3ª pessoa, inventário,
+     * a mão). Agora a camada de fora de cada parte é "desenhada" aqui só pra saber onde
+     * cada face está (já na pose da animação), e cada pixel sujo vira um quadradinho
+     * colado nela: textura branca fixa, cor e transparência no vértice.
+     */
+    private static final class Decals implements VertexConsumer {
+        /** Um fio pra fora da face, pra não brigar com o pixel da skin no mesmo lugar. */
+        private static final float LIFT = 0.004F;
+        private final float[] x = new float[4], y = new float[4], z = new float[4], u = new float[4], v = new float[4];
+        private float nx, ny, nz;
+        private int n;
+        private Stain stain;
+        private VertexConsumer out;
+        private int light, overlay;
+
+        Decals begin(Stain s, VertexConsumer out, int light, int overlay) {
+            this.stain = s;
+            this.out = out;
+            this.light = light;
+            this.overlay = overlay;
+            this.n = 0;
+            return this;
+        }
+
+        /** O jeito que o ModelPart.Cube manda cada canto (posição já transformada, UV de 0 a 1). */
+        @Override
+        public void vertex(float px, float py, float pz, float r, float g, float b, float a, float tu, float tv,
+                           int ov, int li, float qx, float qy, float qz) {
+            x[n] = px;
+            y[n] = py;
+            z[n] = pz;
+            u[n] = tu;
+            v[n] = tv;
+            nx = qx;
+            ny = qy;
+            nz = qz;
+            if (++n == 4) {
+                n = 0;
+                face();
+            }
+        }
+
+        private void face() {
+            float u0 = Math.min(Math.min(u[0], u[1]), Math.min(u[2], u[3])), u1 = Math.max(Math.max(u[0], u[1]), Math.max(u[2], u[3]));
+            float v0 = Math.min(Math.min(v[0], v[1]), Math.min(v[2], v[3])), v1 = Math.max(Math.max(v[0], v[1]), Math.max(v[2], v[3]));
+            int a = corner(u0, v0), b = corner(u1, v0), c = corner(u1, v1), d = corner(u0, v1);
+            if (a < 0 || b < 0 || c < 0 || d < 0) return;
+            int tx0 = Math.round(u0 * N), tx1 = Math.round(u1 * N), ty0 = Math.round(v0 * N), ty1 = Math.round(v1 * N);
+            if (tx1 <= tx0 || ty1 <= ty0) return;
+            float w = tx1 - tx0, h = ty1 - ty0;
+            for (int ty = ty0; ty < ty1; ty++) {
+                for (int tx = tx0; tx < tx1; tx++) {
+                    int argb = stain.color(tx, ty);
+                    if (argb == 0) continue;
+                    float s0 = (tx - tx0) / w, s1 = (tx + 1 - tx0) / w, t0 = (ty - ty0) / h, t1 = (ty + 1 - ty0) / h;
+                    put(a, b, c, d, s0, t0, argb);
+                    put(a, b, c, d, s1, t0, argb);
+                    put(a, b, c, d, s1, t1, argb);
+                    put(a, b, c, d, s0, t1, argb);
+                }
+            }
+        }
+
+        /** Qual dos 4 cantos tem esse UV (o espelhado também acha certo). */
+        private int corner(float cu, float cv) {
+            for (int i = 0; i < 4; i++) {
+                if (Math.abs(u[i] - cu) < 1.0E-4F && Math.abs(v[i] - cv) < 1.0E-4F) return i;
+            }
+            return -1;
+        }
+
+        /** Um canto do quadradinho: o ponto (s, t) da face, um fio pra fora. */
+        private void put(int a, int b, int c, int d, float s, float t, int argb) {
+            float px = Mth.lerp(t, Mth.lerp(s, x[a], x[b]), Mth.lerp(s, x[d], x[c])) + nx * LIFT;
+            float py = Mth.lerp(t, Mth.lerp(s, y[a], y[b]), Mth.lerp(s, y[d], y[c])) + ny * LIFT;
+            float pz = Mth.lerp(t, Mth.lerp(s, z[a], z[b]), Mth.lerp(s, z[d], z[c])) + nz * LIFT;
+            out.vertex(px, py, pz, ((argb >> 16) & 255) / 255F, ((argb >> 8) & 255) / 255F, (argb & 255) / 255F,
+                    (argb >>> 24) / 255F, 0.5F, 0.5F, overlay, light, nx, ny, nz);
+        }
+
+        /** A camada de fora dessa parte, mesmo que a pessoa tenha desligado ela na skin. */
+        void part(ModelPart part, PoseStack ps) {
+            boolean vis = part.visible;
+            part.visible = true;
+            part.render(ps, this, light, overlay);
+            part.visible = vis;
+        }
+
+        // o resto do VertexConsumer: o ModelPart só usa o vertex completo acima
+        @Override
+        public VertexConsumer vertex(double px, double py, double pz) {
+            return this;
+        }
+
+        @Override
+        public VertexConsumer color(int r, int g, int b, int a) {
+            return this;
+        }
+
+        @Override
+        public VertexConsumer uv(float tu, float tv) {
+            return this;
+        }
+
+        @Override
+        public VertexConsumer overlayCoords(int ou, int ov) {
+            return this;
+        }
+
+        @Override
+        public VertexConsumer uv2(int lu, int lv) {
+            return this;
+        }
+
+        @Override
+        public VertexConsumer normal(float qx, float qy, float qz) {
+            return this;
+        }
+
+        @Override
+        public void endVertex() {
+        }
+
+        @Override
+        public void defaultColor(int r, int g, int b, int a) {
+        }
+
+        @Override
+        public void unsetDefaultColor() {
+        }
+    }
+
+    /** A camada: o sangue colado na camada de fora de cada parte que aparece. */
     public static class Layer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
 
         public Layer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
@@ -663,32 +729,17 @@ public final class BloodStains {
                            float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks,
                            float netHeadYaw, float headPitch) {
             Stain s = STAINS.get(player.getUUID());
-            if (s == null || s.total < 0.5F || player.isInvisible() || !gore().skinStains() || !s.ready()) return;
+            if (s == null || s.total < 0.5F || player.isInvisible() || !gore().skinStains()) return;
             PlayerModel<AbstractClientPlayer> m = getParentModel();
-            boolean[] base = {m.head.visible, m.body.visible, m.rightArm.visible, m.leftArm.visible, m.rightLeg.visible, m.leftLeg.visible};
-            boolean[] over = {m.hat.visible, m.jacket.visible, m.rightSleeve.visible, m.leftSleeve.visible, m.rightPants.visible, m.leftPants.visible};
-            // só a camada de fora (a de dentro fica escondida pela jaqueta/manga das skins)
-            m.hat.visible = base[0];
-            m.jacket.visible = base[1];
-            m.rightSleeve.visible = base[2];
-            m.leftSleeve.visible = base[3] && !ClientArmState.isArmless(player.getId());
-            m.rightPants.visible = base[4];
-            m.leftPants.visible = base[5];
-            m.head.visible = m.body.visible = m.rightArm.visible = m.leftArm.visible = m.rightLeg.visible = m.leftLeg.visible = false;
-            m.renderToBuffer(ps, buffers.getBuffer(StainRenderType.stain(s.loc)), light,
-                    LivingEntityRenderer.getOverlayCoords(player, 0F), 1F, 1F, 1F, 1F);
-            m.head.visible = base[0];
-            m.body.visible = base[1];
-            m.rightArm.visible = base[2];
-            m.leftArm.visible = base[3];
-            m.rightLeg.visible = base[4];
-            m.leftLeg.visible = base[5];
-            m.hat.visible = over[0];
-            m.jacket.visible = over[1];
-            m.rightSleeve.visible = over[2];
-            m.leftSleeve.visible = over[3];
-            m.rightPants.visible = over[4];
-            m.leftPants.visible = over[5];
+            Decals d = DECALS.begin(s, buffers.getBuffer(RenderType.entityTranslucent(DOT)), light,
+                    LivingEntityRenderer.getOverlayCoords(player, 0F));
+            // só onde a parte de dentro aparece (o ombro sem braço não suja)
+            if (m.head.visible) d.part(m.hat, ps);
+            if (m.body.visible) d.part(m.jacket, ps);
+            if (m.rightArm.visible) d.part(m.rightSleeve, ps);
+            if (m.leftArm.visible && !ClientArmState.isArmless(player.getId())) d.part(m.leftSleeve, ps);
+            if (m.rightLeg.visible) d.part(m.rightPants, ps);
+            if (m.leftLeg.visible) d.part(m.leftPants, ps);
         }
     }
 
@@ -701,7 +752,7 @@ public final class BloodStains {
         if (event.isCanceled() || inArm) return;
         AbstractClientPlayer player = event.getPlayer();
         Stain s = STAINS.get(player.getUUID());
-        if (s == null || s.total < 0.5F || !gore().skinStains() || !s.ready()) return;
+        if (s == null || s.total < 0.5F || !gore().skinStains()) return;
         EntityRenderer<?> er = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player);
         if (!(er instanceof PlayerRenderer renderer)) return;
         event.setCanceled(true);
@@ -716,10 +767,7 @@ public final class BloodStains {
             inArm = false;
         }
         ModelPart sleeve = right ? renderer.getModel().rightSleeve : renderer.getModel().leftSleeve;
-        boolean vis = sleeve.visible;
-        sleeve.visible = true;
-        sleeve.render(event.getPoseStack(), event.getMultiBufferSource().getBuffer(StainRenderType.stain(s.loc)),
-                event.getPackedLight(), OverlayTexture.NO_OVERLAY);
-        sleeve.visible = vis;
+        DECALS.begin(s, event.getMultiBufferSource().getBuffer(RenderType.entityTranslucent(DOT)),
+                event.getPackedLight(), OverlayTexture.NO_OVERLAY).part(sleeve, event.getPoseStack());
     }
 }

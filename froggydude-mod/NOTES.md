@@ -1,4 +1,4 @@
-# Froggydude - v0.6.0: estudo da presa, bote do teto, porta arrombada, massacre da vila, esmagamento de joelhos
+# Froggydude - v0.6.1: o sangue na skin não apaga mais o teu corpo no celular (sobre a v0.6.0)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,18 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.6.0). B a E são da IA Real (Mods > Froggydude > Configurar > IA: Real, ou
+O que testar agora (v0.6.1) - SÓ o bug da skin (uma coisa por vez):
+A) SKIN SUMINDO NO CELULAR (MobileGlues, Zalith Launcher 2): com sangue grudado na skin, o teu corpo
+   sumia no F5 e na prévia do inventário, e a mão em primeira pessoa ficava preta. A 0.5.1 não resolveu.
+   A culpa era a textura de sangue GERADA na hora (DynamicTexture) desenhada por cima do corpo: no
+   MobileGlues ela apagava tudo. As poças de sangue no chão, que usam textura fixa, sempre funcionaram aí.
+   Agora o sangue grudado não usa textura gerada: cada pingo é um quadradinho colado na camada de fora
+   da skin (já na pose da animação), com uma textura branca fixa pintada pela cor do vértice, do mesmo
+   jeito das poças. No PC: corpo aparece no F5, no inventário e na mão, com o sangue escorrendo igual.
+   Confere aí: arranca o braço (ou deixa ele te sujar), F5, inventário e a mão vazia.
+
+Da v0.6.0:
+O que testar na v0.6.0. B a E são da IA Real (Mods > Froggydude > Configurar > IA: Real, ou
 `/froggydude ia real`); o A vale em todos os níveis.
 A) ESMAGAMENTO DE JOELHOS (vs AJTHEBOLD 2:06, debaixo d'água): o modelo ganhou JOELHO (a perna virou coxa
    + canela, sem mexer na skin: a canela usa as mesmas 6 fileiras de baixo da perna). No esmagamento ele cai
