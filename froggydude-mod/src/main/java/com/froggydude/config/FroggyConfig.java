@@ -33,7 +33,8 @@ public final class FroggyConfig {
         b.pop();
 
         b.push("froggydude");
-        CACA_BLOCOS_POR_SEGUNDO = b.comment("Velocidade do galope caçando (blocos/s). Original: ~15. Um jogador correndo: ~5,6.")
+        CACA_BLOCOS_POR_SEGUNDO = b.comment("Velocidade do galope fora da perseguição - seguindo rastro, indo pra vila, se escondendo (blocos/s).",
+                        "Original: ~15. Perseguindo alguém à vista, ele mede a vítima e corre ~25% mais (transformado, ~50%).")
                 .defineInRange("caca_blocos_por_segundo", 15.0D, 6.0D, 20.0D);
         IA = b.comment("O quanto ele pensa: MIN, MEDIO, ALTO (o de sempre), EXTRA, MAX, REAL.",
                         "Muda alcance de visão/faro, reação, previsão, táticas (cercar, cortar caminho, pôr bloco,",

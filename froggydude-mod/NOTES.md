@@ -1,4 +1,4 @@
-# Froggydude - v0.6.2: mais vida e o boom do warden jogando ele longe (sobre a v0.6.1)
+# Froggydude - v0.6.3: a velocidade dele acompanha a tua (sobre a v0.6.2)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,23 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.6.2):
+O que testar agora (v0.6.3) - SÓ a velocidade:
+A) LEVEMENTE MAIS RÁPIDO QUE TU: perseguindo, ele mede a tua velocidade (média de ~1 s, só no chão,
+   sem contar pérola/teleporte) e corre ~25% mais que ela. Parado ou andando conta como quem corre
+   pulando (~7 b/s): ele vem a ~9 b/s. Antes era um galope fixo de 15 b/s, quase 3x o teu.
+B) TRANSFORMADO (fase 2): ~50% mais que tu - vem correndo e vai chegando rápido.
+C) SE TU FICA MAIS RÁPIDO, ELE TAMBÉM: poção de velocidade, cavalo, elytra baixo - em ~1 s ele sobe
+   junto, até o teto de 20 b/s. Se tu para de correr, ele desacelera em ~1 s.
+   Medido no servidor com um porco andando reto em velocidade fixa (IA Real):
+     porco parado       -> ele 0,445 b/t (8,9 b/s)
+     porco 0,40 b/t (8)  -> ele 0,502 (+25%)      transformado -> 0,602 (+50%)
+     porco 0,60 b/t (12) -> ele 0,753 (+25%)
+     porco 0,90 b/t (18) -> ele 1,004 (o teto, 20 b/s)
+   Nos níveis abaixo do Máx/Real a folga encolhe junto (Alto ~23%, Mín ~19%).
+   O galope fora da perseguição (seguindo rastro, indo pra vila, se escondendo) continua o do config
+   (caca_blocos_por_segundo, 15).
+
+Da v0.6.2:
 A) MAIS RESISTENTE: vida 150 -> 250 (125 corações), armadura 6 -> 10 e um pouco de dureza de armadura.
    Quem já tinha ele no mundo ganha a vida nova quando o mundo carrega (na mesma proporção).
    A fuga pra se curar e a fase 2 continuam nas mesmas porcentagens de vida.

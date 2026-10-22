@@ -1472,6 +1472,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     public boolean isFightPrey(@Nullable LivingEntity e) {
         return e instanceof Mob m && e.isAlive() && !(e instanceof Player) && !(e instanceof FroggydudeEntity)
+                && !debugHunt // teste: o porco é caçado como um jogador (perseguição, não briga)
                 && !(e instanceof net.minecraft.world.entity.monster.Creeper)
                 && !m.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES);
     }

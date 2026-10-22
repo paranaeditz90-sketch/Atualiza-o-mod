@@ -79,11 +79,11 @@ public class FroggyCombatGoal extends Goal {
     private static final double ELEVATED = 2.5D;
 
     /**
-     * Caçando pra matar: galope de ~0,75 bloco/tick (15 blocos/s, quase 3 vezes um
-     * jogador correndo), a do original (RACING A CHEETAH: ~15 b/s, passada de ~3,8
-     * blocos). A velocidade real cresce ~2,15 x (atributo x isto)^2: 1,72 dava 0,5 b/t
-     * (v0.3.4) e, com o salto de sapo no meio, parecia "um sapo pulando, bem lento".
-     * Ajustável no config (caca_blocos_por_segundo); 15 b/s dá 2,11.
+     * Galope fora da perseguição (seguindo rastro, indo pra vila, se escondendo):
+     * ~0,75 bloco/tick (15 blocos/s), a do original (RACING A CHEETAH: ~15 b/s,
+     * passada de ~3,8 blocos). A velocidade real cresce ~2,15 x (atributo x isto)^2:
+     * 1,72 dava 0,5 b/t (v0.3.4). Ajustável no config (caca_blocos_por_segundo); 15
+     * b/s dá 2,11. Perseguindo alguém, quem manda é chaseSpeed().
      */
     static double huntSpeed() {
         double perTick = FroggyConfig.get(FroggyConfig.CACA_BLOCOS_POR_SEGUNDO) / 20.0D;
@@ -91,6 +91,16 @@ public class FroggyCombatGoal extends Goal {
     }
     /** Apavorando: galope lento, de longe. */
     private static final double STALK_SPEED = 0.9D;
+
+    // Perseguindo (v0.6.3, LM: "levemente mais rápido que o player"): ele mede a
+    // velocidade da vítima (média de ~1 s) e corre ~25% mais que ela; transformado,
+    // ~50%, vai chegando rápido. Parada ou andando conta como quem corre pulando
+    // (~7 b/s, ele a ~9). Poção, cavalo, elytra: ele sobe junto, até 20 b/s. A folga
+    // é a do Máx/Real; nos níveis abaixo ela encolhe junto (Mín: ~19%).
+    private static final double PACE_FLOOR = 0.355D;
+    private static final double PACE_EDGE = 1.25D;
+    private static final double PACE_EDGE_FRENZY = 1.5D;
+    private static final double PACE_CAP = 1.0D;
     /** Contra-ataque (a vítima avançou, ele avança junto e derruba): no máximo a cada 3 s. */
     private static final int COUNTER_COOLDOWN = 60;
 
@@ -147,6 +157,8 @@ public class FroggyCombatGoal extends Goal {
     private LivingEntity trackedTarget;
     private Vec3 lastTargetPos;
     private Vec3 targetVel = Vec3.ZERO;
+    /** Quanto a vítima anda por tick no chão (blocos, média de ~1 s). */
+    private double targetPace;
     /** Ticks até poder gritar de novo atrás de quem foge ("get back here!"). */
     private int chaseTalk = 0;
     /** Já falou montado nessa vítima ("stay on the ground" / "the last thing you see")? */
@@ -369,7 +381,7 @@ public class FroggyCombatGoal extends Goal {
         // ticks (0,31 b/t), mais devagar que o galope - "parece um sapo pulando, bem
         // lento" (LM). Agora é galope o caminho todo, como o guepardo do original.
         if (dist > 2.0D) {
-            double speed = froggy.isFrenzyActive() ? 1.0D : huntSpeed();
+            double speed = chaseSpeed();
             if (dodgeAim(target, dist, speed) || beeline(target, dist, speed)) {
                 repathTicks = 0;
             } else if (--repathTicks <= 0) {
@@ -395,6 +407,7 @@ public class FroggyCombatGoal extends Goal {
         if (froggy.tickCount % 10 == 0) {
             net.minecraft.world.level.pathfinder.Path path = froggy.getNavigation().getPath();
             debug("persegue: dist=" + String.format("%.2f", dist) + " dy=" + String.format("%.2f", target.getY() - froggy.getY())
+                    + " ela=" + String.format("%.3f", targetPace)
                     + " navFeita=" + froggy.getNavigation().isDone()
                     + " fim=" + (path == null ? "sem" : path.getEndNode() == null ? "?" : path.getEndNode().asBlockPos().toShortString()
                     + (path.canReach() ? " alcanca" : " parcial"))
@@ -431,7 +444,7 @@ public class FroggyCombatGoal extends Goal {
         Vec3 look = target.getViewVector(1.0F).multiply(1, 0, 1);
         if (look.lengthSqr() < 1.0E-4D) return false;
         Vec3 behind = target.position().subtract(look.normalize().scale(6.0D));
-        return froggy.getNavigation().moveTo(behind.x, target.getY(), behind.z, huntSpeed());
+        return froggy.getNavigation().moveTo(behind.x, target.getY(), behind.z, chaseSpeed());
     }
 
     /**
@@ -604,7 +617,7 @@ public class FroggyCombatGoal extends Goal {
             Vec3 aim = target.position().add(back).add(targetVel.scale(2.0D));
             froggy.getNavigation().stop();
             froggy.getMoveControl().setWantedPosition(aim.x, target.getY(), aim.z,
-                    (ram ? 1.0D : huntSpeed()) * 1.05D);
+                    chaseSpeed() * 1.05D);
             froggy.getLookControl().setLookAt(target, 60.0F, 60.0F);
             return true;
         }
@@ -1082,11 +1095,24 @@ public class FroggyCombatGoal extends Goal {
             trackedTarget = target;
             lastTargetPos = null;
             targetVel = Vec3.ZERO;
+            targetPace = 0.0D;
         }
         if (lastTargetPos != null) {
-            targetVel = targetVel.scale(0.5D).add(pos.subtract(lastTargetPos).scale(0.5D));
+            Vec3 step = pos.subtract(lastTargetPos);
+            targetVel = targetVel.scale(0.5D).add(step.scale(0.5D));
+            // acelera junto em ~7 ticks, desacelera em ~1 s; teleporte (pérola) não conta
+            double run = Math.sqrt(step.x * step.x + step.z * step.z);
+            if (run < 4.0D) targetPace += (run - targetPace) * (run > targetPace ? 0.15D : 0.05D);
         }
         lastTargetPos = pos;
+    }
+
+    /** Modificador de velocidade pra correr ~25% (transformado, ~50%) mais que a vítima. */
+    private double chaseSpeed() {
+        double edge = (froggy.isFrenzyActive() ? PACE_EDGE_FRENZY : PACE_EDGE) - 1.0D;
+        edge = 1.0D + edge * FroggyConfig.ai().speed / AiLevel.MAX.speed;
+        double perTick = Math.min(PACE_CAP, Math.max(PACE_FLOOR, targetPace) * edge);
+        return Math.sqrt(perTick / 2.15D) / froggy.getAttributeValue(Attributes.MOVEMENT_SPEED);
     }
 
     /** Peso de cada ataque no sorteio: a língua é rara (é especial, não spam). */
