@@ -16,7 +16,7 @@ import net.minecraft.util.FormattedCharSequence;
 /**
  * Mods > Froggydude > Configurar: o nível de violência gráfica, com o aviso
  * escrito (escolher o Extremo abre a tela de confirmação dele), e o quanto ele
- * pensa (IA: Mín, Médio, Alto, Extra, Máx). A IA é do mundo: vale no mundo de
+ * pensa (IA: Mín, Médio, Alto, Extra, Máx, Real). A IA é do mundo: vale no mundo de
  * um jogador (no servidor, quem manda é o config do servidor).
  */
 public class FroggySettingsScreen extends Screen {
@@ -78,7 +78,7 @@ public class FroggySettingsScreen extends Screen {
         }
     }
 
-    /** Do cinza (Mín) ao verde-sapo forte (Máx). */
+    /** Do cinza (Mín) ao verde-sapo forte (Máx); o Real é vermelho-sangue. */
     private static int aiColor(AiLevel level) {
         return switch (level) {
             case MIN -> 0xB0B0B0;
@@ -86,6 +86,7 @@ public class FroggySettingsScreen extends Screen {
             case ALTO -> 0x8CD25A;
             case EXTRA -> 0x5AC83C;
             case MAX -> 0x2EE02E;
+            case REAL -> 0xE03030;
         };
     }
 

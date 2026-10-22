@@ -14,7 +14,6 @@ import com.froggydude.network.CutscenePacket;
 import com.froggydude.network.ModNetwork;
 import com.froggydude.player.ArmLoss;
 import com.froggydude.player.FinisherTracker;
-import com.froggydude.player.GorePrefs;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.level.ServerLevel;
@@ -48,9 +47,6 @@ import java.util.EnumSet;
  * (a tabela começa do jeito de quem já estava sem o esquerdo). Não sobra corpo.
  */
 public class FroggyFinisherGoal extends Goal {
-
-    /** Extremo: quanto tempo a vítima assiste ele comer o corpo antes de morrer (6,5 s). */
-    public static final int CORPSE_WATCH = 130;
 
     private final FroggydudeEntity froggy;
     private LivingEntity victim;
@@ -283,22 +279,14 @@ public class FroggyFinisherGoal extends Goal {
             froggy.speakAfter(VoiceSituation.ATE, 15);
             return;
         }
-        boolean corpse = GorePrefs.of(p).corpse();
         sendEnd(level);
         froggy.endFinisher(true);
         froggy.heal(froggy.getMaxHealth() * 0.25F);
         froggy.setSkinVariant(SkinVariant.FED);
         froggy.addGore(1.5F);
-        if (corpse) {
-            // Extremo: o corpo fica e ele come/brinca. Quem morreu assiste isso pela câmera
-            // de cinema antes da tela de morte - um jogador morto sai do mundo em 1 s e o
-            // cliente dele para de ver as entidades, então a morte de verdade vem depois
-            froggy.leaveCorpse(p, anchor, yaw);
-            FinisherTracker.scheduleDeath(p, level.getGameTime() + CORPSE_WATCH);
-        } else {
-            FinisherTracker.clear(p);
-            p.hurt(devoured(level, froggy), Float.MAX_VALUE);
-        }
+        // engoliu a cabeça: acabou (v0.5.0, LM: sem a cena de depois, ele comendo o corpo)
+        FinisherTracker.clear(p);
+        p.hurt(devoured(level, froggy), Float.MAX_VALUE);
     }
 
     /** Acabou antes da hora (ele morreu, a vítima saiu): se já tinha arrancado algo, ela não sobrevive. */

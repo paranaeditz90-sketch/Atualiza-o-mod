@@ -2,13 +2,10 @@ package com.froggydude.client.cutscene;
 
 import com.froggydude.config.FroggyClientConfig;
 import com.froggydude.entity.Finisher;
-import com.froggydude.entity.PlayerCorpse;
 import com.froggydude.init.ModEntityTypes;
 import com.froggydude.network.CutscenePacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -18,7 +15,6 @@ import net.minecraftforge.fml.common.Mod;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * No cliente: as cutscenes do golpe final que estão rolando (de qualquer
@@ -40,13 +36,8 @@ public final class ClientFinisher {
         public final Vec3 h;
         public final Vec3 l;
         long endedAt = -1;
-        /** Extremo: o corpo virou a entidade PlayerCorpse (aí a vítima some). */
-        public boolean corpse;
-        /** A entidade do cadáver (-1 até aparecer). */
-        public int corpseId = -1;
         /** O áudio da zebra já foi decidido pra essa cutscene (FinisherAudio). */
         boolean audio;
-        UUID victimUuid;
 
         Entry(int froggyId, int victimId, long start, Vec3 anchor, float yaw, boolean skipLeft) {
             this.froggyId = froggyId;
@@ -85,7 +76,6 @@ public final class ClientFinisher {
         Minecraft mc = Minecraft.getInstance();
         if (kind == CutscenePacket.START) {
             Entry e = new Entry(froggyId, victimId, start, new Vec3(x, y, z), yaw, skipLeft);
-            if (mc.level != null && mc.level.getEntity(victimId) != null) e.victimUuid = mc.level.getEntity(victimId).getUUID();
             BY_VICTIM.put(victimId, e);
             if (mc.player != null && mc.player.getId() == victimId) CinematicCamera.begin(e);
         } else {
@@ -134,33 +124,20 @@ public final class ClientFinisher {
             return;
         }
         long now = mc.level.getGameTime();
-        for (Entry e : BY_VICTIM.values()) {
-            if (e.ended() && !e.corpse) {
-                PlayerCorpse c = findCorpse(mc.level, e);
-                if (c != null) {
-                    e.corpse = true;
-                    e.corpseId = c.getId();
-                }
-            }
-        }
         // a de quem está jogando fica até renascer (a câmera ainda mostra o corpo atrás da tela de morte)
         int me = mc.player == null ? -1 : mc.player.getId();
         boolean meDead = mc.player != null && mc.player.isDeadOrDying();
-        // no Extremo a vítima ainda fica (escondida, viva) uns segundos vendo ele comer o corpo
         BY_VICTIM.values().removeIf(e -> !(e.victimId == me && meDead)
-                && ((e.ended() && now - e.endedAt > (e.corpse ? 240 : 40)) || now - e.start > Finisher.END + 480));
+                && ((e.ended() && now - e.endedAt > 40) || now - e.start > Finisher.END + 480));
     }
 
-    /** O cadáver dessa vítima (Extremo), se já apareceu. */
-    public static PlayerCorpse findCorpse(ClientLevel level, Entry e) {
-        Entity victim = level.getEntity(e.victimId);
-        UUID owner = victim == null ? e.victimUuid : victim.getUUID();
-        if (owner == null) return null;
-        e.victimUuid = owner;
-        for (PlayerCorpse c : level.getEntitiesOfClass(PlayerCorpse.class, new AABB(e.anchor, e.anchor).inflate(4D))) {
-            if (c.getOwner().map(owner::equals).orElse(false)) return c;
-        }
-        return null;
+    /**
+     * Renasceu: o jogador novo tem o MESMO número de entidade do que morreu, então
+     * a cutscene dele tem que sair na hora - senão o corpo novo era desenhado
+     * deitado, sem braços e sem cabeça (ou nem era desenhado).
+     */
+    public static void forgetVictim(int victimId) {
+        BY_VICTIM.remove(victimId);
     }
 
     @SubscribeEvent

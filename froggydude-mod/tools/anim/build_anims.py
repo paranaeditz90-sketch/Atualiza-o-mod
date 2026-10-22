@@ -813,27 +813,6 @@ ANIMS["finisher_r"] = animation(T(232) - 3.0,
                                 [(round(t - 3.0, 3), p) for t, p in fin if t > 3.0 + 1e-6],
                                 "hold_on_last_frame")
 
-# Brincando com o corpo (Extremo): agarra embaixo, levanta tudo e arremessa pro alto
-# (solta no tick 8), e fica olhando subir rindo.
-ANIMS["corpse_toss"] = animation(1.2, [
-    (0.00, pose(root_y=-3, waist=70, head=-30, arms=-95, arm_spread=14, legs=leg_back(-3), leg_spread=14)),
-    (0.20, pose(root_y=-4, waist=84, head=-40, arms=-80, arm_spread=12, legs=leg_back(-4), leg_spread=14)),   # agarra
-    (0.36, pose(root_y=0, waist=-10, head=-34, arms=-170, arm_spread=10, legs=4, leg_spread=12)),             # levanta
-    (0.42, pose(root_y=0, waist=-14, head=-40, arms=-178, arm_spread=22, legs=4, leg_spread=12)),             # SOLTA
-    (0.70, pose(root_y=0, waist=-6, head=-36, arms=-60, arm_spread=24, legs=2, leg_spread=12)),               # olhando subir
-    (0.85, pose(root_y=0.5, waist=-2, head=-30, arms=-50, arm_spread=26, legs=2, leg_spread=12)),             # ri
-    (1.00, pose(root_y=0, waist=-6, head=-36, arms=-56, arm_spread=24, legs=2, leg_spread=12)),
-    (1.20, pose(root_y=0.5, waist=-2, head=-28, arms=-48, arm_spread=26, legs=2, leg_spread=12)),
-], "hold_on_last_frame")
-
-# O corpo na boca sacudindo como cachorro com brinquedo (loop de 0,4 s)
-ANIMS["corpse_shake"] = animation(0.4, [
-    (0.00, fin_shake(1, 55)),
-    (0.20, fin_shake(-1, 55)),
-    (0.40, fin_shake(1, 55)),
-], True)
-
-
 # ------------------------------------------------------------------ amostragem (pra teste)
 
 def static(p):
@@ -845,6 +824,9 @@ def main():
     data = json.load(open(MAIN))
     for name, anim in ANIMS.items():
         data["animations"][name] = anim
+    # saíram (v0.5.0: a cena do corpo no Extremo foi tirada)
+    for gone in ("corpse_toss", "corpse_shake"):
+        data["animations"].pop(gone, None)
     with open(MAIN, "w") as f:
         json.dump(data, f, indent=2)
     print("atualizado:", ", ".join(ANIMS))

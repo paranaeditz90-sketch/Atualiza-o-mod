@@ -387,3 +387,73 @@ ninguém pra caçar, reclama de fome e solta os **ribbits** toda hora.
   certa). Quais 3 coisas de player assustam mais? É por elas que eu começaria.
 - **Multiplayer:** com dois jogadores, ele caça quem? O mais perto, o que tá mais
   avançado no jogo, ou um de cada vez?
+
+## 11. IA Real (v0.5.0)
+
+Uma opção acima do Máx (config `ia = REAL`, Mods > Froggydude > Configurar ou
+`/froggydude ia real`): a esperteza do Máx com o jeito do FroggyDude dos vídeos.
+Estudados quadro a quadro e transcritos: "FroggyDude VS Every Opponent", "10v1
+Manhunt but I have RABIES", "How many days can you survive against me?" e
+"Minecraft Manhunt but I have RABIES" (Grox). Código: `entity/ai/RealTactics`,
+`entity/ai/FroggyRetreatGoal`, `player/PlayerSight`, `client/ClientSight`.
+
+- **Sabe o que está na tua tela.** O cliente manda 4 vezes por segundo se ele
+  aparece na imagem (campo de visão e formato da janela de verdade, raio até a
+  caixa dele: vidro e mato deixam ver, folha e parede não; de longe, no breu, ele
+  some; conta o brilho e a visão noturna) e se tu está distraído (tela aberta,
+  comendo, minerando).
+- **Chegar sem ser visto** (tu não vê ele há 3 s): ele sorteia como chegar, pesando
+  o lugar e o que já deu certo contra ti (amostragem de Thompson, guardada no mundo):
+  - "I see you!... you can't hide from me!" e, no fim da fala, o bote de lado que
+    esmaga (Grox, caverna 1:53-1:59);
+  - de mansinho e calado pelas costas, e o bote;
+  - parado e quieto no breu enquanto tu vem, e pega quando chega perto (10v1, 4:20-5:05);
+  - direto.
+  Se tu virar e ver ele, parte pra cima na hora. Bote só com o arco livre (na
+  floresta ele batia na árvore).
+- **Encarar:** às vezes, no começo, te encara parado de longe ("I can smell the
+  fear in you! Time to eat!") e vem (How many days, 4:36).
+- **Quem foge:** corre atrás e dá o bote colado, sem pulo de longe. **Fase 2: só
+  corre** e derruba na trombada (Grox 5:28; o LM viu o mod pular).
+- **Trancado em casa:** come o que tem em volta (aldeão, golem, bicho), aparece na
+  janela rindo e olhando, e arromba quando tu te distrai (bau, inventário) ou depois
+  de uns segundos. Casinha 1x1 e buraco ele arromba direto (Grox 0:44-1:35).
+- **Lava:** só quando não tem outro caminho, anda por cima sem queimar (sem poção;
+  só quando ele quer). **Pulo altíssimo:** só sem nenhum jeito de chegar (plataforma
+  no ar, outro lado da lava), com a física do jogo calculada pra cair do teu lado,
+  no máximo um a cada 2 min.
+- **Fugir pra se curar:** abaixo de 50% apanhando, "Oh my god, I gotta get out of
+  there now!", some da tua vista (mato, copa, água, breu), "I'm very low on health,
+  I need food and a plan", come, "Back to full health!" e volta com "Time for the
+  plan!": o plano diz como o bote termina (esmagar ou devorar).
+- **Faro:** "I can smell him! He's nearby!".
+
+## 12. Estudo da presa (v0.6, planejado com o LM em 21/10)
+
+"O FroggyDude estuda a presa e vê o que mais assusta ou deixa o jogador paranoico,
+pra deixar a carne mais saborosa." Referência: Grox 0:56-1:23 - o Grox se tranca,
+vê ele comendo o aldeão lá fora, ele some, o Grox fica de janela em janela ("I think
+he knows I'm in here") e ele já estava dentro, grudado no canto do teto, olhando pra
+baixo; o Grox olha pra cima, "oh god", e ele cai em cima.
+
+Respostas do LM:
+1. **Tempero:** quando ele te acha, brinca uns minutos (some, aparece na janela, no
+   teto, barulho, segue sem atacar) até o teu medo subir; aí ataca. Se tu bater nele
+   ou fugir longe, ataca antes.
+2. **Esconderijos onde ele te espera:** canto do teto (animação nova, pendurado no
+   canto) e o breu da caverna.
+3. **Animações:** ferramenta à minha escolha (vou fazer um visualizador no navegador:
+   o modelo em 3D com a skin, cada animação com linha do tempo, câmera lenta e quadro
+   a quadro, do lado dos quadros do vídeo).
+
+Como fazer:
+- **Rotina:** guardar os lugares que tu usa (bau, cama, bancada, onde minera, a casa),
+  quanto tempo fica em cada e de quanto em quanto tempo volta. Prever "ele vai voltar
+  pro bau daqui a pouco" e chegar antes, sem ser visto.
+- **Medo:** medir a paranoia pelo jeito que tu joga (quanto vira a câmera, quantas vezes
+  olha pra trás, se para de minerar, se se tranca, se foge) e ver qual susto subiu mais
+  ela. Os sustos: aparecer na janela, vislumbre longe que some quando tu olha, ficar
+  atrás de ti calado, barulho de onde tu não vê, esperar no teto, comer bicho/aldeão na
+  tua frente. Cada um vira uma opção sorteada que aprende contigo, igual às táticas.
+- **A hora de atacar:** quando o medo passa do ponto ("carne temperada"), a próxima
+  emboscada é pra valer.

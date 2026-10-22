@@ -71,6 +71,14 @@ public class FroggyFeedGoal extends Goal {
     public boolean canUse() {
         if (froggy.getFroggyState().isCombatAction() || froggy.isFrenzyActive()) return false;
         if (froggy.getFroggyState() == FroggyState.CONTORTING || froggy.getFroggyState() == FroggyState.ROAR) return false;
+        // IA Real: cercando quem se trancou, come o que tem lá fora primeiro (Grox 0:44-1:35)
+        LivingEntity siege = froggy.pollSiegeMeal();
+        if (siege != null) {
+            froggy.setFeedTarget(siege);
+            return true;
+        }
+        // IA Real: ferido do lado de quem bate nele, primeiro foge (FroggyRetreatGoal), depois come
+        if (FroggyRetreatGoal.mustFlee(froggy)) return false;
         if (froggy.getFeedSearchCooldown() > 0) return false;
 
         LivingEntity blaze = findBlaze();
@@ -111,7 +119,7 @@ public class FroggyFeedGoal extends Goal {
     public boolean canContinueToUse() {
         LivingEntity victim = froggy.getFeedTarget();
         return victim != null && victim.isAlive()
-                && (froggy.getFroggyState() == FroggyState.FEEDING || chaseTimeout > 0);
+                && (froggy.getFroggyState() == FroggyState.FEEDING || chaseTimeout > 0 && !FroggyRetreatGoal.mustFlee(froggy));
     }
 
     @Override

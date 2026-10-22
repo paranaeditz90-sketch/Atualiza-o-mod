@@ -573,6 +573,12 @@ public final class BloodStains {
         }
     }
 
+    /** Renasceu: o corpo novo vem limpo. */
+    public static void forget(UUID id) {
+        Stain s = STAINS.remove(id);
+        if (s != null) s.close();
+    }
+
     private static void clearAll() {
         STAINS.values().forEach(Stain::close);
         STAINS.clear();

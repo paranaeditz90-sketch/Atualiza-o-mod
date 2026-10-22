@@ -11,6 +11,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.MovementInputUpdateEvent;
 import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
@@ -35,7 +36,20 @@ public class ClientForgeEvents {
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             ClientShakeHandler.clientTick();
+            ClientSight.clientTick();
         }
+    }
+
+    /**
+     * Renasceu. O jogador novo tem o mesmo número de entidade do que morreu: tudo que
+     * estava preso nesse número (a cutscene, o jato do toco) seguia no corpo novo - ele
+     * aparecia invisível/deitado e com sangue na skin (LM, v0.4.9). Aqui volta limpo.
+     */
+    @SubscribeEvent
+    public static void onRespawn(ClientPlayerNetworkEvent.Clone event) {
+        com.froggydude.client.cutscene.ClientFinisher.forgetVictim(event.getNewPlayer().getId());
+        com.froggydude.client.gore.BloodStains.forget(event.getNewPlayer().getUUID());
+        com.froggydude.client.gore.ScreenBlood.clear();
     }
 
     /** Deitado no chão enquanto preso (o servidor faz o mesmo do lado dele). */

@@ -92,10 +92,6 @@ public class FinisherEvents {
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        // saiu no meio (ou assistindo ele comer o corpo): não escapa - volta morto
-        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer sp && FinisherTracker.deathAt(sp) >= 0) {
-            ModForgeEvents.finishVictim(sp);
-        }
         FinisherTracker.clear(event.getEntity());
     }
 

@@ -2,7 +2,6 @@ package com.froggydude.init;
 
 import com.froggydude.entity.CutsceneCamera;
 import com.froggydude.entity.FroggydudeEntity;
-import com.froggydude.entity.PlayerCorpse;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -27,15 +26,6 @@ public class ModEntityTypes {
                     .sized(0.7F, 1.95F) // do tamanho de um jogador, um pouco maior
                     .clientTrackingRange(16)
                     .build("froggydude"));
-
-    /** Extremo: o corpo de quem ele matou na cutscene (ele come e brinca com ele). */
-    public static final RegistryObject<EntityType<PlayerCorpse>> CORPSE =
-            ENTITY_TYPES.register("corpse", () -> EntityType.Builder
-                    .<PlayerCorpse>of(PlayerCorpse::new, MobCategory.MISC)
-                    .sized(0.9F, 0.35F)
-                    .clientTrackingRange(10)
-                    .updateInterval(1)
-                    .build("corpse"));
 
     /** A câmera da cutscene (só no cliente de quem está nela; nunca entra no mundo). */
     public static final RegistryObject<EntityType<CutsceneCamera>> CUTSCENE_CAMERA =

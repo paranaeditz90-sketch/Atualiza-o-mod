@@ -14,7 +14,6 @@ public class ClientModEvents {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(ModEntityTypes.FROGGYDUDE.get(), FroggydudeRenderer::new);
-        event.registerEntityRenderer(ModEntityTypes.CORPSE.get(), PlayerCorpseRenderer::new);
         // o cinegrafista da cutscene nunca aparece
         event.registerEntityRenderer(ModEntityTypes.CUTSCENE_CAMERA.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
     }

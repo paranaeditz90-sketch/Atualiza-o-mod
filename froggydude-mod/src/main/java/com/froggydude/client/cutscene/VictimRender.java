@@ -41,8 +41,6 @@ public final class VictimRender {
 
     public static final int NORMAL = 0;
     public static final int LYING = 1;
-    /** Já virou o cadáver do Extremo (a entidade do corpo é que aparece). */
-    public static final int HIDDEN = 2;
 
     private static final class Saved {
         float bodyRot, bodyRotO, headRot, headRotO, xRot, xRotO, swim, swimO, walkPos, walkSpeed, walkSpeedO;
@@ -88,7 +86,6 @@ public final class VictimRender {
         ClientFinisher.Entry e = ClientFinisher.forVictim(p.getId());
         if (e == null) return NORMAL;
         if (!e.ended()) return LYING;
-        if (e.corpse) return HIDDEN;
         // acabou e morreu: fica deitado sem cabeça até sumir; logo depois do fim, ainda esperando
         // o cadáver (Extremo) aparecer, também; se escapou viva (ele morreu no meio), levanta
         if (p instanceof Player pl && pl.isDeadOrDying()) return LYING;
@@ -108,10 +105,6 @@ public final class VictimRender {
         Player p = event.getEntity();
         int st = state(p);
         if (st == NORMAL) return;
-        if (st == HIDDEN) {
-            event.setCanceled(true);
-            return;
-        }
         ClientFinisher.Entry e = ClientFinisher.forVictim(p.getId());
         float partial = event.getPartialTick();
         PoseStack ps = event.getPoseStack();

@@ -54,11 +54,6 @@ public enum GoreLevel {
         return this == EXTREME;
     }
 
-    /** O corpo de quem ele matou na cutscene fica no chão (ele come e brinca com ele). */
-    public boolean corpse() {
-        return this == EXTREME;
-    }
-
     /** Braços e cabeça saem de verdade na cutscene (Desligado: a tela escurece na hora). */
     public boolean dismember() {
         return this != OFF;

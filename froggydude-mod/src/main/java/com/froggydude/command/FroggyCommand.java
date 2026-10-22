@@ -97,12 +97,12 @@ public final class FroggyCommand {
                 }))));
     }
 
-    /** /froggydude ia [min|medio|alto|extra|max]: o quanto ele pensa (é escolha de quem joga, não trapaça). */
+    /** /froggydude ia [min|medio|alto|extra|max|real]: o quanto ele pensa (é escolha de quem joga, não trapaça). */
     private static LiteralArgumentBuilder<CommandSourceStack> ai() {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("ia").executes(c -> {
             AiLevel now = FroggyConfig.ai();
             c.getSource().sendSuccess(() -> Component.literal("IA do FroggyDude: ").append(Component.translatable(now.key()))
-                    .append(". Muda com /froggydude ia <min|medio|alto|extra|max>."), false);
+                    .append(". Muda com /froggydude ia <min|medio|alto|extra|max|real>."), false);
             return 1;
         });
         for (AiLevel level : AiLevel.values()) {

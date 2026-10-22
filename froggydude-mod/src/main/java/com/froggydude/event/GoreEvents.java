@@ -61,6 +61,7 @@ public class GoreEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         GorePrefs.forget(event.getEntity());
+        com.froggydude.player.PlayerSight.forget(event.getEntity());
     }
 
     /** O golpe tira sangue? */
@@ -104,10 +105,5 @@ public class GoreEvents {
         if (dir.lengthSqr() < 1.0E-4D) dir = new Vec3(0, 1, 0);
         Vec3 at = victim.getBoundingBox().inflate(0.05D).clip(from, center).orElse(center);
         return new Vec3[]{at, dir.normalize()};
-    }
-
-    /** O nível de gore de quem levou (pro que o servidor decide: o corpo que fica). */
-    public static boolean wantsCorpse(ServerPlayer p) {
-        return GorePrefs.of(p).corpse();
     }
 }

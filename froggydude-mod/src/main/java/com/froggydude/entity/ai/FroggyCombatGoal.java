@@ -137,6 +137,10 @@ public class FroggyCombatGoal extends Goal {
     private static final int[] EAT_BITES = {6, 29, 52};
 
     private final FroggydudeEntity froggy;
+    /** IA Real: o jeito dos vídeos (ver RealTactics). */
+    private final RealTactics real;
+    /** O pulo altíssimo calculado da IA Real: onde ele vai cair (null = o pulo comum). */
+    private Vec3 arcLand;
     /** Jeito de jogador: pôr bloco, a dancinha, zombar e ir embora. */
     private final PlayerMoves moves;
 
@@ -185,6 +189,7 @@ public class FroggyCombatGoal extends Goal {
     public FroggyCombatGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
         this.moves = new PlayerMoves(froggy);
+        this.real = new RealTactics(froggy, this);
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
@@ -227,6 +232,8 @@ public class FroggyCombatGoal extends Goal {
     @Override
     public void stop() {
         moves.reset();
+        real.reset();
+        arcLand = null;
         if (froggy.getFroggyState() == FroggyState.BUILD || froggy.getFroggyState() == FroggyState.TAUNT) {
             froggy.setFroggyState(FroggyState.CHASE);
         }
@@ -311,6 +318,8 @@ public class FroggyCombatGoal extends Goal {
         // se ela ficava na beirada (dava pra ver de baixo), ele usava a língua ou ficava
         // parado, e só subia se ela ficasse bem no meio, escondida.
         boolean elevated = target.getY() - froggy.getY() > ELEVATED;
+        // IA Real: chegar sem ser visto ("I see you"), esperar no escuro, encarar de longe
+        if (real.active() && real.tick(target, dist, elevated)) return;
         // a vítima veio pra cima dele: ele NÃO recua - avança junto e derruba (v0.3.4;
         // antes, no modo "só olhando", ele fugia de quem se aproximava e voltava depois)
         boolean charging = !elevated && dist <= 8.0D && approachSpeed(target) > 0.06D;
@@ -322,7 +331,9 @@ public class FroggyCombatGoal extends Goal {
             runStalk(target, dist);
             return;
         }
-        if (charging && froggy.getAttackCooldown() <= 0 && counterPounce(target, dist)) {
+        // (na fase 2 da IA Real ele não pula: a trombada vem do tail)
+        if (charging && froggy.getAttackCooldown() <= 0 && !(real.active() && froggy.isFrenzyActive())
+                && counterPounce(target, dist)) {
             return;
         }
         // alcançou quem foge: corre COLADO atrás uns 0,4 s (a zebra do vídeo) e dá o bote
@@ -346,6 +357,9 @@ public class FroggyCombatGoal extends Goal {
             // fugindo dele, entre uma fala e outra: ribbit de raiva
             froggy.ribbit(2.0F);
         }
+
+        // IA Real sem caminho: o cerco (come em volta, aparece na janela), a lava, o pulo calculado
+        if (real.active() && real.stuck(target, dist, stuckTicks)) return;
 
         // sem salto de sapo na perseguição (v0.3.5): o salto cobria 7,5 blocos em 24
         // ticks (0,31 b/t), mais devagar que o galope - "parece um sapo pulando, bem
@@ -577,14 +591,26 @@ public class FroggyCombatGoal extends Goal {
         }
         if (froggy.getAttackCooldown() > 0 && tailTicks == 0) return false;
         tailTicks++;
-        if (tailTicks < TAIL_TICKS) {
-            // 1,2 bloco atrás dela, no mesmo passo (um pouco mais rápido pra não perder)
+        boolean ram = real.active() && froggy.isFrenzyActive();
+        if (tailTicks < TAIL_TICKS || ram && dist > 2.2D && !touching(target, 0.4D)) {
+            // 1,2 bloco atrás dela, no mesmo passo (um pouco mais rápido pra não perder);
+            // na fase 2 da IA Real, colado até encostar
             Vec3 v = targetVel.multiply(1, 0, 1);
-            Vec3 back = v.lengthSqr() > 1.0E-4D ? v.normalize().scale(-1.2D) : Vec3.ZERO;
+            Vec3 back = v.lengthSqr() > 1.0E-4D ? v.normalize().scale(ram ? -0.4D : -1.2D) : Vec3.ZERO;
             Vec3 aim = target.position().add(back).add(targetVel.scale(2.0D));
             froggy.getNavigation().stop();
-            froggy.getMoveControl().setWantedPosition(aim.x, target.getY(), aim.z, huntSpeed() * 1.05D);
+            froggy.getMoveControl().setWantedPosition(aim.x, target.getY(), aim.z,
+                    (ram ? 1.0D : huntSpeed()) * 1.05D);
             froggy.getLookControl().setLookAt(target, 60.0F, 60.0F);
+            return true;
+        }
+        if (ram) {
+            // fase 2 da IA Real (Grox 5:28): nada de pulo - cola até encostar e derruba na trombada
+            tailTicks = 0;
+            debug("fase 2 real: trombada sem pulo, dist=" + String.format("%.2f", dist));
+            hurtNoKnockback(target, 5.0F);
+            froggy.spawnBlood(target, 5);
+            beginSmash(FroggyState.CHASE, target, 1.4F);
             return true;
         }
         tailTicks = 0;
@@ -923,7 +949,7 @@ public class FroggyCombatGoal extends Goal {
     }
 
     /** Quanto a vítima está vindo NA DIREÇÃO dele (blocos por tick; < 0 = se afastando). */
-    private double approachSpeed(LivingEntity target) {
+    double approachSpeed(LivingEntity target) {
         Vec3 toFroggy = froggy.position().subtract(target.position()).multiply(1, 0, 1);
         double len = toFroggy.length();
         if (len < 1.0E-3D) return 0.0D;
@@ -945,6 +971,56 @@ public class FroggyCombatGoal extends Goal {
         counterCooldown = FroggyConfig.ai().ticks(COUNTER_COOLDOWN);
         beginAttack(FroggyState.JUMP_PIN, target, dist);
         return true;
+    }
+
+    // ---------------------------------------------------------------- IA Real
+
+    /**
+     * O bote agora (o fim do "I see you", a vítima chegando no escuro): de 2,5 a
+     * 7,5 blocos, no chão e à vista; mais perto que isso, a trombada do bote baixo.
+     */
+    boolean realPounce(LivingEntity target, double dist) {
+        if (dist > 7.5D || !froggy.onGround() || froggy.isClimbing() || !froggy.hasLineOfSight(target)) return false;
+        if (dist >= 2.5D && (!canPounce(target, JUMP_PIN_LAUNCH + JUMP_PIN_AIR, 7.5D)
+                || !pounceClear(target, JUMP_PIN_VY, JUMP_PIN_AIR))) return false;
+        beginAttack(FroggyState.JUMP_PIN, target, dist);
+        return true;
+    }
+
+    /**
+     * IA Real: o arco do bote até onde ela vai estar passa livre (sem tronco, galho,
+     * folha nem parede no meio)? Na floresta o bote batia na árvore e caía longe.
+     */
+    private boolean pounceClear(LivingEntity target, double vy0, int airTicks) {
+        Vec3 aim = target.position().add(targetVel.x * airTicks, 0, targetVel.z * airTicks);
+        double dx = aim.x - froggy.getX(), dz = aim.z - froggy.getZ();
+        double d = Math.sqrt(dx * dx + dz * dz);
+        if (d < 1.0E-3D) return true;
+        double vh = Math.max(1.0D, d - PIN_DISTANCE) / horizontalFactor(airTicks);
+        return RealTactics.clearArc(froggy, froggy.position(), new Vec3(dx / d * vh, vy0, dz / d * vh), airTicks);
+    }
+
+    /** Há quanto tempo ele não chega mais perto (ver stuckFor). */
+    int stuckTicks() {
+        return stuckTicks;
+    }
+
+    /** IA Real indo pra um ponto de onde vê a vítima (pro pulo calculado): não larga o alvo. */
+    public boolean holdsTarget() {
+        if (!real.active()) return false;
+        if (real.planningReach()) return true;
+        // ela subiu num lugar logo acima dele (plataforma, torre): ele sabe onde ela está,
+        // mesmo sem ver lá debaixo (antes largava o alvo antes de procurar de onde pular)
+        LivingEntity t = froggy.getTarget();
+        if (t == null || t.getY() - froggy.getY() <= 2.0D) return false;
+        double dx = t.getX() - froggy.getX(), dz = t.getZ() - froggy.getZ();
+        return dx * dx + dz * dz < 144.0D;
+    }
+
+    /** O pulo altíssimo calculado (RealTactics.solveArc), pra cair do lado dela em {@code land}. */
+    void beginArc(LivingEntity target, Vec3 land) {
+        arcLand = land;
+        beginAttack(FroggyState.SKY_DROP, target, froggy.distanceTo(target));
     }
 
     // ---------------------------------------------------------------- decisão
@@ -994,6 +1070,7 @@ public class FroggyCombatGoal extends Goal {
             if (only != null && s != only) continue;
             if (onWall && s != FroggyState.BITE) continue;
             if (s.isTongue() && tongueCooldown > 0 && only == null) continue;
+            if (only == null && real.active() && !real.allows(s, approachSpeed(target))) continue;
             if (froggy.isReady(s) && canHit(s, target, dist)) {
                 valid.add(s);
             }
@@ -1026,8 +1103,10 @@ public class FroggyCombatGoal extends Goal {
             case TONGUE_WHIP -> dist >= 2.8D && dist <= 8.0D;
             case TONGUE_GRAB -> dist >= 4.0D && dist <= 8.0D;
             case TONGUE_CAPTURE -> dist >= 5.0D && dist <= 10.0D && target.onGround();
-            case JUMP_PIN -> dist >= 3.5D && dist <= 7.0D && canPounce(target, JUMP_PIN_LAUNCH + JUMP_PIN_AIR, 7.5D);
-            case HIGH_JUMP -> dist >= 5.0D && dist <= 9.0D && canPounce(target, HIGH_JUMP_LAUNCH + HIGH_JUMP_AIR, 10.0D);
+            case JUMP_PIN -> dist >= 3.5D && dist <= 7.0D && canPounce(target, JUMP_PIN_LAUNCH + JUMP_PIN_AIR, 7.5D)
+                    && (!real.active() || pounceClear(target, JUMP_PIN_VY, JUMP_PIN_AIR));
+            case HIGH_JUMP -> dist >= 5.0D && dist <= 9.0D && canPounce(target, HIGH_JUMP_LAUNCH + HIGH_JUMP_AIR, 10.0D)
+                    && (!real.active() || pounceClear(target, HIGH_JUMP_VY, HIGH_JUMP_AIR));
             case SKY_DROP -> dist >= SKY_MIN_DIST && dist <= SKY_MAX_DIST && canSkyDrop(target);
             default -> false;
         };
@@ -1233,6 +1312,8 @@ public class FroggyCombatGoal extends Goal {
             }
             case SKY_DROP -> {
                 if (runSkyDrop(target, t)) return;
+                // o arco calculado pode voar mais que a animação: termina quando pousar
+                if (arcLand != null && t < 200) return;
             }
             default -> {
             }
@@ -1307,6 +1388,9 @@ public class FroggyCombatGoal extends Goal {
         hurtNoKnockback(target, 5.0F);
         froggy.spawnBlood(target, 5);
         FroggyState dbg = froggy.getDebugAttack();
+        // IA Real: o "I see you" e o plano já dizem como termina (esmagar ou devorar)
+        FroggyState forced = froggy.takeForcedFinish();
+        if (dbg == null && forced != null) dbg = forced;
         boolean smash = dbg == FroggyState.SMASH
                 || (dbg != FroggyState.PIN_HOLD && froggy.getRandom().nextBoolean());
         if (smash) beginSmash(state, target, 1.4F);
@@ -1326,7 +1410,10 @@ public class FroggyCombatGoal extends Goal {
 
     private void finishAttack(FroggyState state) {
         LivingEntity target = froggy.getTarget();
-        if (target != null) froggy.recordAttack(target, state, attackHit);
+        if (target != null) {
+            froggy.recordAttack(target, state, attackHit);
+            if (real.active()) real.onAttackResolved(target, attackHit);
+        }
         attackHit = false;
         froggy.setLastAttack(state);
         AiLevel ai = FroggyConfig.ai();
@@ -1364,6 +1451,26 @@ public class FroggyCombatGoal extends Goal {
             froggy.faceTarget(target);
             froggy.getNavigation().stop();
         }
+        if (!launched && t >= SKY_LAUNCH && arcLand != null) {
+            launched = true;
+            // a conta de novo, com ela onde está agora (8 ticks depois de decidir)
+            Vec3 land = real.landingBeside(target);
+            Vec3 v = land == null ? null : RealTactics.solveArc(froggy, froggy.position(), land);
+            if (v == null) v = RealTactics.solveArc(froggy, froggy.position(), arcLand);
+            else arcLand = land;
+            if (v == null || !froggy.onGround()) {
+                arcLand = null;
+                abort(FroggyState.SKY_DROP);
+                return true;
+            }
+            debug("arco: v=" + v + " pouso=" + arcLand);
+            froggy.getNavigation().stop();
+            froggy.setDeltaMovement(v);
+            froggy.setNoFallTicks(200);
+            froggy.hasImpulse = true;
+            froggy.onLeapLaunch();
+            return false;
+        }
         if (!launched && t >= SKY_LAUNCH) {
             launched = true;
             if (!froggy.onGround() || !canSkyDrop(target)) {
@@ -1379,9 +1486,13 @@ public class FroggyCombatGoal extends Goal {
             return false;
         }
         if (launched && !fired1) {
-            if (t > SKY_LAUNCH + 1) steerSkyDrop(target);
+            if (t > SKY_LAUNCH + 1) {
+                if (arcLand != null) real.steerArc(target, arcLand);
+                else steerSkyDrop(target);
+            }
             if (froggy.onGround() && t >= SKY_LAUNCH + 6) {
                 fired1 = true;
+                arcLand = null;
                 landSkyDrop(target);
                 return true;
             }

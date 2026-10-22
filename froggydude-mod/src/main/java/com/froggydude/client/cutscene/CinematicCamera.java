@@ -74,8 +74,6 @@ public final class CinematicCamera {
     private static float roll;
     private static float fov = 70F;
     private static Vec3 lastPos;
-    /** Depois da morte: o ponto que a câmera segue (ele com o corpo), amaciado. */
-    private static Vec3 follow;
     /** Quando ela morreu de fato (tick do jogo), pra escurecer; -1 viva. */
     private static long deadSince = -1;
 
@@ -121,7 +119,6 @@ public final class CinematicCamera {
         cam = null;
         owner = null;
         lastPos = null;
-        follow = null;
         deadSince = -1;
         com.froggydude.client.gore.ScreenBlood.clear();
     }
@@ -218,19 +215,8 @@ public final class CinematicCamera {
             // depois: rodando devagar em volta do que sobrou (atrás da tela de morte)
             float after = Math.max(0F, t - Finisher.END);
             double ang = Math.toRadians(e.yaw + 120F + after * 0.35F);
-            // no Extremo ele leva o corpo pra lá e pra cá: a câmera vai atrás dele (devagar)
             Vec3 focus = e.anchor.add(0, 0.45D, 0);
-            Entity froggy = mc.level.getEntity(e.froggyId);
-            Entity body = e.corpseId >= 0 ? mc.level.getEntity(e.corpseId) : null;
-            if (e.corpse && froggy != null && froggy.distanceToSqr(e.anchor) < 24D * 24D) {
-                // enquadra o corpo e ele (mais o corpo: é o que ele está comendo)
-                Vec3 f = froggy.getPosition(partial).add(0, 0.7D, 0);
-                if (body != null) f = body.getPosition(partial).add(0, 0.25D, 0).lerp(f, 0.3D);
-                follow = follow == null ? f : follow.lerp(f, 1D - Math.pow(0.88D, mc.getDeltaFrameTime()));
-                focus = follow;
-            }
-            boolean close = e.corpse;
-            pos = focus.add(-Math.sin(ang) * (close ? 3.0D : 4.2D), close ? 1.45D : 1.9D, Math.cos(ang) * (close ? 3.0D : 4.2D));
+            pos = focus.add(-Math.sin(ang) * 4.2D, 1.9D, Math.cos(ang) * 4.2D);
             look = focus;
             shake = 0.15F;
             roll = 0F;
@@ -319,9 +305,8 @@ public final class CinematicCamera {
         if (mc.level == null || mc.player == null || cam == null || cam.level() != mc.level) return false;
         if (mc.player != owner) return false;
         // acabou: o pacote do fim pode chegar antes da vida zerar - espera um pouco pela morte
-        // (no Extremo ela ainda fica viva uns segundos vendo ele comer o corpo)
         if (entry.ended()) {
-            return mc.player.isDeadOrDying() || mc.level.getGameTime() - entry.endedAt < (entry.corpse ? 200 : 30);
+            return mc.player.isDeadOrDying() || mc.level.getGameTime() - entry.endedAt < 30;
         }
         return true;
     }
@@ -398,7 +383,7 @@ public final class CinematicCamera {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_ENTITIES || entry == null) return;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
-        if (p == null || mc.getCameraEntity() != cam || VictimRender.state(p) == VictimRender.HIDDEN) return;
+        if (p == null || mc.getCameraEntity() != cam) return;
         float partial = event.getPartialTick();
         Vec3 c = event.getCamera().getPosition();
         EntityRenderDispatcher d = mc.getEntityRenderDispatcher();
@@ -430,12 +415,9 @@ public final class CinematicCamera {
         float black = 0F;
         // corte do tombo pro cinema
         black = Math.max(black, 1F - Mth.clamp((t - start) / 5F, 0F, 1F));
-        // no fim: preto depois de engolir. No Extremo volta do preto pra ela ver ele comendo o
-        // corpo; quando morre de verdade (e sem o cadáver, logo no fim) fica preto atrás da tela de morte
+        // no fim: preto depois de engolir, e fica preto atrás da tela de morte
         if (t >= FADE_OUT) {
-            float out = Mth.clamp((t - FADE_OUT) / 6F, 0F, 1F);
-            float back = e.corpse ? Mth.clamp((t - (Finisher.END + 4)) / 16F, 0F, 1F) : 0F;
-            black = Math.max(black, out * (1F - back));
+            black = Math.max(black, Mth.clamp((t - FADE_OUT) / 6F, 0F, 1F));
         }
         if (mc.player != null && mc.player.isDeadOrDying()) {
             if (deadSince < 0) deadSince = mc.level.getGameTime();

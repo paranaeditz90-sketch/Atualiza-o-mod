@@ -14,8 +14,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class FinisherTracker {
 
     private static final Map<UUID, Integer> VICTIMS = new ConcurrentHashMap<>();
-    /** Extremo: a vítima ainda assiste ele comer o corpo e só morre neste tick do jogo. */
-    private static final Map<UUID, Long> DEATHS = new ConcurrentHashMap<>();
 
     private FinisherTracker() {
     }
@@ -34,21 +32,9 @@ public final class FinisherTracker {
 
     public static void clear(Player p) {
         VICTIMS.remove(p.getUUID());
-        DEATHS.remove(p.getUUID());
     }
 
     public static void clearAll() {
         VICTIMS.clear();
-        DEATHS.clear();
-    }
-
-    /** Continua protegida (e marcada) até {@code gameTime}; aí morre (ModForgeEvents). */
-    public static void scheduleDeath(Player p, long gameTime) {
-        DEATHS.put(p.getUUID(), gameTime);
-    }
-
-    /** Tick do jogo em que ela morre, ou -1 se não tem morte marcada. */
-    public static long deathAt(Player p) {
-        return DEATHS.getOrDefault(p.getUUID(), -1L);
     }
 }

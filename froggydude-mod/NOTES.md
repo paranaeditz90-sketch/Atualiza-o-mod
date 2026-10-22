@@ -1,4 +1,4 @@
-# Froggydude - v0.4.9: grito inteiro e o soco do vídeo do Grox (sobre a v0.4.8)
+# Froggydude - v0.5.0: IA Real, sem a cena do corpo, renascer limpo (sobre a v0.4.9)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,53 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.4.9):
+O que testar agora (v0.5.0):
+A) IA REAL: Mods > Froggydude > Configurar > IA: Real (vermelho), ou `/froggydude ia real`. É a
+   esperteza do Máx com o jeito do FroggyDude dos vídeos (VS Every Opponent, 10v1, How many days,
+   Manhunt do Grox). O que ele faz:
+   1. Sabe o que está na TUA TELA (o teu cliente conta pro servidor 4 vezes por segundo: se ele
+      aparece na imagem, sem bloco no meio, e se tu está de tela aberta, comendo ou minerando).
+   2. Chegando sem ser visto, sorteia como chegar e aprende contigo o que dá certo: o "I see
+      you!... you can't hide from me!" e o bote de lado que esmaga (caverna do Grox); de mansinho
+      e calado pelas costas; parado no breu esperando tu chegar perto; ou direto. Se tu virar e
+      ver ele, ele parte pra cima na hora. No `-dev` o chat mostra o que ele escolheu.
+   3. Às vezes, no começo, te encara de longe ("I can smell the fear in you! Time to eat!") e vem.
+   4. Tu fugindo: corre atrás e dá o bote colado, sem pulo de longe. FASE 2: só corre e te derruba
+      na trombada (nada de pulo, como tu viu no vídeo).
+   5. Trancado em casa: ele come o que tem lá fora (aldeão, golem, bicho), aparece na janela rindo
+      e olhando, e arromba quando tu abre bau/inventário ou depois de uns segundos.
+   6. Lava: só atravessa quando não tem outro caminho, andando por cima e sem queimar.
+   7. Pulo altíssimo: só quando não tem jeito nenhum de chegar (plataforma no ar, outro lado da
+      lava), com a conta da física pra cair do teu lado. No máximo um a cada 2 minutos.
+   8. Apanhando com a vida baixa: "Oh my god, I gotta get out of there now!", some da tua vista,
+      "I'm very low on health, I need food and a plan", come, "Back to full health!" e volta com
+      "Time for the plan!" (o plano diz se ele vai esmagar ou devorar).
+   9. Faro: "I can smell him! He's nearby!".
+B) Pacote de voz NOVO (0.5.0): 9 falas novas, do Grox e do VS Every Opponent ("I see you", "I can
+   smell him", "I can smell the fear in you", "I gotta get out of there", "I'm very low on health",
+   "Back to full health", e os dois "Time for the plan").
+C) SAIU a cena de depois no Extremo (ele comendo e brincando com o teu corpo). O golpe final
+   continua igual: braço, braço e cabeça. Tu morre quando ele engole a cabeça.
+D) CONSERTADO: o jogador ficava invisível ao morrer/renascer, e renascia com sangue na skin (o jato
+   do toco continuava no corpo novo, porque o jogador renasce com o mesmo número de entidade). Agora
+   renasce limpo: sem sangue na skin, na tela, e fora da cutscene.
+E) A fase 2 "uma vez" agora fica salva no mundo (saindo e voltando ele não se transforma de novo
+   só pela vida baixa).
+F) CONSERTADO (achado nos testes): com lava entre vocês ele entrava nela andando reto. Eram duas
+   coisas: o "vai reto" do fim do caminho (que é pra subir parede) e um caminho "com lava" que ficava
+   guardado depois que ele desistia de atravessar. Agora ele para na beira de lava, fogo e magma, e
+   quando atravessa (IA Real, sem outro jeito) anda POR CIMA da lava, sem afundar. Testado: lava de
+   12 blocos entre vocês - de céu aberto ele passa no pulo calculado; com teto baixo, faz ponte.
+G) CONSERTADO: o pulo calculado não saía. Tu numa plataforma alta, ele: (1) largava o alvo depois
+   de 3 s sem te ver lá debaixo; (2) conferia "tem caminho?" olhando o caminho errado (o do ponto
+   pra onde estava andando, não até ti); (3) procurava um ponto de onde te VER, mas de perto a borda
+   da plataforma tapa a vista e de longe (14+ blocos) o pulo não alcança (o ar freia). Agora ele sabe
+   onde tu está lá em cima, procura um ponto de onde a CONTA do pulo passa (5 a 8 blocos), vai até
+   lá e pula. Testado: plataforma 9 blocos acima, ele pulou de 3,6 blocos e caiu do teu lado.
+H) Fugindo pra se curar, ele corre pra onde tem bicho pra comer (antes podia se esconder longe de
+   tudo e ficar esperando a cura que não vinha).
+
+Da v0.4.9:
 A) Fase 2 com o pacote de voz NOVO: o grito inteiro do vídeo do Grox (5:20-5:34), 13,6 s,
    com as falas do Grox e os dois tiros tirados (os buracos foram tapados com o próprio
    grito, então a duração é a do vídeo). O grito agora vai junto com ele (antes ficava no

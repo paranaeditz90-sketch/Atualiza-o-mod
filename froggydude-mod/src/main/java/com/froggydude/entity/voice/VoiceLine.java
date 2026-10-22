@@ -48,6 +48,20 @@ public enum VoiceLine {
     EXOTIC_MEAT("eat_exotic_meat", 62),
     PANDA_DELICIOUS("eat_panda_delicious", 58),
     FREAKING_SPICY("pain_freaking_spicy", 25),
+    // IA Real: chegou perto sem ser visto (Grox, caverna 1:53-1:59: "I see you!", risadinha,
+    // "you can't hide from me!" e aí pula de lado e esmaga)
+    I_SEE_YOU("hunt_i_see_you", 147),
+    // IA Real: o faro (vs Every Opponent 7:11 e 10:19)
+    SMELL_HIM("hunt_smell_him", 52),
+    SNIFF_NEARBY("hunt_sniff_nearby", 83),
+    // IA Real: encarando de longe antes de partir pra cima (vs Every Opponent 9:13)
+    SMELL_FEAR("hunt_smell_fear", 80),
+    // IA Real: apanhando demais, foge, se cura e volta com um plano (vs Every Opponent 16:56-17:36 e 7:58)
+    GET_OUT("retreat_get_out", 40),
+    LOW_HEALTH("retreat_low_health", 143),
+    BACK_TO_FULL("retreat_back_to_full", 22),
+    PLAN_SMASH("retreat_plan_smash", 187),
+    PLAN_ATTACK("retreat_plan_attack", 218),
     // morrendo
     NO_NO_NOOO("death_no_no_nooo", 50),
     NOOOOO("death_nooooo", 33);

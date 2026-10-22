@@ -867,5 +867,86 @@
       }
     ],
     "subtitle": "subtitles.froggydude.hurt"
+  },
+  "froggydude.voice.hunt_i_see_you": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_i_see_you"
+  },
+  "froggydude.voice.hunt_smell_him": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_smell_him"
+  },
+  "froggydude.voice.hunt_sniff_nearby": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_sniff_nearby"
+  },
+  "froggydude.voice.hunt_smell_fear": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_smell_fear"
+  },
+  "froggydude.voice.retreat_get_out": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.retreat_get_out"
+  },
+  "froggydude.voice.retreat_low_health": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.retreat_low_health"
+  },
+  "froggydude.voice.retreat_back_to_full": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.ambient",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.retreat_back_to_full"
+  },
+  "froggydude.voice.retreat_plan_smash": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.retreat_plan_smash"
+  },
+  "froggydude.voice.retreat_plan_attack": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.retreat_plan_attack"
   }
 }

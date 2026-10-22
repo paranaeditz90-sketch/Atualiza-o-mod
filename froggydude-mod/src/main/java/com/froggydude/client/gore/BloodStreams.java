@@ -12,6 +12,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -131,6 +132,9 @@ public final class BloodStreams {
         int id = e.getId();
         Supplier<Vec3> origin = () -> {
             Entity now = Minecraft.getInstance().level == null ? null : Minecraft.getInstance().level.getEntity(id);
+            // jogador que renasceu volta com o MESMO número de entidade, mas é outro corpo:
+            // o jato do toco parava nele e sujava a skin nova (LM, v0.4.9) - aqui para de jorrar
+            if (e instanceof Player && now != null && now != e) return null;
             Entity src = now != null ? now : e;
             return toWorld(src, local, 1F);
         };

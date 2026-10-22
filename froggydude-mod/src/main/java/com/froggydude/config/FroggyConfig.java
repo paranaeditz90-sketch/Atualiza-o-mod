@@ -35,9 +35,10 @@ public final class FroggyConfig {
         b.push("froggydude");
         CACA_BLOCOS_POR_SEGUNDO = b.comment("Velocidade do galope caçando (blocos/s). Original: ~15. Um jogador correndo: ~5,6.")
                 .defineInRange("caca_blocos_por_segundo", 15.0D, 6.0D, 20.0D);
-        IA = b.comment("O quanto ele pensa: MIN, MEDIO, ALTO (o de sempre), EXTRA, MAX.",
+        IA = b.comment("O quanto ele pensa: MIN, MEDIO, ALTO (o de sempre), EXTRA, MAX, REAL.",
                         "Muda alcance de visão/faro, reação, previsão, táticas (cercar, cortar caminho, pôr bloco,",
                         "arrombar, sabotar), o uso do que ele aprendeu de cada jogador e, no EXTRA/MAX, truques novos.",
+                        "REAL: a esperteza do MAX com o jeito do FroggyDude dos vídeos (sabe o que está na tua tela).",
                         "Também pela tela do mod (Mods > Froggydude > Configurar) ou /froggydude ia <nível>.")
                 .defineEnum("ia", AiLevel.ALTO);
         b.pop();

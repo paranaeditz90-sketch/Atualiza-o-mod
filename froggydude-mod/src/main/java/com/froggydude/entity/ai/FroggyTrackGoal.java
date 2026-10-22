@@ -70,6 +70,8 @@ public class FroggyTrackGoal extends Goal {
     @Nullable
     private Vec3 pendingGoal;
     private int farGoalAt;
+    /** IA Real: a próxima vez que pode falar do faro. */
+    private int smellTalkAt;
 
     public FroggyTrackGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -117,7 +119,7 @@ public class FroggyTrackGoal extends Goal {
 
     private boolean valid(@Nullable ServerPlayer p) {
         return p != null && p.isAlive() && !p.isCreative() && !p.isSpectator() && p.level() == froggy.level()
-                && !froggy.isFedOn(p) && !froggy.underTruce(p);
+                && !froggy.isFedOn(p) && !froggy.underTruce(p) && !froggy.hidingFrom(p);
     }
 
     @Override
@@ -140,6 +142,10 @@ public class FroggyTrackGoal extends Goal {
         froggy.brainLog("farejando o rastro de " + preyName
                 + (end == null ? "" : " (cheiro de " + (now - end.time()) / 20 + " s atrás)"));
         sniff();
+        // IA Real: "I can smell him! He's nearby!" (vs Every Opponent 7:11) - de vez em quando
+        if (FroggyConfig.ai().real && froggy.tickCount >= smellTalkAt && froggy.speak(VoiceSituation.SMELL)) {
+            smellTalkAt = froggy.tickCount + 1800;
+        }
     }
 
     @Override

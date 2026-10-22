@@ -20,6 +20,11 @@ import static com.froggydude.entity.voice.VoiceLine.*;
  *   montado: "stay on the ground" (worthy 3:08), "I want to eat you";
  *   a última mordida: "I want your flesh".
  *
+ * IA Real (v0.5.0, vs Every Opponent e o manhunt do Grox): "I see you" chegando sem
+ * ser visto; "I can smell him" no faro; "I can smell the fear in you" encarando;
+ * "I gotta get out of there", "I'm very low on health, I need food and a plan" fugindo
+ * pra se curar; "back to full health" e "time for the plan" voltando.
+ *
  * Fora (v0.4.3): as falas cortadas do "My Next Opponent Is... Me" ("I want to
  * digest you", "you are mine", "I'm going to bite your balls" e o "God damn it,
  * I love pain") são do FroggyDoom, outro personagem com outra voz, e o
@@ -53,7 +58,15 @@ public enum VoiceSituation {
     ATE_ODD(0, EXOTIC_MEAT),
     ATE_PANDA(0, PANDA_DELICIOUS),
     SPICY(0, FREAKING_SPICY),
-    DEATH(0, NO_NO_NOOO, NOOOOO);
+    DEATH(0, NO_NO_NOOO, NOOOOO),
+    // só na IA Real (entity/ai/RealTactics)
+    SEE_YOU(0, I_SEE_YOU),
+    SMELL(0, SMELL_HIM, SNIFF_NEARBY),
+    STANDOFF(0, SMELL_FEAR),
+    RETREAT(0, GET_OUT),
+    HIDING(0, LOW_HEALTH),
+    HEALED(0, BACK_TO_FULL),
+    PLAN(0, PLAN_SMASH, PLAN_ATTACK);
 
     final VoiceLine[] lines;
     final int loopFrom;
@@ -66,7 +79,7 @@ public enum VoiceSituation {
     /** Caçando ele berra de longe (ouve-se a ~32 blocos); em cima da vítima fala de perto. */
     public float volume() {
         return switch (this) {
-            case SPOT, CHASE, CAUGHT_UP, FOUND, SEARCH -> 2.0F;
+            case SPOT, CHASE, CAUGHT_UP, FOUND, SEARCH, SEE_YOU, SMELL, STANDOFF, PLAN -> 2.0F;
             case DEATH -> 1.6F;
             default -> 1.4F;
         };

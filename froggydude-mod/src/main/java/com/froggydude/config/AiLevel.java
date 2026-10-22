@@ -18,15 +18,22 @@ package com.froggydude.config;
  *     o escudo; o cérebro arrisca menos.</li>
  * <li>MÁX: tudo do Extra, mais longe e mais rápido; quase não arrisca o que
  *     não deu certo e não perde a pista.</li>
+ * <li>REAL: a esperteza do Máx com o jeito do FroggyDude dos vídeos (VS Every
+ *     Opponent, 10v1 Manhunt, How many days, Manhunt but I have RABIES): sabe o
+ *     que está na tua tela, corre atrás de quem foge em vez de pular de longe,
+ *     "I see you" quando chega sem ser visto, espera no escuro, cerca quem se
+ *     trancou, foge pra se curar e volta com um plano, entra na lava e dá o
+ *     pulo altíssimo só quando não tem outro jeito (ver entity/ai/RealTactics).</li>
  * </ul>
  */
 public enum AiLevel {
-    //          alcance reação previsão  cerca  inter. bloco arromba sabota cérebro curios. truques veloc. dano
-    MIN("min",    0.55D, 1.70F, 0.00D, false, false, false, false, false, false, 2.00F, false, 0.85D, 0.75F),
-    MEDIO("medio", 0.80D, 1.30F, 0.50D, false, true,  true,  true,  false, true,  1.50F, false, 0.93D, 0.88F),
-    ALTO("alto",  1.00D, 1.00F, 1.00D, true,  true,  true,  true,  true,  true,  1.00F, false, 1.00D, 1.00F),
-    EXTRA("extra", 1.25D, 0.80F, 1.15D, true,  true,  true,  true,  true,  true,  0.70F, true,  1.05D, 1.10F),
-    MAX("max",    1.50D, 0.62F, 1.30D, true,  true,  true,  true,  true,  true,  0.45F, true,  1.10D, 1.20F);
+    //          alcance reação previsão  cerca  inter. bloco arromba sabota cérebro curios. truques veloc. dano   real
+    MIN("min",    0.55D, 1.70F, 0.00D, false, false, false, false, false, false, 2.00F, false, 0.85D, 0.75F, false),
+    MEDIO("medio", 0.80D, 1.30F, 0.50D, false, true,  true,  true,  false, true,  1.50F, false, 0.93D, 0.88F, false),
+    ALTO("alto",  1.00D, 1.00F, 1.00D, true,  true,  true,  true,  true,  true,  1.00F, false, 1.00D, 1.00F, false),
+    EXTRA("extra", 1.25D, 0.80F, 1.15D, true,  true,  true,  true,  true,  true,  0.70F, true,  1.05D, 1.10F, false),
+    MAX("max",    1.50D, 0.62F, 1.30D, true,  true,  true,  true,  true,  true,  0.45F, true,  1.10D, 1.20F, false),
+    REAL("real",  1.50D, 0.62F, 1.30D, true,  true,  true,  true,  true,  true,  0.45F, true,  1.10D, 1.20F, true);
 
     public final String id;
     /** Alcance de visão, faro e rastro (x). */
@@ -55,10 +62,12 @@ public enum AiLevel {
     public final double speed;
     /** Dano dos ataques (x). */
     public final float damage;
+    /** O jeito do FroggyDude dos vídeos por cima da esperteza (ver entity/ai/RealTactics). */
+    public final boolean real;
 
     AiLevel(String id, double sense, float react, double lead, boolean flank, boolean intercept, boolean build,
             boolean breakIn, boolean sabotage, boolean brain, float explore, boolean tricks, double speed,
-            float damage) {
+            float damage, boolean real) {
         this.id = id;
         this.sense = sense;
         this.react = react;
@@ -73,6 +82,7 @@ public enum AiLevel {
         this.tricks = tricks;
         this.speed = speed;
         this.damage = damage;
+        this.real = real;
     }
 
     /** Chave de tradução do nome ("froggydude.ai.alto"); a descrição é a mesma + ".desc". */

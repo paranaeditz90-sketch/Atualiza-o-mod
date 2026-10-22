@@ -11,6 +11,7 @@ import com.froggydude.entity.ai.FroggyCombatGoal;
 import com.froggydude.entity.ai.FroggyFeedGoal;
 import com.froggydude.entity.ai.FroggyFinisherGoal;
 import com.froggydude.entity.ai.FroggyFrenzyGoal;
+import com.froggydude.entity.ai.FroggyRetreatGoal;
 import com.froggydude.entity.ai.FroggySabotageGoal;
 import com.froggydude.entity.ai.FroggyTrackGoal;
 import com.froggydude.entity.voice.VoiceLine;
@@ -37,6 +38,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -59,6 +61,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.animatable.GeoEntity;
@@ -331,8 +334,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // 0: o golpe final (a cutscene) passa por cima de tudo, e nada interrompe
         this.finisherGoal = new FroggyFinisherGoal(this);
         this.goalSelector.addGoal(0, finisherGoal);
-        // 1: Extremo - o corpo de quem ele matou na cutscene: come e brinca com ele
-        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyCorpseGoal(this));
+        // 0: IA Real - apanhando demais, foge pra longe da vista antes de ir comer (vem antes do comer)
+        this.goalSelector.addGoal(0, new FroggyRetreatGoal(this));
         // 0: comer tem prioridade sobre tudo, inclusive lutar
         this.goalSelector.addGoal(0, new FroggyFeedGoal(this));
         // 1: fase 2 (contorção + grito + 30 s correndo mais que um jogador)
@@ -358,7 +361,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
         // faro: quem está sem braço sangra e ele sente o cheiro de longe, mesmo sem ver
         this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, false, false,
-                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p) && !underTruce(p)) {
+                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p) && !underTruce(p) && !hidingFrom(p)) {
             {
                 this.targetConditions = this.targetConditions.ignoreLineOfSight();
             }
@@ -369,7 +372,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
         });
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
-                e -> !isFedOn(e) && !underTruce(e)) {
+                e -> !isFedOn(e) && !underTruce(e) && !hidingFrom(e)) {
             @Override
             protected double getFollowDistance() {
                 // o quanto ele enxerga longe depende do nível da IA (48 blocos no Alto)
@@ -382,7 +385,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 // (comendo o telhado, a parede na frente) ele largava a vítima. Arrombando
                 // ou colado nela, ele sabe onde está; longe e sem ver, quem cuida é o faro.
                 LivingEntity t = this.mob.getTarget();
-                if (t != null && t.isAlive() && (combatGoal.isBreaking() || this.mob.distanceTo(t) < 6.0F)) {
+                // IA Real indo pra um ponto de onde vê ela lá em cima (o pulo calculado): sabe onde ela está
+                if (t != null && t.isAlive() && (combatGoal.isBreaking() || combatGoal.holdsTarget()
+                        || this.mob.distanceTo(t) < 6.0F)) {
                     return true;
                 }
                 return super.canContinueToUse();
@@ -463,7 +468,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** O som à toa não entra por cima de uma fala (e abre um pouco a boca). */
     @Override
     public void playAmbientSound() {
-        if (vocalCooldown > 0 || speakingLine != null) return;
+        if (vocalCooldown > 0 || speakingLine != null || muteTicks > 0) return;
         super.playAmbientSound();
         openMouth(6);
     }
@@ -487,9 +492,19 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             // dá a risadinha (origem 4:21); se é outra ou faz tempo, é uma caçada nova
             int lost = this.tickCount - preyLostAt;
             boolean same = target.getUUID().equals(lastPreyId);
-            if (same && lost >= 60 && lost < 2400) {
+            if (planPending && FroggyConfig.ai().real) {
+                // curado (ou cansou de esperar): "time for the plan!" - e o plano diz como termina
+                planPending = false;
+                VoiceLine plan = FroggyWorldData.get((ServerLevel) this.level()).voice.peek(VoiceSituation.PLAN);
+                if (speak(VoiceSituation.PLAN, true)) {
+                    forceFinish(plan == VoiceLine.PLAN_SMASH ? FroggyState.SMASH : FroggyState.PIN_HOLD, 1200);
+                    brainLog("o plano contra " + target.getScoreboardName() + ": " + plan.clip);
+                }
+            } else if (same && lost >= 60 && lost < 2400) {
                 speak(VoiceSituation.FOUND);
-            } else if (!same || lost >= 2400) {
+            } else if ((!same || lost >= 2400) && !(FroggyConfig.ai().real && target instanceof ServerPlayer sp
+                    && com.froggydude.player.PlayerSight.unseenFor(sp, this) >= 60)) {
+                // (na IA Real, chegando sem ser visto, ele não se anuncia: vem o "I see you")
                 speak(VoiceSituation.SPOT);
             }
             if (engagement != null && engagement.player.equals(target.getUUID())) {
@@ -624,44 +639,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return this.entityData.get(DATA_FINISH_SKIPLEFT);
     }
 
-    /**
-     * Extremo: o corpo de quem ele acabou de matar fica no chão, sem braços e
-     * sem cabeça - e ele vai comer (e brincar com ele). Ver entity.PlayerCorpse.
-     */
-    public void leaveCorpse(ServerPlayer victim, Vec3 at, float headYaw) {
-        if (!(this.level() instanceof ServerLevel server)) return;
-        PlayerCorpse corpse = PlayerCorpse.of(server, victim, at, headYaw);
-        if (corpse != null) {
-            server.addFreshEntity(corpse);
-            corpseTarget = corpse.getUUID();
-        }
-    }
-
-    /** O corpo que ele vai comer (Extremo), ou null. */
-    @Nullable
-    private UUID corpseTarget;
-
-    @Nullable
-    public PlayerCorpse getCorpseTarget() {
-        if (corpseTarget == null || !(this.level() instanceof ServerLevel server)) return null;
-        Entity e = server.getEntity(corpseTarget);
-        if (e instanceof PlayerCorpse c && c.isAlive()) return c;
-        corpseTarget = null;
-        return null;
-    }
-
-    public void forgetCorpse() {
-        corpseTarget = null;
-    }
-
-    /** O corpo que ele está comendo agora (FroggyCorpseGoal rodando), ou null. */
-    @Nullable
-    private PlayerCorpse corpseMeal;
-
-    public void setCorpseMeal(@Nullable PlayerCorpse corpse) {
-        this.corpseMeal = corpse;
-    }
-
     // ---------------- perigo aprendido (brain/DangerMemory) ----------------
 
     /** Ele já se machucou nesse bloco? (o caminho desvia; ver FroggyNodeEvaluator) */
@@ -744,6 +721,21 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (m == null) return;
         FroggyWorldData data = FroggyWorldData.get((ServerLevel) this.level());
         data.brain.recordAttack(m, attack.name(), hit);
+        data.setDirty();
+    }
+
+    /** IA Real: chance plausível de uma tática dar certo contra essa pessoa (Thompson, como os ataques). */
+    public float tacticChance(LivingEntity target, String tactic) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return 0.5F;
+        return FroggyWorldData.get((ServerLevel) this.level()).brain.sampleHitRate(m, tactic, this.getRandom());
+    }
+
+    public void recordTactic(LivingEntity target, String tactic, boolean worked) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return;
+        FroggyWorldData data = FroggyWorldData.get((ServerLevel) this.level());
+        data.brain.recordAttack(m, tactic, worked);
         data.setDirty();
     }
 
@@ -1402,6 +1394,121 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return healing;
     }
 
+    // ----- IA Real (entity/ai/RealTactics, FroggyRetreatGoal) -----
+
+    /** Atravessando lava porque não tinha outro caminho: anda por cima dela sem queimar. */
+    private boolean lavaWalking;
+    private int lavaWalkUntil;
+    /** Uns segundos depois de sair da lava o fogo ainda não pega. */
+    private int fireShieldTicks;
+    /** O próximo bote termina assim (esmagar ou devorar): o "I see you", o plano. */
+    @Nullable
+    private FroggyState forcedFinish;
+    private int forcedFinishUntil;
+    /** Fugiu desse jogador pra se curar: só volta curado (ou cansado de esperar). */
+    @Nullable
+    private UUID retreatedFrom;
+    private int hideUntil;
+    /** Curou: no próximo encontro, "time for the plan!". */
+    private boolean planPending;
+    /** Cercando alguém trancado: o que comer lá fora antes (FroggyFeedGoal). */
+    @Nullable
+    private LivingEntity siegeMeal;
+
+    public boolean isLavaWalking() {
+        return lavaWalking;
+    }
+
+    /**
+     * Liga/desliga o caminho pela lava: o mapa de caminhos passa a aceitar lava e
+     * fogo (com custo, só quando não tem outro) e ele fica em pé em cima dela.
+     */
+    public void setLavaWalking(boolean on) {
+        if (on == lavaWalking) return;
+        lavaWalking = on;
+        lavaWalkUntil = this.tickCount + 900;
+        this.setPathfindingMalus(BlockPathTypes.LAVA, on ? 8.0F : -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DAMAGE_FIRE, on ? 8.0F : -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DANGER_FIRE, on ? 2.0F : 16.0F);
+        if (!on) fireShieldTicks = 60;
+        // o caminho guardado foi feito com a regra antiga (com ou sem lava): joga fora. O
+        // recomputePath() não serve - dentro de 1 s ele só agenda, e o jogo ainda reaproveita o
+        // caminho velho enquanto o alvo não sai do bloco (ele entrava na lava andando)
+        this.getNavigation().stop();
+    }
+
+    @Override
+    public boolean canStandOnFluid(FluidState fluid) {
+        return lavaWalking && fluid.is(FluidTags.LAVA) || super.canStandOnFluid(fluid);
+    }
+
+    @Override
+    public void lavaHurt() {
+        if (lavaWalking || fireShieldTicks > 0) {
+            this.clearFire();
+            return;
+        }
+        super.lavaHurt();
+    }
+
+    public void forceFinish(FroggyState finish, int ticks) {
+        forcedFinish = finish;
+        forcedFinishUntil = this.tickCount + ticks;
+    }
+
+    /** Como o bote tem que terminar (e esquece: vale uma vez). */
+    @Nullable
+    public FroggyState takeForcedFinish() {
+        FroggyState f = this.tickCount <= forcedFinishUntil ? forcedFinish : null;
+        forcedFinish = null;
+        return f;
+    }
+
+    /** Fugiu desse jogador pra se curar (FroggyRetreatGoal). Espera curado até 1 minuto. */
+    public void retreatedFrom(Player p) {
+        retreatedFrom = p.getUUID();
+        hideUntil = this.tickCount + 1200;
+        // foi ele que saiu (pra se curar): pro cérebro não é "a presa escapou"
+        if (engagement != null && engagement.player.equals(p.getUUID())) endEngagement(FroggyBrain.Outcome.ONGOING_SWITCH);
+    }
+
+    /** Escondido se curando: ela só vira alvo de novo se chegar bem perto. */
+    public boolean hidingFrom(Entity e) {
+        return retreatedFrom != null && e.getUUID().equals(retreatedFrom) && this.tickCount < hideUntil
+                && healing && this.distanceTo(e) > 10.0F;
+    }
+
+    public void setSiegeMeal(@Nullable LivingEntity meal) {
+        siegeMeal = meal;
+    }
+
+    /** O que comer lá fora do cerco (vale uma vez). */
+    @Nullable
+    public LivingEntity pollSiegeMeal() {
+        LivingEntity m = siegeMeal;
+        siegeMeal = null;
+        return m != null && m.isAlive() ? m : null;
+    }
+
+    private void tickReal() {
+        if (fireShieldTicks > 0) fireShieldTicks--;
+        if (lavaWalking || fireShieldTicks > 0) this.clearFire();
+        // atravessou (ou desistiu): fora da lava, volta ao normal
+        if (lavaWalking && !this.isInLava() && (this.tickCount > lavaWalkUntil || this.getTarget() == null)) {
+            setLavaWalking(false);
+        }
+        if (retreatedFrom != null && (!wantsToHeal() || this.tickCount >= hideUntil)) {
+            boolean healed = !wantsToHeal();
+            if (healed) speak(VoiceSituation.HEALED, true); // "back to full health!"
+            brainLog(healed ? "curado: volta com um plano" : "cansou de esperar a cura: volta com um plano");
+            planPending = true;
+            // o faro vai atrás de quem ele fugiu
+            lastPreyId = retreatedFrom;
+            preyLostAt = this.tickCount;
+            retreatedFrom = null;
+        }
+    }
+
     // ----- fase 2 -----
 
     /**
@@ -1545,7 +1652,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (this.getTarget() instanceof Player tp && !isHolding() && !getFroggyState().isOnVictim()
                 && !combatGoal.isBreaking() && this.level() instanceof ServerLevel sl
                 && !FroggyWorldData.get(sl).manhuntActive) {
-            if (this.getSensing().hasLineOfSight(tp) || this.distanceTo(tp) < 6.0F) {
+            if (this.getSensing().hasLineOfSight(tp) || this.distanceTo(tp) < 6.0F || combatGoal.holdsTarget()) {
                 unseenTicks = 0;
             } else if (++unseenTicks > 160) {
                 unseenTicks = 0;
@@ -1578,6 +1685,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (noFallTicks > 0) noFallTicks--;
         if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
         if (screamTicks > 0) screamTicks--;
+        tickReal();
         if (ribbitCooldown > 0) ribbitCooldown--;
         // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
         if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
@@ -1779,9 +1887,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         double dx = this.getX() - this.xo;
         double dz = this.getZ() - this.zo;
         double speed = Math.sqrt(dx * dx + dz * dz);
-        // comendo o corpo (Extremo) nunca fica "de quatro respirando" entre uma rodada e
-        // outra: aquela pose do lado do corpo era a "mesa" que o LM viu (print, v0.4.2)
-        boolean chasing = (this.getTarget() != null || isFrenzyActive() || tracking) && corpseMeal == null;
+        boolean chasing = this.getTarget() != null || isFrenzyActive() || tracking;
 
         if (speed > 0.02D) movingHold = 8;
         else if (movingHold > 0) movingHold--;
@@ -1823,8 +1929,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public void knockback(double strength, double x, double z) {
         FroggyState s = getFroggyState();
-        if (s == FroggyState.CONTORTING || s == FroggyState.ROAR || s == FroggyState.FINISHER
-                || s == FroggyState.CORPSE_EAT || s == FroggyState.CORPSE_TOSS || s == FroggyState.CORPSE_SHAKE) return;
+        if (s == FroggyState.CONTORTING || s == FroggyState.ROAR || s == FroggyState.FINISHER) return;
         super.knockback(strength, x, z);
     }
 
@@ -1834,6 +1939,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         boolean wasFeeding = state == FroggyState.FEEDING;
         if (wasFeeding || state == FroggyState.ARM_EAT) {
             amount *= 1.5F; // mais vulnerável enquanto come
+        }
+        if ((lavaWalking || fireShieldTicks > 0) && source.is(DamageTypeTags.IS_FIRE)) {
+            // IA Real atravessando a lava: não queima (sem poção - só quando ele quer)
+            this.clearFire();
+            return false;
         }
         if (isFrenzyActive() && source.is(DamageTypeTags.IS_PROJECTILE)) {
             // "nah bro's bulletproof now" (vs Grox, 5:30): flecha e bala não fazem nada na fase 2
@@ -1889,6 +1999,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         tag.putFloat("MouthStain", getMouthStain());
         tag.putString("SkinVariant", getSkinVariant().id);
         if (goreSoak > 0F) tag.putFloat("GoreSoak", goreSoak);
+        // a fase 2 "uma vez" vale pro mundo: saindo e voltando ele não se transforma de novo
+        if (phase2Started) tag.putBoolean("Phase2Started", true);
         if (!getDebugAnim().isEmpty()) tag.putString("DebugAnim", getDebugAnim());
         if (debugHunt) tag.putBoolean("DebugHunt", true);
         if (debugAttack != null) tag.putString("DebugAttack", debugAttack.name());
@@ -1908,6 +2020,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             if (v.id.equals(id)) setSkinVariant(v);
         }
         this.goreSoak = tag.getFloat("GoreSoak");
+        this.phase2Started = tag.getBoolean("Phase2Started");
         updateGoreStage();
         this.entityData.set(DATA_DEBUG_ANIM, tag.getString("DebugAnim"));
         this.debugHunt = tag.getBoolean("DebugHunt");
@@ -1987,9 +2100,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             RawAnimation.begin().then("finisher", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_FINISHER_R =
             RawAnimation.begin().then("finisher_r", Animation.LoopType.HOLD_ON_LAST_FRAME);
-    private static final RawAnimation ANIM_CORPSE_TOSS =
-            RawAnimation.begin().then("corpse_toss", Animation.LoopType.HOLD_ON_LAST_FRAME);
-    private static final RawAnimation ANIM_CORPSE_SHAKE = RawAnimation.begin().thenLoop("corpse_shake");
     private static final RawAnimation ANIM_PAD_HOP = RawAnimation.begin().thenLoop("pad_hop");
 
     // controlador separado só pro osso da língua (some quando não está atacando com ela)
@@ -2049,13 +2159,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_ARM_EAT);
             case FINISHER:
                 return state.setAndContinue(finisherSkipsLeft() ? ANIM_FINISHER_R : ANIM_FINISHER);
-            case CORPSE_EAT:
-                // a flexão, deitado por cima do corpo (LM: come em "flexão", não de quatro)
-                return state.setAndContinue(ANIM_FEED_MOB);
-            case CORPSE_TOSS:
-                return state.setAndContinue(ANIM_CORPSE_TOSS);
-            case CORPSE_SHAKE:
-                return state.setAndContinue(ANIM_CORPSE_SHAKE);
             case PAD_HOP:
                 return state.setAndContinue(ANIM_PAD_HOP);
             case BUILD:

@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "6";
+    private static final String PROTOCOL = "7";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -35,6 +35,9 @@ public final class ModNetwork {
         CHANNEL.registerMessage(4, CutscenePacket.class,
                 CutscenePacket::encode, CutscenePacket::decode, CutscenePacket::handle,
                 java.util.Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(5, SightPacket.class,
+                SightPacket::encode, SightPacket::decode, SightPacket::handle,
+                java.util.Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER));
     }
 
     /** Só treme a câmera. */

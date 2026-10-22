@@ -1,10 +1,14 @@
 package com.froggydude.entity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.pathfinder.PathFinder;
 
@@ -25,6 +29,8 @@ import java.util.Set;
  * 3. (v0.3.6) Pensa mais longe e melhor: procura caminho num raio de 80 blocos
  *    (o atributo é 48), testa 4x mais rotas antes de desistir, abre porta de
  *    madeira e desvia de onde já se machucou (FroggyNodeEvaluator).
+ * 4. (v0.5.0) O "vai reto" do fim do caminho é pra subir parede: se o passo reto
+ *    cai em lava, fogo ou magma (ela do outro lado da lava), ele para na beira.
  */
 public class FroggyNavigation extends GroundPathNavigation {
 
@@ -93,10 +99,34 @@ public class FroggyNavigation extends GroundPathNavigation {
         double dz = cz - this.mob.getZ();
         boolean arrived = this.climbTarget.closerToCenterThan(this.mob.position(), reach)
                 || (this.mob.getY() > this.climbTarget.getY() && dx * dx + dz * dz < reach * reach);
-        if (arrived) {
+        if (arrived || burnsAhead(dx, dz)) {
             this.climbTarget = null;
             return;
         }
         this.mob.getMoveControl().setWantedPosition(cx, this.climbTarget.getY(), cz, this.speedModifier);
+    }
+
+    /** Os próximos 2 blocos em linha reta até o alvo: chão de lava, fogo ou magma (antes de bater numa parede)? */
+    private boolean burnsAhead(double dx, double dz) {
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 1.0E-3D) return false;
+        // IA Real atravessando a lava de propósito (RealTactics): pode
+        boolean lavaOk = this.mob instanceof FroggydudeEntity f && f.isLavaWalking();
+        for (double s = 0.6D; s <= Math.min(2.0D, len + 0.6D); s += 0.7D) {
+            BlockPos feet = BlockPos.containing(this.mob.getX() + dx / len * s, this.mob.getY() + 0.1D, this.mob.getZ() + dz / len * s);
+            BlockState here = this.level.getBlockState(feet);
+            if (!here.getCollisionShape(this.level, feet).isEmpty()) return false; // parede: é pra subir
+            for (int down = 0; down <= 3; down++) {
+                BlockPos b = feet.below(down);
+                BlockState st = this.level.getBlockState(b);
+                if (this.level.getFluidState(b).is(FluidTags.LAVA)) {
+                    if (!lavaOk) return true;
+                    break;
+                }
+                if (st.is(BlockTags.FIRE) || st.is(Blocks.MAGMA_BLOCK)) return true;
+                if (!st.getCollisionShape(this.level, b).isEmpty() || !this.level.getFluidState(b).isEmpty()) break;
+            }
+        }
+        return false;
     }
 }
