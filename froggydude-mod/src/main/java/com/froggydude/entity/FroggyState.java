@@ -58,7 +58,12 @@ public enum FroggyState {
      * IA Real (v0.6): do canto do teto ele se solta e se joga em cima dela (o pedido do
      * LM: "pulando contra o jogador, empurrando ou derrubando"). Termina ao pousar.
      */
-    CEILING_DIVE(24);
+    CEILING_DIVE(24),
+    /**
+     * (v0.6.2) O boom do warden jogou ele longe: voa dando cambalhota pra trás, cai de
+     * costas e levanta (Grox, cidade antiga). Depois corre o dobro e come o warden.
+     */
+    FLUNG(34);
 
     public final int durationTicks;
 
@@ -83,6 +88,6 @@ public enum FroggyState {
 
     /** Qualquer ação conduzida pela Goal de combate (ataques, montado, braço). */
     public boolean isCombatAction() {
-        return isAttack() || isOnVictim() || this == ARM_EAT;
+        return isAttack() || isOnVictim() || this == ARM_EAT || this == FLUNG;
     }
 }

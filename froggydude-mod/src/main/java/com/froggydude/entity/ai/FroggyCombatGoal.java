@@ -242,7 +242,7 @@ public class FroggyCombatGoal extends Goal {
         stopEating();
         releaseVictim();
         froggy.setHeldArm(null);
-        if (froggy.getFroggyState().isCombatAction()) {
+        if (froggy.getFroggyState().isCombatAction() && froggy.getFroggyState() != FroggyState.FLUNG) {
             froggy.setFroggyState(FroggyState.CHASE);
         }
         froggy.setTongueLength(0F);
@@ -254,6 +254,8 @@ public class FroggyCombatGoal extends Goal {
         if (counterCooldown > 0) counterCooldown--;
         if (chaseTalk > 0) chaseTalk--;
         FroggyState state = froggy.getFroggyState();
+        // voando longe (o boom do warden): nada até levantar
+        if (state == FroggyState.FLUNG) return;
         if (state == FroggyState.ARM_EAT) {
             runArmEat();
             return;

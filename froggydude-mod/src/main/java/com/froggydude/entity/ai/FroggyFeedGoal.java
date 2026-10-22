@@ -158,6 +158,8 @@ public class FroggyFeedGoal extends Goal {
 
     @Override
     public void tick() {
+        // voando longe (o boom do warden): espera levantar
+        if (froggy.getFroggyState() == FroggyState.FLUNG) return;
         LivingEntity victim = froggy.getFeedTarget();
         if (victim == null) return;
 

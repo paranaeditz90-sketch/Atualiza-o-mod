@@ -1,4 +1,4 @@
-# Froggydude - v0.6.1: o sangue na skin não apaga mais o teu corpo no celular (sobre a v0.6.0)
+# Froggydude - v0.6.2: mais vida e o boom do warden jogando ele longe (sobre a v0.6.1)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,17 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.6.1) - SÓ o bug da skin (uma coisa por vez):
+O que testar agora (v0.6.2):
+A) MAIS RESISTENTE: vida 150 -> 250 (125 corações), armadura 6 -> 10 e um pouco de dureza de armadura.
+   Quem já tinha ele no mundo ganha a vida nova quando o mundo carrega (na mesma proporção).
+   A fuga pra se curar e a fase 2 continuam nas mesmas porcentagens de vida.
+B) O BOOM DO WARDEN JOGA ELE LONGE (com animação): voa uns 10 blocos pra trás, arqueado, se
+   debatendo de braços e pernas abertos, cai de costas, ergue a cabeça olhando o warden, senta, volta
+   pro agachado de sapo e aí vai com raiva, no dobro da velocidade, e come o warden vivo. Testado:
+   o boom acertou, ele voou pra fora da tela e voltou pra comer o warden.
+
+Da v0.6.1:
+O que testar na v0.6.1 - SÓ o bug da skin (uma coisa por vez):
 A) SKIN SUMINDO NO CELULAR (MobileGlues, Zalith Launcher 2): com sangue grudado na skin, o teu corpo
    sumia no F5 e na prévia do inventário, e a mão em primeira pessoa ficava preta. A 0.5.1 não resolveu.
    A culpa era a textura de sangue GERADA na hora (DynamicTexture) desenhada por cima do corpo: no

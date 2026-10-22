@@ -869,6 +869,26 @@ ANIMS["ceiling_dive"] = animation(0.4, [
     (0.4, pose(root_x=36, waist=86, head=-56, arms=-150, legs=86, arm_spread=16, leg_spread=10)),  # agarra
 ], "hold_on_last_frame", ground=False)
 
+# ------------------------------------------------------------------ o boom do warden (v0.6.2)
+
+# O boom joga ele longe (LM; Grox, cidade antiga): o tranco dobra ele pra trás, voa se
+# debatendo (braços e pernas abertos, trocando), cai de costas espalhado, ergue a cabeça
+# olhando o warden, senta e volta pro agachado de sapo - e aí corre o dobro. 1,7 s
+# (FroggyState.FLUNG, 34 ticks); o voo de verdade dura uns 0,6-0,9 s.
+ANIMS["flung"] = animation(1.7, [
+    (0.00, pose(root_x=-10, waist=-35, head=-45, arms=-140, arm_spread=45, legs=-25, leg_spread=14)),   # o tranco
+    (0.12, pose(root_x=-40, waist=-25, head=-30, arms=-175, arm_l=-120, arm_spread=60, legs=-55, leg_l=-20,
+                leg_spread=22)),                                                                       # voando, se debatendo
+    (0.28, pose(root_x=-60, waist=-10, head=-20, arms=-120, arm_l=-175, arm_spread=70, legs=-25, leg_l=-65,
+                leg_spread=26)),
+    (0.45, pose(root_x=-75, waist=0, head=-10, arms=-175, arm_spread=55, legs=-70, leg_l=-35, leg_spread=20)),
+    (0.60, pose(root_x=-90, waist=0, head=20, arms=-15, arm_spread=50, legs=0, leg_spread=18)),         # cai de costas
+    (0.95, pose(root_x=-90, waist=4, head=38, arms=-10, arm_spread=55, legs=-4, leg_spread=20)),        # ergue a cabeça
+    (1.20, pose(root_x=-90, waist=95, head=-40, arms=25, arm_spread=20, legs=0, leg_spread=14)),        # senta
+    (1.45, crouch(head=-40)),                                                                           # agacha
+    (1.70, crouch()),
+], "hold_on_last_frame")
+
 # ------------------------------------------------------------------ amostragem (pra teste)
 
 def static(p):

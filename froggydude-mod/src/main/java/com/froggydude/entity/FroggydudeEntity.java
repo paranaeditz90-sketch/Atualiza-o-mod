@@ -300,12 +300,17 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.setPathfindingMalus(BlockPathTypes.DANGER_POWDER_SNOW, 16.0F);
     }
 
+    /** Vida (v0.6.2: era 150). */
+    public static final double MAX_HEALTH = 250.0D;
+
     public static AttributeSupplier.Builder createAttributes() {
         return Monster.createMonsterAttributes()
-                .add(Attributes.MAX_HEALTH, 150.0D)
+                .add(Attributes.MAX_HEALTH, MAX_HEALTH)
                 .add(Attributes.MOVEMENT_SPEED, 0.28D)
                 .add(Attributes.ATTACK_DAMAGE, 9.0D)
-                .add(Attributes.ARMOR, 6.0D)
+                // (v0.6.2, LM: "mais resistente de vida") 150 -> 250 de vida, armadura 6 -> 10
+                .add(Attributes.ARMOR, 10.0D)
+                .add(Attributes.ARMOR_TOUGHNESS, 4.0D)
                 .add(Attributes.KNOCKBACK_RESISTANCE, 0.6D)
                 .add(Attributes.FOLLOW_RANGE, 48.0D);
     }
@@ -1769,6 +1774,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
 
         stateTicks++;
+        if (getFroggyState() == FroggyState.FLUNG) {
+            // arremessado: só a física manda; levanta quando cai e a animação acaba
+            this.getNavigation().stop();
+            if ((stateTicks >= FroggyState.FLUNG.durationTicks && this.onGround()) || stateTicks > 80) {
+                setFroggyState(FroggyState.CHASE);
+            }
+        }
         if (stalkTicks > 0) stalkTicks--;
         // os aldeões em volta entram em pânico e fogem correndo
         VillagerFear.tick(this);
@@ -2118,14 +2130,20 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 && source.getEntity() instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
             // o boom do warden jogou ele longe: levanta e vai com o dobro da velocidade (Grox, cidade antiga)
             enragedUntil = this.tickCount + 300;
-            // voa longe (a resistência a empurrão dele segurava no chão: andava 2 blocos)
+            // voa longe de verdade (a resistência a empurrão dele segurava no chão), dando
+            // cambalhota pra trás, cai de costas e levanta (o estado FLUNG cuida disso)
             Vec3 away = this.position().subtract(warden.position()).multiply(1, 0, 1);
             if (away.lengthSqr() > 1.0E-4D) {
                 away = away.normalize();
-                this.push(away.x * 0.3D, 0.45D, away.z * 0.3D);
+                this.setDeltaMovement(away.x * 0.95D, 0.6D, away.z * 0.95D);
                 this.hurtMarked = true;
+                this.setYRot((float) (Mth.atan2(-away.z, -away.x) * (180D / Math.PI)) - 90.0F);
+                this.yBodyRot = this.getYRot();
+                this.yHeadRot = this.getYRot();
             }
-            setNoFallTicks(60);
+            this.getNavigation().stop();
+            setFroggyState(FroggyState.FLUNG);
+            setNoFallTicks(80);
             setTarget(warden);
             ribbit(2.5F);
             brainLog("o warden me jogou longe: vou comer ele vivo");
@@ -2189,6 +2207,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        // mundo de antes da v0.6.2: a vida máxima salva era 150 - sobe pra nova, na mesma proporção
+        var maxHp = this.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHp != null && maxHp.getBaseValue() < MAX_HEALTH) {
+            float pct = this.getHealth() / (float) maxHp.getBaseValue();
+            maxHp.setBaseValue(MAX_HEALTH);
+            this.setHealth(pct * (float) MAX_HEALTH);
+        }
+        var armor = this.getAttribute(Attributes.ARMOR);
+        if (armor != null && armor.getBaseValue() < 10.0D) armor.setBaseValue(10.0D);
         // salvou pendurado no teto (sem gravidade): volta ao normal, o estado não é salvo
         this.setNoGravity(false);
         if (tag.contains("MouthColor")) this.entityData.set(DATA_MOUTH_COLOR, tag.getInt("MouthColor"));
@@ -2280,6 +2307,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             RawAnimation.begin().then("finisher_r", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_PAD_HOP = RawAnimation.begin().thenLoop("pad_hop");
     private static final RawAnimation ANIM_CEILING_HANG = RawAnimation.begin().thenLoop("ceiling_hang");
+    private static final RawAnimation ANIM_FLUNG =
+            RawAnimation.begin().then("flung", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_CEILING_DIVE =
             RawAnimation.begin().then("ceiling_dive", Animation.LoopType.HOLD_ON_LAST_FRAME);
 
@@ -2346,6 +2375,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_CEILING_HANG);
             case CEILING_DIVE:
                 return state.setAndContinue(ANIM_CEILING_DIVE);
+            case FLUNG:
+                return state.setAndContinue(ANIM_FLUNG);
             case BUILD:
             case TAUNT:
                 // em pé, como jogador (o agachar e o soco vêm por cima, no modelo)
