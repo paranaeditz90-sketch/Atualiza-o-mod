@@ -45,6 +45,7 @@ import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -233,6 +234,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int preyLostAt = Integer.MIN_VALUE / 2;
     /** Altura onde começou a subir a parede (NaN = não está subindo). */
     private double climbStartY = Double.NaN;
+    /** Escalando sem ganhar altura (teto, beiral): larga a parede e não sobe de novo por um tempo. */
+    private double climbBestY = Double.NaN;
+    private int climbStall;
+    private int climbBlockedUntil;
     private int caughtUpReadyAt = 0;
     /** A caçada em andamento (o cérebro avalia quando ela acaba). */
     @Nullable
@@ -857,6 +862,42 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     }
 
     /** Encostado num bloco pelos lados. */
+    /**
+     * Sobe parede só de propósito (v0.5.1 - LM: "ele não vê a entrada e fica escalando
+     * feito a aranha"): quando NÃO tem caminho andando até ela e ela está lá em cima perto,
+     * ou o caminho acabou e o jeito é subir (FroggyNavigation: torre, muro). Com caminho
+     * (porta, escada), passeando ou no faro, encostar na parede não é motivo pra subir -
+     * antes qualquer encostada virava escalada.
+     */
+    private boolean wantsToClimb() {
+        if (this.tickCount < climbBlockedUntil) return false;
+        if (isClimbing() && !this.onGround()) {
+            // já na parede: continua, a não ser que pare de subir (teto em cima)
+            if (Double.isNaN(climbBestY) || this.getY() > climbBestY + 0.2D) {
+                climbBestY = this.getY();
+                climbStall = 0;
+            } else if (++climbStall > 60) {
+                climbBlockedUntil = this.tickCount + 100;
+                climbBestY = Double.NaN;
+                climbStall = 0;
+                return false;
+            }
+            return true;
+        }
+        climbBestY = Double.NaN;
+        climbStall = 0;
+        // seguindo um caminho que chega nela (pela porta, pela escada): anda - a parede não é
+        // atalho. No teste da torre (ela no 2º andar, escada por dentro) ele chegava na porta,
+        // raspava na parede do lado e subia por fora até o telhado
+        net.minecraft.world.level.pathfinder.Path path = this.getNavigation().getPath();
+        if (path != null && !path.isDone() && path.canReach()) return false;
+        if (this.getNavigation() instanceof FroggyNavigation nav && nav.climbingStraight()) return true;
+        LivingEntity t = this.getTarget();
+        if (t == null || t.getY() - this.getY() <= 1.5D) return false;
+        double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+        return dx * dx + dz * dz < 36.0D;
+    }
+
     private boolean touchingWall() {
         return !this.level().noCollision(this, this.getBoundingBox().inflate(0.08D, -0.1D, 0.08D));
     }
@@ -1394,6 +1435,64 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return healing;
     }
 
+    // ----- bicho que briga com ele (golem, warden, lobo...) -----
+
+    /** Levou o boom do warden: corre o dobro até pegar ele. */
+    private int enragedUntil;
+
+    public boolean isEnraged() {
+        return this.tickCount < enragedUntil;
+    }
+
+    /**
+     * Bicho que briga com ele vira comida, igual aos outros (LM): ele não troca soco
+     * com golem nem com warden - dá o bote, prende no chão e come vivo
+     * (FroggyFeedGoal). Chefe (dragão, wither) e creeper não.
+     */
+    public boolean isFightPrey(@Nullable LivingEntity e) {
+        return e instanceof Mob m && e.isAlive() && !(e instanceof Player) && !(e instanceof FroggydudeEntity)
+                && !(e instanceof net.minecraft.world.entity.monster.Creeper)
+                && !m.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES);
+    }
+
+    /**
+     * A cada meio segundo: quem está caçando ELE por perto. Golem (que ataca todo
+     * monstro) vira o alvo dele antes de bater. Warden: sente ele chegando e muda
+     * o jeito de brigar - em vez das mãos, o boom (pra jogar ele longe); ele levanta
+     * e vem com o dobro da velocidade comer o warden vivo (Grox, cidade antiga).
+     */
+    private void tickPredators() {
+        if (this.level().isClientSide || !this.isAlive()) return;
+        boolean busyWithPlayer = this.getTarget() instanceof Player p && this.distanceTo(p) < 16.0F;
+        for (Mob m : this.level().getEntitiesOfClass(Mob.class, this.getBoundingBox().inflate(24.0D, 10.0D, 24.0D),
+                e -> e.isAlive() && isFightPrey(e))) {
+            boolean huntsMe = m.getTarget() == this;
+            if (m instanceof net.minecraft.world.entity.monster.warden.Warden w) {
+                var brain = w.getBrain();
+                huntsMe = brain.getMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_TARGET)
+                        .filter(t -> t == this).isPresent();
+                // o warden sabe que ele está ali (o cheiro, a vibração): fica bravo com ele
+                if (!huntsMe && this.distanceTo(w) < 20.0F && w.getEntityAngryAt().filter(t -> t == this).isEmpty()) {
+                    w.increaseAngerAt(this, 40, false);
+                }
+                if (huntsMe) {
+                    // as mãos não: só o boom, assim que der
+                    brain.setMemoryWithExpiry(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_COOLING_DOWN, true, 20L);
+                    if (!w.getPersistentData().getBoolean("froggydude_boomed")) {
+                        brain.eraseMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.SONIC_BOOM_COOLDOWN);
+                        w.getPersistentData().putBoolean("froggydude_boomed", true);
+                    }
+                }
+            }
+            // vindo pra cima dele: vira a comida (se não estiver no meio de uma caçada de gente).
+            // O warden não: primeiro vem o boom, e é o boom que deixa ele com raiva (ver hurt)
+            if (huntsMe && !busyWithPlayer && this.getTarget() == null && !(m instanceof net.minecraft.world.entity.monster.warden.Warden)) {
+                setTarget(m);
+                brainLog(m.getName().getString() + " veio brigar: vira comida");
+            }
+        }
+    }
+
     // ----- IA Real (entity/ai/RealTactics, FroggyRetreatGoal) -----
 
     /** Atravessando lava porque não tinha outro caminho: anda por cima dela sem queimar. */
@@ -1686,6 +1785,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
         if (screamTicks > 0) screamTicks--;
         tickReal();
+        if (this.tickCount % 10 == 0) tickPredators();
         if (ribbitCooldown > 0) ribbitCooldown--;
         // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
         if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
@@ -1720,7 +1820,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         FroggyState now = getFroggyState();
         // (já grudado e parado - mordendo lá de cima, por exemplo - continua grudado)
         boolean wall = this.horizontalCollision || (isClimbing() && !this.onGround() && touchingWall());
-        boolean climb = wall && (now == FroggyState.CHASE || now == FroggyState.IDLE || now == FroggyState.BITE);
+        boolean climb = wall && (now == FroggyState.CHASE || now == FroggyState.IDLE || now == FroggyState.BITE) && wantsToClimb();
         if (climb != isClimbing()) this.entityData.set(DATA_CLIMBING, climb);
         if (climb && Double.isNaN(climbStartY)) climbStartY = this.getY();
         if (!climb && !Double.isNaN(climbStartY) && this.onGround()) {
@@ -1954,6 +2054,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         float before = this.getHealth();
         boolean hurt = super.hurt(source, amount);
         if (hurt && !this.level().isClientSide) learnDanger(source);
+        if (hurt && source.is(net.minecraft.world.damagesource.DamageTypes.SONIC_BOOM)
+                && source.getEntity() instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
+            // o boom do warden jogou ele longe: levanta e vai com o dobro da velocidade (Grox, cidade antiga)
+            enragedUntil = this.tickCount + 300;
+            // voa longe (a resistência a empurrão dele segurava no chão: andava 2 blocos)
+            Vec3 away = this.position().subtract(warden.position()).multiply(1, 0, 1);
+            if (away.lengthSqr() > 1.0E-4D) {
+                away = away.normalize();
+                this.push(away.x * 0.3D, 0.45D, away.z * 0.3D);
+                this.hurtMarked = true;
+            }
+            setNoFallTicks(60);
+            setTarget(warden);
+            ribbit(2.5F);
+            brainLog("o warden me jogou longe: vou comer ele vivo");
+        }
         if (hurt && source.getEntity() instanceof Player attacker) {
             stopStalking(); // mexeu com ele: acabou o "só olhando"
             breakTruce(attacker); // "não mexe comigo" - e mexeu

@@ -56,6 +56,8 @@ public class FroggyFeedGoal extends Goal {
     private final FroggydudeEntity froggy;
     private int chaseTimeout;
     private boolean pouncing;
+    /** A comida é quem veio brigar com ele (golem, warden...): bote, prende e come vivo. */
+    private boolean fight;
 
     public FroggyFeedGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -79,6 +81,14 @@ public class FroggyFeedGoal extends Goal {
         }
         // IA Real: ferido do lado de quem bate nele, primeiro foge (FroggyRetreatGoal), depois come
         if (FroggyRetreatGoal.mustFlee(froggy)) return false;
+        // bicho brigando com ele (golem, warden, lobo...): não troca soco, come (LM: "os golems
+        // morrem igual aos outros mobs")
+        LivingEntity rival = froggy.getTarget();
+        if (froggy.isFightPrey(rival) && froggy.distanceTo(rival) < 32.0F) {
+            froggy.setFeedTarget(rival);
+            fight = true;
+            return true;
+        }
         if (froggy.getFeedSearchCooldown() > 0) return false;
 
         LivingEntity blaze = findBlaze();
@@ -124,7 +134,7 @@ public class FroggyFeedGoal extends Goal {
 
     @Override
     public void start() {
-        chaseTimeout = 100;
+        chaseTimeout = fight ? 240 : 100;
         pouncing = false;
         froggy.setFroggyState(FroggyState.CHASE);
     }
@@ -141,6 +151,7 @@ public class FroggyFeedGoal extends Goal {
             froggy.setFroggyState(FroggyState.CHASE);
         }
         pouncing = false;
+        fight = false;
     }
 
     @Override
@@ -164,10 +175,12 @@ public class FroggyFeedGoal extends Goal {
 
         chaseTimeout--;
         froggy.getLookControl().setLookAt(victim, 30F, 30F);
-        froggy.getNavigation().moveTo(victim, 1.3D);
+        // levou o boom do warden: o dobro (corre violentamente pra cima dele)
+        double speed = fight ? FroggyCombatGoal.huntSpeed() * (froggy.isEnraged() ? 2.0D : 1.0D) : 1.3D;
+        froggy.getNavigation().moveTo(victim, speed);
 
         double dist = froggy.distanceTo(victim);
-        if (favorite(victim) && dist >= 2.6D && dist <= 6.5D && froggy.onGround() && victim.onGround()
+        if ((favorite(victim) || fight) && dist >= 2.6D && dist <= 6.5D && froggy.onGround() && victim.onGround()
                 && froggy.hasLineOfSight(victim) && Math.abs(victim.getY() - froggy.getY()) < 1.2D) {
             // aldeão: o bote, igual ao do jogador
             pouncing = true;

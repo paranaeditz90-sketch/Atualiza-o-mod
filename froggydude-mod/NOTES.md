@@ -1,4 +1,4 @@
-# Froggydude - v0.5.0: IA Real, sem a cena do corpo, renascer limpo (sobre a v0.4.9)
+# Froggydude - v0.5.1: golem e warden viram comida, sem escalar feito aranha (sobre a v0.5.0)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,27 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.5.0):
+O que testar agora (v0.5.1) - os bugs que tu achou na 0.4.8:
+A) GOLEM: golem de ferro que vem brigar com ele vira comida, igual aos outros bichos. Ele não troca
+   soco: dá o bote, prende no chão e come (antes ele brigava do jeito que briga com gente e morria).
+   Vale pra qualquer bicho que venha pra cima dele (lobo, urso, abelha...), menos chefe e creeper.
+B) WARDEN (em qualquer nível de IA): o warden sente ele chegando e muda o jeito de brigar - em vez
+   das mãos, usa o BOOM pra jogar ele longe. Ele voa, levanta com raiva, corre o dobro e come o
+   warden vivo de primeira (Grox, cidade antiga). Testado: um boom, ele voou, e comeu o warden.
+C) PAREDE: ele não sobe mais parede feito aranha quando tem caminho andando. Antes qualquer
+   encostada numa parede virava escalada - no teste, tu no 2º andar de uma torre com porta e escada
+   por dentro, ele chegava na porta, raspava na parede do lado e subia por fora até o telhado, e
+   ficava lá em cima. Agora ele entra pela porta e sobe a escada. Sobe parede só quando não tem
+   caminho (torre, pilar, muro). E se estiver escalando sem ganhar altura (teto, beiral), larga.
+D) SKIN SUMINDO (o teu vídeo das 23:22, no celular): depois do "banho de sangue" o teu corpo sumia
+   (3ª pessoa e a prévia do inventário pretas) e voltava "do nada" - quando a chuva lavava o sangue.
+   A culpa era a camada de sangue por cima da skin: ela é o modelo de novo, quase todo
+   transparente, e no renderizador do celular o pixel transparente tapava o corpo de baixo.
+   Agora ela só pinta a cor (não tapa nada), e a textura do sangue é criada e enviada fora do
+   desenho. No PC eu não consigo reproduzir o sumiço (aqui sempre apareceu), então isso aqui é
+   a correção mais provável - confere aí no teu: braço arrancado sangrando, F5, e o inventário.
+
+Da v0.5.0:
 A) IA REAL: Mods > Froggydude > Configurar > IA: Real (vermelho), ou `/froggydude ia real`. É a
    esperteza do Máx com o jeito do FroggyDude dos vídeos (VS Every Opponent, 10v1, How many days,
    Manhunt do Grox). O que ele faz:

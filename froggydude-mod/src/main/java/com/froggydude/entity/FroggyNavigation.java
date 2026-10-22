@@ -31,6 +31,10 @@ import java.util.Set;
  *    madeira e desvia de onde já se machucou (FroggyNodeEvaluator).
  * 4. (v0.5.0) O "vai reto" do fim do caminho é pra subir parede: se o passo reto
  *    cai em lava, fogo ou magma (ela do outro lado da lava), ele para na beira.
+ * 5. (v0.5.1) E só quando é pra subir ou descer: o alvo no mesmo nível e longe (ela
+ *    dentro de casa, a entrada do outro lado) não é parede pra escalar - ele para, e
+ *    o combate decide (dar a volta, arrombar, pôr bloco). Antes ele subia a parede da
+ *    casa feito aranha e ficava lá.
  */
 public class FroggyNavigation extends GroundPathNavigation {
 
@@ -79,6 +83,11 @@ public class FroggyNavigation extends GroundPathNavigation {
         return true;
     }
 
+    /** Indo reto pro alvo depois do fim do caminho (torre, muro): é pra subir a parede. */
+    public boolean climbingStraight() {
+        return this.isDone() && this.climbTarget != null;
+    }
+
     @Override
     public void stop() {
         super.stop();
@@ -99,7 +108,9 @@ public class FroggyNavigation extends GroundPathNavigation {
         double dz = cz - this.mob.getZ();
         boolean arrived = this.climbTarget.closerToCenterThan(this.mob.position(), reach)
                 || (this.mob.getY() > this.climbTarget.getY() && dx * dx + dz * dz < reach * reach);
-        if (arrived || burnsAhead(dx, dz)) {
+        double dy = this.climbTarget.getY() - this.mob.getY();
+        boolean sameLevelFar = Math.abs(dy) <= 1.5D && dx * dx + dz * dz > 9.0D;
+        if (arrived || sameLevelFar || burnsAhead(dx, dz)) {
             this.climbTarget = null;
             return;
         }

@@ -92,12 +92,26 @@ public final class BloodStains {
             this.slim = slim;
         }
 
+        /**
+         * Cria a textura. Só fora do desenho (tick do cliente): criar/enviar textura no
+         * meio do desenho das entidades mexia na textura presa da unidade ativa no
+         * celular (v0.5.1). A unidade 0 é a das texturas de entidade; a 1 e a 2 são
+         * a do brilho de dano e a da luz - se a ativa fosse uma delas, ia o sangue nela.
+         */
         void ensureTexture() {
             if (tex != null) return;
+            int unit = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
+            com.mojang.blaze3d.systems.RenderSystem.activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0);
             img = new NativeImage(N, N, true);
             img.fillRect(0, 0, N, N, 0);
             tex = new DynamicTexture(img);
             loc = Minecraft.getInstance().getTextureManager().register("froggydude_stain", tex);
+            com.mojang.blaze3d.systems.RenderSystem.activeTexture(unit);
+        }
+
+        /** Pronta pra desenhar (o desenho nunca cria nem envia textura). */
+        boolean ready() {
+            return tex != null && loc != null;
         }
 
         void add(int x, int y, float a, int color) {
@@ -138,7 +152,10 @@ public final class BloodStains {
                     img.setPixelRGBA(x, y, (alpha << 24) | (b << 16) | (g << 8) | r);
                 }
             }
+            int unit = com.mojang.blaze3d.platform.GlStateManager._getActiveTexture();
+            com.mojang.blaze3d.systems.RenderSystem.activeTexture(org.lwjgl.opengl.GL13.GL_TEXTURE0);
             tex.upload();
+            com.mojang.blaze3d.systems.RenderSystem.activeTexture(unit);
             dirty = false;
         }
 
@@ -173,9 +190,7 @@ public final class BloodStains {
     @javax.annotation.Nullable
     public static ResourceLocation textureFor(UUID id) {
         Stain s = STAINS.get(id);
-        if (s == null || s.total < 0.5F || !gore().skinStains()) return null;
-        s.ensureTexture();
-        if (s.dirty) s.upload();
+        if (s == null || s.total < 0.5F || !gore().skinStains() || !s.ready()) return null;
         return s.loc;
     }
 
@@ -648,9 +663,7 @@ public final class BloodStains {
                            float limbSwing, float limbSwingAmount, float partialTick, float ageInTicks,
                            float netHeadYaw, float headPitch) {
             Stain s = STAINS.get(player.getUUID());
-            if (s == null || s.total < 0.5F || player.isInvisible() || !gore().skinStains()) return;
-            s.ensureTexture();
-            if (s.dirty) s.upload();
+            if (s == null || s.total < 0.5F || player.isInvisible() || !gore().skinStains() || !s.ready()) return;
             PlayerModel<AbstractClientPlayer> m = getParentModel();
             boolean[] base = {m.head.visible, m.body.visible, m.rightArm.visible, m.leftArm.visible, m.rightLeg.visible, m.leftLeg.visible};
             boolean[] over = {m.hat.visible, m.jacket.visible, m.rightSleeve.visible, m.leftSleeve.visible, m.rightPants.visible, m.leftPants.visible};
@@ -662,7 +675,7 @@ public final class BloodStains {
             m.rightPants.visible = base[4];
             m.leftPants.visible = base[5];
             m.head.visible = m.body.visible = m.rightArm.visible = m.leftArm.visible = m.rightLeg.visible = m.leftLeg.visible = false;
-            m.renderToBuffer(ps, buffers.getBuffer(RenderType.entityTranslucent(s.loc)), light,
+            m.renderToBuffer(ps, buffers.getBuffer(StainRenderType.stain(s.loc)), light,
                     LivingEntityRenderer.getOverlayCoords(player, 0F), 1F, 1F, 1F, 1F);
             m.head.visible = base[0];
             m.body.visible = base[1];
@@ -688,7 +701,7 @@ public final class BloodStains {
         if (event.isCanceled() || inArm) return;
         AbstractClientPlayer player = event.getPlayer();
         Stain s = STAINS.get(player.getUUID());
-        if (s == null || s.total < 0.5F || !gore().skinStains()) return;
+        if (s == null || s.total < 0.5F || !gore().skinStains() || !s.ready()) return;
         EntityRenderer<?> er = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(player);
         if (!(er instanceof PlayerRenderer renderer)) return;
         event.setCanceled(true);
@@ -702,12 +715,10 @@ public final class BloodStains {
         } finally {
             inArm = false;
         }
-        s.ensureTexture();
-        if (s.dirty) s.upload();
         ModelPart sleeve = right ? renderer.getModel().rightSleeve : renderer.getModel().leftSleeve;
         boolean vis = sleeve.visible;
         sleeve.visible = true;
-        sleeve.render(event.getPoseStack(), event.getMultiBufferSource().getBuffer(RenderType.entityTranslucent(s.loc)),
+        sleeve.render(event.getPoseStack(), event.getMultiBufferSource().getBuffer(StainRenderType.stain(s.loc)),
                 event.getPackedLight(), OverlayTexture.NO_OVERLAY);
         sleeve.visible = vis;
     }
