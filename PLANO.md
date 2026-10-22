@@ -457,3 +457,21 @@ Como fazer:
   tua frente. Cada um vira uma opção sorteada que aprende contigo, igual às táticas.
 - **A hora de atacar:** quando o medo passa do ponto ("carne temperada"), a próxima
   emboscada é pra valer.
+
+---
+
+## Mod de gravação separado: "E se eu fosse o FroggyDude" (depois de terminar este)
+
+Pedido do LM (22/10): um mod À PARTE (pra não dar conflito com este) em que o JOGADOR é o
+FroggyDude - com a skin dele mesmo, só o comportamento - imitando o FroggyDude ORIGINAL dos vídeos
+(não o do nosso mod), pra gravar vídeos quase iguais aos dele. Fácil de entender e de qualidade.
+
+Respostas do LM:
+- Controle no celular: estudar como os mods de animação de hoje fazem (roda de emotes, menus) e
+  fazer um jeito melhor pra mobile: fácil e sem entupir a tela.
+- Os ataques fazem efeito DE VERDADE (bote derruba, morde, arranca braço, mata, sangue, pedaços).
+- Precisa ter: câmeras de cinema (ângulos dos vídeos, câmera lenta, sem HUD), a velocidade e os
+  pulos dele (galope de quatro, pulo altíssimo, escalar), funcionar com amigos (multiplayer).
+- Sons: só os que NÃO são a voz dele (galope, sangue escorrendo enquanto come...).
+
+Antes de começar: perguntar o que faltar (nome do mod, lista exata de animações/ataques do menu).
