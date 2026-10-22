@@ -1,4 +1,4 @@
-# Froggydude - v0.6.3: a velocidade dele acompanha a tua (sobre a v0.6.2)
+# Froggydude - v0.6.4: irritado do nada, ele se transforma (sobre a v0.6.3)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.6.3) - SÓ a velocidade:
+O que testar agora (v0.6.4) - SÓ a transformação do nada:
+A) IRRITADO DO NADA: na hora que ele decide partir pra cima de ti (o bote, a mordida, a língua...),
+   às vezes, mesmo com a vida cheia, em vez do ataque vem a raiva: 5 ribbits cada vez mais altos,
+   mais graves e mais colados (~2,4 s), ele vem chegando sem atacar, para na tua frente e se
+   transforma - a fase 2 inteira (contorção, grito, 30 s feroz). Só contra jogador, nunca no meio
+   do susto da IA Real (aí é medo, não ataque). Se ele estiver falando, a raiva espera a fala acabar.
+   Testado: com a vida 250/250 ele irritou a 19,7 blocos, chegou ribbitando, contorceu, gritou e veio.
+B) QUANTO: config "irritado_chance" (padrão 25%): sorteada no 1º ataque contra ti e depois no máximo
+   a cada 30 s. Depois de uma transformação, só de novo em 60-90 s (como antes). 0 = só com a vida
+   baixa, como era.
+C) PRA VER NA HORA: /froggydude irritar (com ele já partindo pra cima de ti).
+
+Da v0.6.3 - a velocidade:
 A) LEVEMENTE MAIS RÁPIDO QUE TU: perseguindo, ele mede a tua velocidade (média de ~1 s, só no chão,
    sem contar pérola/teleporte) e corre ~25% mais que ela. Parado ou andando conta como quem corre
    pulando (~7 b/s): ele vem a ~9 b/s. Antes era um galope fixo de 15 b/s, quase 3x o teu.

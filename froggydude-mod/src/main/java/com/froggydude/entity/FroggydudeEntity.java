@@ -271,6 +271,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int stalkTicks = 0;
     /** Comeu blaze: entra na fase 2 assim que der. */
     private boolean phase2Requested = false;
+    /** Irritado do nada: ticks desde o 1º ribbit (-1 = calmo); {@link #irkPending} espera ele parar de falar. */
+    private int irkTicks = -1;
+    private boolean irkPending = false;
     private int painCooldown = 0;
     private int mouthOpenTicks = 0;
     /**
@@ -1690,6 +1693,57 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         setSkinVariant(SkinVariant.BURNED);
     }
 
+    // Irritado do nada (v0.6.4, LM: "às vezes froggydude fica irritado (os ribbits que ele
+    // tem), ou seja, não só quando ele tá com pouca vida, mas quando quer atacar alguém"):
+    // partindo pra cima de alguém, os ribbits de raiva vêm cada vez mais altos e colados,
+    // sem ele parar de correr, e no último ele se transforma (a fase 2 inteira: contorção,
+    // grito, 30 s feroz). Sorteado pelo FroggyCombatGoal (config irritado_chance).
+    private static final int[] IRK_RIBBITS = {0, 16, 28, 37, 43};
+    private static final int IRK_TICKS = 48;
+
+    /**
+     * Começa a se irritar (espera terminar a fala de agora). Devolve false se não dá
+     * agora: já transformado, cansado, a transformação ainda recarregando ou já vindo.
+     */
+    public boolean irk() {
+        if (isFrenzyActive() || isFrenzyTired() || frenzyCooldown > 0 || phase2Requested
+                || irkPending || irkTicks >= 0 || getFroggyState() == FroggyState.CONTORTING) return false;
+        irkPending = true;
+        return true;
+    }
+
+    /** Irritado (os ribbits subindo) ou com a transformação já pedida: segura o ataque. */
+    public boolean isIrked() {
+        return irkPending || irkTicks >= 0 || phase2Requested && !isFrenzyActive();
+    }
+
+    private void tickIrk() {
+        LivingEntity t = this.getTarget();
+        if (t == null || !t.isAlive() || isFrenzyActive() || getFroggyState() == FroggyState.FLUNG) {
+            irkPending = false;
+            irkTicks = -1;
+            return;
+        }
+        if (irkPending) {
+            if (vocalCooldown > 0) return;
+            irkPending = false;
+            irkTicks = 0;
+            mute(IRK_TICKS + 4); // nada de "I'm hungry" no meio dos ribbits
+        }
+        for (int i = 0; i < IRK_RIBBITS.length; i++) {
+            if (irkTicks != IRK_RIBBITS[i]) continue;
+            float k = i / (float) (IRK_RIBBITS.length - 1);
+            // cada vez mais alto e mais grave
+            this.playSound(ModSounds.RIBBIT.get(), 1.6F + 1.4F * k, 1.0F - 0.18F * k + this.getRandom().nextFloat() * 0.06F);
+            openMouth(8);
+            if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] ribbit irritado " + (i + 1) + "/" + IRK_RIBBITS.length);
+        }
+        if (++irkTicks > IRK_TICKS) {
+            irkTicks = -1;
+            phase2Requested = true; // a FroggyFrenzyGoal pega entre um ataque e outro
+        }
+    }
+
     public void markPhase2Started() {
         this.phase2Started = true;
         this.phase2Requested = false;
@@ -1862,6 +1916,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (ribbitCooldown > 0) ribbitCooldown--;
         // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
         if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
+        if (irkPending || irkTicks >= 0) tickIrk();
         if (muteTicks > 0) muteTicks--;
         if (pendingSpeech != null) {
             if (--pendingSpeechTicks <= 0 && vocalCooldown <= 0) {

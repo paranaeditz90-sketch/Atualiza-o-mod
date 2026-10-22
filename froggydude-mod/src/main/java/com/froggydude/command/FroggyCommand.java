@@ -66,6 +66,7 @@ public final class FroggyCommand {
                                         FroggyConfig.get(FroggyConfig.MANHUNT_DIAS))))
                         .then(Commands.literal("parar").executes(c -> stopManhunt(c.getSource()))))
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
+                .then(Commands.literal("irritar").requires(FroggyCommand::admin).executes(c -> irk(c.getSource())))
                 // jeito de jogador, pra testar sem ter que morrer 3 vezes
                 .then(Commands.literal("zombar").requires(FroggyCommand::admin).executes(c -> mock(c.getSource())))
                 .then(Commands.literal("dancar").requires(FroggyCommand::admin).executes(c -> dance(c.getSource())))
@@ -264,6 +265,24 @@ public final class FroggyCommand {
         }
         f.danceNow(p);
         src.sendSuccess(() -> Component.literal("Dancinha."), true);
+        return 1;
+    }
+
+    private static int irk(CommandSourceStack src) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(Component.literal("O FroggyDude não está carregado."));
+            return 0;
+        }
+        if (f.getTarget() == null) {
+            src.sendFailure(Component.literal("Ele só se irrita partindo pra cima de alguém."));
+            return 0;
+        }
+        if (!f.irk()) {
+            src.sendFailure(Component.literal("Agora não: já transformado, cansado ou a transformação recarregando."));
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal("Irritado: os ribbits e a transformação."), true);
         return 1;
     }
 

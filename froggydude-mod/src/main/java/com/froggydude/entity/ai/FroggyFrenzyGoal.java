@@ -107,6 +107,8 @@ public class FroggyFrenzyGoal extends Goal {
 
     @Override
     public void start() {
+        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] fase 2: contorção começou (vida "
+                + Math.round(froggy.getHealth()) + "/" + Math.round(froggy.getMaxHealth()) + ")");
         froggy.markPhase2Started();
         froggy.stopStalking();
         froggy.setFroggyState(FroggyState.CONTORTING);

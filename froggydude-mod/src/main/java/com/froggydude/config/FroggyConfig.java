@@ -16,6 +16,7 @@ public final class FroggyConfig {
     public static final ForgeConfigSpec.IntValue VANTAGEM_SEGUNDOS;
     public static final ForgeConfigSpec.IntValue VOLTA_SEGUNDOS;
     public static final ForgeConfigSpec.DoubleValue CACA_BLOCOS_POR_SEGUNDO;
+    public static final ForgeConfigSpec.IntValue IRRITADO_CHANCE;
     public static final ForgeConfigSpec.EnumValue<AiLevel> IA;
 
     static {
@@ -36,6 +37,10 @@ public final class FroggyConfig {
         CACA_BLOCOS_POR_SEGUNDO = b.comment("Velocidade do galope fora da perseguição - seguindo rastro, indo pra vila, se escondendo (blocos/s).",
                         "Original: ~15. Perseguindo alguém à vista, ele mede a vítima e corre ~25% mais (transformado, ~50%).")
                 .defineInRange("caca_blocos_por_segundo", 15.0D, 6.0D, 20.0D);
+        IRRITADO_CHANCE = b.comment("Chance (%) de ele se irritar do nada (os ribbits subindo) e se transformar quando parte",
+                        "pra cima de um jogador, mesmo com a vida cheia. Sorteada ao começar a perseguição e a cada 30 s dela",
+                        "(depois de uma transformação, só de novo em 60-90 s). 0 = só com a vida baixa, como antes.")
+                .defineInRange("irritado_chance", 25, 0, 100);
         IA = b.comment("O quanto ele pensa: MIN, MEDIO, ALTO (o de sempre), EXTRA, MAX, REAL.",
                         "Muda alcance de visão/faro, reação, previsão, táticas (cercar, cortar caminho, pôr bloco,",
                         "arrombar, sabotar), o uso do que ele aprendeu de cada jogador e, no EXTRA/MAX, truques novos.",

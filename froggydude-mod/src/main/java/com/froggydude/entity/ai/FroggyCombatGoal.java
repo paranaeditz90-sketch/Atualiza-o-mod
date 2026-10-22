@@ -159,6 +159,9 @@ public class FroggyCombatGoal extends Goal {
     private Vec3 targetVel = Vec3.ZERO;
     /** Quanto a vítima anda por tick no chão (blocos, média de ~1 s). */
     private double targetPace;
+    /** Irritado do nada: em quem foi o último sorteio e quando vem o próximo. */
+    private LivingEntity irkRolledFor;
+    private int irkRollAt;
     /** Ticks até poder gritar de novo atrás de quem foge ("get back here!"). */
     private int chaseTalk = 0;
     /** Já falou montado nessa vítima ("stay on the ground" / "the last thing you see")? */
@@ -347,19 +350,23 @@ public class FroggyCombatGoal extends Goal {
             runStalk(target, dist);
             return;
         }
+        // irritado: os ribbits sobem e ele só vem chegando - o ataque é depois de transformar
+        boolean irked = froggy.isIrked();
         // (na fase 2 da IA Real ele não pula: a trombada vem do tail)
-        if (charging && froggy.getAttackCooldown() <= 0 && !(real.active() && froggy.isFrenzyActive())
-                && counterPounce(target, dist)) {
+        if (!irked && charging && froggy.getAttackCooldown() <= 0 && !(real.active() && froggy.isFrenzyActive())
+                && !irkNow(target, dist) && counterPounce(target, dist)) {
             return;
         }
         // alcançou quem foge: corre COLADO atrás uns 0,4 s (a zebra do vídeo) e dá o bote
-        if (tail(target, dist, elevated)) return;
+        if (!irked && tail(target, dist, elevated)) return;
         // Extra/Máx: escudo levantado na cara dele - dá a volta antes de atacar
         if (!elevated && sidestepShield(target, dist)) return;
 
-        if (froggy.getAttackCooldown() <= 0) {
+        if (!irked && froggy.getAttackCooldown() <= 0) {
             FroggyState next = pickAttack(target, dist, elevated);
             if (next != null) {
+                // na hora de partir pra cima, às vezes a raiva vem antes do bote
+                if (irkNow(target, dist)) return;
                 beginAttack(next, target, dist);
                 return;
             }
@@ -1105,6 +1112,24 @@ public class FroggyCombatGoal extends Goal {
             if (run < 4.0D) targetPace += (run - targetPace) * (run > targetPace ? 0.15D : 0.05D);
         }
         lastTargetPos = pos;
+    }
+
+    /**
+     * Vai atacar um jogador: às vezes, em vez do ataque, ele se irrita do nada e se
+     * transforma (ver FroggydudeEntity.irk). Sorteado no 1º ataque contra a pessoa e
+     * depois no máximo a cada 30 s. Devolve true se irritou (o ataque fica pra depois).
+     */
+    private boolean irkNow(LivingEntity target, double dist) {
+        if (!(target instanceof Player) || dist > 32.0D) return false;
+        if (target != irkRolledFor) {
+            irkRolledFor = target;
+            irkRollAt = froggy.tickCount;
+        }
+        if (froggy.tickCount < irkRollAt) return false;
+        irkRollAt = froggy.tickCount + 600;
+        if (froggy.getRandom().nextInt(100) >= FroggyConfig.get(FroggyConfig.IRRITADO_CHANCE) || !froggy.irk()) return false;
+        debug("irritado do nada (dist=" + String.format("%.1f", dist) + "): ribbits e transformação");
+        return true;
     }
 
     /** Modificador de velocidade pra correr ~25% (transformado, ~50%) mais que a vítima. */
