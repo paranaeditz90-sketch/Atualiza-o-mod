@@ -96,23 +96,35 @@ public final class BodyPieces {
         int body = nextBody++;
         int before = PIECES.size();
         int life = FroggyClientConfig.piecesSeconds() * 20;
-        for (List<ModelCapture.Cube> group : ModelCapture.group(cubes)) {
-            Piece p = build(body, group, base);
-            p.life = life + r.nextInt(40);
-            p.bleeds = bleeds;
-            p.bloodColor = color;
-            if (bleeds) tint(p, color, g, r);
-            // o corpo se desmonta: cada parte sai um pouco pra fora e pra cima, levando o tranco
-            Vec3 out = new Vec3(p.x, p.y, p.z).subtract(mid);
-            out = out.lengthSqr() < 1.0E-4D ? new Vec3(r.nextGaussian(), 0, r.nextGaussian()) : out;
-            out = out.normalize();
-            float k = power * (0.6F + r.nextFloat() * 0.8F);
-            p.vel.set((float) (drift.x + out.x * 1.4F * k + dx * 1.8F * power + r.nextGaussian() * 0.4F),
-                    (float) (drift.y + 1.2F + r.nextFloat() * 1.8F * power + dy * power),
-                    (float) (drift.z + out.z * 1.4F * k + dz * 1.8F * power + r.nextGaussian() * 0.4F));
-            p.ang.set((float) r.nextGaussian() * 5F * power, (float) r.nextGaussian() * 5F * power,
-                    (float) r.nextGaussian() * 5F * power);
-            PIECES.add(p);
+        List<List<ModelCapture.Cube>> groups = ModelCapture.group(cubes);
+        double all = 0D;
+        for (List<ModelCapture.Cube> grp : groups) all += grp.get(0).volume();
+        int shards = FroggyClientConfig.piecesShards();
+        for (List<ModelCapture.Cube> group : groups) {
+            // cada parte estilhaça em cacos, mais cacos nas partes maiores (o vídeo: ~60 no corpo todo)
+            int n = Math.max(1, (int) Math.round(shards * group.get(0).volume() / Math.max(1.0E-6D, all)));
+            ModelCapture.Cube main = group.get(0);
+            Quaternionf q = ModelCapture.rotation(main);
+            Vec3 center = base.add(main.center);
+            for (Fracture.Shard sh : shatter(group, n, r)) {
+                Piece p = shardPiece(body, sh, q, center);
+                p.life = life + r.nextInt(40);
+                p.bleeds = bleeds;
+                p.bloodColor = color;
+                if (bleeds) tint(p, color, g, r);
+                // o corpo se desmonta: cada caco sai pra fora (do corpo e da parte) e pra cima
+                Vec3 out = new Vec3(p.x, p.y, p.z).subtract(mid);
+                Vec3 burst = new Vec3(p.x, p.y, p.z).subtract(center);
+                out = out.lengthSqr() < 1.0E-4D ? new Vec3(r.nextGaussian(), 0, r.nextGaussian()) : out.normalize();
+                burst = burst.lengthSqr() < 1.0E-6D ? Vec3.ZERO : burst.normalize();
+                float k = power * (0.5F + r.nextFloat() * 0.9F);
+                p.vel.set((float) (drift.x + out.x * 1.2F * k + burst.x * 1.1F * k + dx * 1.6F * power + r.nextGaussian() * 0.45F),
+                        (float) (drift.y + 1.0F + r.nextFloat() * 1.9F * power + burst.y * 0.8F * k + dy * power),
+                        (float) (drift.z + out.z * 1.2F * k + burst.z * 1.1F * k + dz * 1.6F * power + r.nextGaussian() * 0.45F));
+                p.ang.set((float) r.nextGaussian() * 7F * power, (float) r.nextGaussian() * 7F * power,
+                        (float) r.nextGaussian() * 7F * power);
+                PIECES.add(p);
+            }
         }
         if (Boolean.getBoolean("froggydude.debug")) {
             System.out.println("[FROGGYDEBUG] pedacos: " + victim.getType().getDescriptionId() + " " + cubes.size()
@@ -129,16 +141,17 @@ public final class BodyPieces {
         }
     }
 
-    /** Monta o pedaço: o cubo maior manda (caixa de colisão); os outros vão junto. */
-    private static Piece build(int body, List<ModelCapture.Cube> group, Vec3 base) {
+    /**
+     * Os cubos da parte no espaço dela (centro do cubo principal, eixos dele) e o
+     * estilhaço: os grandes (a parte, a camada de cima, a armadura) são cortados
+     * juntos; os penduricalhos (nariz, focinho) vão inteiros.
+     */
+    private static List<Fracture.Shard> shatter(List<ModelCapture.Cube> group, int n, RandomSource r) {
         ModelCapture.Cube main = group.get(0);
-        Quaternionf q = ModelCapture.rotation(main);
-        Quaternionf inv = new Quaternionf(q).conjugate();
-        Vector3f half = new Vector3f((float) main.half[0], (float) main.half[1], (float) main.half[2]);
+        Quaternionf inv = ModelCapture.rotation(main).conjugate();
         Vec3 c = main.center;
-        float radius = 0F;
-        List<Vector3f> samples = new ArrayList<>();
-        List<Piece.Draw> draws = new ArrayList<>();
+        List<RenderType> types = new ArrayList<>(), smallTypes = new ArrayList<>();
+        List<float[]> big = new ArrayList<>(), small = new ArrayList<>();
         Vector3f tmp = new Vector3f();
         for (ModelCapture.Cube cube : group) {
             float[] src = cube.quads;
@@ -154,31 +167,56 @@ public final class BodyPieces {
                 dst[i + 10] = tmp.y;
                 dst[i + 11] = tmp.z;
             }
-            draws.add(new Piece.Draw(cube.type, dst));
-            for (Vec3 k : cube.corners) {
-                Vector3f s = new Vector3f((float) (k.x - c.x), (float) (k.y - c.y), (float) (k.z - c.z)).rotate(inv);
-                boolean dup = false;
-                for (Vector3f o : samples) {
-                    if (o.distanceSquared(s) < 1.0E-4F) {
-                        dup = true;
-                        break;
-                    }
-                }
-                if (!dup) samples.add(s);
-                radius = Math.max(radius, s.length());
+            if (cube != main && cube.volume() < main.volume() * 0.05D) {
+                small.add(dst);
+                smallTypes.add(cube.type);
+            } else {
+                big.add(dst);
+                types.add(cube.type);
             }
         }
-        // a caixa principal com folga mínima (cubo achatado ainda colide)
-        half.set(Math.max(half.x, 0.02F), Math.max(half.y, 0.02F), Math.max(half.z, 0.02F));
-        Piece p = new Piece(body, half, radius);
-        p.draws.addAll(draws);
-        p.samples.addAll(samples);
-        p.x = p.xo = base.x + c.x;
-        p.y = p.yo = base.y + c.y;
-        p.z = p.zo = base.z + c.z;
-        p.rot.set(q);
-        p.rotO.set(q);
-        return p;
+        return Fracture.shatter(types, big, smallTypes, small, n, r);
+    }
+
+    /** Um caco vira um pedaço: centro no meio dos cantos dele, mesma rotação da parte. */
+    private static Piece shardPiece(int body, Fracture.Shard sh, Quaternionf q, Vec3 partCenter) {
+        float cx = 0, cy = 0, cz = 0;
+        for (Vector3f p : sh.points) {
+            cx += p.x;
+            cy += p.y;
+            cz += p.z;
+        }
+        cx /= sh.points.size();
+        cy /= sh.points.size();
+        cz /= sh.points.size();
+        float hx = 0, hy = 0, hz = 0, radius = 0;
+        List<Vector3f> samples = new ArrayList<>(sh.points.size());
+        for (Vector3f p : sh.points) {
+            Vector3f s = new Vector3f(p.x - cx, p.y - cy, p.z - cz);
+            samples.add(s);
+            hx = Math.max(hx, Math.abs(s.x));
+            hy = Math.max(hy, Math.abs(s.y));
+            hz = Math.max(hz, Math.abs(s.z));
+            radius = Math.max(radius, s.length());
+        }
+        Piece piece = new Piece(body, new Vector3f(Math.max(hx, 0.02F), Math.max(hy, 0.02F), Math.max(hz, 0.02F)), radius);
+        piece.samples.addAll(samples);
+        for (java.util.Map.Entry<RenderType, List<Fracture.Poly>> e : sh.polys.entrySet()) {
+            float[] quads = Fracture.toQuads(e.getValue());
+            for (int i = 0; i < quads.length; i += ModelCapture.V) {
+                quads[i] -= cx;
+                quads[i + 1] -= cy;
+                quads[i + 2] -= cz;
+            }
+            piece.draws.add(new Piece.Draw(e.getKey(), quads));
+        }
+        Vector3f w = new Vector3f(cx, cy, cz).rotate(q);
+        piece.x = piece.xo = partCenter.x + w.x;
+        piece.y = piece.yo = partCenter.y + w.y;
+        piece.z = piece.zo = partCenter.z + w.z;
+        piece.rot.set(q);
+        piece.rotO.set(q);
+        return piece;
     }
 
     /** Ensanguentado: uns mais, outros menos (o Grox: quase tudo vermelho, a cabeça com a cor dela). */
