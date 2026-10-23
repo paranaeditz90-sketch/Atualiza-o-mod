@@ -1,4 +1,4 @@
-# Froggydude - v0.7.3: tu na árvore não trava mais ele (sobre a v0.7.2)
+# Froggydude - v0.7.4: lá em cima, ele pula (sobre a v0.7.3)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,20 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.3) - tu em cima da árvore:
+O que testar agora (v0.7.4) - o pulo altíssimo pra te pegar lá em cima (IA REAL):
+A) O QUE O LM VIU: na árvore ele quebrou o bloco embaixo de ti com a língua, mas nem tentou pular. A
+   conta do pulo calculado só rodava com 2 s preso, e nessa hora ele estava pendurado no tronco tentando
+   escalar ("não está no chão": desistia por mais 2 s) - a língua, com 3 s, chegava antes.
+B) AGORA: contigo lá em cima (2,5+ blocos acima dele, sem caminho andando), o pulo vem PRIMEIRO, em
+   ~meio segundo. Se de onde ele está não passa (a copa no meio), ele vai pra um lugar de onde a conta
+   passa e pula de lá; cai do teu lado lá em cima - ou em cima de ti, se não tem "do lado" (o topo da
+   copa, pilar de 1 bloco) - e já começa o esmagamento ali. A língua no bloco e a torre de blocos viraram
+   plano B (sem de onde pular, ou depois de 3 lugares tentados). Errou o pulo: tenta de novo em 15 s
+   (antes, 2 minutos).
+   Testado: tu na beirada da copa (5 blocos de altura): pulo de 3,3 blocos e esmagamento na copa; tu no
+   topo da copa (7 blocos): pulo de 4,9 blocos, golpe final lá em cima.
+
+Da v0.7.3 - tu em cima da árvore:
 A) A CAUSA: na IA REAL, antes de comer ele passa 2 a 4 minutos "brincando" contigo (os sustos) e nesse
    tempo não ataca. Um dos sustos é chegar calado e rir no teu ouvido - contigo lá em cima da árvore ele
    nunca chega no ouvido e ficava até 20 s rodando embaixo, sumia, voltava... parecia não saber o que

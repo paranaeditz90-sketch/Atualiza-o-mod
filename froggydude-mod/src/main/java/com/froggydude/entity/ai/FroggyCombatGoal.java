@@ -404,11 +404,13 @@ public class FroggyCombatGoal extends Goal {
         // o caminho acabou na beirada (lava, buraco, ela numa plataforma no ar) e ela está
         // ali, à vista: põe bloco na hora, como jogador - antes ele dava a volta procurando
         // e acabava entrando na lava
-        if (froggy.tickCount % 10 == 0 && atPathEnd(target, dist) && moves.startBuilding(target)) return;
+        // IA Real com ela lá em cima: o pulo calculado vem antes da torre e da língua no bloco dela
+        boolean jumpFirst = real.active() && real.jumpFirst(target);
+        if (!jumpFirst && froggy.tickCount % 10 == 0 && atPathEnd(target, dist) && moves.startBuilding(target)) return;
         // preso: come a passagem, arromba a porta - ou põe bloco
         // não consegue chegar nela: raiva
         if (stuckFor(target, dist) >= STUCK_TICKS / 2 && froggy.tickCount % 40 == 0) froggy.ribbit(2.0F);
-        if (stuckFor(target, dist) >= STUCK_TICKS
+        if (!jumpFirst && stuckFor(target, dist) >= STUCK_TICKS
                 && ((FroggyConfig.ai().breakIn && (startEatObstacle(target) || approachDoor(target)))
                 || moves.startBuilding(target))) return;
         if (froggy.tickCount % 10 == 0) {

@@ -81,6 +81,8 @@ final class RealTactics {
     private static final int STARE_TICKS = 78;
     private static final int STARE_COOLDOWN = 2400;
     private static final int ARC_COOLDOWN = 2400;
+    /** Ela lá em cima (árvore, pilar): se o pulo errar, tenta de novo bem antes. */
+    private static final int ARC_COOLDOWN_HIGH = 300;
     /** Na janela, olhando, antes de arrombar (se ela não se distrair antes). */
     private static final int WINDOW_STARE = 160;
     /** Até onde a vítima trancada é "casinha" (1x1 de terra, buraco): arromba direto. */
@@ -474,7 +476,10 @@ final class RealTactics {
         boolean partial = froggy.tickCount % 10 == 0 && !reachable();
         if (siege(p, dist, stuckTicks)) return true;
         if ((stuckTicks >= 10 || partial) && froggy.tickCount >= lavaCheckAt && dist <= 40.0D && tryLava(p)) return true;
-        if (stuckTicks < 40 || froggy.tickCount < arcReadyAt) {
+        // ela lá em cima: o pulo vem primeiro e cedo (LM, 23/10: "quebrou o bloco que eu tava, mas não
+        // tentou outro jeito melhor, ex: pular alto pra me pegar"). Antes a conta só rodava com 2 s
+        // preso e a língua no bloco embaixo dela (3 s) quase sempre chegava antes
+        if (stuckTicks < (high(p) ? 12 : 40) || froggy.tickCount < arcReadyAt) {
             vantage = null;
             return false;
         }
@@ -484,15 +489,29 @@ final class RealTactics {
             vantage = null;
             return true;
         }
-        if (p.getY() - froggy.getY() >= 2.5D) return seekVantage(p);
+        if (high(p)) return seekVantage(p);
         vantage = null;
         return false;
+    }
+
+    private boolean high(LivingEntity target) {
+        return target.getY() - froggy.getY() >= 2.5D;
+    }
+
+    /**
+     * Ela lá em cima e o pulo ainda é uma opção (sem recarga, não desistiu de achar de onde
+     * pular): a língua no bloco embaixo dela e a torre de blocos esperam o pulo.
+     */
+    boolean jumpFirst(LivingEntity target) {
+        return target instanceof ServerPlayer && high(target) && froggy.tickCount >= arcReadyAt && !froggy.isFrenzyActive();
     }
 
     /** Indo pro ponto de onde o pulo calculado chega nela lá em cima; o combate não larga o alvo enquanto isso. */
     @Nullable
     private Vec3 vantage;
     private int vantageUntil;
+    /** Quantos pontos de pulo ele já tentou sem conseguir pular: depois de 3, a língua/torre. */
+    private int vantageTries;
 
     boolean planningReach() {
         return vantage != null && froggy.tickCount <= vantageUntil;
@@ -500,10 +519,14 @@ final class RealTactics {
 
     private boolean seekVantage(ServerPlayer p) {
         if (vantage == null || froggy.tickCount > vantageUntil) {
-            vantage = findVantage(p);
+            vantage = ++vantageTries > 3 ? null : findVantage(p);
             vantageUntil = froggy.tickCount + 240;
             if (vantage == null) {
-                arcReadyAt = froggy.tickCount + 200; // não tem de onde ver: tenta de novo depois
+                // não tem de onde pular (ou já tentou de 3 lugares): tenta de novo depois; até lá,
+                // a língua no bloco embaixo dela e a torre de blocos
+                arcReadyAt = froggy.tickCount + 200;
+                vantageTries = 0;
+                froggy.brainLog("sem de onde pular até " + p.getScoreboardName() + ": outro jeito");
                 return false;
             }
             froggy.brainLog("procurando de onde pular até " + p.getScoreboardName() + " lá em cima");
@@ -605,6 +628,8 @@ final class RealTactics {
                 || froggy.getAttackCooldown() > 0) {
             debug(String.format("arco não: ela no chão=%s, ele no chão=%s, subindo=%s, recarga=%d", p.onGround(),
                     froggy.onGround(), froggy.isClimbing(), froggy.getAttackCooldown()));
+            // passageiro (no ar, pendurado no tronco): olha de novo logo
+            arcCheckAt = froggy.tickCount + 5;
             return false;
         }
         // o caminho de agora pode ser o do ponto de onde ele vê ela: pergunta o caminho até ELA
@@ -627,32 +652,42 @@ final class RealTactics {
             debug(String.format("arco não: nenhuma conta passa (%.1f blocos, %.1f de altura)", h, land.y - froggy.getY()));
             return false;
         }
-        arcReadyAt = froggy.tickCount + ARC_COOLDOWN;
+        arcReadyAt = froggy.tickCount + (high(p) ? ARC_COOLDOWN_HIGH : ARC_COOLDOWN);
+        vantageTries = 0;
         froggy.brainLog(String.format("sem jeito de chegar em %s: pulo altíssimo calculado (%.1f blocos, %.1f de altura)",
                 p.getScoreboardName(), Math.sqrt(sq(land.x - froggy.getX()) + sq(land.z - froggy.getZ())), land.y - froggy.getY()));
         combat.beginArc(p, land);
         return true;
     }
 
-    /** Onde cair: do lado dela (na distância de esmagar), no chão firme dela, de preferência do lado dele. */
+    /**
+     * Onde cair: do lado dela (na distância de esmagar), no chão firme dela, de preferência do
+     * lado dele. Na copa de uma árvore ou num pilar de 1 bloco não tem "do lado": cai em cima dela.
+     */
     @Nullable
     Vec3 landingBeside(LivingEntity target) {
         Vec3 dir = froggy.position().subtract(target.position()).multiply(1, 0, 1);
         dir = dir.lengthSqr() < 1.0E-4D ? new Vec3(1, 0, 0) : dir.normalize();
-        Level level = froggy.level();
-        for (int i = 0; i < 8; i++) {
-            double a = Math.toRadians(i % 2 == 0 ? i * 22.5D : -(i + 1) * 22.5D);
-            Vec3 d = new Vec3(dir.x * Math.cos(a) - dir.z * Math.sin(a), 0, dir.x * Math.sin(a) + dir.z * Math.cos(a));
-            Vec3 at = target.position().add(d.scale(1.5D));
-            BlockPos feet = BlockPos.containing(at.x, target.getY() + 0.01D, at.z);
-            if (level.getBlockState(feet.below()).getCollisionShape(level, feet.below()).isEmpty()) continue;
-            // nunca dentro de lava, água ou em cima de magma
-            if (!level.getFluidState(feet).isEmpty() || !level.getFluidState(feet.above()).isEmpty()
-                    || level.getBlockState(feet.below()).is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK)) continue;
-            AABB box = froggy.getBoundingBox().move(at.subtract(froggy.position()).add(0, target.getY() - at.y, 0));
-            if (level.noCollision(froggy, box)) return new Vec3(at.x, target.getY(), at.z);
+        for (double r : new double[]{1.5D, 1.0D, 2.2D}) {
+            for (int i = 0; i < 8; i++) {
+                double a = Math.toRadians(i % 2 == 0 ? i * 22.5D : -(i + 1) * 22.5D);
+                Vec3 d = new Vec3(dir.x * Math.cos(a) - dir.z * Math.sin(a), 0, dir.x * Math.sin(a) + dir.z * Math.cos(a));
+                Vec3 at = target.position().add(d.scale(r));
+                if (canLand(target, at)) return new Vec3(at.x, target.getY(), at.z);
+            }
         }
-        return null;
+        return canLand(target, target.position()) ? target.position() : null;
+    }
+
+    private boolean canLand(LivingEntity target, Vec3 at) {
+        Level level = froggy.level();
+        BlockPos feet = BlockPos.containing(at.x, target.getY() + 0.01D, at.z);
+        if (level.getBlockState(feet.below()).getCollisionShape(level, feet.below()).isEmpty()) return false;
+        // nunca dentro de lava, água ou em cima de magma
+        if (!level.getFluidState(feet).isEmpty() || !level.getFluidState(feet.above()).isEmpty()
+                || level.getBlockState(feet.below()).is(net.minecraft.world.level.block.Blocks.MAGMA_BLOCK)) return false;
+        AABB box = froggy.getBoundingBox().move(at.subtract(froggy.position()).add(0, target.getY() - at.y, 0));
+        return level.noCollision(froggy, box);
     }
 
     /**
