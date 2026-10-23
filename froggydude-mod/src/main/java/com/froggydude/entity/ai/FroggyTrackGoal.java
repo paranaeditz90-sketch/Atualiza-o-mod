@@ -262,9 +262,11 @@ public class FroggyTrackGoal extends Goal {
             }
         }
         if (modeTicks % 10 == 0) {
-            Scent.Mark end = Scent.newest(prey, now);
-            if (end != null && end.time() > searchMarkTime + 40
-                    && Scent.freshest(level, froggy.position(), TRAIL_STEP, prey) != null) {
+            // só o cheiro novo AQUI conta: se ela sumiu (tp, pérola, portal) o rastro novo fica
+            // longe e a marca perto é a velha - antes ele voltava pro rastro velho, chegava no
+            // fim, varria, voltava... e ficava ciscando no mesmo ponto
+            Scent.Sniff near = Scent.freshest(level, froggy.position(), TRAIL_STEP, prey);
+            if (near != null && near.mark().time() > searchMarkTime + 40) {
                 // ela se mexeu e deixou cheiro novo por perto: de volta pro rastro
                 froggy.brainLog("cheiro novo de " + preyName + ": voltando pro rastro");
                 mode = Mode.TRAIL;

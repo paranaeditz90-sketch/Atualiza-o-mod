@@ -6,9 +6,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.IronBarsBlock;
@@ -37,7 +39,23 @@ public final class FroggyKeeper {
         IN_VIEW
     }
 
+    /** O pedaço do mapa em volta dele fica rodando (expira sozinho se ninguém renovar). */
+    private static final TicketType<Integer> AWAKE = TicketType.create("froggydude_awake", Integer::compare, 60);
+
     private FroggyKeeper() {
+    }
+
+    /**
+     * Longe do jogador (fora da distância de simulação, que no celular é curta) o jogo
+     * congela os mobs: ele parava no meio da corrida e o jogo do jogador continuava
+     * mostrando a última animação - "corre parado no mesmo lugar" (vídeo do LM, 22/10).
+     * Ele não é um mob qualquer: enquanto tiver jogador na dimensão dele, os 3x3 chunks
+     * em volta dele continuam rodando e ele segue caçando. A cada segundo (FroggyServerEvents).
+     */
+    public static void keepAwake(MinecraftServer server) {
+        FroggydudeEntity froggy = find(server);
+        if (froggy == null || !(froggy.level() instanceof ServerLevel level) || level.players().isEmpty()) return;
+        level.getChunkSource().addRegionTicket(AWAKE, new ChunkPos(froggy.blockPosition()), 3, froggy.getId());
     }
 
     /** Um FroggyDude entrou no mundo: devolve false se ele não deve ficar. */

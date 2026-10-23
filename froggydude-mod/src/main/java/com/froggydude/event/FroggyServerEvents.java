@@ -45,6 +45,7 @@ public class FroggyServerEvents {
         if (event.phase != TickEvent.Phase.END) return;
         Manhunt.tick(event.getServer());
         long now = event.getServer().overworld().getGameTime();
+        if (now % 20 == 0) FroggyKeeper.keepAwake(event.getServer());
         if (now % 10 == 0) {
             // o rastro de cheiro de cada um (o faro do FroggyDude)
             for (net.minecraft.server.level.ServerPlayer p : event.getServer().getPlayerList().getPlayers()) {

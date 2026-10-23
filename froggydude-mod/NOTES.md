@@ -1,4 +1,4 @@
-# Froggydude - v0.7.1: cacos tortos igual ao vídeo e cacos chutáveis (sobre a v0.7.0)
+# Froggydude - v0.7.2: ele não congela mais longe de ti (sobre a v0.7.1)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.1) - os cacos:
+O que testar agora (v0.7.2) - o bug do "corre parado":
+A) A CAUSA: o Minecraft congela os mobs que ficam fora da "distância de simulação" do jogador (no celular
+   ela é curta). Ele parava no meio da corrida e o teu jogo continuava mostrando a última animação dele,
+   correndo - por isso "corre parado no mesmo lugar" (e as partículas da poção paradas no teu vídeo).
+   Agora o pedaço do mapa em volta dele (3x3 chunks) continua rodando enquanto tiver jogador na dimensão
+   dele: longe de ti ele segue caçando, farejando, indo atrás. Testado: tu a 165 blocos, antes ele
+   congelava; agora continua andando.
+B) O FARO EM LOOP: quando o teu rastro some do nada (tp, pérola, portal), ele chegava no fim do rastro,
+   varria, achava que tinha "cheiro novo" (o teu, lá longe), voltava pro fim do rastro velho... e ficava
+   ciscando no mesmo ponto. Agora só cheiro novo PERTO dele faz ele voltar pro rastro; senão varre em
+   volta (anéis de 6 e 11 blocos) e desiste depois de ~30 s.
+
+Da v0.7.1 - os cacos:
 A) CACOS TORTOS: o corpo não quebra mais em 3-8 blocos inteiros. Ele estilhaça em ~60 cacos tortos
    (aldeão 60, porco 61), cortados por planos aleatórios igual ao Physics Mod: por fora a skin/roupa/
    armadura de verdade, por dentro (a face do corte) a própria skin esticada e mais escura - por isso cada
