@@ -1,4 +1,4 @@
-# Froggydude - v0.7.7: o jumpscare raro (sobre a v0.7.6)
+# Froggydude - v0.7.8: o jumpscare vira a tua câmera (sobre a v0.7.7)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,15 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.7) - o jumpscare (ideia do LM):
+O que testar agora (v0.7.8) - o jumpscare te obriga a olhar:
+A) LM: "o jogo deveria forçar o jogador a olhar pra trás e tomar o jumpscare". Agora, quando a fala acaba
+   (ou tu vira sozinho), ele aparece EM PÉ colado nas tuas costas, de onde veio a voz, e o jogo vira a tua
+   câmera à força num giro rápido (~0,3 s, com o clarão vermelho) até a cara dele, na altura do teu olho -
+   mouse e controles travados. Aí ele se joga na câmera e vem a cutscene. Se tu já tinha virado, o giro só
+   termina de alinhar.
+   Testado: tu olhando pra frente, ele atrás: giro de 180 graus, a cara dele em pé, o pulo, a cutscene.
+
+Da v0.7.7 - o jumpscare (ideia do LM):
 A) BEM RARO: no máximo 1 a cada 3 dias do jogo por jogador (o primeiro vem em algum momento entre o 1º e
    o 3º dia de caçada). Acontece quando ele está te caçando e tu PERDE ELE DE VISTA (1,5 s sem ver).
 B) A SEQUÊNCIA: ele SOME (invisível, sem passos, sem poeira) e vem pelas tuas costas. Silêncio. Atrás de

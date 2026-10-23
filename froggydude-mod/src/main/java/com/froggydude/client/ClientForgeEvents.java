@@ -72,7 +72,8 @@ public class ClientForgeEvents {
     /** Preso: ignora andar, pular e agachar. */
     @SubscribeEvent
     public static void onMovementInput(MovementInputUpdateEvent event) {
-        if (!ClientShakeHandler.isPinned()) return;
+        // (preso, ou no jumpscare: a câmera virando à força e ele se jogando)
+        if (!ClientShakeHandler.isPinned() && !ClientShakeHandler.isCinematic()) return;
         Input input = event.getInput();
         input.up = false;
         input.down = false;

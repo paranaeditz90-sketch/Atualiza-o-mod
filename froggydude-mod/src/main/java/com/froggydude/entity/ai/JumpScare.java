@@ -39,12 +39,14 @@ final class JumpScare {
     private static final int GONE_MAX = 110;
     /** A fala inteira ("I see you! hihihi... you can't hide from me!"). */
     private static final int VOICE_MAX = 147;
+    /** O jogo vira a tua câmera pra ele (LM: "o jogo deveria forçar o jogador a olhar pra trás"). */
+    private static final int TURN_TICKS = 6;
     /** Se jogando na tua cara antes de cair em cima. */
     private static final int LEAP_TICKS = 6;
     /** A cutscene em cima de ti (o esmagamento), em ticks. */
     static final int SMASH_TICKS = 100;
 
-    private enum Stage { NONE, GONE, VOICE, LEAP }
+    private enum Stage { NONE, GONE, VOICE, TURN, LEAP }
 
     private final FroggydudeEntity froggy;
     private final FroggyCombatGoal combat;
@@ -109,6 +111,18 @@ final class JumpScare {
                 froggy.getLookControl().setLookAt(p, 30.0F, 30.0F);
                 // tu vira pra ver de onde vem a voz (ou a fala acaba): já é tarde
                 if (t >= 30 && facing(p) || t >= VOICE_MAX) strike(p);
+            }
+            case TURN -> {
+                // a tua câmera gira à força pra cara dele; ele parado te encarando
+                froggy.getNavigation().stop();
+                froggy.faceTarget(p);
+                froggy.getLookControl().setLookAt(p, 90.0F, 90.0F);
+                if (t >= TURN_TICKS) {
+                    froggy.setFroggyState(FroggyState.JUMP_PIN);
+                    froggy.playSound(ModSounds.LEAP.get(), 2.0F, 0.9F);
+                    froggy.playSound(ModSounds.SMASH.get(), 2.0F, 0.7F);
+                    next(Stage.LEAP);
+                }
             }
             case LEAP -> {
                 froggy.faceTarget(p);
@@ -184,28 +198,33 @@ final class JumpScare {
         }
     }
 
-    /** Já é tarde: na tua cara, visível, se jogando em ti. */
+    /**
+     * Já é tarde: ele aparece colado nas tuas costas (de onde veio a voz) e o jogo vira a
+     * tua câmera pra cara dele - aí ele se joga. Se tu já virou sozinho, ele fica onde está.
+     */
     private void strike(ServerPlayer p) {
-        Vec3 look = p.getViewVector(1.0F).multiply(1, 0, 1);
-        look = look.lengthSqr() < 1.0E-4D ? new Vec3(0, 0, 1) : look.normalize();
-        for (double r : new double[]{1.8D, 1.3D}) {
-            Vec3 at = p.position().add(look.scale(r));
-            BlockPos feet = BlockPos.containing(at.x, p.getY(), at.z);
-            if (RealTactics.free(froggy.level(), feet) && RealTactics.free(froggy.level(), feet.above())) {
-                froggy.teleportTo(at.x, p.getY(), at.z);
-                break;
+        if (!facing(p)) {
+            Vec3 look = p.getViewVector(1.0F).multiply(1, 0, 1);
+            look = look.lengthSqr() < 1.0E-4D ? new Vec3(0, 0, 1) : look.normalize();
+            for (double r : new double[]{1.8D, 1.3D}) {
+                Vec3 at = p.position().subtract(look.scale(r));
+                BlockPos feet = BlockPos.containing(at.x, p.getY(), at.z);
+                if (RealTactics.free(froggy.level(), feet) && RealTactics.free(froggy.level(), feet.above())) {
+                    froggy.teleportTo(at.x, p.getY(), at.z);
+                    break;
+                }
             }
         }
         froggy.stopSpeaking();
         froggy.setInvisible(false);
+        froggy.setSilent(false);
         froggy.faceTarget(p);
         froggy.getNavigation().stop();
-        froggy.setFroggyState(FroggyState.JUMP_PIN);
-        froggy.playSound(ModSounds.LEAP.get(), 2.0F, 0.9F);
-        froggy.playSound(ModSounds.SMASH.get(), 2.0F, 0.7F);
-        ModNetwork.sendJumpscare(p, LEAP_TICKS + SMASH_TICKS);
-        froggy.brainLog("jumpscare: na cara de " + p.getScoreboardName());
-        next(Stage.LEAP);
+        // em pé atrás de ti, como gente (o rosto na altura do teu olho quando a câmera chega nele)
+        froggy.setFroggyState(FroggyState.TAUNT);
+        ModNetwork.sendJumpscare(p, TURN_TICKS + LEAP_TICKS + SMASH_TICKS, froggy.getId(), TURN_TICKS);
+        froggy.brainLog("jumpscare: vira a câmera de " + p.getScoreboardName() + " pra ele");
+        next(Stage.TURN);
     }
 
     void stop() {

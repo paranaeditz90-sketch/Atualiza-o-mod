@@ -21,6 +21,11 @@ public final class ClientShakeHandler {
     /** A cutscene do jumpscare (sem HUD, faixas pretas): ticks restantes e o total. */
     private static int cinematicLeft = 0;
     private static int cinematicTotal = 1;
+    /** O giro forçado da câmera do jumpscare: pra qual entidade, ticks restantes, total e qual giro (muda a cada um). */
+    private static int turnId = -1;
+    private static int turnLeft = 0;
+    private static int turnTotal = 1;
+    private static int turnSeq = 0;
 
     private ClientShakeHandler() {
     }
@@ -46,6 +51,31 @@ public final class ClientShakeHandler {
         pinnerId = -1;
         // ele saiu de cima: a cutscene do jumpscare acaba junto
         cinematicLeft = 0;
+    }
+
+    public static void turn(int entityId, int ticks) {
+        turnId = entityId;
+        turnLeft = ticks;
+        turnTotal = Math.max(1, ticks);
+        turnSeq++;
+    }
+
+    public static boolean isTurning() {
+        return turnLeft > 0;
+    }
+
+    public static int getTurnId() {
+        return turnId;
+    }
+
+    /** 0 no começo do giro, 1 no fim. */
+    public static float turnProgress(float partialTick) {
+        if (turnLeft <= 0) return 1F;
+        return Math.min(1F, (turnTotal - turnLeft + partialTick) / turnTotal);
+    }
+
+    public static int turnSeq() {
+        return turnSeq;
     }
 
     public static void cinematic(int ticks) {
@@ -83,6 +113,7 @@ public final class ClientShakeHandler {
     public static void clientTick() {
         if (shakeTicksLeft > 0) shakeTicksLeft--;
         if (cinematicLeft > 0) cinematicLeft--;
+        if (turnLeft > 0) turnLeft--;
         if (pinTicksLeft > 0 && --pinTicksLeft == 0) pinnerId = -1;
     }
 
