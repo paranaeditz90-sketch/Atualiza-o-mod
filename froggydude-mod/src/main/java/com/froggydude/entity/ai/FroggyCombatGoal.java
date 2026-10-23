@@ -1885,9 +1885,10 @@ public class FroggyCombatGoal extends Goal {
             }
             holdOver(victim, RIP_DISTANCE);
             if (t == RIP_BITE) {
-                // crava os dentes no ombro
+                // crava os dentes no ombro (boca aberta até arrancar)
                 hurtNoKnockback(victim, 1.0F);
                 froggy.onBiteHit();
+                froggy.openMouth(4);
                 froggy.spawnBlood(victim, 8);
                 shake(victim, 0.9F, 8);
             } else if (t > RIP_BITE && t < RIP_AT - 1 && (t - RIP_BITE) % 2 == 0) {
@@ -1954,10 +1955,8 @@ public class FroggyCombatGoal extends Goal {
                 froggy.speak(VoiceSituation.CHEWING);  // "mmmm" (se não estiver falando)
             } else if (t == bite + 2) {
                 froggy.spawnMouthBlood(8);             // tranco: arranca o pedaço
-                froggy.openMouth(5);
             } else if (t > bite + 4 && t <= bite + 19 && (t - bite) % 2 == 0) {
                 froggy.spawnMouthBlood(3);             // sacudindo o pedaço na boca
-                froggy.openMouth(3);
             }
         }
         if (t == EAT_SWALLOW) {

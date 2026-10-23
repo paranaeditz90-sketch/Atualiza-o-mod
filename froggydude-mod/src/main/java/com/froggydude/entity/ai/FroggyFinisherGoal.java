@@ -223,7 +223,6 @@ public class FroggyFinisherGoal extends Goal {
         int gulp = Finisher.gulpAt(t, skipLeft);
         if (gulp > 0) {
             froggy.onHeavyChew(true);
-            froggy.openMouth(gulp);
             froggy.spawnMouthBlood(2);
         }
         if ((!skipLeft && t == Finisher.GONE_L) || t == Finisher.GONE_R) froggy.onGulp();

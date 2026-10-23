@@ -1,4 +1,4 @@
-# Froggydude - v0.7.5: ele enxerga até onde tu enxerga (sobre a v0.7.4)
+# Froggydude - v0.7.6: a boca só abre pra língua e pra arrancar (sobre a v0.7.5)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,14 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.5) - a visão e o sorteio de longe:
+O que testar agora (v0.7.6) - a boca:
+A) "Ele fica abrindo a boca toda hora" (LM): a skin de boca aberta aparecia em toda fala, ribbit,
+   pancada, mordida, mastigada, no grito e na fase 2 inteira. Agora (escolha do LM) só em três casos:
+   a língua (o tiro, o chicote, a captura e o tiro na parede), o "vai usar a língua" logo antes, e
+   arrancando um membro (o braço no combate e os braços/cabeça no golpe final, cravando e sacudindo).
+   Falando, comendo, gritando e na fase 2: boca fechada.
+
+Da v0.7.5 - a visão e o sorteio de longe:
 A) VISÃO: do Alto pra cima (Alto, Extra, Máx, REAL) ele te enxerga até a tua distância de renderização
    (12 chunks = 192 blocos), não mais 48-72 blocos. Precisa estar à vista: árvore, morro e parede tapam.
    O jogo cortava a visão dos mobs em 128 blocos; a dele não corta mais. Mín e Médio continuam como eram

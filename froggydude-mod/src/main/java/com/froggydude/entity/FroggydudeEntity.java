@@ -464,7 +464,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public boolean ribbit(float volume) {
         if (this.level().isClientSide || vocalCooldown > 0 || ribbitCooldown > 0) return false;
         this.playSound(ModSounds.RIBBIT.get(), volume, 0.9F + this.getRandom().nextFloat() * 0.2F);
-        openMouth(8);
         vocalCooldown = 14;
         ribbitCooldown = 30;
         return true;
@@ -511,12 +510,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return 240; // à toa ele quase não faz barulho (o ribbit é de raiva: ver ribbit())
     }
 
-    /** O som à toa não entra por cima de uma fala (e abre um pouco a boca). */
+    /** O som à toa não entra por cima de uma fala. */
     @Override
     public void playAmbientSound() {
         if (vocalCooldown > 0 || speakingLine != null || muteTicks > 0) return;
         super.playAmbientSound();
-        openMouth(6);
     }
 
     /** Quando acha uma vítima nova: som de caça (froggydude.hunt). */
@@ -1227,9 +1225,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return this.entityData.get(DATA_MOUTH_STAIN);
     }
 
-    /** Pro renderer: na fase 2 ele passa o tempo todo de boca aberta, gritando. */
+    /**
+     * Pro renderer: a skin de boca aberta. Só na língua (e no "vai usar a língua"), e arrancando
+     * um membro (LM, v0.7.6: "ele fica abrindo a boca toda hora" - antes abria em toda fala,
+     * ribbit, pancada, mordida, no grito e a fase 2 inteira).
+     */
     public boolean isMouthOpen() {
-        if (this.entityData.get(DATA_MOUTH_OPEN) || isFrenzyActive()) return true;
+        if (this.entityData.get(DATA_MOUTH_OPEN)) return true;
         String debug = getDebugAnim();
         return debug.startsWith("tongue_") || debug.equals("roar") || debug.startsWith("dbg_roar");
     }
@@ -1241,18 +1243,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     // ---------------- sons dos golpes (chamados pelas Goals) ----------------
 
-    /** Grunhe/geme (som de categoria), mas não por cima de outra fala (evita encavalar a voz). */
+    /**
+     * Grunhe/geme (som de categoria), mas não por cima de outra fala (evita encavalar a voz).
+     * De boca fechada: a boca aberta é só da língua e de arrancar membro (LM, v0.7.6).
+     */
     public void vocalize(SoundEvent sound, float volume) {
-        vocalize(sound, volume, true);
-    }
-
-    /** mouth = false: geme de boca fechada (na contorção a cara fica a de choro). */
-    public void vocalize(SoundEvent sound, float volume, boolean mouth) {
         if (vocalCooldown > 0) return;
         this.playSound(sound, volume, 0.95F + this.getRandom().nextFloat() * 0.1F);
         vocalCooldown = 30;
         speakingLine = null;
-        if (mouth) openMouth(22);
     }
 
     // ---------------- falas (na ordem dos vídeos, ver entity/voice) ----------------
@@ -1279,7 +1278,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.playSound(ModSounds.VOICE.get(line).get(), situation.volume(), 1.0F);
         speakingLine = line;
         vocalCooldown = line.ticks + 10;
-        openMouth(Math.min(line.ticks, 30));
         return true;
     }
 
@@ -1371,7 +1369,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public void onBiteHit() {
         this.playSound(ModSounds.BITE.get(), 1.0F, 0.9F + this.getRandom().nextFloat() * 0.2F);
-        openMouth(8);
     }
 
     /** O estalo da língua saindo (nos vídeos parece um tiro). */
@@ -1403,7 +1400,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.playSound(ModSounds.SMASH.get(), 1.3F, 0.8F + this.getRandom().nextFloat() * 0.25F);
         // a cada soco ele solta um "tai!" (nos vídeos: "tai tai tai tai tai"); gritando, soca calado
         if (screamTicks <= 0) this.playSound(ModSounds.SMASH_TAI.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
-        openMouth(4);
     }
 
     /** O baque do pulo altíssimo no chão. */
@@ -1414,7 +1410,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Mastigando o braço. */
     public void onChew() {
         this.playSound(ModSounds.CHEW.get(), 1.0F, 0.85F + this.getRandom().nextFloat() * 0.3F);
-        openMouth(8);
     }
 
     /**
@@ -1424,7 +1419,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void onHeavyChew(boolean bone) {
         this.playSound(ModSounds.CHEW.get(), 1.4F, 0.55F + this.getRandom().nextFloat() * 0.15F);
         if (bone) this.playSound(ModSounds.CRACK.get(), 0.8F, 1.1F + this.getRandom().nextFloat() * 0.3F);
-        openMouth(3);
     }
 
     /** Engoliu o pedaço (o "glup"). */
@@ -1488,7 +1482,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         } else {
             this.playSound(ModSounds.CHEW.get(), 0.7F, 0.95F + this.getRandom().nextFloat() * 0.3F);
         }
-        openMouth(PUSHUP_TICKS + 2);
     }
 
     /** Pode ir atrás de aldeão agora (não acabou de comer um)? */
@@ -1809,7 +1802,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             float k = i / (float) (IRK_RIBBITS.length - 1);
             // cada vez mais alto e mais grave
             this.playSound(ModSounds.RIBBIT.get(), 1.6F + 1.4F * k, 1.0F - 0.18F * k + this.getRandom().nextFloat() * 0.06F);
-            openMouth(8);
             if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] ribbit irritado " + (i + 1) + "/" + IRK_RIBBITS.length);
         }
         if (++irkTicks > IRK_TICKS) {
@@ -1860,7 +1852,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.level().playSound(null, this, ModSounds.SCREAM.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
         vocalCooldown = Math.max(vocalCooldown, quietTicks); // não fala por cima do grito
         screamTicks = Math.max(screamTicks, quietTicks);     // nem o "give me your body" que corta
-        openMouth(50);
     }
 
     // ----- pulos -----

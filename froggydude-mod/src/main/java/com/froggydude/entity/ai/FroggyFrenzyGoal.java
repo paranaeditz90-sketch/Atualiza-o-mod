@@ -137,18 +137,17 @@ public class FroggyFrenzyGoal extends Goal {
                 // com o pacote de voz, o som original inteiro (3,4 s)
                 if (t == CONTORT_AT) froggy.playSound(ModSounds.CONTORT.get(), 2.5F, 1.0F);
                 for (int c : CRACK_AT) if (t == c) crack();
-                for (int g : GRUNT_AT) if (t == g) froggy.vocalize(ModSounds.CONTORT_GRUNT.get(), 1.6F, false);
+                for (int g : GRUNT_AT) if (t == g) froggy.vocalize(ModSounds.CONTORT_GRUNT.get(), 1.6F);
             } else if (t < SCREAM_AT && t >= nextCrack) {
                 // curvado: os ossos continuam estalando e ele grunhe (o "pain" tem fala,
                 // "freaking spicy", que não cabe aqui); com o pacote, fica o silêncio do vídeo
                 crack();
-                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.CONTORT_GRUNT.get(), 1.6F, false);
+                if (froggy.getRandom().nextInt(3) == 0) froggy.vocalize(ModSounds.CONTORT_GRUNT.get(), 1.6F);
                 nextCrack = t + 8 + froggy.getRandom().nextInt(14);
             }
             if (t == SCREAM_AT) {
-                // grita ainda torto, de boca aberta até disparar
+                // grita ainda torto até disparar
                 froggy.playScream(SCREAM_TICKS);
-                froggy.openMouth(contortTicks - SCREAM_AT + 20);
                 screamed = true;
             }
             if (t >= contortTicks) {

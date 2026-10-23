@@ -112,7 +112,6 @@ public class FroggyFeastGoal extends Goal {
     private void bite(Vec3 at) {
         float rate = froggy.getFeastRate();
         bites++;
-        froggy.openMouth(4);
         froggy.playSound(ModSounds.FEAST_BITE.get(), 0.75F, (0.85F + froggy.getRandom().nextFloat() * 0.2F) * rate);
         if (bites % 2 == 0 || froggy.getRandom().nextInt(3) == 0) {
             froggy.playSound(ModSounds.FEAST_SQUISH.get(), 0.9F, (0.8F + froggy.getRandom().nextFloat() * 0.25F) * rate);
