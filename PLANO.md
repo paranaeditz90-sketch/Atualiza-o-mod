@@ -489,4 +489,12 @@ Os riscos dessa direção (pra não esquecer):
   edita depois, ou se o mod aceita um pacote de áudio que o próprio usuário põe (igual o pacote de
   voz deste mod).
 
+Respostas do LM (23/10):
+- Controles: estilo "emote", parecido com a roda de emotes do Essential Mod, com várias POSES +
+  animações que fazem as coisas sozinhas. Ex: clica em "correr" e começa a galopar; se atacar um mob
+  nesse modo, em vez de só bater o mod troca sozinho pra se jogar no mob (bote). Ou seja: a roda
+  escolhe o MODO, e o contexto escolhe o golpe.
+- Voz: uma opção de ligar ou desligar as vozes, com as vozes SEPARADAS (pacote à parte, igual
+  neste mod). O mod em si não carrega a voz dele.
+
 Antes de começar: perguntar o que faltar (nome do mod, lista exata de animações/ataques do menu).
