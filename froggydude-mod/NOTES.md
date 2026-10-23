@@ -1,4 +1,4 @@
-# Froggydude - v0.7.4: lá em cima, ele pula (sobre a v0.7.3)
+# Froggydude - v0.7.5: ele enxerga até onde tu enxerga (sobre a v0.7.4)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,24 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.4) - o pulo altíssimo pra te pegar lá em cima (IA REAL):
+O que testar agora (v0.7.5) - a visão e o sorteio de longe:
+A) VISÃO: do Alto pra cima (Alto, Extra, Máx, REAL) ele te enxerga até a tua distância de renderização
+   (12 chunks = 192 blocos), não mais 48-72 blocos. Precisa estar à vista: árvore, morro e parede tapam.
+   O jogo cortava a visão dos mobs em 128 blocos; a dele não corta mais. Mín e Médio continuam como eram
+   (os níveis fáceis seguem fáceis).
+B) O SORTEIO (escolha do LM): quando ele te vê de longe (mais de 32 blocos), sorteia meio a meio:
+   - ATAQUE DIRETO: "Hey, humans!" e vem galopando, sem brincadeira antes.
+   - O BARULHO SEM APARECER: calado (sem o "Hey, humans!"), chega por trás de ti sem ser visto e a uns 10
+     blocos faz barulho: passos, ribbit, passos e a risadinha. Se tu virar e ver ele, ele some na hora.
+     Depois fica sumido de 8 a 16 s e vem a caçada. Na REAL, esse sorteio substitui a brincadeira
+     daquela caçada.
+C) BICHO E ALDEÃO DE LONGE: ele também vê de longe, mas só vai atrás com fome (escolha do LM) - e só se
+   não tiver nada perto. Testado: vaca a 100 blocos, ele foi lá, comeu e "want more".
+   Testado: tu a 150 blocos de costas: chegou por trás, 4 barulhos, sumiu, voltou e te pegou ("I see you"
+   na REAL). Tu a 150 blocos no ataque direto: correu os 150 blocos em ~17 s.
+   No servidor dedicado vale a view-distance do servidor (o jogo não conta a de cada jogador).
+
+Da v0.7.4 - o pulo altíssimo pra te pegar lá em cima (IA REAL):
 A) O QUE O LM VIU: na árvore ele quebrou o bloco embaixo de ti com a língua, mas nem tentou pular. A
    conta do pulo calculado só rodava com 2 s preso, e nessa hora ele estava pendurado no tronco tentando
    escalar ("não está no chão": desistia por mais 2 s) - a língua, com 3 s, chegava antes.

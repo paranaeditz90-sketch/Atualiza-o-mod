@@ -149,6 +149,7 @@ public class FroggyCombatGoal extends Goal {
     private final FroggydudeEntity froggy;
     /** IA Real: o jeito dos vídeos (ver RealTactics). */
     private final RealTactics real;
+    private final FarScare farScare;
     /** O pulo altíssimo calculado da IA Real: onde ele vai cair (null = o pulo comum). */
     private Vec3 arcLand;
     /** Jeito de jogador: pôr bloco, a dancinha, zombar e ir embora. */
@@ -207,6 +208,7 @@ public class FroggyCombatGoal extends Goal {
         this.froggy = froggy;
         this.moves = new PlayerMoves(froggy);
         this.real = new RealTactics(froggy, this);
+        this.farScare = new FarScare(froggy, real);
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
@@ -250,6 +252,8 @@ public class FroggyCombatGoal extends Goal {
     public void stop() {
         moves.reset();
         real.reset();
+        farScare.stop();
+        farFor = null;
         arcLand = null;
         if (froggy.getFroggyState() == FroggyState.BUILD || froggy.getFroggyState() == FroggyState.TAUNT) {
             froggy.setFroggyState(FroggyState.CHASE);
@@ -331,6 +335,9 @@ public class FroggyCombatGoal extends Goal {
         }
 
         froggy.getLookControl().setLookAt(target, 40.0F, 40.0F);
+
+        // te viu de longe e sorteou o medo: o barulho sem aparecer antes da caçada (FarScare)
+        if (farScare.tick(target, dist)) return;
 
         // a vítima subiu numa torre/parede: ele vai atrás, de quatro, parede acima.
         // Nada de ficar olhando de longe nem de puxar com a língua lá de baixo - antes,
@@ -1078,7 +1085,30 @@ public class FroggyCombatGoal extends Goal {
     }
 
     /** IA Real indo pra um ponto de onde vê a vítima (pro pulo calculado): não larga o alvo. */
+    /** Começar a caçada mais longe que isso é "te ver de longe" (o sorteio do FarScare). */
+    public static final double FAR_SPOT = FarScare.FAR;
+
+    /** Quem ele viu de longe nessa caçada (já sorteou: atacar direto ou o barulho sem aparecer). */
+    @javax.annotation.Nullable
+    private java.util.UUID farFor;
+
+    /**
+     * Começo de caçada com a vítima longe (mais de {@link FarScare#FAR}): o sorteio do LM -
+     * {@code scare} = primeiro o barulho sem aparecer, senão ataca direto (sem brincadeira).
+     */
+    public void decideFar(net.minecraft.server.level.ServerPlayer p, boolean scare) {
+        farFor = p.getUUID();
+        if (scare) farScare.start(p);
+        else farScare.stop();
+    }
+
+    boolean farDecided(net.minecraft.world.entity.player.Player p) {
+        return farFor != null && farFor.equals(p.getUUID());
+    }
+
     public boolean holdsTarget() {
+        // no susto de longe ele some de propósito: sabe onde ela está
+        if (farScare.active()) return true;
         if (!real.active()) return false;
         if (real.planningReach() || real.teasing()) return true;
         // ela subiu num lugar logo acima dele (plataforma, torre): ele sabe onde ela está,

@@ -154,7 +154,8 @@ final class RealTactics {
             unseen = Math.max(0, PlayerSight.unseenFor(player, froggy));
             engagedAt = froggy.tickCount;
             endSequences();
-            tease.begin(player);
+            // de longe ele já sorteou (atacar direto ou o barulho sem aparecer): sem brincadeira agora
+            if (!combat.farDecided(player)) tease.begin(player);
         }
         boolean was = seen;
         seen = PlayerSight.sees(player, froggy);

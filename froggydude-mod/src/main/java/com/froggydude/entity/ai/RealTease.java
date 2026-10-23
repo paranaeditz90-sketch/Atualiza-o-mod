@@ -391,7 +391,7 @@ final class RealTease {
             case 1 -> {
                 if (froggy.tickCount % 12 == 0) tactics.moveTo(tactics.blindSpot(p, 10.0D), FroggyCombatGoal.huntSpeed() * 0.4D);
                 if (froggy.tickCount >= nextNoise) {
-                    makeNoise(noises++);
+                    makeNoise(froggy, noises++);
                     nextNoise = froggy.tickCount + 35 + froggy.getRandom().nextInt(30);
                 }
                 if (noises >= 4) flee(p);
@@ -403,7 +403,8 @@ final class RealTease {
         }
     }
 
-    private void makeNoise(int n) {
+    /** Um barulho sem aparecer: passos, ribbit, passos e, no 4º, a risadinha (também no susto de longe). */
+    static void makeNoise(FroggydudeEntity froggy, int n) {
         Level level = froggy.level();
         if (n >= 3) {
             froggy.speak(VoiceSituation.FOUND, true);

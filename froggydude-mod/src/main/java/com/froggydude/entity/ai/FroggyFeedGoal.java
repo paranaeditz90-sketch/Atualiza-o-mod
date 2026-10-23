@@ -142,6 +142,9 @@ public class FroggyFeedGoal extends Goal {
     @Override
     public void start() {
         chaseTimeout = fight ? 240 : 100;
+        // a comida lá longe (vista de longe): tempo de chegar lá
+        LivingEntity victim = froggy.getFeedTarget();
+        if (victim != null) chaseTimeout = Math.max(chaseTimeout, 60 + (int) (froggy.distanceTo(victim) * 3.0F));
         pouncing = false;
         froggy.setFroggyState(FroggyState.CHASE);
     }
@@ -321,10 +324,8 @@ public class FroggyFeedGoal extends Goal {
         // ferido procura mais longe
         double r = SEARCH_RADIUS * FroggyConfig.ai().sense * (froggy.wantsToHeal() ? 1.5D : 1.0D);
         AABB area = froggy.getBoundingBox().inflate(r);
-        List<LivingEntity> nearby = froggy.level().getEntitiesOfClass(LivingEntity.class, area,
-                e -> e.isAlive() && e != froggy && e instanceof Mob && !(e instanceof Monster) && !(e instanceof Player)
-                        && !(e instanceof AbstractVillager v && v.isBaby()));
-        if (nearby.isEmpty()) return null;
+        List<LivingEntity> nearby = froggy.level().getEntitiesOfClass(LivingEntity.class, area, FroggyFeedGoal::food);
+        if (nearby.isEmpty()) return farFood(FroggyFeedGoal::food);
 
         // aldeão primeiro (a comida favorita); depois os feridos (% de vida menor) e os mais próximos
         return nearby.stream()
@@ -335,11 +336,43 @@ public class FroggyFeedGoal extends Goal {
                 .orElse(null);
     }
 
+    private static boolean food(LivingEntity e) {
+        return e.isAlive() && e instanceof Mob && !(e instanceof Monster) && !(e instanceof FroggydudeEntity)
+                && !(e instanceof AbstractVillager v && v.isBaby());
+    }
+
+    /**
+     * Nada perto e com fome (só se chega aqui com fome): o que ele enxerga lá longe, até a
+     * distância de renderização (v0.7.5, LM: "vê, mas só vai com fome"). Só o que está à
+     * vista; o aldeão primeiro, depois o mais perto.
+     */
+    @javax.annotation.Nullable
+    private LivingEntity farFood(java.util.function.Predicate<LivingEntity> what) {
+        double far = froggy.sightRange();
+        if (far <= SEARCH_RADIUS * FroggyConfig.ai().sense * 1.5D) return null;
+        AABB area = froggy.getBoundingBox().inflate(far, 24.0D, far);
+        List<LivingEntity> seen = new java.util.ArrayList<>(froggy.level().getEntitiesOfClass(LivingEntity.class, area,
+                e -> what.test(e) && froggy.distanceToSqr(e) <= far * far));
+        seen.sort(Comparator.comparingInt((LivingEntity e) -> favorite(e) ? 0 : 1).thenComparingDouble(froggy::distanceToSqr));
+        int checks = 0;
+        for (LivingEntity e : seen) {
+            if (++checks > 16) break;
+            if (froggy.hasLineOfSight(e)) {
+                froggy.brainLog(String.format(java.util.Locale.ROOT, "com fome: %s lá longe (%.0f blocos)",
+                        e.getName().getString(), froggy.distanceTo(e)));
+                return e;
+            }
+        }
+        return null;
+    }
+
     /** O aldeão adulto mais perto que ele está vendo. */
     private LivingEntity findFavoriteVillager() {
         AABB area = froggy.getBoundingBox().inflate(SEARCH_RADIUS, 6.0D, SEARCH_RADIUS);
-        return froggy.level().getEntitiesOfClass(AbstractVillager.class, area,
+        LivingEntity near = froggy.level().getEntitiesOfClass(AbstractVillager.class, area,
                         v -> v.isAlive() && !v.isBaby() && froggy.hasLineOfSight(v))
                 .stream().min(Comparator.comparingDouble(froggy::distanceTo)).orElse(null);
+        // com vontade de aldeão (é fome) e nenhum perto: o que ele vê lá longe
+        return near != null ? near : farFood(e -> e instanceof AbstractVillager v && v.isAlive() && !v.isBaby());
     }
 }

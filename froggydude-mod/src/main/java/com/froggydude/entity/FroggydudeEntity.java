@@ -271,6 +271,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private boolean debugStalk = false;
     /** Teste: NBT "DebugPhase2In" (ticks) - entra na fase 2 depois desse tempo (pra filmar do começo). */
     private int debugPhase2In = 0;
+    /** Teste: NBT "DebugFar" - o sorteio de longe sempre dá isso (1 = susto, 2 = ataque); 0 = sorteia. */
+    private int debugFar = 0;
     /** "Apavorar" em vez de "matar": segue de longe, encara, não ataca (ticks restantes). */
     private int stalkTicks = 0;
     /** Comeu blaze: entra na fase 2 assim que der. */
@@ -405,8 +407,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 e -> !isFedOn(e) && !underTruce(e) && !hidingFrom(e) && !stakingOut) {
             @Override
             protected double getFollowDistance() {
-                // o quanto ele enxerga longe depende do nível da IA (48 blocos no Alto)
-                return super.getFollowDistance() * FroggyConfig.ai().sense;
+                // até onde ele enxerga: do Alto pra cima, a distância de renderização (sightRange)
+                return sightRange();
+            }
+
+            @Override
+            protected void findTarget() {
+                // a distância de renderização muda no meio do jogo: o alcance acompanha
+                this.targetConditions.range(getFollowDistance());
+                super.findTarget();
             }
 
             @Override
@@ -540,7 +549,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             } else if (same && lost >= 60 && lost < 2400) {
                 speak(VoiceSituation.FOUND);
             } else if ((!same || lost >= 2400) && !(FroggyConfig.ai().real && target instanceof ServerPlayer sp
-                    && com.froggydude.player.PlayerSight.unseenFor(sp, this) >= 60)) {
+                    && com.froggydude.player.PlayerSight.unseenFor(sp, this) >= 60) && !farScareRoll(target)) {
                 // (na IA Real, chegando sem ser visto, ele não se anuncia: vem o "I see you")
                 speak(VoiceSituation.SPOT);
             }
@@ -551,6 +560,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 beginEngagement((Player) target);
             }
         }
+    }
+
+    /** O sorteio de longe já feito pra essa caçada (a fala de quem viu vem antes dela começar). */
+    @Nullable
+    private Boolean farRoll;
+
+    /**
+     * O sorteio de quando ele te vê de longe: true = primeiro o barulho sem aparecer (aí
+     * ele não grita "Hey, humans!" - não pode se denunciar). Sorteia uma vez por caçada.
+     */
+    private boolean farScareRoll(LivingEntity target) {
+        if (farRoll == null) {
+            farRoll = this.distanceTo(target) > com.froggydude.entity.ai.FroggyCombatGoal.FAR_SPOT
+                    && (debugFar == 1 || debugFar != 2 && this.getRandom().nextBoolean());
+        }
+        return farRoll;
     }
 
     // ---------------- cérebro (brain/): escolhe a estratégia e aprende com o resultado ----------------
@@ -574,6 +599,17 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         boolean up = target.getY() - this.getY() > 2.5D;
         if (s == Strategy.STALK && !debugStalk && (up || debugAttack != null || this.getLastHurtByMob() == target)) {
             s = Strategy.RUSH;
+        }
+        // te viu lá de longe (v0.7.5): sorteia - ataca direto ou primeiro o barulho sem aparecer (LM)
+        double far = this.distanceTo(target);
+        if (far > com.froggydude.entity.ai.FroggyCombatGoal.FAR_SPOT && target instanceof ServerPlayer sp && !m.mockDue
+                && debugAttack == null && !debugStalk && !isFrenzyActive()) {
+            boolean scare = farScareRoll(target);
+            farRoll = null;
+            combatGoal.decideFar(sp, scare);
+            if (s == Strategy.STALK) s = Strategy.RUSH;
+            brainLog(String.format(java.util.Locale.ROOT, "vi %s de longe (%.0f blocos): %s", target.getScoreboardName(), far,
+                    scare ? "primeiro o barulho sem aparecer" : "ataca direto"));
         }
         engagement = new Engagement(target.getUUID(), m.dominantStyle(), s, this.tickCount);
         if (s == Strategy.STALK) startStalking(160 + this.getRandom().nextInt(140));
@@ -1254,6 +1290,31 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (this.tickCount < until) return true;
         fedOn.remove(e.getUUID());
         return false;
+    }
+
+    /**
+     * Até onde ele enxerga (v0.7.5, LM: "ver mobs ou players na mesma distância que o
+     * jogador"): do Alto pra cima, a distância de renderização do mundo - no single player,
+     * a do jogador; no Mín e no Médio, como sempre (48 blocos x o faro do nível).
+     */
+    public double sightRange() {
+        AiLevel ai = FroggyConfig.ai();
+        double base = this.getAttributeValue(Attributes.FOLLOW_RANGE) * ai.sense;
+        if (ai.ordinal() < AiLevel.ALTO.ordinal() || this.getServer() == null) return base;
+        return Math.max(base, this.getServer().getPlayerList().getViewDistance() * 16.0D);
+    }
+
+    /** A linha de visão do jogo corta em 128 blocos: ele enxerga até o sightRange. */
+    @Override
+    public boolean hasLineOfSight(Entity e) {
+        if (e.level() != this.level()) return false;
+        Vec3 eye = new Vec3(this.getX(), this.getEyeY(), this.getZ());
+        Vec3 to = new Vec3(e.getX(), e.getEyeY(), e.getZ());
+        double d = to.distanceTo(eye);
+        if (d <= 128.0D) return super.hasLineOfSight(e);
+        if (d > sightRange()) return false;
+        return this.level().clip(new net.minecraft.world.level.ClipContext(eye, to, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, this)).getType() == net.minecraft.world.phys.HitResult.Type.MISS;
     }
 
     /** O faro está seguindo um rastro (anda de quatro). */
@@ -2283,6 +2344,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugArmless) tag.putBoolean("DebugArmless", true);
         if (debugStalk) tag.putBoolean("DebugStalk", true);
         if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
+        if (debugFar > 0) tag.putInt("DebugFar", debugFar);
     }
 
     @Override
@@ -2314,6 +2376,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.debugArmless = tag.getBoolean("DebugArmless");
         this.debugStalk = tag.getBoolean("DebugStalk");
         this.debugPhase2In = tag.getInt("DebugPhase2In");
+        this.debugFar = tag.getInt("DebugFar");
         this.debugAttack = null;
         for (FroggyState st : FroggyState.values()) {
             if (st.name().equals(tag.getString("DebugAttack"))) this.debugAttack = st;
