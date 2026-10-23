@@ -1,4 +1,4 @@
-# Froggydude - v0.7.0: o corpo despedaçado com física e ele comendo em cima (sobre a v0.6.4)
+# Froggydude - v0.7.1: cacos tortos igual ao vídeo e cacos chutáveis (sobre a v0.7.0)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,21 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.0) - o corpo despedaçado e o banquete:
+O que testar agora (v0.7.1) - os cacos:
+A) CACOS TORTOS: o corpo não quebra mais em 3-8 blocos inteiros. Ele estilhaça em ~60 cacos tortos
+   (aldeão 60, porco 61), cortados por planos aleatórios igual ao Physics Mod: por fora a skin/roupa/
+   armadura de verdade, por dentro (a face do corte) a própria skin esticada e mais escura - por isso cada
+   caco tem cara de pedaço de carne, não de bloco. Quem não sangra (esqueleto, golem, slime...) vira caco
+   sem sangue. Config do cliente: pedacos.cacos (60, de 6 a 150) e pedacos.maximo (300 no mundo todo).
+B) CHUTÁVEIS: passou por cima, empurra. Tu, ele, um mob - quem passar andando pelo monte chuta os cacos
+   pra frente com um pulinho rasteiro e um "squish"; correndo/galopando espalha mais (com limite, pra não
+   virar projétil). Parado em cima não mexe nada. Ele deitado comendo continua fazendo os cacos pularem a
+   cada mordida.
+C) PESO: os cacos dormem quando param (não gastam física), e cada caco desenha a metade dos vértices de
+   antes. No PC de teste, 60 cacos = ~0,4 ms por tick depois que assentam. Se o celular engasgar, baixa
+   pedacos.cacos pra 30.
+
+Da v0.7.0 - o corpo despedaçado e o banquete:
 POR QUE NÃO O PHYSICS MOD: o motor dele é o PhysX da NVIDIA, que vem compilado só pra PC (Windows,
    Linux x86, Mac). No celular (Linux ARM) ele tenta carregar a biblioteca do PC, dá erro e o jogo fecha -
    não tem plano B no código dele, e a licença (All rights reserved) não deixa mexer no jar. Então a

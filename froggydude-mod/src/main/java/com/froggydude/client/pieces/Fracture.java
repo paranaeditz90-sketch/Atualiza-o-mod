@@ -391,20 +391,26 @@ final class Fracture {
         return x < 0F ? 0F : Math.min(1F, x);
     }
 
-    /** Polígonos -> quads (leque de triângulos, o 4º vértice repete o 3º). */
+    /**
+     * Polígonos -> quads. Todo polígono aqui é convexo, então vai em leque de
+     * quadriláteros (0, i, i+1, i+2) - o jogo desenha (0,i,i+1) e (i+1,i+2,0); a sobra
+     * repete o último vértice. Metade dos vértices do leque de triângulos.
+     */
     static float[] toQuads(List<Poly> polys) {
-        int tris = 0;
-        for (Poly p : polys) tris += Math.max(0, p.v.size() - 2);
-        float[] out = new float[tris * 4 * V];
+        int quads = 0;
+        for (Poly p : polys) quads += Math.max(0, p.v.size() - 1) / 2;
+        float[] out = new float[quads * 4 * V];
         int o = 0;
         for (Poly p : polys) {
+            int n = p.v.size();
+            if (n < 3) continue;
             float[] a = p.v.get(0);
-            for (int i = 1; i + 1 < p.v.size(); i++) {
-                float[] b = p.v.get(i), c = p.v.get(i + 1);
+            for (int i = 1; i + 1 < n; i += 2) {
+                float[] b = p.v.get(i), c = p.v.get(i + 1), d = p.v.get(Math.min(i + 2, n - 1));
                 System.arraycopy(a, 0, out, o, V);
                 System.arraycopy(b, 0, out, o + V, V);
                 System.arraycopy(c, 0, out, o + 2 * V, V);
-                System.arraycopy(c, 0, out, o + 3 * V, V);
+                System.arraycopy(d, 0, out, o + 3 * V, V);
                 o += 4 * V;
             }
         }

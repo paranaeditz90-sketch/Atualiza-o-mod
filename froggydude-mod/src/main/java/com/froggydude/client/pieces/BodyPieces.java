@@ -66,6 +66,10 @@ public final class BodyPieces {
     private static final Set<Integer> HIDDEN = new HashSet<>();
     private static ClientLevel pieceLevel;
     private static int nextBody;
+    private static long physNanos;
+    private static int physTicks;
+    private static long drawNanos;
+    private static int drawFrames;
 
     private BodyPieces() {
     }
@@ -247,7 +251,9 @@ public final class BodyPieces {
         FeastSounds.tick(level);
         if (PIECES.isEmpty() || mc.isPaused()) return;
 
+        long t0 = System.nanoTime();
         jostle(level);
+        trample(level);
         for (Piece p : PIECES) {
             p.xo = p.x;
             p.yo = p.y;
@@ -266,6 +272,20 @@ public final class BodyPieces {
                     if (!a.asleep) a.collide(b);
                     if (!b.asleep) b.collide(a);
                 }
+            }
+        }
+        if (Boolean.getBoolean("froggydude.debug")) {
+            physNanos += System.nanoTime() - t0;
+            if (++physTicks == 40) {
+                System.out.println("[FROGGYDEBUG] fisica: " + debugSummary() + ", "
+                        + String.format("%.2f", physNanos / 40.0D / 1.0E6D) + " ms por tick, "
+                        + vertexCount() + " vértices, desenho "
+                        + String.format("%.2f", drawFrames == 0 ? 0 : drawNanos / (double) drawFrames / 1.0E6D)
+                        + " ms em " + drawFrames + " quadros");
+                physTicks = 0;
+                physNanos = 0L;
+                drawNanos = 0L;
+                drawFrames = 0;
             }
         }
         GoreLevel g = FroggyClientConfig.gore();
@@ -343,6 +363,97 @@ public final class BodyPieces {
         }
     }
 
+    /** Quanto tempo até o próximo "squish" de pisar nos cacos (não vira metralhadora). */
+    private static int squishCooldown;
+
+    /**
+     * Quem passa por cima (o jogador, um mob, um aldeão) empurra os cacos: os que estão
+     * nos pés dele saem pra frente, rolando, levando a velocidade de quem chutou (LM: "se
+     * o player passar por cima desses cacos, eles são empurrados"). Pisar no monte
+     * ensanguentado faz um squish. O Froggy deitado comendo não conta (ia espalhar o
+     * monte que ele está comendo) - aí quem mexe é a mordida (jostle).
+     */
+    private static void trample(ClientLevel level) {
+        if (squishCooldown > 0) squishCooldown--;
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE, minZ = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
+        for (Piece p : PIECES) {
+            minX = Math.min(minX, p.x - p.radius);
+            minY = Math.min(minY, p.y - p.radius);
+            minZ = Math.min(minZ, p.z - p.radius);
+            maxX = Math.max(maxX, p.x + p.radius);
+            maxY = Math.max(maxY, p.y + p.radius);
+            maxZ = Math.max(maxZ, p.z + p.radius);
+        }
+        AABB all = new AABB(minX, minY, minZ, maxX, maxY, maxZ).inflate(0.5D);
+        RandomSource r = level.random;
+        Vector3f w = new Vector3f();
+        for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, all,
+                en -> en.isAlive() && !en.isSpectator() && !HIDDEN.contains(en.getId()))) {
+            if (e instanceof FroggydudeEntity f && (f.getFroggyState() == FroggyState.FEAST
+                    || f.getFroggyState() == FroggyState.FEEDING)) {
+                continue;
+            }
+            AABB box = e.getBoundingBox().inflate(0.04D);
+            // a velocidade de quem passa (pelo movimento de verdade: o servidor não manda a dos outros)
+            double vx = (e.getX() - e.xo) * 20D, vy = (e.getY() - e.yo) * 20D, vz = (e.getZ() - e.zo) * 20D;
+            double speed = Math.sqrt(vx * vx + vz * vz);
+            // parado em cima do monte não mexe em nada (só passando ou caindo em cima)
+            if (speed < 0.8D && vy > -2D) continue;
+            // galopando a 15 b/s ele espalha o monte, mas não vira bala
+            if (speed > 7D) {
+                vx *= 7D / speed;
+                vz *= 7D / speed;
+            }
+            for (Piece p : PIECES) {
+                if (p.x + p.radius < box.minX || p.x - p.radius > box.maxX || p.z + p.radius < box.minZ
+                        || p.z - p.radius > box.maxZ || p.y + p.radius < box.minY || p.y - p.radius > box.maxY) {
+                    continue;
+                }
+                boolean hit = false;
+                for (Vector3f s : p.samples) {
+                    p.worldPoint(s, w);
+                    if (box.contains(w.x, w.y, w.z)) {
+                        hit = true;
+                        break;
+                    }
+                }
+                if (!hit) continue;
+                p.wake();
+                // pra fora do pé dele, pra frente se ele está andando
+                double ax = p.x - e.getX(), az = p.z - e.getZ();
+                double al = Math.sqrt(ax * ax + az * az);
+                if (al < 1.0E-3D) {
+                    ax = r.nextGaussian();
+                    az = r.nextGaussian();
+                    al = Math.sqrt(ax * ax + az * az) + 1.0E-6D;
+                }
+                ax /= al;
+                az /= al;
+                // não fica dentro do pé
+                p.x += ax * 0.04D;
+                p.z += az * 0.04D;
+                // um chute por passada: o pé fica uns ticks em cima, sem isso soma e o caco decola
+                if (p.age < p.kickedUntil) continue;
+                p.kickedUntil = p.age + 6;
+                // rasteiro: andando, um pulinho de ~10 cm e vai junto com o pé; correndo/galopando, mais
+                float kick = (float) Math.min(6D, speed);
+                float up = (float) (0.7D + r.nextFloat() * 0.5D + kick * 0.18D + Math.max(0D, vy) * 0.2D);
+                double push = 0.4D + kick * 0.12D;
+                p.vel.set((float) (p.vel.x * 0.3D + ax * push + vx * 0.85D), Math.max(p.vel.y, up),
+                        (float) (p.vel.z * 0.3D + az * push + vz * 0.85D));
+                p.ang.add((float) r.nextGaussian() * (1.5F + kick * 0.8F), (float) r.nextGaussian() * (1.5F + kick * 0.8F),
+                        (float) r.nextGaussian() * (1.5F + kick * 0.8F));
+                if (p.bleeds && squishCooldown <= 0 && FroggyClientConfig.gore().any()) {
+                    squishCooldown = 4 + r.nextInt(5);
+                    level.playLocalSound(p.x, p.y, p.z, net.minecraft.sounds.SoundEvents.SLIME_SQUISH_SMALL,
+                            net.minecraft.sounds.SoundSource.NEUTRAL, 0.35F, 0.7F + r.nextFloat() * 0.3F, false);
+                    if (r.nextInt(2) == 0) ClientBloodFx.droplets(p.x, p.y + 0.05D, p.z, 1, p.bloodColor);
+                }
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- desenho
 
     @SubscribeEvent
@@ -359,7 +470,9 @@ public final class BodyPieces {
         Matrix4f m = ps.last().pose();
         Matrix3f nm = ps.last().normal();
         Quaternionf q = new Quaternionf();
-        Vector3f v = new Vector3f(), n = new Vector3f();
+        Matrix4f pm = new Matrix4f();
+        Matrix3f pn = new Matrix3f();
+        long t0 = System.nanoTime();
         for (Piece p : PIECES) {
             double px = Mth.lerp(partial, p.xo, p.x), py = Mth.lerp(partial, p.yo, p.y), pz = Mth.lerp(partial, p.zo, p.z);
             double ddx = px - cam.x, ddy = py - cam.y, ddz = pz - cam.z;
@@ -370,24 +483,27 @@ public final class BodyPieces {
             }
             p.rotO.slerp(p.rot, partial, q);
             int light = LevelRenderer.getLightColor(level, BlockPos.containing(px, py + 0.15D, pz));
+            // a pose do pedaço vai na matriz (uma conta por pedaço, não por vértice)
+            pm.set(m).translate((float) ddx, (float) ddy, (float) ddz).rotate(q);
+            pn.set(nm).rotate(q);
             for (Piece.Draw d : p.draws) {
                 VertexConsumer vc = buffers.getBuffer(d.type);
                 used.add(d.type);
                 float[] a = d.verts;
                 for (int i = 0; i < a.length; i += ModelCapture.V) {
-                    v.set(a[i], a[i + 1], a[i + 2]).rotate(q).add((float) ddx, (float) ddy, (float) ddz);
-                    n.set(a[i + 9], a[i + 10], a[i + 11]).rotate(q);
-                    vc.vertex(m, v.x, v.y, v.z)
+                    vc.vertex(pm, a[i], a[i + 1], a[i + 2])
                             .color(a[i + 3] * p.tr, a[i + 4] * p.tg, a[i + 5] * p.tb, a[i + 6])
                             .uv(a[i + 7], a[i + 8])
                             .overlayCoords(OverlayTexture.NO_OVERLAY)
                             .uv2(light)
-                            .normal(nm, n.x, n.y, n.z)
+                            .normal(pn, a[i + 9], a[i + 10], a[i + 11])
                             .endVertex();
                 }
             }
         }
         for (RenderType t : used) buffers.endBatch(t);
+        drawNanos += System.nanoTime() - t0;
+        drawFrames++;
     }
 
     /** Jogador despedaçado: não desenha o corpo inteiro por cima dos pedaços. */
@@ -402,6 +518,12 @@ public final class BodyPieces {
         HIDDEN.clear();
         pieceLevel = null;
         FeastSounds.clear();
+    }
+
+    private static int vertexCount() {
+        int c = 0;
+        for (Piece p : PIECES) for (Piece.Draw d : p.draws) c += d.verts.length / ModelCapture.V;
+        return c;
     }
 
     /** Pra testes/depuração: quantos pedaços e quantos dormindo. */
