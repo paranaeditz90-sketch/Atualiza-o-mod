@@ -1,4 +1,4 @@
-# Froggydude - v0.7.2: ele não congela mais longe de ti (sobre a v0.7.1)
+# Froggydude - v0.7.3: tu na árvore não trava mais ele (sobre a v0.7.2)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,20 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.2) - o bug do "corre parado":
+O que testar agora (v0.7.3) - tu em cima da árvore:
+A) A CAUSA: na IA REAL, antes de comer ele passa 2 a 4 minutos "brincando" contigo (os sustos) e nesse
+   tempo não ataca. Um dos sustos é chegar calado e rir no teu ouvido - contigo lá em cima da árvore ele
+   nunca chega no ouvido e ficava até 20 s rodando embaixo, sumia, voltava... parecia não saber o que
+   fazer (o teu print). Nos outros níveis e na caçada da REAL ele já se virava.
+B) AGORA: subir onde ele não chega andando (árvore, pilar, telhado sem escada) conta como fugir, igual
+   correr pra longe. Depois de ~8 s lá em cima ele encerra a brincadeira, te encara ("hora de comer") e
+   parte pra caçada: arranca com a língua as folhas debaixo de ti, escala o tronco ou faz o pulo
+   calculado. E enquanto tu tá lá em cima, o susto de rir no ouvido nem entra no sorteio.
+   Testado: tu na beirada da copa de um carvalho (5 blocos de altura), com a brincadeira ativa: em ~8 s
+   ele parte pra cima, derruba as folhas com a língua e te pega. No ALTO (padrão) e na caçada da REAL,
+   também testado: língua nas folhas embaixo de ti.
+
+Da v0.7.2 - o bug do "corre parado":
 A) A CAUSA: o Minecraft congela os mobs que ficam fora da "distância de simulação" do jogador (no celular
    ela é curta). Ele parava no meio da corrida e o teu jogo continuava mostrando a última animação dele,
    correndo - por isso "corre parado no mesmo lugar" (e as partículas da poção paradas no teu vídeo).

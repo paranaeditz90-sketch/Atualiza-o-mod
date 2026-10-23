@@ -56,6 +56,8 @@ final class RealTease {
     private static final float FEAR_READY = 70.0F;
     /** Fugiu pra mais longe que isso: acabou a brincadeira. */
     private static final double FLED_FAR = 48.0D;
+    /** Lá em cima onde ele não chega andando há esse tempo: acabou a brincadeira. */
+    private static final int UP_HIGH = 160;
     /** Sumido entre um susto e outro. */
     private static final int CALM_MIN = 300;
     private static final int CALM_RANDOM = 400;
@@ -84,6 +86,7 @@ final class RealTease {
     @Nullable
     private Vec3 spot;
     private int spotAt;
+    private int upHighTicks;
 
     RealTease(FroggydudeEntity froggy, RealTactics tactics, FroggyCombatGoal combat) {
         this.froggy = froggy;
@@ -125,6 +128,7 @@ final class RealTease {
         activeSince = froggy.tickCount;
         anchor = p.position();
         calmUntil = 0;
+        upHighTicks = 0;
         if (froggy.level() instanceof ServerLevel level) {
             PreyStudy st = study(level, p);
             long now = level.getGameTime();
@@ -155,6 +159,15 @@ final class RealTease {
         boolean sheLeft = anchor != null && p.position().distanceTo(anchor) > FLED_FAR * 0.5D;
         if (dist > FLED_FAR && sheLeft || dist > FLED_FAR * 1.5D) {
             end(level, st, p, "fugiu pra longe: acabou a brincadeira", false);
+            return false;
+        }
+        // subiu onde ele não chega andando (árvore, pilar, telhado): fugir pra cima também é fugir.
+        // Antes ele seguia brincando e ficava rodando embaixo tentando chegar no ouvido dela (o
+        // susto pelas costas) - "não sabe o que fazer" (print do LM, 22/10). A caçada sabe subir:
+        // língua nas folhas, escalar, o pulo calculado.
+        if (froggy.tickCount % 20 == 0) upHighTicks = upHigh(p) ? upHighTicks + 20 : 0;
+        if (upHighTicks >= UP_HIGH) {
+            end(level, st, p, "subiu onde eu não chego: acabou a brincadeira", true);
             return false;
         }
         if (st.fear(now) >= FEAR_READY || !st.teasing(now)) {
@@ -201,6 +214,11 @@ final class RealTease {
         return true;
     }
 
+    /** Ela está acima dele e não tem caminho andando até ela. */
+    private boolean upHigh(ServerPlayer p) {
+        return p.getY() - froggy.getY() > 2.5D && !tactics.pathTo(p);
+    }
+
     private void end(ServerLevel level, PreyStudy st, ServerPlayer p, String why, boolean ready) {
         long now = level.getGameTime();
         st.teaseUntil = now;
@@ -220,7 +238,8 @@ final class RealTease {
         boolean mealNear = meal != null && meal.distanceTo(p) < 20.0F;
         float[] w = new float[Act.values().length];
         w[Act.PEEK.ordinal()] = 1.0F;
-        w[Act.BEHIND.ordinal()] = enclosed ? 0.2F : 1.0F;
+        // lá em cima ele não chega no ouvido dela
+        w[Act.BEHIND.ordinal()] = upHighTicks > 0 ? 0F : enclosed ? 0.2F : 1.0F;
         w[Act.WINDOW.ordinal()] = enclosed ? 2.0F : 0F;
         w[Act.NOISE.ordinal()] = 0.9F;
         w[Act.EAT.ordinal()] = mealNear ? 0.8F : 0F;

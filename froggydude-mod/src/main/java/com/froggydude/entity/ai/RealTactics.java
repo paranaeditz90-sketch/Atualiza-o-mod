@@ -550,7 +550,7 @@ final class RealTactics {
         return null;
     }
 
-    private boolean pathTo(ServerPlayer p) {
+    boolean pathTo(ServerPlayer p) {
         Path path = froggy.getNavigation().createPath(p, 0);
         return path != null && path.canReach();
     }
