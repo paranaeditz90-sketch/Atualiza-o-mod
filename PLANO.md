@@ -497,4 +497,22 @@ Respostas do LM (23/10):
 - Voz: uma opção de ligar ou desligar as vozes, com as vozes SEPARADAS (pacote à parte, igual
   neste mod). O mod em si não carrega a voz dele.
 
-Antes de começar: perguntar o que faltar (nome do mod, lista exata de animações/ataques do menu).
+Respostas do LM (23/10, antes de começar):
+- Nome: "BecomeLM mode" (privado, não vai ser lançado). Pasta becomelm-mod/, modid becomelm.
+- Roda da v1: Galope de 4 e Em pé/normal.
+- Câmeras de cinema da v1: as 4 - atrás e baixa, de lado acompanhando, na cara dele, a da vítima.
+
+Pesquisa (23/10): não há nada confirmado sobre o que o FroggyDude usa; os jeitos comuns de virar
+criatura no Java são o Figura e o Yes Steve Model (GeckoLib, Forge 1.20.1) - os dois trocam o corpo do
+jogador por um modelo animado do Blockbench. O playerAnimator (a base do Emotecraft) foi abandonado.
+O Zalith 2 só deixa os botões virtuais mandarem tecla - um mod não cria botão na tela dele.
+
+Como vai ser feito:
+- O corpo do jogador vira o modelo do FroggyDude deste mod (mesmo rig, mesmas animações já acertadas
+  com os vídeos), com a skin do próprio jogador (o modelo usa o mapa de skin de jogador).
+- A roda abre com dois toques rápidos no agachar (funciona com qualquer layout do Zalith) ou uma tecla
+  no PC; é uma tela do jogo, então toca-se nos gomos com o dedo. A roda escolhe o modo; o contexto
+  escolhe o golpe (fases seguintes).
+- Por partes: v0.1 = corpo + roda (galope/em pé) + velocidade e pulos + as 4 câmeras + funcionar com
+  amigos; depois os ataques de verdade; depois comer/arrancar/golpe final e as vozes (pacote à parte,
+  com opção de ligar/desligar).
