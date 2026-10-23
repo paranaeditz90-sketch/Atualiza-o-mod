@@ -325,6 +325,20 @@ public class FroggyFinisherGoal extends Goal {
                         anchor.x, anchor.y, anchor.z, yaw, skipLeft));
     }
 
+    /** O aldeão que ele está comendo agora (null se não for aldeão/bicho). */
+    @javax.annotation.Nullable
+    public LivingEntity mobVictim() {
+        return victim != null && !(victim instanceof Player) ? victim : null;
+    }
+
+    /**
+     * Largou o aldeão pra brigar com quem bateu nele (FroggydudeEntity#hurt): antes de
+     * arrancar algum pedaço o aldeão escapa vivo; depois, morre do que já perdeu.
+     */
+    public void interrupt() {
+        if (mobVictim() != null) abort(false);
+    }
+
     @Override
     public void stop() {
         if (!done) abort(!froggy.isAlive());

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.8: o jumpscare vira a tua câmera (sobre a v0.7.7)
+# Froggydude - v0.7.9: o warden e largar a presa (sobre a v0.7.8)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,24 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.8) - o jumpscare te obriga a olhar:
+O que testar agora (v0.7.9) - o warden e largar a presa:
+A) O WARDEN (LM: "o froggydude não tenta atacar o warden"): viu um warden a até 24 blocos (e não está
+   no meio de uma caçada de gente), vai pra cima. O warden solta o boom antes dele chegar: ele voa longe,
+   levanta e volta com o dobro da velocidade. Pega o warden, derruba e come vivo em rodadas: cada mordida
+   tira 3,5% da vida do warden (o warden toma dano das mordidas, como tu pediu); no fim de cada rodada
+   (2,5 s), se o warden ainda estiver forte, ele se solta e solta o boom à queima-roupa - lá vai o
+   FroggyDude voando de novo. Fraco (35% ou menos): ele come o warden de vez e o corpo vira cacos (ciano).
+   Testado: 500 -> 356 -> 212 -> comido, 3 rodadas, uns 50 s de briga.
+B) LARGAR A PRESA (LM: "de vez em quando largar a presa e atacar quem está atacando ele - não tão raro,
+   mas mediano - às vezes continua"): alguém bate nele no meio da refeição (bicho, os pedaços, o aldeão -
+   até no meio de arrancar os braços) ou com gente presa embaixo dele: na primeira pancada, meio a meio,
+   ou ele larga e vai pra cima de quem bateu, ou continua comendo com raiva (ribbit). Continuando, se
+   apanhar mais de 25% da vida durante a refeição, larga de qualquer jeito. O aldeão largado antes de
+   perder algum pedaço escapa vivo.
+   Testado: golem batendo nele no banquete do aldeão - uma vez largou e comeu o golem, outra continuou
+   comendo e pegou o golem depois.
+
+Da v0.7.8 - o jumpscare te obriga a olhar:
 A) LM: "o jogo deveria forçar o jogador a olhar pra trás e tomar o jumpscare". Agora, quando a fala acaba
    (ou tu vira sozinho), ele aparece EM PÉ colado nas tuas costas, de onde veio a voz, e o jogo vira a tua
    câmera à força num giro rápido (~0,3 s, com o clarão vermelho) até a cara dele, na altura do teu olho -

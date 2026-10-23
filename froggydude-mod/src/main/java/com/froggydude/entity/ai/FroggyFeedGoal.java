@@ -53,6 +53,13 @@ public class FroggyFeedGoal extends Goal {
      * ele continua em cima, comendo os pedaços (FroggyFeastGoal, v0.7).
      */
     private static final int KILL_TICKS = 50;
+    /**
+     * Warden (v0.7.9, LM: "vem com tudo pra cima do warden, enquanto o warden toma dano por
+     * causa das mordidas"): cada mordida tira 3,5% da vida dele; no fim da rodada (2,5 s), se
+     * ainda tiver mais de 35%, o warden joga ele longe com o boom e ele volta. Fraco: come.
+     */
+    private static final float WARDEN_BITE = 0.035F;
+    private static final float WARDEN_EAT_AT = 0.35F;
     /** O bote (animação jump_pin, igual ao do jogador): impulso no tick 4, 11 ticks no ar. */
     private static final int POUNCE_LAUNCH = 4;
     private static final int POUNCE_AIR = 11;
@@ -272,6 +279,12 @@ public class FroggyFeedGoal extends Goal {
         }
         if (FroggydudeEntity.pushupBite(t)) {
             froggy.onPushupBite(t);
+            if (victim instanceof net.minecraft.world.entity.monster.warden.Warden w) {
+                // a mordida vem a cada 0,3 s e o "invulnerável" depois de apanhar dura 0,5: sem
+                // isso metade das mordidas não contava
+                w.invulnerableTime = 0;
+                w.hurt(froggy.damageSources().mobAttack(froggy), w.getMaxHealth() * WARDEN_BITE);
+            }
             // cada mordida cura um tico (uns +20% numa refeição inteira, mais os 20% do fim)
             froggy.heal(froggy.getMaxHealth() * 0.01F);
             BloodType type = BloodType.of(victim);
@@ -286,6 +299,14 @@ public class FroggyFeedGoal extends Goal {
             if ((t / FroggydudeEntity.PUSHUP_TICKS) % 3 == 1) {
                 froggy.spawnMouthBlood(2, BloodType.residue(victim), type.bleeds());
             }
+        }
+        if (t >= KILL_TICKS && victim instanceof net.minecraft.world.entity.monster.warden.Warden w
+                && w.isAlive() && w.getHealth() > w.getMaxHealth() * WARDEN_EAT_AT) {
+            // ainda forte: o warden se solta e joga ele longe com o boom (ele volta com tudo)
+            FeedLock.release(w);
+            froggy.setFeedTarget(null);
+            froggy.wardenThrow(w);
+            return;
         }
         if (t >= KILL_TICKS) {
             FeedLock.release(victim);

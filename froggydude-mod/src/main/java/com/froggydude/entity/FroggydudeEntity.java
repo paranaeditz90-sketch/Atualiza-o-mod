@@ -520,6 +520,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Quando acha uma vítima nova: som de caça (froggydude.hunt). */
     @Override
     public void setTarget(@Nullable LivingEntity target) {
+        // continuou comendo apesar de quem bateu (o sorteio de hurt): não troca de alvo agora
+        if (target != null && target.getId() == ignoreAttackerId && this.tickCount < ignoreAttackerUntil
+                && busyWithPrey()) {
+            return;
+        }
         // trégua ("Não mexe comigo"): nem o faro, nem o manhunt, nem nada põe esse jogador
         // na mira - só se ele bater primeiro (hurt() quebra a trégua antes)
         if (target != null && !this.level().isClientSide && underTruce(target)) target = null;
@@ -1594,6 +1599,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                     }
                 }
             }
+            // o warden à vista (v0.7.9, LM: "o froggydude não tenta atacar o warden"): vai pra cima.
+            // O warden, bravo com ele, solta o boom antes dele chegar - e é o boom que deixa ele
+            // com raiva de verdade (ver hurt): volta com o dobro da velocidade
+            if (m instanceof net.minecraft.world.entity.monster.warden.Warden w && !busyWithPlayer
+                    && !(this.getTarget() instanceof Player) && this.getTarget() != w && this.getFeedTarget() == null
+                    && !isFinishing() && this.distanceTo(w) < 24.0F && this.hasLineOfSight(w)) {
+                setTarget(w);
+                brainLog("um warden: vou pra cima dele");
+            }
             // vindo pra cima dele: vira a comida (se não estiver no meio de uma caçada de gente).
             // O warden não: primeiro vem o boom, e é o boom que deixa ele com raiva (ver hurt)
             if (huntsMe && !busyWithPlayer && this.getTarget() == null && !(m instanceof net.minecraft.world.entity.monster.warden.Warden)) {
@@ -1601,6 +1615,98 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 brainLog(m.getName().getString() + " veio brigar: vira comida");
             }
         }
+    }
+
+    // ----- apanhando no meio da refeição: larga ou continua (v0.7.9) -----
+
+    /** De qual presa é a decisão (o id; -2 = os pedaços do banquete), e qual foi (0 nada, 1 larga, 2 continua). */
+    private int preyDecisionFor = -1;
+    private int preyDecision;
+    private float preyHealthAtStart;
+    /** Continuou comendo: quem bateu não vira o alvo até acabar (ou 10 s). */
+    private int ignoreAttackerId = -1;
+    private int ignoreAttackerUntil;
+
+    /** Comendo (bicho, os pedaços, o aldeão) ou com gente presa embaixo dele. */
+    private boolean busyWithPrey() {
+        FroggyState s = getFroggyState();
+        return s == FroggyState.FEEDING || s == FroggyState.FEAST || s == FroggyState.PIN_HOLD
+                || s == FroggyState.SMASH || s == FroggyState.ARM_RIP
+                || s == FroggyState.FINISHER && finisherGoal.mobVictim() != null;
+    }
+
+    @Nullable
+    private LivingEntity busyPrey() {
+        return switch (getFroggyState()) {
+            case FEEDING -> getFeedTarget();
+            case FINISHER -> finisherGoal.mobVictim();
+            case PIN_HOLD, SMASH, ARM_RIP -> getPinnedVictim();
+            default -> null;
+        };
+    }
+
+    /**
+     * Sorteio meio a meio na primeira pancada de cada refeição: larga a presa e vai pra
+     * cima de quem bateu, ou continua comendo (com raiva). Continuando, se apanhar mais
+     * de 25% da vida durante a refeição, larga de qualquer jeito.
+     */
+    private void reactWhileBusy(LivingEntity attacker, @Nullable LivingEntity prey, float healthBefore) {
+        int preyId = prey == null ? -2 : prey.getId();
+        if (preyDecisionFor != preyId) {
+            preyDecisionFor = preyId;
+            preyDecision = 0;
+            preyHealthAtStart = healthBefore;
+        }
+        if (preyDecision == 0) {
+            preyDecision = this.getRandom().nextBoolean() ? 1 : 2;
+            if (preyDecision == 2) brainLog(attacker.getName().getString() + " me bateu: continuo comendo");
+        } else if (preyDecision == 2 && preyHealthAtStart - this.getHealth() > this.getMaxHealth() * 0.25F) {
+            preyDecision = 1;
+        }
+        ribbit(2.0F);
+        if (preyDecision == 2) {
+            ignoreAttackerId = attacker.getId();
+            ignoreAttackerUntil = this.tickCount + 200;
+            return;
+        }
+        // larga
+        ignoreAttackerId = -1;
+        FroggyState s = getFroggyState();
+        if (s == FroggyState.FINISHER) {
+            finisherGoal.interrupt();
+        } else if (s == FroggyState.FEEDING || s == FroggyState.FEAST) {
+            setFeedTarget(null);
+            if (s == FroggyState.FEAST) endFeast(false);
+        } else {
+            if (getPinnedVictim() instanceof ServerPlayer player) PinTracker.release(player);
+            setPinnedVictim(null);
+            setHeldArm(null);
+            setAttackCooldown(10);
+        }
+        setFroggyState(FroggyState.CHASE);
+        setTarget(attacker);
+        brainLog("larguei " + (prey == null ? "a comida" : prey.getName().getString()) + ": "
+                + attacker.getName().getString() + " me bateu");
+    }
+
+    /**
+     * No fim de uma rodada comendo o warden vivo, o warden se solta e solta o boom à queima-
+     * roupa (a animação, o som, o raio): ele voa longe e volta com tudo (hurt, SONIC_BOOM).
+     */
+    public void wardenThrow(net.minecraft.world.entity.monster.warden.Warden w) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        setFroggyState(FroggyState.CHASE);
+        server.broadcastEntityEvent(w, (byte) 62);
+        w.playSound(SoundEvents.WARDEN_SONIC_BOOM, 3.0F, 1.0F);
+        Vec3 from = w.position().add(0, 1.6D, 0);
+        Vec3 d = this.position().add(0, 1.0D, 0).subtract(from);
+        int n = Math.max(1, Mth.floor(d.length()));
+        for (int i = 1; i <= n; i++) {
+            Vec3 at = from.add(d.scale(i / (double) n));
+            server.sendParticles(ParticleTypes.SONIC_BOOM, at.x, at.y, at.z, 1, 0, 0, 0, 0);
+        }
+        this.hurt(this.damageSources().sonicBoom(w), 10.0F);
+        brainLog(String.format(java.util.Locale.ROOT, "o warden (%.0f de vida) se soltou e me jogou longe", w.getHealth()));
     }
 
     // ----- IA Real (entity/ai/RealTactics, FroggyRetreatGoal) -----
@@ -2325,14 +2431,18 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             } else if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_EXPLOSION)) {
                 setSkinVariant(SkinVariant.SMASHED);
             }
-            if (wasFeeding) {
-                // interrompido comendo: larga a vítima (ou os pedaços) e revida na hora
+            LivingEntity prey = busyPrey();
+            if (source.getEntity() instanceof LivingEntity attacker && attacker != this && attacker != prey
+                    && busyWithPrey() && !source.is(net.minecraft.world.damagesource.DamageTypes.SONIC_BOOM)) {
+                // alguém bateu nele no meio da refeição (ou com gente presa embaixo): larga e briga,
+                // ou continua (LM: "de vez em quando largar a presa e atacar quem está atacando
+                // ele - não tão raro, mas mediano - às vezes continua")
+                reactWhileBusy(attacker, prey, before);
+            } else if (wasFeeding && !(source.getEntity() instanceof LivingEntity)) {
+                // queimando, caindo...: larga a refeição
                 setFeedTarget(null);
                 if (state == FroggyState.FEAST) endFeast(false);
                 setFroggyState(FroggyState.CHASE);
-                if (source.getEntity() instanceof LivingEntity attacker) {
-                    setTarget(attacker);
-                }
             }
         }
         return hurt;
