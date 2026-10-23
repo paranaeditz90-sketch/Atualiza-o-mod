@@ -1355,6 +1355,24 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return line;
     }
 
+    /** Cala a fala que está tocando (o jumpscare corta o "I see you" quando aparece). */
+    public void stopSpeaking() {
+        if (this.level() instanceof ServerLevel server) stopSpeaking(server);
+    }
+
+    /** Teste/comando: o jumpscare na próxima chance, sem esperar os 3 dias. */
+    private boolean forcedJumpscare;
+
+    public void forceJumpscare() {
+        forcedJumpscare = true;
+    }
+
+    public boolean takeForcedJumpscare() {
+        boolean f = forcedJumpscare;
+        forcedJumpscare = false;
+        return f;
+    }
+
     /** Cala a fala que está tocando, pra quem está por perto. */
     private void stopSpeaking(ServerLevel server) {
         if (speakingLine == null) return;
@@ -2094,7 +2112,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
         // galope: cada patada levanta uma nuvem de poeira e faz barulho
         // (vs AJ, 0:34 e 7:45 - a poeira fica pra trás dele)
-        if (isRunning() && isMovingSynced() && this.onGround() && !isClimbing()
+        // (sumido no jumpscare: nada de poeira entregando onde ele está)
+        if (isRunning() && isMovingSynced() && this.onGround() && !isClimbing() && !this.isInvisible()
                 && getFroggyState() == FroggyState.CHASE) {
             // duas patadas por passada: galope = 5 ticks por passada, corrida da fase 2 = 6
             double step = isFrenzyActive() ? 3.0D : 2.5D;

@@ -67,6 +67,7 @@ public final class FroggyCommand {
                         .then(Commands.literal("parar").executes(c -> stopManhunt(c.getSource()))))
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
                 .then(Commands.literal("irritar").requires(FroggyCommand::admin).executes(c -> irk(c.getSource())))
+                .then(Commands.literal("susto").requires(FroggyCommand::admin).executes(c -> jumpscare(c.getSource())))
                 // jeito de jogador, pra testar sem ter que morrer 3 vezes
                 .then(Commands.literal("zombar").requires(FroggyCommand::admin).executes(c -> mock(c.getSource())))
                 .then(Commands.literal("dancar").requires(FroggyCommand::admin).executes(c -> dance(c.getSource())))
@@ -283,6 +284,18 @@ public final class FroggyCommand {
             return 0;
         }
         src.sendSuccess(() -> Component.literal("Irritado: os ribbits e a transformação."), true);
+        return 1;
+    }
+
+    /** O jumpscare raro, agora (sem esperar os 3 dias): na próxima vez que ele estiver te caçando. */
+    private static int jumpscare(CommandSourceStack src) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(Component.literal("O FroggyDude não está carregado."));
+            return 0;
+        }
+        f.forceJumpscare();
+        src.sendSuccess(() -> Component.literal("Jumpscare armado: quando ele estiver te caçando, ele some..."), true);
         return 1;
     }
 

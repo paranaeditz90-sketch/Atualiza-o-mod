@@ -54,6 +54,11 @@ public final class ModNetwork {
         send(player, new FroggyShakePacket(intensity, durationTicks, pinTicks, pinnerId));
     }
 
+    /** O jumpscare: tremor forte e a cutscene (sem HUD, faixas pretas) por {@code ticks}. */
+    public static void sendJumpscare(ServerPlayer player, int ticks) {
+        send(player, new FroggyShakePacket(2.6F, 14, 0, -1, ticks));
+    }
+
     /** Solta o jogador antes do tempo (Froggy derrubado, morto ou longe). */
     public static void sendRelease(ServerPlayer player) {
         send(player, new FroggyShakePacket(0F, 0, FroggyShakePacket.RELEASE, -1));

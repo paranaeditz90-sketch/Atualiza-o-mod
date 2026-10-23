@@ -18,6 +18,9 @@ public final class ClientShakeHandler {
 
     private static int pinTicksLeft = 0;
     private static int pinnerId = -1;
+    /** A cutscene do jumpscare (sem HUD, faixas pretas): ticks restantes e o total. */
+    private static int cinematicLeft = 0;
+    private static int cinematicTotal = 1;
 
     private ClientShakeHandler() {
     }
@@ -41,6 +44,26 @@ public final class ClientShakeHandler {
     public static void release() {
         pinTicksLeft = 0;
         pinnerId = -1;
+        // ele saiu de cima: a cutscene do jumpscare acaba junto
+        cinematicLeft = 0;
+    }
+
+    public static void cinematic(int ticks) {
+        cinematicLeft = ticks;
+        cinematicTotal = Math.max(1, ticks);
+    }
+
+    public static boolean isCinematic() {
+        return cinematicLeft > 0;
+    }
+
+    /** Há quantos ticks a cutscene começou (pras faixas entrarem e saírem suaves). */
+    public static int cinematicAge() {
+        return cinematicTotal - cinematicLeft;
+    }
+
+    public static int cinematicLeft() {
+        return cinematicLeft;
     }
 
     public static boolean isPinned() {
@@ -59,6 +82,7 @@ public final class ClientShakeHandler {
 
     public static void clientTick() {
         if (shakeTicksLeft > 0) shakeTicksLeft--;
+        if (cinematicLeft > 0) cinematicLeft--;
         if (pinTicksLeft > 0 && --pinTicksLeft == 0) pinnerId = -1;
     }
 

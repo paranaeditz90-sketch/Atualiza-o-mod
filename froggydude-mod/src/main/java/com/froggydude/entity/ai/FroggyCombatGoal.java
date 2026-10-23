@@ -150,6 +150,9 @@ public class FroggyCombatGoal extends Goal {
     /** IA Real: o jeito dos vídeos (ver RealTactics). */
     private final RealTactics real;
     private final FarScare farScare;
+    private final JumpScare jumpScare;
+    /** O esmagamento do jumpscare: no fim ele sai de cima (a luta segue) em vez de comer vivo. */
+    private boolean jumpscareRelease;
     /** O pulo altíssimo calculado da IA Real: onde ele vai cair (null = o pulo comum). */
     private Vec3 arcLand;
     /** Jeito de jogador: pôr bloco, a dancinha, zombar e ir embora. */
@@ -209,6 +212,7 @@ public class FroggyCombatGoal extends Goal {
         this.moves = new PlayerMoves(froggy);
         this.real = new RealTactics(froggy, this);
         this.farScare = new FarScare(froggy, real);
+        this.jumpScare = new JumpScare(froggy, this, real);
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
@@ -254,6 +258,7 @@ public class FroggyCombatGoal extends Goal {
         real.reset();
         farScare.stop();
         farFor = null;
+        jumpScare.stop();
         arcLand = null;
         if (froggy.getFroggyState() == FroggyState.BUILD || froggy.getFroggyState() == FroggyState.TAUNT) {
             froggy.setFroggyState(FroggyState.CHASE);
@@ -288,6 +293,8 @@ public class FroggyCombatGoal extends Goal {
         trackTarget(target);
         double dist = froggy.distanceTo(target);
         if (froggy.tickCount % 10 == 0) observe(target, dist);
+        // o jumpscare raro: some, "I see you" nas costas, na tua cara (JumpScare)
+        if (jumpScare.tick(target, dist)) return;
 
         switch (state) {
             case PIN_HOLD -> {
@@ -1102,13 +1109,25 @@ public class FroggyCombatGoal extends Goal {
         else farScare.stop();
     }
 
+    /** Assustando de outro jeito agora (o barulho de longe, a brincadeira da REAL): sem jumpscare. */
+    boolean scaring() {
+        return farScare.active() || real.teasing();
+    }
+
+    /** O jumpscare caiu em cima dela: o esmagamento curto (a cutscene) e depois solta. */
+    void jumpscareSmash(net.minecraft.server.level.ServerPlayer p) {
+        beginSmash(FroggyState.JUMP_PIN, p, 2.2F);
+        stateLength = JumpScare.SMASH_TICKS;
+        jumpscareRelease = true;
+    }
+
     boolean farDecided(net.minecraft.world.entity.player.Player p) {
         return farFor != null && farFor.equals(p.getUUID());
     }
 
     public boolean holdsTarget() {
-        // no susto de longe ele some de propósito: sabe onde ela está
-        if (farScare.active()) return true;
+        // no susto de longe e no jumpscare ele some de propósito: sabe onde ela está
+        if (farScare.active() || jumpScare.active()) return true;
         if (!real.active()) return false;
         if (real.planningReach() || real.teasing()) return true;
         // ela subiu num lugar logo acima dele (plataforma, torre): ele sabe onde ela está,
@@ -1820,6 +1839,14 @@ public class FroggyCombatGoal extends Goal {
             endOnVictim();
             return;
         }
+        if (t >= stateLength && jumpscareRelease) {
+            // o fim da cutscene do jumpscare: sai de cima e a luta segue (tu começa perdendo,
+            // mas tem uns 3 s pra levantar - senão ele pegava de novo na hora)
+            debug("jumpscare: fim da cutscene, solta");
+            endOnVictim();
+            froggy.setAttackCooldown(60);
+            return;
+        }
         if (t >= stateLength) {
             // a sequência (LM): cai em cima, ESMAGA e em seguida começa a comer vivo.
             // A mordida que mataria vira o golpe final (FinisherEvents)
@@ -1981,6 +2008,7 @@ public class FroggyCombatGoal extends Goal {
 
     /** Sai de cima da vítima e continua a caçada (não recua: ele não foge de ninguém). */
     private void endOnVictim() {
+        jumpscareRelease = false;
         releaseVictim();
         froggy.setAttackCooldown(20);
         froggy.setFroggyState(FroggyState.CHASE);

@@ -93,6 +93,8 @@ public class PreyStudy {
     public long teaseUntil;
     /** Quando foi a última brincadeira (pra não recomeçar toda hora). */
     public long teaseStarted = Long.MIN_VALUE / 2;
+    /** O próximo jumpscare (JumpScare) pode vir a partir daqui (hora do jogo); 0 = ainda não sorteado. */
+    public long jumpscareAt;
 
     /** Ela usou esse lugar agora. */
     public void visit(Kind kind, BlockPos pos, String dim, long now, boolean roofed) {
@@ -172,6 +174,7 @@ public class PreyStudy {
         t.putLong("FearAt", fearAt);
         t.putLong("TeaseUntil", teaseUntil);
         t.putLong("TeaseStarted", teaseStarted);
+        t.putLong("JumpscareAt", jumpscareAt);
         return t;
     }
 
@@ -185,5 +188,6 @@ public class PreyStudy {
         fearAt = t.getLong("FearAt");
         teaseUntil = t.getLong("TeaseUntil");
         teaseStarted = t.contains("TeaseStarted") ? t.getLong("TeaseStarted") : Long.MIN_VALUE / 2;
+        jumpscareAt = t.getLong("JumpscareAt");
     }
 }

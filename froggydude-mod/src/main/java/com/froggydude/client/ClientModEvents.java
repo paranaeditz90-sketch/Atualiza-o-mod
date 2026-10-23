@@ -43,8 +43,10 @@ public class ClientModEvents {
         event.registerBelowAll("blood_screen", (gui, gfx, partial, w, h) ->
                 com.froggydude.client.gore.ScreenBlood.render(gfx, partial, w, h));
         // faixas pretas e o escuro da cutscene do golpe final: por cima de tudo
-        event.registerAboveAll("cutscene", (gui, gfx, partial, w, h) ->
-                com.froggydude.client.cutscene.CinematicCamera.renderOverlay(gfx, partial, w, h));
+        event.registerAboveAll("cutscene", (gui, gfx, partial, w, h) -> {
+            com.froggydude.client.cutscene.CinematicCamera.renderOverlay(gfx, partial, w, h);
+            JumpscareView.render(gfx, partial, w, h);
+        });
     }
 
     /** Os pedaços de sangue. */

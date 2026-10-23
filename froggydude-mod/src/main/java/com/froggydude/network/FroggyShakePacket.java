@@ -18,12 +18,19 @@ public class FroggyShakePacket {
     private final int durationTicks;
     private final int pinTicks;
     private final int pinnerId;
+    /** A cutscene do jumpscare: sem HUD e faixas pretas por esse tempo (0 = nada). */
+    private final int cinematicTicks;
 
     public FroggyShakePacket(float intensity, int durationTicks, int pinTicks, int pinnerId) {
+        this(intensity, durationTicks, pinTicks, pinnerId, 0);
+    }
+
+    public FroggyShakePacket(float intensity, int durationTicks, int pinTicks, int pinnerId, int cinematicTicks) {
         this.intensity = intensity;
         this.durationTicks = durationTicks;
         this.pinTicks = pinTicks;
         this.pinnerId = pinnerId;
+        this.cinematicTicks = cinematicTicks;
     }
 
     public static void encode(FroggyShakePacket msg, FriendlyByteBuf buf) {
@@ -31,10 +38,11 @@ public class FroggyShakePacket {
         buf.writeVarInt(msg.durationTicks);
         buf.writeInt(msg.pinTicks);
         buf.writeInt(msg.pinnerId);
+        buf.writeVarInt(msg.cinematicTicks);
     }
 
     public static FroggyShakePacket decode(FriendlyByteBuf buf) {
-        return new FroggyShakePacket(buf.readFloat(), buf.readVarInt(), buf.readInt(), buf.readInt());
+        return new FroggyShakePacket(buf.readFloat(), buf.readVarInt(), buf.readInt(), buf.readInt(), buf.readVarInt());
     }
 
     public static void handle(FroggyShakePacket msg, Supplier<NetworkEvent.Context> ctx) {
@@ -48,6 +56,9 @@ public class FroggyShakePacket {
             }
             if (msg.pinTicks > 0) {
                 ClientShakeHandler.pin(msg.pinTicks, msg.pinnerId);
+            }
+            if (msg.cinematicTicks > 0) {
+                ClientShakeHandler.cinematic(msg.cinematicTicks);
             }
         });
         ctx.get().setPacketHandled(true);

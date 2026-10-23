@@ -1,4 +1,4 @@
-# Froggydude - v0.7.6: a boca só abre pra língua e pra arrancar (sobre a v0.7.5)
+# Froggydude - v0.7.7: o jumpscare raro (sobre a v0.7.6)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,20 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.6) - a boca:
+O que testar agora (v0.7.7) - o jumpscare (ideia do LM):
+A) BEM RARO: no máximo 1 a cada 3 dias do jogo por jogador (o primeiro vem em algum momento entre o 1º e
+   o 3º dia de caçada). Acontece quando ele está te caçando e tu PERDE ELE DE VISTA (1,5 s sem ver).
+B) A SEQUÊNCIA: ele SOME (invisível, sem passos, sem poeira) e vem pelas tuas costas. Silêncio. Atrás de
+   ti, colado: "I SEE YOU! HIHIHI... you can't hide from me!" (pacote de voz; sem ele, um ribbit baixo).
+   Quando tu vira pra ver de onde vem a voz - ou a fala acaba - já é tarde: ele aparece na tua cara e se
+   joga em ti. Clarão vermelho, some o HUD, faixas pretas de cinema: ~5 s dele em cima de ti descendo os
+   braços (o esmagamento). Depois sai de cima e a luta segue - tu começa perdendo, mas tem uns 3 s pra
+   levantar e reagir (escolha do LM: "dá pra lutar").
+C) PRA TESTAR SEM ESPERAR 3 DIAS: /froggydude susto (arma o jumpscare: na próxima vez que ele estiver te
+   caçando, ele some...).
+   Testado: ele a 20 blocos, some, a fala nas costas, aparece na cara, 5 s de cutscene, solta.
+
+Da v0.7.6 - a boca:
 A) "Ele fica abrindo a boca toda hora" (LM): a skin de boca aberta aparecia em toda fala, ribbit,
    pancada, mordida, mastigada, no grito e na fase 2 inteira. Agora (escolha do LM) só em três casos:
    a língua (o tiro, o chicote, a captura e o tiro na parede), o "vai usar a língua" logo antes, e
