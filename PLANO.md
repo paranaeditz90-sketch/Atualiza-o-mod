@@ -516,3 +516,9 @@ Como vai ser feito:
 - Por partes: v0.1 = corpo + roda (galope/em pé) + velocidade e pulos + as 4 câmeras + funcionar com
   amigos; depois os ataques de verdade; depois comer/arrancar/golpe final e as vozes (pacote à parte,
   com opção de ligar/desligar).
+
+v0.1.0 (23/10) - feito e testado no jogo (sozinho e com 2 clientes num servidor dedicado):
+corpo com a skin do jogador, roda (2 toques no agachar / R), galope ~14 b/s com poeira e som,
+bote, pulo super alto carregado no agachar, sem dano de queda, as 4 câmeras (V), comando
+/becomelm. Detalhes e limites em becomelm-mod/NOTES.md. Próximo: os ataques (o contexto escolhe
+o golpe: bote em cima do bicho, esmagamento, língua...).

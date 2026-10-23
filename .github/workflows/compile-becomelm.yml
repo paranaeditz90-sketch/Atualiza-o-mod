@@ -1,0 +1,52 @@
+name: Compilar BecomeLM mode (.jar)
+
+# Roda a cada push que mexe no BecomeLM (em qualquer branch) e também pelo botão
+# "Run workflow" na aba Actions.
+on:
+  push:
+    paths:
+      - 'becomelm-mod/**'
+      - '.github/workflows/compile-becomelm.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compilar com Java 17
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: becomelm-mod
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar Java 17 (Forge 1.20.1)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Preparar Gradle (com cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+      - name: Juntar o mod e o GeckoLib numa pasta "mods"
+        run: |
+          GECKO_VERSION=$(grep '^geckolib_version=' gradle.properties | cut -d= -f2)
+          mkdir -p ../mods
+          cp build/libs/becomelm-*.jar ../mods/
+          curl -fsSL -o "../mods/geckolib-forge-1.20.1-${GECKO_VERSION}.jar" \
+            "https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/software/bernie/geckolib/geckolib-forge-1.20.1/${GECKO_VERSION}/geckolib-forge-1.20.1-${GECKO_VERSION}.jar"
+          ls -la ../mods
+
+      - name: Disponibilizar os .jar (aba Actions > esta execução > Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: becomelm-mods
+          path: mods/*.jar
+          if-no-files-found: error

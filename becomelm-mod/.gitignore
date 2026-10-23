@@ -1,0 +1,11 @@
+# gradle
+build
+.gradle
+out
+bin
+*.iml
+.idea
+
+# testes locais
+run
+run2

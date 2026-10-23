@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.becomelm.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "becomelm.refmap.json",
+  "mixins": [
+    "EntitySprintDirtMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

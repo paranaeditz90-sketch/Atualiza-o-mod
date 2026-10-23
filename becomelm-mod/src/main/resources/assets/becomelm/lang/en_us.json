@@ -1,0 +1,23 @@
+{
+  "key.categories.becomelm": "BecomeLM mode",
+  "key.becomelm.wheel": "Open the wheel",
+  "key.becomelm.camera": "Next camera",
+  "becomelm.wheel": "FroggyDude wheel",
+  "becomelm.mode.human": "Human",
+  "becomelm.mode.stand": "Standing",
+  "becomelm.mode.gallop": "Gallop\non 4",
+  "becomelm.mode.toast.human": "Human again",
+  "becomelm.mode.toast.stand": "FroggyDude standing",
+  "becomelm.mode.toast.gallop": "FroggyDude on all fours (sprint to gallop)",
+  "becomelm.camera": "Camera",
+  "becomelm.camera.off": "Normal",
+  "becomelm.camera.behind_low": "Behind, low",
+  "becomelm.camera.side": "Side",
+  "becomelm.camera.face": "Face",
+  "becomelm.camera.victim": "Victim",
+  "subtitles.becomelm.gallop": "FroggyDude gallops",
+  "subtitles.becomelm.leap": "FroggyDude leaps",
+  "subtitles.becomelm.sky_land": "FroggyDude lands hard",
+  "subtitles.becomelm.charged": "High jump ready",
+  "becomelm.command.done": "%s player(s): %s"
+}

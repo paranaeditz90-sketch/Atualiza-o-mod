@@ -1,0 +1,23 @@
+{
+  "key.categories.becomelm": "BecomeLM mode",
+  "key.becomelm.wheel": "Abrir a roda",
+  "key.becomelm.camera": "Próxima câmera",
+  "becomelm.wheel": "Roda do FroggyDude",
+  "becomelm.mode.human": "Humano",
+  "becomelm.mode.stand": "Em pé",
+  "becomelm.mode.gallop": "Galope\nde 4",
+  "becomelm.mode.toast.human": "Humano de novo",
+  "becomelm.mode.toast.stand": "FroggyDude em pé",
+  "becomelm.mode.toast.gallop": "FroggyDude de quatro (corre pra galopar)",
+  "becomelm.camera": "Câmera",
+  "becomelm.camera.off": "Normal",
+  "becomelm.camera.behind_low": "Atrás e baixa",
+  "becomelm.camera.side": "De lado",
+  "becomelm.camera.face": "Na cara",
+  "becomelm.camera.victim": "Da vítima",
+  "subtitles.becomelm.gallop": "FroggyDude galopa",
+  "subtitles.becomelm.leap": "FroggyDude pula",
+  "subtitles.becomelm.sky_land": "FroggyDude cai do alto",
+  "subtitles.becomelm.charged": "Pulo alto pronto",
+  "becomelm.command.done": "%s jogador(es): %s"
+}
