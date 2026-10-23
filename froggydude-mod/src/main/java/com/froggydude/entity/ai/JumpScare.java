@@ -11,6 +11,8 @@ import com.froggydude.world.FroggyWorldData;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
@@ -45,6 +47,12 @@ final class JumpScare {
     private static final int LEAP_TICKS = 6;
     /** A cutscene em cima de ti (o esmagamento), em ticks. */
     static final int SMASH_TICKS = 100;
+    /**
+     * O escuro do warden (LM, v0.7.10): enquanto ele está sumido e na fala, a tela vai
+     * escurecendo em pulsos; renovado sempre com essa sobra, então depois que ele aparece
+     * ainda dura uns segundos e some sozinho no meio da cutscene.
+     */
+    private static final int DARK_TICKS = 140;
 
     private enum Stage { NONE, GONE, VOICE, TURN, LEAP }
 
@@ -86,6 +94,7 @@ final class JumpScare {
         switch (stage) {
             case GONE -> {
                 // sumido e calado (nem os passos), chegando pelas tuas costas
+                darken(p);
                 froggy.setInvisible(true);
                 froggy.setSilent(true);
                 if (t < GONE_MIN - 6) froggy.mute(6);
@@ -97,6 +106,7 @@ final class JumpScare {
                 }
             }
             case VOICE -> {
+                darken(p);
                 froggy.setInvisible(true);
                 if (!spoke && !froggy.isMuted()) {
                     // atrás de ti, colado: o som vem das tuas costas
@@ -173,6 +183,14 @@ final class JumpScare {
         froggy.getNavigation().stop();
         froggy.brainLog("jumpscare em " + p.getScoreboardName() + ": sumiu" + (forced ? " (comando)" : ""));
         return true;
+    }
+
+    /** O escuro do warden, renovado enquanto ele está sumido (sem ícone nem partícula). */
+    private static void darken(ServerPlayer p) {
+        MobEffectInstance now = p.getEffect(MobEffects.DARKNESS);
+        if (now == null || now.getDuration() < DARK_TICKS - 40) {
+            p.addEffect(new MobEffectInstance(MobEffects.DARKNESS, DARK_TICKS, 0, false, false, false));
+        }
     }
 
     private void next(Stage s) {

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.9: o warden e largar a presa (sobre a v0.7.8)
+# Froggydude - v0.7.10: o jumpscare no escuro (sobre a v0.7.9)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,16 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.9) - o warden e largar a presa:
+O que testar agora (v0.7.10) - o escuro no jumpscare:
+A) O EFEITO DO WARDEN (LM): quando ele some, a tela começa a escurecer em pulsos (a Escuridão do warden,
+   sem ícone), fica escura durante o "I SEE YOU" e ele aparece no escuro em cima de ti; o escuro vai
+   embora sozinho uns segundos depois, no meio da cutscene.
+B) Virar a câmera não salva: enquanto ele está sumido, ele corre pras tuas costas toda vez que tu vira;
+   depois da fala começar, se tu virar pra voz, ele aparece na tua frente na hora; se não virar, o jogo
+   vira por ti quando a fala acaba.
+   Testado (com som): some, escurece, a fala, o giro, ele no escuro, a cutscene, a luz volta.
+
+Da v0.7.9 - o warden e largar a presa:
 A) O WARDEN (LM: "o froggydude não tenta atacar o warden"): viu um warden a até 24 blocos (e não está
    no meio de uma caçada de gente), vai pra cima. O warden solta o boom antes dele chegar: ele voa longe,
    levanta e volta com o dobro da velocidade. Pega o warden, derruba e come vivo em rodadas: cada mordida
