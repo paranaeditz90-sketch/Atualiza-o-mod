@@ -474,4 +474,19 @@ Respostas do LM:
   pulos dele (galope de quatro, pulo altíssimo, escalar), funcionar com amigos (multiplayer).
 - Sons: só os que NÃO são a voz dele (galope, sangue escorrendo enquanto come...).
 
+Direção do LM (23/10): a imitação MAIS PRÓXIMA possível dos vídeos do FroggyDude, com muitas e
+muitas funções, mas a PRIORIDADE é ser fácil de usar.
+
+Os riscos dessa direção (pra não esquecer):
+- Muita função x fácil de usar puxam pra lados opostos, ainda mais na tela do celular. Cada função
+  nova que vira botão ou item de menu deixa o mod mais difícil. Saída: o mod decide a maior parte
+  sozinho pelo contexto (um botão de ataque que escolhe o golpe certo pela situação, igual ele faz
+  nos vídeos) e só os especiais ficam numa roda; o resto vem em camadas (básico na tela, avançado
+  escondido num menu).
+- "Muitas e muitas funções" sem corte = mod que nunca sai. Primeira versão com os golpes que mais
+  aparecem nos vídeos; o resto entra depois, em versões.
+- "Mais próxima dos vídeos" sem a voz dele: a voz é metade dos vídeos. Decidir se o jogador dubla,
+  edita depois, ou se o mod aceita um pacote de áudio que o próprio usuário põe (igual o pacote de
+  voz deste mod).
+
 Antes de começar: perguntar o que faltar (nome do mod, lista exata de animações/ataques do menu).
