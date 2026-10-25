@@ -43,6 +43,11 @@ public final class BecomeLM {
     public static final RegistryObject<SoundEvent> CRACK_SEQ = sound("crack_seq");
     /** Um estalo solto (torto, esperando arrancar). */
     public static final RegistryObject<SoundEvent> CRACK = sound("crack");
+    /** Os socos montado: dois sons, um pra cada punho (no vídeo eles se alternam). */
+    public static final RegistryObject<SoundEvent> PUNCH_A = sound("punch_a");
+    public static final RegistryObject<SoundEvent> PUNCH_B = sound("punch_b");
+    /** A mordida. */
+    public static final RegistryObject<SoundEvent> BITE = sound("bite");
 
     public static final RegistryObject<SimpleParticleType> DUST_PUFF =
             PARTICLES.register("dust_puff", () -> new SimpleParticleType(false));

@@ -40,18 +40,23 @@ public final class LmKnock {
 
     private static final UUID SLOW_ID = UUID.fromString("0c6f2d61-8f3a-4c55-b7a2-3e9b1d4c7a90");
 
-    /** Um derrubado: idade em ticks, quanto tempo fica no chão, pra que lado caiu e o rumo do corpo. */
+    /**
+     * Um derrubado: idade em ticks, quanto tempo fica no chão, pra que lado caiu, o rumo do
+     * corpo e se caiu de costas (cara pro céu) em vez de de lado.
+     */
     public static final class State {
         public int age;
         public int down;
         public final int side;
         public final float yaw;
+        public final boolean back;
 
-        public State(int age, int down, int side, float yaw) {
+        public State(int age, int down, int side, float yaw, boolean back) {
             this.age = age;
             this.down = down;
             this.side = side;
             this.yaw = yaw;
+            this.back = back;
         }
 
         public int total() {
@@ -68,10 +73,10 @@ public final class LmKnock {
         }
 
         /**
-         * Quanto o corpo está tombado, em graus, de 0 (em pé) a 90 (deitado de lado); no
-         * levantar continua girando pro mesmo lado até dar a volta (90 -> 360).
+         * Quanto o corpo está tombado, em graus, de 0 (em pé) a 90 (deitado); no levantar
+         * continua girando pro mesmo lado até dar a volta (90 -> 360).
          */
-        public float roll(float partial) {
+        public float angle(float partial) {
             float t = age + partial;
             float a;
             if (t < FALL) {
@@ -83,7 +88,7 @@ public final class LmKnock {
                 float k = Mth.clamp((t - FALL - down) / ROLL, 0F, 1F);
                 a = 90F + 270F * (k * k * (3F - 2F * k));
             }
-            return a * side;
+            return a;
         }
     }
 
@@ -106,18 +111,42 @@ public final class LmKnock {
      * from = quem bateu (cai pro lado de fora do golpe).
      */
     public static void knock(LivingEntity victim, Entity from, int down) {
+        start(victim, from, down, false);
+    }
+
+    /**
+     * Servidor: derruba de costas (a queda do céu: a vítima cai deitada de costas na hora e ele
+     * senta no peito dela). O corpo deita na direção de quem caiu em cima.
+     */
+    public static void knockBack(LivingEntity victim, Entity from, int down) {
+        start(victim, from, down, true);
+    }
+
+    private static void start(LivingEntity victim, Entity from, int down, boolean back) {
         if (victim.level().isClientSide() || !canKnock(victim)) return;
         State s = SERVER.get(victim);
         if (s != null && s.lying()) {
             int want = s.age + down - FALL;
             if (want > s.down) s.down = want;
         } else {
-            int side = sideAwayFrom(victim, from);
-            s = new State(0, down, side, victim.yBodyRot);
+            s = back ? new State(0, down, 1, backYaw(victim, from), true)
+                    : new State(0, down, sideAwayFrom(victim, from), victim.yBodyRot, false);
             SERVER.put(victim, s);
             slow(victim, true);
         }
         LmNetwork.sendKnock(victim, s);
+    }
+
+    /** Corpo em pé (gente, zumbi, aldeão, creeper...) cai de costas; bicho de quatro cai de lado. */
+    public static boolean upright(LivingEntity e) {
+        return e.getBbHeight() >= e.getBbWidth() * 2.4F;
+    }
+
+    /** De costas: o rumo do corpo é o de costas pra quem caiu em cima (a cabeça deita pro lado dele). */
+    public static float backYaw(LivingEntity victim, Entity from) {
+        double dx = victim.getX() - from.getX(), dz = victim.getZ() - from.getZ();
+        if (dx * dx + dz * dz < 1.0E-4D) return victim.yBodyRot;
+        return (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90F;
     }
 
     public static State get(LivingEntity e) {
@@ -188,7 +217,7 @@ public final class LmKnock {
     }
 
     /** O lado pra onde cai: pra longe de quem bateu (pela direita ou esquerda do corpo). */
-    private static int sideAwayFrom(LivingEntity victim, Entity from) {
+    public static int sideAwayFrom(LivingEntity victim, Entity from) {
         if (from == null) return victim.getRandom().nextBoolean() ? 1 : -1;
         float yaw = victim.yBodyRot * Mth.DEG_TO_RAD;
         // direita do corpo

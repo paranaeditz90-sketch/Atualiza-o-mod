@@ -1,5 +1,7 @@
 package com.becomelm.client;
 
+import com.becomelm.LmAttack;
+import com.becomelm.LmAttacks;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
@@ -24,6 +26,13 @@ final class LmAnims {
     static final RawAnimation CONTORT = RawAnimation.begin().thenPlayAndHold("contort");
     static final RawAnimation CONTORT_HOLD = RawAnimation.begin().thenLoop("contort_hold");
     static final RawAnimation ROAR = RawAnimation.begin().thenPlayAndHold("roar");
+    /** Montado socando (0,5 s = 2 socos: 1 a cada 0,25 s, como no vídeo) e as mordidas. */
+    static final RawAnimation SMASH = RawAnimation.begin().thenLoop("sky_smash");
+    static final RawAnimation BITES = RawAnimation.begin().thenLoop("feed_mob");
+    /** Errou a queda: de cara no chão. */
+    static final RawAnimation FACEPLANT = RawAnimation.begin().thenPlayAndHold("faceplant");
+    /** As mordidas do vídeo: a cabeça mergulha a cada 0,24 s (o feed_mob tem 0,6 s). */
+    private static final double BITE_SPEED = 0.6D / 0.24D;
     /** Fase 2: correndo em pé curvado, desesperado. */
     static final RawAnimation FRENZY_RUN = RawAnimation.begin().thenLoop("run_frenzy");
     static final RawAnimation FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
@@ -35,6 +44,11 @@ final class LmAnims {
     }
 
     static RawAnimation pick(AbstractClientPlayer p) {
+        LmActsClient.Act act = LmActsClient.get(p);
+        if (act != null) {
+            if (act.kind == LmAttack.SMASH) return act.age < LmAttacks.BITE_FROM ? SMASH : BITES;
+            if (act.kind == LmAttack.FACEPLANT) return FACEPLANT;
+        }
         LmTransform.Phase tp = LmTransformClient.phase(p);
         if (tp != null) {
             return switch (tp) {
@@ -66,6 +80,8 @@ final class LmAnims {
      * acompanha a velocidade.
      */
     static double speed(AbstractClientPlayer p) {
+        LmActsClient.Act act = LmActsClient.get(p);
+        if (act != null) return act.kind == LmAttack.SMASH && act.age >= LmAttacks.BITE_FROM ? BITE_SPEED : 1D;
         LmMode mode = LmModes.get(p);
         double v = groundSpeed(p);
         if (v <= MOVING || !p.onGround()) return 1D;

@@ -192,6 +192,7 @@ public final class LmClientEvents {
         }
         if (!(player instanceof AbstractClientPlayer p) || !LmModes.get(p).froggy() || !replaceable(p)) return;
         event.setCanceled(true);
+        LmActsClient.faceBody(p);
         boolean knocked = LmKnockClient.apply(event.getPoseStack(), p, event.getPartialTick());
         LmRenderer.get().render(p, p.getYRot(), event.getPartialTick(), event.getPoseStack(),
                 event.getMultiBufferSource(), event.getPackedLight());

@@ -3,7 +3,15 @@ package com.becomelm;
 /** Os golpes do FroggyDude (a roda escolhe o jeito; o contexto escolhe o golpe). */
 public enum LmAttack {
     /** Galopando, atacar com um bicho na frente: se joga nele e derruba. */
-    POUNCE;
+    POUNCE,
+    /** Caiu do pulo alto em cima do bicho: monta, soca e morde. */
+    SMASH,
+    /** Caiu do pulo alto e não tinha ninguém embaixo: de cara no chão. */
+    FACEPLANT,
+    /** (efeito) um soco do SMASH. */
+    PUNCH,
+    /** (efeito) uma mordida. */
+    BITE;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

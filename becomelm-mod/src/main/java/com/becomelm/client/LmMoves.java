@@ -73,7 +73,10 @@ public final class LmMoves {
             if (p == null || now - e.at > 400) {
                 it.remove();
             } else if ((p.onGround() || p.isInWater()) && now - e.at > 3) {
-                if (e.move == LmMove.SKY && p.onGround()) skyLand(p);
+                if (e.move == LmMove.SKY && p.onGround()) {
+                    skyLand(p);
+                    if (p == mc.player) LmAttackClient.skyLanded(mc.player);
+                }
                 it.remove();
             }
         }

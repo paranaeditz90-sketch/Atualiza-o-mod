@@ -82,13 +82,15 @@ public class LmModel extends GeoModel<LmAnimatable> {
         EntityModelData data = state.getData(DataTickets.ENTITY_MODEL_DATA);
         // a cabeça segue o olhar só em pé (de quatro a animação já aponta a cabeça pra frente;
         // somar o olhar ali tombava a cabeça - o bug dos "tiques" do Froggydude)
-        if (head != null && data != null && mode == LmMode.STAND && p.onGround()) {
+        // no meio de um golpe, deitado ou se transformando: só a animação manda
+        boolean busy = LmActsClient.busy(p) || LmKnockClient.lying(p) || LmTransformClient.busy(p);
+        if (head != null && data != null && mode == LmMode.STAND && p.onGround() && !busy) {
             head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -50F, 50F) * Mth.DEG_TO_RAD);
             head.setRotX(head.getRotX() + Mth.clamp(data.headPitch(), -40F, 45F) * Mth.DEG_TO_RAD);
             // sem isso o GeckoLib não volta a cabeça pra pose e o olhar ia somando a cada quadro
             head.resetStateChanges();
         }
-        if (mode == LmMode.STAND) playerMoves(p, state);
+        if (mode == LmMode.STAND && !busy) playerMoves(p, state);
     }
 
     /** Em pé: o agachar e o soco/pôr bloco por cima da animação, como o jogador. */

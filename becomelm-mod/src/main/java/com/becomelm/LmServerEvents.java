@@ -46,6 +46,7 @@ public final class LmServerEvents {
         if (event.getTarget() instanceof ServerPlayer target) LmNetwork.sendModeTo(viewer, target, LmModes.get(target));
         LmKnock.sendTo(viewer, event.getTarget());
         LmTransform.sendTo(viewer, event.getTarget());
+        LmAttacks.sendTo(viewer, event.getTarget());
     }
 
     @SubscribeEvent

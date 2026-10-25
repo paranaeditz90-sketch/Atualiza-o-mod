@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -20,8 +21,11 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+
+import org.joml.Vector3f;
 
 import javax.annotation.Nullable;
 
@@ -29,6 +33,10 @@ import javax.annotation.Nullable;
  * Os golpes do lado de quem ataca: o "atacar" vira o golpe certo pro momento (galopando
  * com um bicho na frente = bote), o corpo sai na hora (sem esperar o servidor) e o
  * servidor confere e dá o dano. E o barulho e a poeira quando acerta, pra todo mundo.
+ *
+ * Pulo alto: descendo, ele vai na direção do bicho que estiver embaixo (dá pra mirar
+ * olhando pra ele); caiu perto = monta, soca e morde; caiu longe de todo mundo = de cara
+ * no chão (o vídeo do AJ rolando pra fora).
  */
 @Mod.EventBusSubscriber(modid = BecomeLM.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LmAttackClient {
@@ -40,8 +48,115 @@ public final class LmAttackClient {
     private static final int COOLDOWN = 10;
 
     private static int lastAttack = -100;
+    /** O bicho que o pulo alto está mirando (gruda nele até pousar). */
+    private static int skyTarget = -1;
+    /** Até onde (na horizontal) o pulo alto procura alguém embaixo. */
+    private static final double SKY_SEEK = 8.0D;
+    /** O quanto dá pra corrigir no ar por tick (blocos). */
+    private static final double SKY_STEER = 1.1D;
 
     private LmAttackClient() {
+    }
+
+    /** Descendo do pulo alto: corrige o rumo pra cair em cima do alvo. */
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null || mc.level == null || mc.isPaused()) return;
+        if (LmMoves.airborne(p) != LmMove.SKY || p.onGround()) {
+            if (LmMoves.airborne(p) != LmMove.SKY) skyTarget = -1;
+            return;
+        }
+        Vec3 v = p.getDeltaMovement();
+        // subindo ainda rápido: deixa subir
+        if (v.y > 0.3D) return;
+        LivingEntity t = mc.level.getEntity(skyTarget) instanceof LivingEntity l && l.isAlive() ? l : null;
+        if (t == null) {
+            t = pickBelow(mc, p);
+            skyTarget = t == null ? -1 : t.getId();
+        }
+        if (t == null) return;
+        double dy = p.getY() - t.getY();
+        if (dy < -0.5D) return;
+        int ticks = ticksToFall(v.y, Math.max(0D, dy));
+        Vec3 to = new Vec3(t.getX() - p.getX(), 0D, t.getZ() - p.getZ());
+        double dist = to.length();
+        double want = Math.min(SKY_STEER, dist / Math.max(1, ticks));
+        Vec3 h = dist < 1.0E-3D ? Vec3.ZERO : to.scale(want / dist);
+        p.setDeltaMovement(h.x, v.y, h.z);
+    }
+
+    /** Quantos ticks pra cair dy blocos saindo com essa velocidade (a gravidade e o ar do jogo). */
+    private static int ticksToFall(double vy, double dy) {
+        double y = 0D;
+        int n = 0;
+        while (y < dy && n < 200) {
+            vy = (vy - 0.08D) * 0.98D;
+            y -= vy;
+            n++;
+        }
+        return n;
+    }
+
+    /** O bicho embaixo (mais pro lado que se está olhando e mais perto do ponto de queda). */
+    @Nullable
+    private static LivingEntity pickBelow(Minecraft mc, LocalPlayer p) {
+        Vec3 look = p.getViewVector(1F);
+        Vec3 lookH = new Vec3(look.x, 0D, look.z);
+        boolean down = look.y < -0.7D || lookH.lengthSqr() < 1.0E-4D;
+        if (!down) lookH = lookH.normalize();
+        LivingEntity best = null;
+        double bestScore = -1.0E9D;
+        AABB box = p.getBoundingBox().inflate(SKY_SEEK, 40D, SKY_SEEK);
+        for (Entity e : p.level().getEntities(p, box, x -> x instanceof LivingEntity)) {
+            LivingEntity le = (LivingEntity) e;
+            if (!LmAttacks.canTarget(p, le) || le.getY() > p.getY() - 0.5D) continue;
+            Vec3 to = new Vec3(le.getX() - p.getX(), 0D, le.getZ() - p.getZ());
+            double dist = to.length();
+            if (dist > SKY_SEEK) continue;
+            double dot = down || dist < 1.0E-3D ? 1D : to.scale(1D / dist).dot(lookH);
+            if (dot < 0.3D) continue;
+            double score = dot * 2D - dist / SKY_SEEK;
+            if (score > bestScore) {
+                bestScore = score;
+                best = le;
+            }
+        }
+        return best;
+    }
+
+    /** Pousou do pulo alto: caiu perto de alguém = monta; senão, de cara no chão. */
+    static void skyLanded(LocalPlayer p) {
+        int id = skyTarget;
+        skyTarget = -1;
+        if (!LmClientEvents.serverHasMod() || LmKnockClient.lying(p) || LmTransformClient.busy(p)
+                || LmActsClient.busy(p)) return;
+        Minecraft mc = Minecraft.getInstance();
+        LivingEntity t = mc.level != null && mc.level.getEntity(id) instanceof LivingEntity l && l.isAlive() ? l : null;
+        if (t == null || !near(p, t)) {
+            t = null;
+            for (Entity e : p.level().getEntities(p, p.getBoundingBox().inflate(LmAttacks.SMASH_REACH, 2D,
+                    LmAttacks.SMASH_REACH), x -> x instanceof LivingEntity)) {
+                if (e instanceof LivingEntity le && LmAttacks.canTarget(p, le) && near(p, le)) {
+                    t = le;
+                    break;
+                }
+            }
+        }
+        if (t != null) {
+            LmActsClient.startLocal(p, LmAttack.SMASH, t.getId());
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.SMASH, t.getId()));
+        } else {
+            LmActsClient.startLocal(p, LmAttack.FACEPLANT, -1);
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.FACEPLANT, -1));
+        }
+    }
+
+    private static boolean near(LocalPlayer p, LivingEntity t) {
+        double dx = t.getX() - p.getX(), dz = t.getZ() - p.getZ();
+        return dx * dx + dz * dz <= LmAttacks.SMASH_REACH * LmAttacks.SMASH_REACH && Math.abs(t.getY() - p.getY()) < 2.5D;
     }
 
     @SubscribeEvent
@@ -50,7 +165,8 @@ public final class LmAttackClient {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (p == null || mc.screen != null || !LmClientEvents.serverHasMod()) return;
-        if (!LmModes.get(p).fast() || LmKnockClient.lying(p) || LmTransformClient.busy(p) || p.isSpectator()) return;
+        if (!LmModes.get(p).fast() || LmKnockClient.lying(p) || LmTransformClient.busy(p) || LmActsClient.busy(p)
+                || p.isSpectator()) return;
         LivingEntity target = pickTarget(mc, p, LmAttacks.POUNCE_RANGE);
         if (target == null) return;
         // é bote, não soco: sem o golpe do vanilla (nem o braço balançando)
@@ -114,18 +230,48 @@ public final class LmAttackClient {
     }
 
     /** Chegou do servidor: o golpe encostou. */
-    public static void hit(int attackerId, int targetId, LmAttack kind, boolean hurt) {
+    public static void hit(int attackerId, int targetId, LmAttack kind, boolean hurt, int n) {
         Minecraft mc = Minecraft.getInstance();
         ClientLevel level = mc.level;
         if (level == null) return;
         Entity a = level.getEntity(attackerId);
         Entity t = level.getEntity(targetId);
+        if (kind == LmAttack.PUNCH || kind == LmAttack.BITE) {
+            if (t instanceof LivingEntity le) blow(level, le, kind, n);
+            return;
+        }
         if (t != null) impact(level, t, a);
-        if (a == mc.player && a != null) {
+        if (kind == LmAttack.POUNCE && a == mc.player && a != null) {
             // bateu e passa por cima (no vídeo ele atravessa o Grox): perde um pouco do embalo
             // e sobe o suficiente pra não ficar enfiado na cabeça de quem caiu
             Vec3 v = a.getDeltaMovement();
             a.setDeltaMovement(v.x * 0.6D, Math.max(v.y, 0.32D), v.z * 0.6D);
+        }
+    }
+
+    /**
+     * Um soco (os dois punhos se alternam: soco A, soco B) ou uma mordida, na cabeça da vítima
+     * deitada: o som e uns farelos de poeira (e vermelho na mordida).
+     */
+    private static void blow(ClientLevel level, LivingEntity t, LmAttack kind, int n) {
+        var rnd = level.getRandom();
+        Vec3 head = LmKnockClient.eye(t, 1F);
+        var sound = kind == LmAttack.BITE ? BecomeLM.BITE.get() : (n % 2 == 0 ? BecomeLM.PUNCH_A.get() : BecomeLM.PUNCH_B.get());
+        level.playLocalSound(head.x, head.y, head.z, sound, SoundSource.PLAYERS, 1.0F,
+                0.95F + rnd.nextFloat() * 0.1F, false);
+        boolean mine = LmCamera.active() && LmCamera.shot() == LmCamera.Shot.VICTIM;
+        int count = mine ? 2 : 5;
+        for (int i = 0; i < count; i++) {
+            level.addParticle(BecomeLM.DUST_PUFF.get(), head.x + (rnd.nextDouble() - 0.5D) * 0.5D, head.y,
+                    head.z + (rnd.nextDouble() - 0.5D) * 0.5D, (rnd.nextDouble() - 0.5D) * 0.06D, 0.02D,
+                    (rnd.nextDouble() - 0.5D) * 0.06D);
+        }
+        if (kind == LmAttack.BITE) {
+            DustParticleOptions red = new DustParticleOptions(new Vector3f(0.55F, 0.02F, 0.02F), 1.2F);
+            for (int i = 0; i < (mine ? 3 : 8); i++) {
+                level.addParticle(red, head.x + (rnd.nextDouble() - 0.5D) * 0.4D, head.y + rnd.nextDouble() * 0.2D,
+                        head.z + (rnd.nextDouble() - 0.5D) * 0.4D, 0D, 0.05D, 0D);
+            }
         }
     }
 

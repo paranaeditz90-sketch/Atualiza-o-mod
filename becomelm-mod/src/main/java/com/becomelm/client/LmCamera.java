@@ -1,6 +1,7 @@
 package com.becomelm.client;
 
 import com.becomelm.BecomeLM;
+import com.becomelm.LmAttack;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import net.minecraft.client.Camera;
@@ -160,7 +161,7 @@ public final class LmCamera {
             default -> {
                 LivingEntity victim = victim(p);
                 if (victim != null) {
-                    Vec3 eye = victim.getEyePosition(partial);
+                    Vec3 eye = LmKnockClient.eye(victim, partial);
                     // um tiquinho pra fora da cabeça dela, na direção dele
                     want = eye.add(head.subtract(eye).normalize().scale(0.3D));
                     anchor = eye;
@@ -213,6 +214,13 @@ public final class LmCamera {
     private static LivingEntity victim(LocalPlayer p) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return null;
+        // montado: a vítima é quem está embaixo
+        LmActsClient.Act act = LmActsClient.get(p);
+        if (act != null && act.kind == LmAttack.SMASH && mc.level.getEntity(act.target) instanceof LivingEntity l) {
+            victimId = l.getId();
+            victimLost = 0;
+            return l;
+        }
         Entity cur = victimId >= 0 ? mc.level.getEntity(victimId) : null;
         if (cur instanceof LivingEntity l && l.isAlive() && l.distanceToSqr(p) < 24D * 24D) {
             // segura a mesma vítima (não fica pulando de bicho em bicho)

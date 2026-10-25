@@ -135,5 +135,59 @@
         "volume": 1.0
       }
     ]
+  },
+  "punch_a": {
+    "subtitle": "subtitles.becomelm.punch",
+    "sounds": [
+      {
+        "name": "minecraft:entity.player.attack.strong",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:entity.player.attack.knockback",
+        "type": "event",
+        "pitch": 0.75,
+        "volume": 0.8
+      }
+    ]
+  },
+  "punch_b": {
+    "subtitle": "subtitles.becomelm.punch",
+    "sounds": [
+      {
+        "name": "minecraft:entity.player.attack.strong",
+        "type": "event",
+        "pitch": 0.62,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:entity.player.attack.knockback",
+        "type": "event",
+        "pitch": 0.68,
+        "volume": 0.8
+      }
+    ]
+  },
+  "bite": {
+    "subtitle": "subtitles.becomelm.bite",
+    "sounds": [
+      {
+        "name": "minecraft:mob/ravager/bite1",
+        "pitch": 1.1,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:mob/ravager/bite2",
+        "pitch": 1.1,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:mob/ravager/bite3",
+        "pitch": 1.1,
+        "volume": 1.0
+      }
+    ]
   }
 }

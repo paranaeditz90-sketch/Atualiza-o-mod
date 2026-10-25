@@ -56,6 +56,8 @@ public final class LmNetwork {
                 TransformSync::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(id++, TransformGo.class, TransformGo::encode, TransformGo::decode, TransformGo::handle,
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(id++, ActSync.class, ActSync::encode, ActSync::decode, ActSync::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     public static void sendMode(ServerPlayer player, LmMode mode) {
@@ -75,10 +77,20 @@ public final class LmNetwork {
     }
 
     /** O golpe pegou (ou bateu sem dano): quem vê a vítima ou o atacante faz o barulho e a poeira. */
-    public static void sendHit(ServerPlayer attacker, LivingEntity target, LmAttack kind, boolean hurt) {
-        HitFx fx = new HitFx(attacker.getId(), target.getId(), kind, hurt);
+    public static void sendHit(ServerPlayer attacker, LivingEntity target, LmAttack kind, boolean hurt, int n) {
+        HitFx fx = new HitFx(attacker.getId(), target.getId(), kind, hurt, n);
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> target), fx);
         if (target != attacker) CHANNEL.send(PacketDistributor.PLAYER.with(() -> attacker), fx);
+    }
+
+    /** O golpe longo que o jogador está dando (montado socando, de cara no chão...); kind null = acabou. */
+    public static void sendAct(ServerPlayer p, LmAttack kind, int target, int age) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> p),
+                new ActSync(p.getUUID(), kind == null ? -1 : kind.ordinal(), target, age));
+    }
+
+    public static void sendActTo(ServerPlayer viewer, ServerPlayer p, LmAttack kind, int target, int age) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), new ActSync(p.getUUID(), kind.ordinal(), target, age));
     }
 
     /** Em que pedaço da transformação o jogador está (null = acabou ou parou). */
@@ -142,6 +154,7 @@ public final class LmNetwork {
             ServerPlayer sender = ctx.get().getSender();
             ctx.get().enqueueWork(() -> {
                 if (sender != null && LmModes.get(sender).froggy()) {
+                    if (m.move == LmMove.SKY) LmAttacks.skyJumped(sender);
                     CHANNEL.send(PacketDistributor.TRACKING_ENTITY.with(() -> sender), new MoveSync(sender.getUUID(), m.move));
                 }
             });
@@ -168,9 +181,9 @@ public final class LmNetwork {
     }
 
     /** Servidor -> quem vê: esse bicho (ou jogador) foi derrubado / continua no chão. */
-    public record KnockSync(int entity, int age, int down, int side, float yaw) {
+    public record KnockSync(int entity, int age, int down, int side, float yaw, boolean back) {
         static KnockSync of(LivingEntity e, LmKnock.State s) {
-            return new KnockSync(e.getId(), s.age, s.down, s.side, s.yaw);
+            return new KnockSync(e.getId(), s.age, s.down, s.side, s.yaw, s.back);
         }
 
         static void encode(KnockSync m, FriendlyByteBuf buf) {
@@ -179,15 +192,17 @@ public final class LmNetwork {
             buf.writeVarInt(m.down);
             buf.writeByte(m.side);
             buf.writeFloat(m.yaw);
+            buf.writeBoolean(m.back);
         }
 
         static KnockSync decode(FriendlyByteBuf buf) {
-            return new KnockSync(buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readByte(), buf.readFloat());
+            return new KnockSync(buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readByte(), buf.readFloat(),
+                    buf.readBoolean());
         }
 
         static void handle(KnockSync m, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
-                    () -> () -> com.becomelm.client.LmKnockClient.set(m.entity, m.age, m.down, m.side, m.yaw)));
+                    () -> () -> com.becomelm.client.LmKnockClient.set(m.entity, m.age, m.down, m.side, m.yaw, m.back)));
             ctx.get().setPacketHandled(true);
         }
     }
@@ -213,21 +228,23 @@ public final class LmNetwork {
     }
 
     /** Servidor -> quem vê: o golpe encostou. */
-    public record HitFx(int attacker, int target, LmAttack kind, boolean hurt) {
+    public record HitFx(int attacker, int target, LmAttack kind, boolean hurt, int n) {
         static void encode(HitFx m, FriendlyByteBuf buf) {
             buf.writeVarInt(m.attacker);
             buf.writeVarInt(m.target);
             buf.writeByte(m.kind.ordinal());
             buf.writeBoolean(m.hurt);
+            buf.writeByte(m.n);
         }
 
         static HitFx decode(FriendlyByteBuf buf) {
-            return new HitFx(buf.readVarInt(), buf.readVarInt(), LmAttack.byOrdinal(buf.readByte()), buf.readBoolean());
+            return new HitFx(buf.readVarInt(), buf.readVarInt(), LmAttack.byOrdinal(buf.readByte()), buf.readBoolean(),
+                    buf.readByte());
         }
 
         static void handle(HitFx m, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
-                    () -> () -> com.becomelm.client.LmAttackClient.hit(m.attacker, m.target, m.kind, m.hurt)));
+                    () -> () -> com.becomelm.client.LmAttackClient.hit(m.attacker, m.target, m.kind, m.hurt, m.n)));
             ctx.get().setPacketHandled(true);
         }
     }
@@ -269,6 +286,26 @@ public final class LmNetwork {
             ctx.get().enqueueWork(() -> {
                 if (sender != null) LmTransform.go(sender);
             });
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Servidor -> quem vê: o golpe longo desse jogador (kind -1 = acabou). */
+    public record ActSync(UUID player, int kind, int target, int age) {
+        static void encode(ActSync m, FriendlyByteBuf buf) {
+            buf.writeUUID(m.player);
+            buf.writeByte(m.kind);
+            buf.writeVarInt(m.target);
+            buf.writeVarInt(m.age);
+        }
+
+        static ActSync decode(FriendlyByteBuf buf) {
+            return new ActSync(buf.readUUID(), buf.readByte(), buf.readVarInt(), buf.readVarInt());
+        }
+
+        static void handle(ActSync m, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.becomelm.client.LmActsClient.set(m.player, m.kind, m.target, m.age)));
             ctx.get().setPacketHandled(true);
         }
     }
