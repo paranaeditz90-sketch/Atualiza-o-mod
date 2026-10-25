@@ -531,3 +531,21 @@ Retorno do LM sobre a v0.1 (25/10): "tá incrível"; pulo alto, correr e pular f
   entendi e ele explica/corrige - só depois programar.
 - A conferir: os botões PRI/SEC do Zalith ficam por cima de "De lado / Na cara / Da vítima"
   na roda (print do LM).
+
+Estudo dos vídeos pro BecomeLM (25/10) - relatório 1 (cópia no scratchpad, study/RELATORIO_1.md):
+- Medido em 60 qps: cair do céu (braços em V, ~10-15 blocos), socos montado 1 a cada 0,25 s
+  alternando os punhos, mordida no mesmo ritmo (0,24 s), bote de frente (pulinho 0,15 s, pousa
+  agachado, se joga), vítima derrubada (cai de lado ~0,13 s, fica ~1,4 s, levanta rolando ~0,45 s),
+  comer deitado no monte de pedaços (cara vermelha um tempão), mortal pra trás + braços abertos.
+- Sons: a patada do galope e a pancada do soco não são do Minecraft, nem do Epic Fight, nem do
+  ParCool (detector conferido na nossa gravação: 0,89 no som certo; nos vídeos dele máx 0,28).
+  Sempre no mesmo tom => som da animação do modelo dele.
+- Hipóteses: modelo próprio (YSM/Figura) + Epic Fight (o derrubar/levantar rolando é igual ao
+  "knockdown"/"knockdown_wakeup" dele, 0,60 s) + Physics Mod (cacos) + mod de arma + edição.
+
+Respostas do LM (25/10) pra v0.2 do BecomeLM:
+- Ataques: os 4 - bote de frente, cair do céu + socos, mordida, comer.
+- No lugar da língua (cachorro): morder e sacudir + agarrar e arrastar.
+- Sons da patada e do soco: recortar os originais dele, num pacote separado (uso pessoal, igual a voz).
+- Derrubar: mobs e amigos (cai de lado ~1,4 s e levanta rolando).
+- Ordem (um por vez): derrubar -> bote com dano -> céu + socos -> morder/arrastar -> comer.
