@@ -19,5 +19,7 @@
   "subtitles.becomelm.leap": "FroggyDude leaps",
   "subtitles.becomelm.sky_land": "FroggyDude lands hard",
   "subtitles.becomelm.charged": "High jump ready",
-  "becomelm.command.done": "%s player(s): %s"
+  "becomelm.command.done": "%s player(s): %s",
+  "becomelm.command.knocked": "Knocked down %s",
+  "subtitles.becomelm.pounce_hit": "FroggyDude tackles"
 }

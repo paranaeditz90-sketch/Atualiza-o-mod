@@ -32,6 +32,7 @@ final class LmAnims {
         boolean moving = groundSpeed(p) > MOVING;
         if (p.onClimbable() && !p.onGround()) return CLIMB;
         if (move == LmMove.SKY) return SKY;
+        if (move == LmMove.POUNCE) return LEAP;
         if (mode == LmMode.GALLOP) {
             if (move == LmMove.LEAP) return LEAP;
             if (move == LmMove.HOP) return HOP;

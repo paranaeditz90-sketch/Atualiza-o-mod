@@ -35,6 +35,8 @@ public final class BecomeLM {
     public static final RegistryObject<SoundEvent> SKY_LAND = sound("sky_land");
     /** Pulo alto carregado (segurando o agachar). */
     public static final RegistryObject<SoundEvent> CHARGED = sound("charged");
+    /** O bote acertando o bicho. */
+    public static final RegistryObject<SoundEvent> POUNCE_HIT = sound("pounce_hit");
 
     public static final RegistryObject<SimpleParticleType> DUST_PUFF =
             PARTICLES.register("dust_puff", () -> new SimpleParticleType(false));

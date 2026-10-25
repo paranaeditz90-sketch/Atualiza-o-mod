@@ -1,11 +1,15 @@
 package com.becomelm.network;
 
 import com.becomelm.BecomeLM;
+import com.becomelm.LmAttack;
+import com.becomelm.LmAttacks;
+import com.becomelm.LmKnock;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkDirection;
@@ -24,7 +28,7 @@ import java.util.function.Supplier;
  */
 public final class LmNetwork {
 
-    private static final String VERSION = "1";
+    private static final String VERSION = "2";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeLM.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 
@@ -41,6 +45,12 @@ public final class LmNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(id++, MoveSync.class, MoveSync::encode, MoveSync::decode, MoveSync::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, KnockSync.class, KnockSync::encode, KnockSync::decode, KnockSync::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, Attack.class, Attack::encode, Attack::decode, Attack::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(id++, HitFx.class, HitFx::encode, HitFx::decode, HitFx::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
     }
 
     public static void sendMode(ServerPlayer player, LmMode mode) {
@@ -49,6 +59,21 @@ public final class LmNetwork {
 
     public static void sendModeTo(ServerPlayer viewer, ServerPlayer target, LmMode mode) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), new ModeSync(target.getUUID(), mode));
+    }
+
+    public static void sendKnock(LivingEntity e, LmKnock.State s) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> e), KnockSync.of(e, s));
+    }
+
+    public static void sendKnockTo(ServerPlayer viewer, LivingEntity e, LmKnock.State s) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), KnockSync.of(e, s));
+    }
+
+    /** O golpe pegou (ou bateu sem dano): quem vê a vítima ou o atacante faz o barulho e a poeira. */
+    public static void sendHit(ServerPlayer attacker, LivingEntity target, LmAttack kind, boolean hurt) {
+        HitFx fx = new HitFx(attacker.getId(), target.getId(), kind, hurt);
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> target), fx);
+        if (target != attacker) CHANNEL.send(PacketDistributor.PLAYER.with(() -> attacker), fx);
     }
 
     // ------------------------------------------------------------------ pacotes
@@ -124,6 +149,71 @@ public final class LmNetwork {
         static void handle(MoveSync m, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.becomelm.client.LmMoves.remote(m.player, m.move)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Servidor -> quem vê: esse bicho (ou jogador) foi derrubado / continua no chão. */
+    public record KnockSync(int entity, int age, int down, int side, float yaw) {
+        static KnockSync of(LivingEntity e, LmKnock.State s) {
+            return new KnockSync(e.getId(), s.age, s.down, s.side, s.yaw);
+        }
+
+        static void encode(KnockSync m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.entity);
+            buf.writeVarInt(m.age);
+            buf.writeVarInt(m.down);
+            buf.writeByte(m.side);
+            buf.writeFloat(m.yaw);
+        }
+
+        static KnockSync decode(FriendlyByteBuf buf) {
+            return new KnockSync(buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readByte(), buf.readFloat());
+        }
+
+        static void handle(KnockSync m, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.becomelm.client.LmKnockClient.set(m.entity, m.age, m.down, m.side, m.yaw)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Cliente -> servidor: quero dar esse golpe nesse bicho. */
+    public record Attack(LmAttack kind, int target) {
+        static void encode(Attack m, FriendlyByteBuf buf) {
+            buf.writeByte(m.kind.ordinal());
+            buf.writeVarInt(m.target);
+        }
+
+        static Attack decode(FriendlyByteBuf buf) {
+            return new Attack(LmAttack.byOrdinal(buf.readByte()), buf.readVarInt());
+        }
+
+        static void handle(Attack m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer sender = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (sender != null) LmAttacks.request(sender, m.kind, m.target);
+            });
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Servidor -> quem vê: o golpe encostou. */
+    public record HitFx(int attacker, int target, LmAttack kind, boolean hurt) {
+        static void encode(HitFx m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.attacker);
+            buf.writeVarInt(m.target);
+            buf.writeByte(m.kind.ordinal());
+            buf.writeBoolean(m.hurt);
+        }
+
+        static HitFx decode(FriendlyByteBuf buf) {
+            return new HitFx(buf.readVarInt(), buf.readVarInt(), LmAttack.byOrdinal(buf.readByte()), buf.readBoolean());
+        }
+
+        static void handle(HitFx m, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.becomelm.client.LmAttackClient.hit(m.attacker, m.target, m.kind, m.hurt)));
             ctx.get().setPacketHandled(true);
         }
     }

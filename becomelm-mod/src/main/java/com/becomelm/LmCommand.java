@@ -7,6 +7,8 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -17,7 +19,7 @@ import java.util.List;
 /**
  * /becomelm gallop | stand | human - troca o próprio modo pelo chat (o mesmo da roda;
  * serve de reserva se a roda não abrir no celular). Com nome de jogador (só op):
- * /becomelm gallop Amigo.
+ * /becomelm gallop Amigo. /becomelm knock alvo (só op): derruba, pra testar.
  */
 @Mod.EventBusSubscriber(modid = BecomeLM.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class LmCommand {
@@ -36,6 +38,9 @@ public final class LmCommand {
                             .requires(src -> src.hasPermission(2))
                             .executes(ctx -> apply(ctx.getSource(), EntityArgument.getPlayers(ctx, "players"), mode))));
         }
+        root.then(Commands.literal("knock").requires(src -> src.hasPermission(2))
+                .then(Commands.argument("targets", EntityArgument.entities())
+                        .executes(ctx -> knock(ctx.getSource(), EntityArgument.getEntities(ctx, "targets")))));
         d.register(root);
     }
 
@@ -44,5 +49,18 @@ public final class LmCommand {
         src.sendSuccess(() -> Component.translatable("becomelm.command.done", players.size(),
                 Component.translatable("becomelm.mode.toast." + mode.id)), false);
         return players.size();
+    }
+
+    private static int knock(CommandSourceStack src, Collection<? extends Entity> targets) {
+        int n = 0;
+        for (Entity e : targets) {
+            if (e instanceof LivingEntity le && LmKnock.canKnock(le)) {
+                LmKnock.knock(le, src.getEntity(), LmKnock.DOWN);
+                n++;
+            }
+        }
+        int count = n;
+        src.sendSuccess(() -> Component.translatable("becomelm.command.knocked", count), false);
+        return n;
     }
 }

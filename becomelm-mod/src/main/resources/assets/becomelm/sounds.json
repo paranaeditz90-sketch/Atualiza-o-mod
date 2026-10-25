@@ -68,5 +68,22 @@
         "volume": 0.8
       }
     ]
+  },
+  "pounce_hit": {
+    "subtitle": "subtitles.becomelm.pounce_hit",
+    "sounds": [
+      {
+        "name": "minecraft:entity.player.attack.knockback",
+        "type": "event",
+        "pitch": 0.8,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:entity.generic.big_fall",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 0.9
+      }
+    ]
   }
 }

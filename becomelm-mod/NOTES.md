@@ -4,6 +4,23 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.2.0 — os ataques, parte 1 (derrubar + bote)
+
+Medido nos vídeos dele em 60 qps (study/RELATORIO_1.md no scratchpad) e escolhido pelo LM.
+
+- **Bote com dano**: galopando, **atacar** (o PRI do Zalith / clique esquerdo) com um bicho
+  ou jogador na frente, até **7 blocos** = ele se joga em cima (não sai o soco normal).
+  Mira: o que está no centro da tela; se não tiver, o mais no meio dentro de ~37° pra cada
+  lado. Encostou: **3,5 corações** de dano (golpe seu: a morte conta pra você), empurrão e
+  **derruba**. Depois de acertar ele passa por cima (igual ao vídeo do Grox).
+- **Derrubado** (mob e amigo): cai de lado em 0,15 s, fica **~1,4 s** no chão e **levanta
+  rolando** (0,45 s) — o mesmo tempo dos vídeos. No chão o bicho não anda, não morde, não
+  atira e o creeper não explode. O amigo derrubado vê o mundo de lado e não anda nem
+  ataca até levantar. Todo mundo que está vendo vê cair e levantar.
+- Amigo só leva o bote se o servidor deixar PvP.
+- Teste: `/becomelm knock <alvo>` (op) derruba sem bater.
+- Os amigos precisam da v0.2 (a v0.1 não conecta num servidor com a v0.2).
+
 ## v0.1.0
 
 - **Corpo**: o jogador vira o FroggyDude (o mesmo modelo e as mesmas animações do mod
@@ -39,7 +56,8 @@ junto com o mod Froggydude, um não mexe no outro.
 - Skin fina (Alex): o modelo tem braço de 4 px, então sobra 1 px no braço.
 - Armadura e item na mão não aparecem no corpo do FroggyDude (por enquanto).
 - Nadando, dormindo, de élitro ou montado: volta o corpo de jogador normal.
-- Ainda não tem ataques (próxima parte), nem vozes (pacote à parte, depois).
+- Ainda falta: cair do céu + socos, morder/sacudir/arrastar, comer, os sons dele (pacote à
+  parte) e as vozes (pacote à parte).
 
 ## Desenvolvimento
 
