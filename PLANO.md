@@ -521,4 +521,13 @@ v0.1.0 (23/10) - feito e testado no jogo (sozinho e com 2 clientes num servidor 
 corpo com a skin do jogador, roda (2 toques no agachar / R), galope ~14 b/s com poeira e som,
 bote, pulo super alto carregado no agachar, sem dano de queda, as 4 câmeras (V), comando
 /becomelm. Detalhes e limites em becomelm-mod/NOTES.md. Próximo: os ataques (o contexto escolhe
-o golpe: bote em cima do bicho, esmagamento, língua...).
+o golpe: bote em cima do bicho, esmagamento...).
+
+Retorno do LM sobre a v0.1 (25/10): "tá incrível"; pulo alto, correr e pular funcionaram.
+- O personagem do LM é um CACHORRO (skin: cachorro preto de coroa e terno), não um sapo:
+  no BecomeLM NÃO vai ter língua.
+- Método antes dos ataques (sugestão do LM): estudar mais a fundo como o FroggyDude se comporta
+  nos vídeos, tentar adivinhar o que ele faz, montar teorias/hipóteses, mandar pro LM o que eu
+  entendi e ele explica/corrige - só depois programar.
+- A conferir: os botões PRI/SEC do Zalith ficam por cima de "De lado / Na cara / Da vítima"
+  na roda (print do LM).
