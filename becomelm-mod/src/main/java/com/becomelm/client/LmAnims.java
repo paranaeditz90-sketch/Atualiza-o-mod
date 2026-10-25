@@ -38,6 +38,10 @@ final class LmAnims {
     static final RawAnimation GRAB_SHAKE = RawAnimation.begin().thenLoop("grab_shake");
     static final RawAnimation GRAB_THROW = RawAnimation.begin().thenPlayAndHold("grab_throw");
     private static final int GRAB_START_TICKS = 6;
+    /** No monte de pedaços: deitando, deitado (a cabeça esfrega, afunda e olha) e levantando. */
+    static final RawAnimation PILE_DROP = RawAnimation.begin().thenPlayAndHold("pile_drop");
+    static final RawAnimation PILE_LIE = RawAnimation.begin().thenLoop("pile_lie");
+    static final RawAnimation PILE_RISE = RawAnimation.begin().thenPlayAndHold("pile_rise");
     /** As mordidas do vídeo: a cabeça mergulha a cada 0,24 s (o feed_mob tem 0,6 s). */
     private static final double BITE_SPEED = 0.6D / 0.24D;
     /** Fase 2: correndo em pé curvado, desesperado. */
@@ -61,6 +65,8 @@ final class LmAnims {
                 return groundSpeed(p) > MOVING ? GRAB_WALK : GRAB_HOLD;
             }
             if (act.kind == LmAttack.THROW) return GRAB_THROW;
+            if (act.kind == LmAttack.PILE) return act.age < LmActsClient.PILE_DROP ? PILE_DROP : PILE_LIE;
+            if (act.kind == LmAttack.RISE) return PILE_RISE;
         }
         LmTransform.Phase tp = LmTransformClient.phase(p);
         if (tp != null) {

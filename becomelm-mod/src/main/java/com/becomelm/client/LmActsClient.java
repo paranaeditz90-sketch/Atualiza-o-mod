@@ -5,6 +5,7 @@ import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
 import com.becomelm.LmKnock;
 import com.becomelm.network.LmNetwork;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -19,7 +20,9 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.InputEvent;
 import net.minecraftforge.client.event.MovementInputUpdateEvent;
+import net.minecraftforge.client.event.ViewportEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -47,6 +50,8 @@ public final class LmActsClient {
         boolean confirmed;
         /** Segurando na boca: há quantos ticks está sacudindo (-1 = não está). */
         int shake = -1;
+        /** No monte: o rumo do corpo deitado. */
+        float pileYaw;
 
         Act(LmAttack kind, int target, int age) {
             this.kind = kind;
@@ -64,6 +69,14 @@ public final class LmActsClient {
     private static final int CONFIRM = 20;
     /** O quanto quem está na boca balança pra cada lado na sacudida (graus). */
     private static final float SWING = 28F;
+    /** No monte: o tempo de deitar e o ciclo da cabeça (pile_lie, 2,4 s), com as esfregadas e a afundada. */
+    static final int PILE_DROP = 8;
+    private static final int PILE_CYCLE = 48;
+    private static final int[] PILE_DIPS = {6, 18, 28};
+    /** O peito fica a ~1 bloco dos pés (deitado de bruços) e a cara a ~1,55. */
+    static final double PILE_CHEST = 1.0D;
+    private static final double PILE_FACE = 1.55D;
+    private static final int RISE_TICKS = 10;
 
     private static boolean jumpHeld;
 
@@ -73,7 +86,8 @@ public final class LmActsClient {
     /** Chegou do servidor (kind -1 = acabou). */
     public static void set(UUID player, int kind, int target, int age) {
         if (kind < 0) {
-            ACTS.remove(player);
+            Act old = ACTS.remove(player);
+            if (old != null && old.kind == LmAttack.PILE) rise(player, old);
             return;
         }
         LmAttack k = LmAttack.byOrdinal(kind);
@@ -98,6 +112,8 @@ public final class LmActsClient {
         }
         Act a = new Act(k, target, age);
         a.confirmed = true;
+        // no monte o "alvo" é o rumo do corpo deitado (graus x10)
+        if (k == LmAttack.PILE) a.pileYaw = target / 10F;
         ACTS.put(player, a);
         Minecraft mc = Minecraft.getInstance();
         Player p = k == LmAttack.FACEPLANT && mc.level != null ? mc.level.getPlayerByUUID(player) : null;
@@ -110,19 +126,60 @@ public final class LmActsClient {
         if (kind == LmAttack.FACEPLANT) faceplantBurst(p);
     }
 
+    /** Deita no monte (o próprio jogador já começa; o servidor confirma). */
+    static void startPile(LocalPlayer p, float yaw) {
+        Act a = new Act(LmAttack.PILE, Math.round(Mth.wrapDegrees(yaw) * 10F), 0);
+        a.pileYaw = yaw;
+        ACTS.put(p.getUUID(), a);
+    }
+
+    /** Saiu do monte: a animação de levantar (só no cliente; já anda). */
+    private static void rise(UUID player, Act old) {
+        Act r = new Act(LmAttack.RISE, -1, 0);
+        r.confirmed = true;
+        r.pileYaw = old.pileYaw;
+        ACTS.put(player, r);
+    }
+
     @Nullable
     static Act get(Player p) {
         return ACTS.get(p.getUUID());
+    }
+
+    /** Deitado no monte de pedaços. */
+    public static boolean onPile(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && a.kind == LmAttack.PILE;
+    }
+
+    /**
+     * Deitado no monte, a cabeça esfrega ou afunda neste tick: onde está a cara (os cacos ali
+     * pulam). Senão, null.
+     */
+    @Nullable
+    public static Vec3 pileDip(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || a.kind != LmAttack.PILE || a.age < PILE_DROP) return null;
+        int c = (a.age - PILE_DROP) % PILE_CYCLE;
+        for (int d : PILE_DIPS) {
+            if (c == d) return pileFace(p, a.pileYaw);
+        }
+        return null;
+    }
+
+    private static Vec3 pileFace(Player p, float yawDeg) {
+        float y = yawDeg * Mth.DEG_TO_RAD;
+        return p.position().add(-Mth.sin(y) * PILE_FACE, 0.35D, Mth.cos(y) * PILE_FACE);
     }
 
     static boolean busy(Player p) {
         return ACTS.containsKey(p.getUUID());
     }
 
-    /** Montado socando ou de cara no chão: não anda nem bate. */
+    /** Montado socando, de cara no chão ou deitado no monte: não anda nem bate. */
     static boolean locked(Player p) {
         Act a = ACTS.get(p.getUUID());
-        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.FACEPLANT);
+        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.FACEPLANT || a.kind == LmAttack.PILE);
     }
 
     /** Alguém na boca (anda arrastando). */
@@ -154,6 +211,8 @@ public final class LmActsClient {
             case FACEPLANT -> LmAttacks.FACEPLANT_TICKS + 10;
             case GRAB -> LmAttacks.GRAB_MAX + 20;
             case THROW -> LmAttacks.THROW_TICKS + 10;
+            case PILE -> LmAttacks.PILE_MAX + 40;
+            case RISE -> RISE_TICKS;
             default -> 40;
         };
     }
@@ -167,9 +226,13 @@ public final class LmActsClient {
             victimTick(p);
             return;
         }
-        if (a.kind != LmAttack.SMASH && a.kind != LmAttack.FACEPLANT) return;
+        if (a.kind != LmAttack.SMASH && a.kind != LmAttack.FACEPLANT && a.kind != LmAttack.PILE) return;
         Vec3 v = p.getDeltaMovement();
         p.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (a.kind == LmAttack.PILE) {
+            p.setYBodyRot(a.pileYaw);
+            return;
+        }
         double[] s = seat(p, a);
         if (s == null) return;
         p.setPos(s[0], s[1], s[2]);
@@ -241,6 +304,11 @@ public final class LmActsClient {
     /** Montado: o corpo virado pra vítima no desenho (o jogo vira o corpo pro olhar a cada tick). */
     static void faceBody(Player p) {
         Act a = ACTS.get(p.getUUID());
+        if (a != null && (a.kind == LmAttack.PILE || a.kind == LmAttack.RISE)) {
+            p.yBodyRot = a.pileYaw;
+            p.yBodyRotO = a.pileYaw;
+            return;
+        }
         if (a != null && a.kind == LmAttack.GRAB) {
             // segurando: o corpo no rumo do olhar (a boca aponta pra onde se olha)
             float yaw = p.getYRot();
@@ -327,6 +395,15 @@ public final class LmActsClient {
             in.jumping = false;
             return;
         }
+        if (a != null && a.kind == LmAttack.PILE && p instanceof LocalPlayer lp && a.age > PILE_DROP + 2
+                && (in.up || in.down || in.left || in.right || in.jumping)) {
+            // andar ou pular levanta do monte
+            rise(lp.getUUID(), a);
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.GET_UP, -1));
+            jumpHeld = true;
+            in.jumping = false;
+            return;
+        }
         if (!locked(p)) return;
         in.forwardImpulse = 0F;
         in.leftImpulse = 0F;
@@ -335,10 +412,35 @@ public final class LmActsClient {
         in.shiftKeyDown = false;
     }
 
+    /** Primeira pessoa no monte: o olho desce até a cara, deitada em cima dos pedaços. */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null || LmCamera.active() || !mc.options.getCameraType().isFirstPerson()) return;
+        Camera cam = event.getCamera();
+        if (cam.getEntity() != p) return;
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || (a.kind != LmAttack.PILE && a.kind != LmAttack.RISE)) return;
+        float partial = (float) event.getPartialTick();
+        float t = a.age + partial;
+        float k = a.kind == LmAttack.PILE ? Math.min(1F, t / PILE_DROP) : 1F - Math.min(1F, t / RISE_TICKS);
+        k = k * k * (3F - 2F * k);
+        float y = a.pileYaw * Mth.DEG_TO_RAD;
+        Vec3 feet = p.getPosition(partial);
+        Vec3 face = feet.add(-Mth.sin(y) * PILE_FACE, 0.45D, Mth.cos(y) * PILE_FACE);
+        Vec3 pos = cam.getPosition();
+        cam.setPosition(pos.add(face.subtract(pos).scale(k)));
+        event.setPitch(event.getPitch() + (35F - event.getPitch()) * k * 0.7F);
+    }
+
     @SubscribeEvent
     public static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
         LocalPlayer p = Minecraft.getInstance().player;
         if (p == null || !busy(p)) return;
+        // levantando do monte já pode tudo
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind == LmAttack.RISE) return;
         event.setCanceled(true);
         event.setSwingHand(false);
         if (event.isAttack() && holding(p)) localShake(p);

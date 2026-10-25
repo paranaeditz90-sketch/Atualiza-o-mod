@@ -11,6 +11,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -85,6 +86,22 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onLeave(EntityLeaveLevelEvent event) {
         if (!event.getLevel().isClientSide()) LmKnock.forget(event.getEntity());
+    }
+
+    /** Quem o FroggyDude mata vira pedaços (no lugar de cair de lado e sumir). */
+    @SubscribeEvent
+    public static void onDeath(LivingDeathEvent event) {
+        LivingEntity victim = event.getEntity();
+        if (victim.level().isClientSide() || !(event.getSource().getEntity() instanceof ServerPlayer killer)) return;
+        if (!LmModes.get(killer).froggy() || killer == victim) return;
+        double dx = victim.getX() - killer.getX(), dz = victim.getZ() - killer.getZ();
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len > 1.0E-3D) {
+            dx /= len;
+            dz /= len;
+        }
+        LmBloodType blood = LmBloodType.of(victim);
+        LmNetwork.sendBreak(victim, (float) dx, 0.15F, (float) dz, LmAttacks.breakPower(killer), blood.color, blood.bleeds());
     }
 
     /** Deitado ninguém bate (o zumbi no chão não morde o pé de quem passa). */

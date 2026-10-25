@@ -24,6 +24,7 @@ public final class LmClient {
     @SubscribeEvent
     public static void onParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(BecomeLM.DUST_PUFF.get(), DustPuffParticle.Provider::new);
+        event.registerSpriteSet(BecomeLM.BLOOD.get(), com.becomelm.client.pieces.LmBloodParticle.Provider::new);
     }
 
     @SubscribeEvent

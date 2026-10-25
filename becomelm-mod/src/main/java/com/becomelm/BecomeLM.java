@@ -51,6 +51,9 @@ public final class BecomeLM {
     /** Arremessou quem estava na boca (o vento do tranco). */
     public static final RegistryObject<SoundEvent> THROW = sound("throw");
 
+    /** Os cubinhos de sangue dos pedaços. */
+    public static final RegistryObject<SimpleParticleType> BLOOD =
+            PARTICLES.register("blood", () -> new SimpleParticleType(false));
     public static final RegistryObject<SimpleParticleType> DUST_PUFF =
             PARTICLES.register("dust_puff", () -> new SimpleParticleType(false));
 

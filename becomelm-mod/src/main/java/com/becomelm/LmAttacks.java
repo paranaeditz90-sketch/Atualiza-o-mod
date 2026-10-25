@@ -74,6 +74,8 @@ public final class LmAttacks {
     private static final double THROW_UP = 0.42D;
     /** A boca de quem segura: na frente e rente ao chão (a pose de segurar abaixa a cara). */
     public static final double MOUTH = 1.05D;
+    /** Deitado no monte: levanta sozinho depois de 1 min. */
+    public static final int PILE_MAX = 1200;
     /** Segurando alguém na boca anda com 55% da velocidade. */
     private static final double DRAG_SLOW = -0.45D;
     private static final UUID DRAG_ID = UUID.fromString("5b2d7e19-0c4a-4f6e-9d83-1a7c2e4b6f05");
@@ -92,6 +94,8 @@ public final class LmAttacks {
         /** Agarrado: quando começou a última sacudida, e há quantos ticks a vítima não acompanha. */
         int shakeAt = -1000;
         int stuck;
+        /** No monte: o rumo do corpo deitado (graus x10, quem vê desenha com ele). */
+        int data;
 
         Act(LmAttack kind, @Nullable LivingEntity target) {
             this.kind = kind;
@@ -121,6 +125,11 @@ public final class LmAttacks {
             case GRAB -> startGrab(p, targetId);
             case SHAKE -> shake(p);
             case THROW -> toss(p);
+            case PILE -> startPile(p, targetId);
+            case GET_UP -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.PILE) end(p, a);
+            }
             default -> {
             }
         }
@@ -195,6 +204,34 @@ public final class LmAttacks {
         if (a != null && a.kind == LmAttack.GRAB) release(p, a, true);
     }
 
+    /** Deita no monte de pedaços na frente (os pedaços são do cliente: o servidor só trava e conta). */
+    private static void startPile(ServerPlayer p, int yawX10) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        pile(p, yawX10);
+    }
+
+    private static void pile(ServerPlayer p, int yawX10) {
+        Act a = new Act(LmAttack.PILE, null);
+        a.data = yawX10;
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        LmNetwork.sendAct(p, LmAttack.PILE, yawX10, 0);
+    }
+
+    /**
+     * Quanto o corpo de quem ele matou se espalha: montado em cima, pouco (o monte fica
+     * embaixo dele, como no 10v1); na boca, médio; no bote, voa.
+     */
+    public static float breakPower(ServerPlayer killer) {
+        Act a = ACTS.get(killer.getUUID());
+        if (a == null) return 1.0F;
+        return switch (a.kind) {
+            case SMASH -> 0.35F;
+            case GRAB -> 0.6F;
+            default -> 1.0F;
+        };
+    }
+
     /** Quem está segurando esse na boca (ou null). */
     @Nullable
     private static UUID holder(LivingEntity t) {
@@ -260,6 +297,9 @@ public final class LmAttacks {
             case GRAB -> tickGrab(p, a);
             case THROW -> {
                 if (a.age >= THROW_TICKS) end(p, a);
+            }
+            case PILE -> {
+                if (a.age >= PILE_MAX) end(p, a);
             }
             default -> end(p, a);
         }
@@ -350,6 +390,13 @@ public final class LmAttacks {
 
     private static void tickSmash(ServerPlayer p, Act a) {
         LivingEntity t = a.target;
+        if (t != null && t.isDeadOrDying() && t.level() == p.level()) {
+            // matou montado: o corpo virou o monte embaixo dele e ele deita em cima (10v1 0:21)
+            double dx = t.getX() - p.getX(), dz = t.getZ() - p.getZ();
+            float yaw = dx * dx + dz * dz < 1.0E-4D ? p.getYRot() : (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90F;
+            pile(p, Math.round(Mth.wrapDegrees(yaw) * 10F));
+            return;
+        }
         if (t == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || p.distanceToSqr(t) > 25D) {
             if (DEBUG) System.out.printf("[LMATK] fim do esmagamento t=%d vivo=%s dist=%.2f%n", a.age,
                     t != null && t.isAlive(), t == null ? -1D : Math.sqrt(p.distanceToSqr(t)));
@@ -405,7 +452,8 @@ public final class LmAttacks {
         if (!(target instanceof ServerPlayer p)) return;
         Act a = ACTS.get(p.getUUID());
         if (a != null && a.kind != LmAttack.POUNCE) {
-            LmNetwork.sendActTo(viewer, p, a.kind, a.target == null ? -1 : a.target.getId(), a.age);
+            int id = a.kind == LmAttack.PILE ? a.data : a.target == null ? -1 : a.target.getId();
+            LmNetwork.sendActTo(viewer, p, a.kind, id, a.age);
         }
     }
 

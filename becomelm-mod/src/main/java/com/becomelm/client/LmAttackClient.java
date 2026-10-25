@@ -6,6 +6,7 @@ import com.becomelm.LmAttacks;
 import com.becomelm.LmKnock;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
+import com.becomelm.client.pieces.BodyPieces;
 import com.becomelm.network.LmNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -17,8 +18,10 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.InputEvent;
@@ -167,10 +170,17 @@ public final class LmAttackClient {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (p == null || mc.screen != null || !LmClientEvents.serverHasMod()) return;
-        if (!LmModes.get(p).fast() || LmKnockClient.lying(p) || LmTransformClient.busy(p) || LmActsClient.busy(p)
+        if (!LmModes.get(p).froggy() || LmKnockClient.lying(p) || LmTransformClient.busy(p) || LmActsClient.busy(p)
                 || p.isSpectator()) return;
-        LivingEntity target = pickTarget(mc, p, LmAttacks.POUNCE_RANGE);
-        if (target == null) return;
+        LivingEntity target = LmModes.get(p).fast() ? pickTarget(mc, p, LmAttacks.POUNCE_RANGE) : null;
+        if (target == null) {
+            // ninguém na mira e um monte de pedaços na frente: deita em cima
+            if (tryPile(mc, p)) {
+                event.setCanceled(true);
+                event.setSwingHand(false);
+            }
+            return;
+        }
         // é bote, não soco: sem o golpe do vanilla (nem o braço balançando)
         event.setCanceled(true);
         event.setSwingHand(false);
@@ -182,6 +192,33 @@ public final class LmAttackClient {
         } else {
             pounce(p, target);
         }
+    }
+
+    /**
+     * Deita de bruços no monte de pedaços na frente: o peito no meio do monte, virado pra ele
+     * (a cara afunda nos cacos, como no 10v1 0:21 e no How many days 0:44).
+     */
+    private static boolean tryPile(Minecraft mc, LocalPlayer p) {
+        if (mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.ENTITY) return false;
+        Vec3 look = p.getViewVector(1F);
+        Vec3 h = new Vec3(look.x, 0D, look.z);
+        h = h.lengthSqr() < 1.0E-4D ? Vec3.directionFromRotation(0F, p.getYRot()) : h.normalize();
+        Vec3 pile = BodyPieces.pileNear(p.position().add(h.scale(1.2D)), 1.8D);
+        if (pile == null) return false;
+        Vec3 to = new Vec3(pile.x - p.getX(), 0D, pile.z - p.getZ());
+        double d = to.length();
+        Vec3 dir = d < 1.0E-3D ? h : to.scale(1D / d);
+        float yaw = (float) (Mth.atan2(dir.z, dir.x) * Mth.RAD_TO_DEG) - 90F;
+        // os pés ficam antes do monte (deitado, o peito fica em cima dele); sem atravessar parede
+        Vec3 feet = new Vec3(pile.x, p.getY(), pile.z).subtract(dir.scale(LmActsClient.PILE_CHEST));
+        AABB moved = p.getBoundingBox().move(feet.x - p.getX(), 0D, feet.z - p.getZ());
+        if (p.level().noCollision(p, moved)) p.setPos(feet.x, p.getY(), feet.z);
+        p.setYRot(yaw);
+        p.yRotO = yaw;
+        p.setYBodyRot(yaw);
+        LmActsClient.startPile(p, yaw);
+        LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.PILE, Math.round(Mth.wrapDegrees(yaw) * 10F)));
+        return true;
     }
 
     /** Morde e segura na boca (o servidor confere; a pose sai na hora). */
@@ -250,6 +287,8 @@ public final class LmAttackClient {
         Entity t = level.getEntity(targetId);
         if (kind == LmAttack.PUNCH || kind == LmAttack.BITE || kind == LmAttack.GRAB || kind == LmAttack.SHAKE) {
             if (t instanceof LivingEntity le) blow(level, le, kind, n);
+            // as mordidas sujam a boca dele
+            if (kind != LmAttack.PUNCH && a instanceof Player pa) LmBloodFace.bite(pa);
             return;
         }
         if (kind == LmAttack.THROW) {

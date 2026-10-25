@@ -37,6 +37,7 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
         super(context, new LmModel(), LmAnimatable.INSTANCE);
         this.shadowRadius = 0.5F;
         withScale(SCALE);
+        addRenderLayer(new LmBloodFace.Layer(this));
     }
 
     static LmRenderer get() {

@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  */
 public final class LmNetwork {
 
-    private static final String VERSION = "2";
+    private static final String VERSION = "3";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeLM.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 
@@ -58,6 +58,14 @@ public final class LmNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(id++, ActSync.class, ActSync::encode, ActSync::decode, ActSync::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, BreakBody.class, BreakBody::encode, BreakBody::decode, BreakBody::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+    }
+
+    /** O FroggyDude matou: quem vê despedaça o corpo (pra onde o golpe empurra, a força e o sangue). */
+    public static void sendBreak(LivingEntity victim, float dx, float dy, float dz, float power, int color, boolean bleeds) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> victim),
+                new BreakBody(victim.getId(), dx, dy, dz, power, color, bleeds));
     }
 
     public static void sendMode(ServerPlayer player, LmMode mode) {
@@ -306,6 +314,31 @@ public final class LmNetwork {
         static void handle(ActSync m, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.becomelm.client.LmActsClient.set(m.player, m.kind, m.target, m.age)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Servidor -> quem vê: esse corpo vira pedaços. */
+    public record BreakBody(int entity, float dx, float dy, float dz, float power, int color, boolean bleeds) {
+        static void encode(BreakBody m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.entity);
+            buf.writeFloat(m.dx);
+            buf.writeFloat(m.dy);
+            buf.writeFloat(m.dz);
+            buf.writeFloat(m.power);
+            buf.writeInt(m.color);
+            buf.writeBoolean(m.bleeds);
+        }
+
+        static BreakBody decode(FriendlyByteBuf buf) {
+            return new BreakBody(buf.readVarInt(), buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat(),
+                    buf.readInt(), buf.readBoolean());
+        }
+
+        static void handle(BreakBody m, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.becomelm.client.pieces.BodyPieces.breakEntity(m.entity, m.dx, m.dy, m.dz, m.power,
+                            m.color, m.bleeds)));
             ctx.get().setPacketHandled(true);
         }
     }

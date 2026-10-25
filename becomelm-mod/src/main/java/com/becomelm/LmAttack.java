@@ -17,7 +17,13 @@ public enum LmAttack {
     /** Segurando, atacar: sacode a cabeça (mordidas fortes). */
     SHAKE,
     /** Segurando, pular: arremessa pra frente. */
-    THROW;
+    THROW,
+    /** Deitado em cima do monte de pedaços de quem ele matou (não come: só fica em cima). */
+    PILE,
+    /** (pedido) levantar do monte. */
+    GET_UP,
+    /** (só no cliente) levantando do monte. */
+    RISE;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

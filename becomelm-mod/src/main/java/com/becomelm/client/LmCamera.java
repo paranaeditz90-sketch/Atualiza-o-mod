@@ -107,6 +107,8 @@ public final class LmCamera {
 
     /** A vítima da câmera da vítima não aparece (a câmera está dentro da cabeça dela). */
     static boolean hides(Entity e) {
+        // recortando o corpo em pedaços: tem que desenhar a vítima mesmo assim
+        if (com.becomelm.client.pieces.BodyPieces.capturing) return false;
         return active() && shot == Shot.VICTIM && e.getId() == victimId;
     }
 

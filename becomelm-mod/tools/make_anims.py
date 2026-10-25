@@ -175,6 +175,81 @@ EXTRA.update({
 })
 
 
+# no monte de pedaços (10v1 0:21.8, How many days 0:44 e 1:20, DONT MESS 1:03, VS Every 14:06):
+# deitado de bruços em cima dos cacos, os braços abertos por cima do monte, e a cabeça
+# esfregando na carne - inclina ~30 graus pra um lado e pro outro, afunda, e de vez em quando
+# levanta e olha em volta (o peito sobe e os braços empurram). Ele não come: só fica em cima.
+def _prone(**over):
+    pose = {
+        'root': {'rotation': [90, 0, 0], 'position': [0, 5, 0]},
+        'waist': {'rotation': [0, 0, 0]},
+        'head': {'rotation': [-25, 0, 0]},
+        'right_arm': {'rotation': [-30, 0, 75]},
+        'left_arm': {'rotation': [-30, 0, -75]},
+        'right_leg': {'rotation': [0, 0, 8]},
+        'left_leg': {'rotation': [0, 0, -8]},
+        'right_shin': {'rotation': [10, 0, 0]},
+        'left_shin': {'rotation': [10, 0, 0]},
+    }
+    for bone, chans in over.items():
+        pose.setdefault(bone, {}).update(chans)
+    return pose
+
+
+def _stand():
+    return {
+        'root': {'rotation': [0, 0, 0], 'position': [0, 0, 0]},
+        'waist': {'rotation': [0, 0, 0]},
+        'head': {'rotation': [0, 0, 0]},
+        'right_arm': {'rotation': [0, 0, 0]},
+        'left_arm': {'rotation': [0, 0, 0]},
+        'right_leg': {'rotation': [0, 0, 0]},
+        'left_leg': {'rotation': [0, 0, 0]},
+        'right_shin': {'rotation': [0, 0, 0]},
+        'left_shin': {'rotation': [0, 0, 0]},
+    }
+
+
+_LIFT = dict(waist={'rotation': [-12, 0, 0]}, root={'position': [0, 6, 0]},
+             right_arm={'rotation': [-70, 0, 40]}, left_arm={'rotation': [-70, 0, -40]})
+
+EXTRA.update({
+    'pile_drop': _anim(0.4, 'hold_on_last_frame', [
+        (0.0, _stand()),
+        (0.12, _prone(root={'rotation': [40, 0, 0], 'position': [0, 2, 0]}, head={'rotation': [-10, 0, 0]},
+                      right_arm={'rotation': [-120, 0, 30]}, left_arm={'rotation': [-120, 0, -30]},
+                      right_leg={'rotation': [0, 0, 4]}, left_leg={'rotation': [0, 0, -4]},
+                      right_shin={'rotation': [0, 0, 0]}, left_shin={'rotation': [0, 0, 0]})),
+        (0.25, _prone(root={'rotation': [92, 0, 0], 'position': [0, 5, 0]},
+                      right_arm={'rotation': [-40, 0, 70]}, left_arm={'rotation': [-40, 0, -70]})),
+        (0.4, _prone()),
+    ]),
+    'pile_lie': _anim(2.4, True, [
+        (0.0, _prone()),
+        (0.3, _prone(head={'rotation': [-18, 10, 26]}, waist={'rotation': [3, 0, 0]})),
+        (0.6, _prone(head={'rotation': [-28, 0, 0]})),
+        (0.9, _prone(head={'rotation': [-18, -10, -26]}, waist={'rotation': [3, 0, 0]})),
+        (1.2, _prone()),
+        (1.4, _prone(head={'rotation': [6, 0, 0]}, waist={'rotation': [5, 0, 0]})),
+        (1.55, _prone(head={'rotation': [-22, 0, 0]})),
+        (1.9, _prone(head={'rotation': [-62, 14, 8]}, **_LIFT)),
+        (2.15, _prone(head={'rotation': [-58, -12, -6]}, **_LIFT)),
+        (2.4, _prone()),
+    ]),
+    'pile_rise': _anim(0.5, 'hold_on_last_frame', [
+        (0.0, _prone()),
+        (0.15, _prone(root={'rotation': [70, 0, 0], 'position': [0, 5, 0]}, head={'rotation': [-30, 0, 0]},
+                      right_arm={'rotation': [-90, 0, 12]}, left_arm={'rotation': [-90, 0, -12]})),
+        (0.3, _prone(root={'rotation': [30, 0, 0], 'position': [0, 3, 0]}, waist={'rotation': [30, 0, 0]},
+                     head={'rotation': [-20, 0, 0]},
+                     right_arm={'rotation': [-60, 0, 8]}, left_arm={'rotation': [-60, 0, -8]},
+                     right_leg={'rotation': [-40, 0, 8]}, left_leg={'rotation': [-40, 0, -8]},
+                     right_shin={'rotation': [60, 0, 0]}, left_shin={'rotation': [60, 0, 0]})),
+        (0.5, _stand()),
+    ]),
+})
+
+
 def value_at(frames, t):
     keys = sorted(frames, key=float)
     times = [float(k) for k in keys]
