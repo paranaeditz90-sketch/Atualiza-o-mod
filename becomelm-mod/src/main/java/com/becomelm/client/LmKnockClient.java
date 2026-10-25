@@ -80,8 +80,8 @@ public final class LmKnockClient {
             LmKnock.State s = en.getValue();
             Entity e = mc.level.getEntity(en.getKey());
             if (e == null) return true;
-            // morreu no chão: fica deitado até sumir (não levanta rolando morto)
-            if (e instanceof LivingEntity le && le.deathTime > 0 && s.lying()) {
+            // morreu no chão (não levanta rolando morto) ou está na boca de alguém: fica deitado
+            if (e instanceof LivingEntity le && (le.deathTime > 0 || LmActsClient.holder(le) != null) && s.lying()) {
                 s.age = Math.min(s.age + 1, LmKnock.FALL + s.down - 1);
                 return false;
             }
@@ -93,15 +93,15 @@ public final class LmKnockClient {
      * O eixo (no chão) em volta do qual o corpo tomba: de lado, o rumo do corpo (o sinal dá o
      * lado); de costas, a direita do corpo.
      */
-    private static Vec3 axis(LmKnock.State s) {
-        float yaw = s.yaw * Mth.DEG_TO_RAD;
+    private static Vec3 axis(LmKnock.State s, float yawDeg) {
+        float yaw = yawDeg * Mth.DEG_TO_RAD;
         if (s.back) return new Vec3(-Mth.cos(yaw), 0D, -Mth.sin(yaw));
         return new Vec3(-Mth.sin(yaw) * s.side, 0D, Mth.cos(yaw) * s.side);
     }
 
     /** Pra onde a cabeça vai quando deita (de lado: a direita ou a esquerda; de costas: pra trás). */
-    static Vec3 headDir(LmKnock.State s) {
-        Vec3 a = axis(s);
+    static Vec3 headDir(LmKnock.State s, float yawDeg) {
+        Vec3 a = axis(s, yawDeg);
         return new Vec3(-a.z, 0D, a.x);
     }
 
@@ -115,19 +115,28 @@ public final class LmKnockClient {
     static boolean apply(PoseStack pose, LivingEntity e, float partial) {
         LmKnock.State s = STATES.get(e.getId());
         if (s == null) return false;
+        float yawDeg = s.yaw;
+        double dx = 0D, dz = 0D;
+        double[] held = LmActsClient.heldSpot(e, s, partial);
+        if (held != null) {
+            // na boca de alguém: desenha colado na boca dele neste quadro
+            yawDeg = (float) held[2];
+            dx = held[0] - Mth.lerp(partial, e.xo, e.getX());
+            dz = held[1] - Mth.lerp(partial, e.zo, e.getZ());
+        }
         // o corpo fica no rumo da queda (cada um calcula o corpo dos outros sozinho e virava ele)
-        e.yBodyRot = s.yaw;
-        e.yBodyRotO = s.yaw;
+        e.yBodyRot = yawDeg;
+        e.yBodyRotO = yawDeg;
         float a = s.angle(partial) * Mth.DEG_TO_RAD;
-        Vec3 ax = axis(s);
+        Vec3 ax = axis(s, yawDeg);
         Quaternionf q = new Quaternionf().rotationAxis(a, (float) ax.x, 0F, (float) ax.z);
         float flip = deathFlip(e, partial);
         if (flip != 0F) {
-            float yaw = s.yaw * Mth.DEG_TO_RAD;
+            float yaw = yawDeg * Mth.DEG_TO_RAD;
             q.rotateAxis(flip * Mth.DEG_TO_RAD, -Mth.sin(yaw), 0F, Mth.cos(yaw));
         }
         pose.pushPose();
-        pose.translate(0D, lift(s, e, a), 0D);
+        pose.translate(dx, lift(s, e, a), dz);
         pose.mulPose(q);
         return true;
     }
@@ -150,9 +159,15 @@ public final class LmKnockClient {
         LmKnock.State s = STATES.get(e.getId());
         if (s == null) return e.getEyePosition(partial);
         float a = s.angle(partial) * Mth.DEG_TO_RAD;
-        Vec3 d = headDir(s);
-        float eh = e.getEyeHeight();
         Vec3 feet = e.getPosition(partial);
+        float yawDeg = s.yaw;
+        double[] held = LmActsClient.heldSpot(e, s, partial);
+        if (held != null) {
+            yawDeg = (float) held[2];
+            feet = new Vec3(held[0], feet.y, held[1]);
+        }
+        Vec3 d = headDir(s, yawDeg);
+        float eh = e.getEyeHeight();
         return feet.add(d.x * eh * Mth.sin(a), lift(s, e, a) + eh * Mth.cos(a), d.z * eh * Mth.sin(a));
     }
 
@@ -186,7 +201,8 @@ public final class LmKnockClient {
         if (s == null) return;
         float k = downAmount(s, (float) event.getPartialTick());
         k = k * k * (3F - 2F * k);
-        Vec3 d = headDir(s);
+        double[] held = LmActsClient.heldSpot(p, s, (float) event.getPartialTick());
+        Vec3 d = headDir(s, held != null ? (float) held[2] : s.yaw);
         double drop = (p.getEyeHeight() - LYING_EYE) * k;
         cam.setPosition(cam.getPosition().add(d.x * drop * 0.8D, -drop, d.z * drop * 0.8D));
         if (s.back) event.setPitch(event.getPitch() + (BACK_PITCH - event.getPitch()) * k);

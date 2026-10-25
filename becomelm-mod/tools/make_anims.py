@@ -89,6 +89,92 @@ EXTRA = {
 }
 
 
+# morder e segurar na boca (no lugar da língua: o personagem do LM é um cachorro). A pose de
+# segurar abaixa a frente até a boca ficar rente ao chão (~1 bloco na frente, ~0,35 de altura),
+# onde fica a cabeça de quem está deitado sendo arrastado.
+def _hold(**over):
+    pose = {
+        'root': {'position': [0, -3, 0]},
+        'waist': {'rotation': [105, 0, 0]},
+        'head': {'rotation': [-75, 0, 0]},
+        'right_arm': {'rotation': [-155, 0, 8]},
+        'left_arm': {'rotation': [-155, 0, -8]},
+        'right_leg': {'rotation': [-35, 0, 6]},
+        'left_leg': {'rotation': [-35, 0, -6]},
+        'right_shin': {'rotation': [70, 0, 0]},
+        'left_shin': {'rotation': [70, 0, 0]},
+    }
+    for bone, chans in over.items():
+        pose.setdefault(bone, {}).update(chans)
+    return pose
+
+
+def _anim(length, loop, keys):
+    """keys: [(tempo, pose)] -> canais por osso (todos os ossos em todas as poses)."""
+    bones = {}
+    for t, pose in keys:
+        for bone, chans in pose.items():
+            for ch, v in chans.items():
+                bones.setdefault(bone, {}).setdefault(ch, {})[str(t)] = v
+    return {'loop': loop, 'animation_length': length, 'bones': bones}
+
+
+EXTRA.update({
+    'grab_start': _anim(0.3, 'hold_on_last_frame', [
+        (0.0, _hold(root={'position': [0, -1, 0]}, waist={'rotation': [80, 0, 0]}, head={'rotation': [-60, 0, 0]},
+                    right_arm={'rotation': [-120, 0, 8]}, left_arm={'rotation': [-120, 0, -8]},
+                    right_leg={'rotation': [-20, 0, 6]}, left_leg={'rotation': [-20, 0, -6]},
+                    right_shin={'rotation': [40, 0, 0]}, left_shin={'rotation': [40, 0, 0]})),
+        (0.1, _hold(root={'position': [0, -3.5, 0]}, waist={'rotation': [112, 0, 0]}, head={'rotation': [-60, 0, 0]},
+                    right_arm={'rotation': [-165, 0, 8]}, left_arm={'rotation': [-165, 0, -8]})),
+        (0.2, _hold(waist={'rotation': [100, 0, 0]}, head={'rotation': [-80, 0, 0]})),
+        (0.3, _hold()),
+    ]),
+    'grab_hold': _anim(1.0, True, [
+        (0.0, _hold()),
+        (0.5, _hold(waist={'rotation': [108, 0, 0]}, head={'rotation': [-78, 0, 0]})),
+        (1.0, _hold()),
+    ]),
+    'grab_walk': _anim(0.5, True, [
+        (0.0, _hold(right_arm={'rotation': [-170, 0, 8]}, left_arm={'rotation': [-140, 0, -8]},
+                    right_leg={'rotation': [-20, 0, 6]}, left_leg={'rotation': [-50, 0, -6]},
+                    waist={'rotation': [105, 4, 0]})),
+        (0.125, _hold(root={'position': [0, -2.6, 0]})),
+        (0.25, _hold(right_arm={'rotation': [-140, 0, 8]}, left_arm={'rotation': [-170, 0, -8]},
+                     right_leg={'rotation': [-50, 0, 6]}, left_leg={'rotation': [-20, 0, -6]},
+                     waist={'rotation': [105, -4, 0]})),
+        (0.375, _hold(root={'position': [0, -2.6, 0]})),
+        (0.5, _hold(right_arm={'rotation': [-170, 0, 8]}, left_arm={'rotation': [-140, 0, -8]},
+                    right_leg={'rotation': [-20, 0, 6]}, left_leg={'rotation': [-50, 0, -6]},
+                    waist={'rotation': [105, 4, 0]})),
+    ]),
+    # a sacudida: a cabeça vai e volta a cada 0,2 s (uma mordida forte por ida e volta)
+    'grab_shake': _anim(0.2, True, [
+        (0.0, _hold(right_arm={'rotation': [-150, 0, 10]}, left_arm={'rotation': [-150, 0, -10]})),
+        (0.05, _hold(head={'rotation': [-75, 32, 0]}, waist={'rotation': [105, 12, 6]},
+                     right_arm={'rotation': [-150, 0, 10]}, left_arm={'rotation': [-150, 0, -10]})),
+        (0.1, _hold(right_arm={'rotation': [-150, 0, 10]}, left_arm={'rotation': [-150, 0, -10]})),
+        (0.15, _hold(head={'rotation': [-75, -32, 0]}, waist={'rotation': [105, -12, -6]},
+                     right_arm={'rotation': [-150, 0, 10]}, left_arm={'rotation': [-150, 0, -10]})),
+        (0.2, _hold(right_arm={'rotation': [-150, 0, 10]}, left_arm={'rotation': [-150, 0, -10]})),
+    ]),
+    # arremesso: a cabeça chicoteia pra cima e pra frente e solta; volta pra de quatro
+    'grab_throw': _anim(0.45, 'hold_on_last_frame', [
+        (0.0, _hold()),
+        (0.1, _hold(root={'position': [0, -2.5, 0]}, waist={'rotation': [70, 0, 0]}, head={'rotation': [-10, 0, 0]},
+                    right_arm={'rotation': [-120, 0, 10]}, left_arm={'rotation': [-120, 0, -10]})),
+        (0.22, _hold(root={'position': [0, -1, 0]}, waist={'rotation': [40, 0, 0]}, head={'rotation': [10, 0, 0]},
+                     right_arm={'rotation': [-70, 0, 10]}, left_arm={'rotation': [-70, 0, -10]},
+                     right_leg={'rotation': [-15, 0, 6]}, left_leg={'rotation': [-15, 0, -6]},
+                     right_shin={'rotation': [25, 0, 0]}, left_shin={'rotation': [25, 0, 0]})),
+        (0.45, _hold(root={'position': [0, -0.5, 0]}, waist={'rotation': [90, 0, 0]}, head={'rotation': [-66, 0, 0]},
+                     right_arm={'rotation': [-90, 0, 4]}, left_arm={'rotation': [-88, 0, -4]},
+                     right_leg={'rotation': [0, 0, 4]}, left_leg={'rotation': [4, 0, -4]},
+                     right_shin={'rotation': [0, 0, 0]}, left_shin={'rotation': [0, 0, 0]})),
+    ]),
+})
+
+
 def value_at(frames, t):
     keys = sorted(frames, key=float)
     times = [float(k) for k in keys]

@@ -11,7 +11,13 @@ public enum LmAttack {
     /** (efeito) um soco do SMASH. */
     PUNCH,
     /** (efeito) uma mordida. */
-    BITE;
+    BITE,
+    /** Galopando, atacar um bicho bem perto: morde e segura na boca (andando, arrasta). */
+    GRAB,
+    /** Segurando, atacar: sacode a cabeça (mordidas fortes). */
+    SHAKE,
+    /** Segurando, pular: arremessa pra frente. */
+    THROW;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

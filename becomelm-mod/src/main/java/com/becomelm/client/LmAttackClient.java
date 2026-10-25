@@ -3,6 +3,7 @@ package com.becomelm.client;
 import com.becomelm.BecomeLM;
 import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
+import com.becomelm.LmKnock;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
 import com.becomelm.network.LmNetwork;
@@ -31,8 +32,9 @@ import javax.annotation.Nullable;
 
 /**
  * Os golpes do lado de quem ataca: o "atacar" vira o golpe certo pro momento (galopando
- * com um bicho na frente = bote), o corpo sai na hora (sem esperar o servidor) e o
- * servidor confere e dá o dano. E o barulho e a poeira quando acerta, pra todo mundo.
+ * com um bicho na frente = bote; bem perto = morde e segura na boca), o corpo sai na hora
+ * (sem esperar o servidor) e o servidor confere e dá o dano. E o barulho e a poeira quando
+ * acerta, pra todo mundo.
  *
  * Pulo alto: descendo, ele vai na direção do bicho que estiver embaixo (dá pra mirar
  * olhando pra ele); caiu perto = monta, soca e morde; caiu longe de todo mundo = de cara
@@ -175,7 +177,17 @@ public final class LmAttackClient {
         int now = LmClientEvents.ticks();
         if (now - lastAttack < COOLDOWN) return;
         lastAttack = now;
-        pounce(p, target);
+        if (p.distanceTo(target) <= LmAttacks.GRAB_RANGE + target.getBbWidth() * 0.5D && LmKnock.canKnock(target)) {
+            grab(p, target);
+        } else {
+            pounce(p, target);
+        }
+    }
+
+    /** Morde e segura na boca (o servidor confere; a pose sai na hora). */
+    private static void grab(LocalPlayer p, LivingEntity target) {
+        LmActsClient.startLocal(p, LmAttack.GRAB, target.getId());
+        LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.GRAB, target.getId()));
     }
 
     /** O bicho na mira; se não tiver, o melhor no cone da frente (mais no meio e mais perto). */
@@ -236,8 +248,15 @@ public final class LmAttackClient {
         if (level == null) return;
         Entity a = level.getEntity(attackerId);
         Entity t = level.getEntity(targetId);
-        if (kind == LmAttack.PUNCH || kind == LmAttack.BITE) {
+        if (kind == LmAttack.PUNCH || kind == LmAttack.BITE || kind == LmAttack.GRAB || kind == LmAttack.SHAKE) {
             if (t instanceof LivingEntity le) blow(level, le, kind, n);
+            return;
+        }
+        if (kind == LmAttack.THROW) {
+            if (t != null) {
+                level.playLocalSound(t.getX(), t.getY() + 0.5D, t.getZ(), BecomeLM.THROW.get(), SoundSource.PLAYERS,
+                        1.0F, 0.9F + level.getRandom().nextFloat() * 0.2F, false);
+            }
             return;
         }
         if (t != null) impact(level, t, a);
@@ -256,9 +275,11 @@ public final class LmAttackClient {
     private static void blow(ClientLevel level, LivingEntity t, LmAttack kind, int n) {
         var rnd = level.getRandom();
         Vec3 head = LmKnockClient.eye(t, 1F);
-        var sound = kind == LmAttack.BITE ? BecomeLM.BITE.get() : (n % 2 == 0 ? BecomeLM.PUNCH_A.get() : BecomeLM.PUNCH_B.get());
-        level.playLocalSound(head.x, head.y, head.z, sound, SoundSource.PLAYERS, 1.0F,
-                0.95F + rnd.nextFloat() * 0.1F, false);
+        boolean bite = kind != LmAttack.PUNCH;
+        var sound = bite ? BecomeLM.BITE.get() : (n % 2 == 0 ? BecomeLM.PUNCH_A.get() : BecomeLM.PUNCH_B.get());
+        // a sacudida morde mais grave (é o tranco da cabeça)
+        float pitch = (kind == LmAttack.SHAKE ? 0.8F : 0.95F) + rnd.nextFloat() * 0.1F;
+        level.playLocalSound(head.x, head.y, head.z, sound, SoundSource.PLAYERS, 1.0F, pitch, false);
         boolean mine = LmCamera.active() && LmCamera.shot() == LmCamera.Shot.VICTIM;
         int count = mine ? 2 : 5;
         for (int i = 0; i < count; i++) {
@@ -266,7 +287,7 @@ public final class LmAttackClient {
                     head.z + (rnd.nextDouble() - 0.5D) * 0.5D, (rnd.nextDouble() - 0.5D) * 0.06D, 0.02D,
                     (rnd.nextDouble() - 0.5D) * 0.06D);
         }
-        if (kind == LmAttack.BITE) {
+        if (bite) {
             DustParticleOptions red = new DustParticleOptions(new Vector3f(0.55F, 0.02F, 0.02F), 1.2F);
             for (int i = 0; i < (mine ? 3 : 8); i++) {
                 level.addParticle(red, head.x + (rnd.nextDouble() - 0.5D) * 0.4D, head.y + rnd.nextDouble() * 0.2D,

@@ -18,6 +18,7 @@ import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.FlyingAnimal;
 
+import javax.annotation.Nullable;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -48,7 +49,8 @@ public final class LmKnock {
         public int age;
         public int down;
         public final int side;
-        public final float yaw;
+        /** O rumo do corpo deitado (arrastado pela boca, vai virando com quem segura). */
+        public float yaw;
         public final boolean back;
 
         public State(int age, int down, int side, float yaw, boolean back) {
@@ -122,8 +124,38 @@ public final class LmKnock {
         start(victim, from, down, true);
     }
 
-    private static void start(LivingEntity victim, Entity from, int down, boolean back) {
-        if (victim.level().isClientSide() || !canKnock(victim)) return;
+    /**
+     * Servidor: agarrado pela boca. Deita (de costas, ou de lado o bicho de quatro) com o corpo no
+     * rumo de quem segura; o "steer" de cada tick mantém no chão enquanto segurar.
+     */
+    public static State grab(LivingEntity victim, Entity from, float holderYaw) {
+        State s = start(victim, from, 20, upright(victim));
+        if (s == null) return null;
+        s.yaw = s.back ? holderYaw : holderYaw + 180F;
+        LmNetwork.sendKnock(victim, s);
+        return s;
+    }
+
+    /** Servidor, todo tick de quem segura: o rumo novo e continua no chão pelo menos "keep" ticks. */
+    public static void steer(LivingEntity victim, float yaw, int keep) {
+        State s = SERVER.get(victim);
+        if (s == null || !s.lying()) return;
+        s.yaw = yaw;
+        int want = s.age + keep - FALL;
+        if (want > s.down) s.down = want;
+    }
+
+    /** Servidor: soltou (ou arremessou): fica deitado mais "down" ticks e levanta rolando. */
+    public static void letGo(LivingEntity victim, int down) {
+        State s = SERVER.get(victim);
+        if (s == null || !s.lying()) return;
+        s.down = Math.max(0, s.age - FALL) + down;
+        LmNetwork.sendKnock(victim, s);
+    }
+
+    @Nullable
+    private static State start(LivingEntity victim, Entity from, int down, boolean back) {
+        if (victim.level().isClientSide() || !canKnock(victim)) return null;
         State s = SERVER.get(victim);
         if (s != null && s.lying()) {
             int want = s.age + down - FALL;
@@ -135,6 +167,7 @@ public final class LmKnock {
             slow(victim, true);
         }
         LmNetwork.sendKnock(victim, s);
+        return s;
     }
 
     /** Corpo em pé (gente, zumbi, aldeão, creeper...) cai de costas; bicho de quatro cai de lado. */

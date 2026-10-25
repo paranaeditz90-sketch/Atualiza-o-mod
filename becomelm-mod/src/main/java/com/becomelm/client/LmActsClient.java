@@ -4,6 +4,7 @@ import com.becomelm.BecomeLM;
 import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
 import com.becomelm.LmKnock;
+import com.becomelm.network.LmNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -28,8 +29,9 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Os golpes longos de cada jogador (montado socando, de cara no chão), do lado de quem vê:
- * a animação certa e, pro próprio jogador, ficar parado em cima da vítima até acabar.
+ * Os golpes longos de cada jogador (montado socando, de cara no chão, segurando na boca), do
+ * lado de quem vê: a animação certa e, pro próprio jogador, ficar parado em cima da vítima até
+ * acabar, ou arrastar quem está na boca.
  */
 @Mod.EventBusSubscriber(modid = BecomeLM.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LmActsClient {
@@ -41,6 +43,10 @@ public final class LmActsClient {
         int age;
         /** O próprio jogador já virou o olhar pra vítima. */
         boolean faced;
+        /** O servidor já confirmou (o que o próprio jogador começou sozinho espera por isso). */
+        boolean confirmed;
+        /** Segurando na boca: há quantos ticks está sacudindo (-1 = não está). */
+        int shake = -1;
 
         Act(LmAttack kind, int target, int age) {
             this.kind = kind;
@@ -54,6 +60,12 @@ public final class LmActsClient {
     private static final double SEAT = 0.5D;
     /** De lado (bicho de quatro): ajoelhado do lado da barriga, a essa distância do corpo. */
     private static final double BESIDE = 0.45D;
+    /** O que o próprio jogador começou e o servidor não confirmou nesse tempo, não valeu. */
+    private static final int CONFIRM = 20;
+    /** O quanto quem está na boca balança pra cada lado na sacudida (graus). */
+    private static final float SWING = 28F;
+
+    private static boolean jumpHeld;
 
     private LmActsClient() {
     }
@@ -65,12 +77,28 @@ public final class LmActsClient {
             return;
         }
         LmAttack k = LmAttack.byOrdinal(kind);
+        if (k == LmAttack.SHAKE) {
+            // a sacudida é um pedaço do "segurando na boca"
+            Act g = ACTS.get(player);
+            if (g == null || g.kind != LmAttack.GRAB || g.target != target) {
+                g = new Act(LmAttack.GRAB, target, age);
+                ACTS.put(player, g);
+            }
+            g.age = age;
+            g.confirmed = true;
+            // o próprio jogador já começou a dele: não volta do começo
+            if (g.shake < 0 || g.shake > 4) g.shake = 0;
+            return;
+        }
         Act old = ACTS.get(player);
         if (old != null && old.kind == k && old.target == target) {
             old.age = age;
+            old.confirmed = true;
             return;
         }
-        ACTS.put(player, new Act(k, target, age));
+        Act a = new Act(k, target, age);
+        a.confirmed = true;
+        ACTS.put(player, a);
         Minecraft mc = Minecraft.getInstance();
         Player p = k == LmAttack.FACEPLANT && mc.level != null ? mc.level.getPlayerByUUID(player) : null;
         if (p != null) faceplantBurst(p);
@@ -91,6 +119,18 @@ public final class LmActsClient {
         return ACTS.containsKey(p.getUUID());
     }
 
+    /** Montado socando ou de cara no chão: não anda nem bate. */
+    static boolean locked(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.FACEPLANT);
+    }
+
+    /** Alguém na boca (anda arrastando). */
+    static boolean holding(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && a.kind == LmAttack.GRAB;
+    }
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
@@ -100,14 +140,20 @@ public final class LmActsClient {
             return;
         }
         if (mc.isPaused()) return;
-        // sem notícia do servidor (ele não tem o mod, ou o pacote se perdeu): solta sozinho
-        ACTS.values().removeIf(a -> ++a.age > limit(a.kind));
+        ACTS.values().removeIf(a -> {
+            a.age++;
+            if (a.shake >= 0 && ++a.shake >= LmAttacks.SHAKE_TICKS) a.shake = -1;
+            // sem notícia do servidor (ele não tem o mod, recusou, ou o pacote se perdeu): solta sozinho
+            return (!a.confirmed && a.age > CONFIRM) || a.age > limit(a.kind);
+        });
     }
 
     private static int limit(LmAttack kind) {
         return switch (kind) {
             case SMASH -> LmAttacks.SMASH_TICKS + 20;
             case FACEPLANT -> LmAttacks.FACEPLANT_TICKS + 10;
+            case GRAB -> LmAttacks.GRAB_MAX + 20;
+            case THROW -> LmAttacks.THROW_TICKS + 10;
             default -> 40;
         };
     }
@@ -118,13 +164,10 @@ public final class LmActsClient {
         if (event.phase != TickEvent.Phase.START || !(event.player instanceof LocalPlayer p)) return;
         Act a = ACTS.get(p.getUUID());
         if (a == null) {
-            // eu sou a vítima: o corpo de quem está em cima não me empurra pra fora
-            if (mounted(p)) {
-                Vec3 v = p.getDeltaMovement();
-                p.setDeltaMovement(0D, v.y, 0D);
-            }
+            victimTick(p);
             return;
         }
+        if (a.kind != LmAttack.SMASH && a.kind != LmAttack.FACEPLANT) return;
         Vec3 v = p.getDeltaMovement();
         p.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
         double[] s = seat(p, a);
@@ -144,6 +187,25 @@ public final class LmActsClient {
         p.setYBodyRot(yaw);
     }
 
+    /** Eu sou a vítima: montado em mim, não saio debaixo; na boca de alguém, vou arrastado. */
+    private static void victimTick(LocalPlayer me) {
+        Player h = holder(me);
+        if (h != null) {
+            LmKnock.State ks = LmKnockClient.get(me);
+            if (ks == null) return;
+            double[] spot = LmAttacks.dragSpot(h.getX(), h.getZ(), h.getYRot(), 0F, me, ks.back, ks.side);
+            // a velocidade que leva até lá neste tick (o jogo move com colisão: não entro na parede)
+            Vec3 v = me.getDeltaMovement();
+            me.setDeltaMovement(Mth.clamp(spot[0] - me.getX(), -1.5D, 1.5D), v.y,
+                    Mth.clamp(spot[1] - me.getZ(), -1.5D, 1.5D));
+            return;
+        }
+        if (mounted(me)) {
+            Vec3 v = me.getDeltaMovement();
+            me.setDeltaMovement(0D, v.y, 0D);
+        }
+    }
+
     /**
      * Onde quem está montado fica e pra onde olha: {x, y, z, rumo}. Usa o derrubado que veio do
      * servidor; antes dele chegar, a mesma conta que o servidor faz.
@@ -158,7 +220,7 @@ public final class LmActsClient {
         Vec3 d;
         if (ks != null) {
             back = ks.back;
-            d = LmKnockClient.headDir(ks);
+            d = LmKnockClient.headDir(ks, ks.yaw);
         } else if (LmKnock.upright(victim)) {
             back = true;
             float y = LmKnock.backYaw(victim, p) * Mth.DEG_TO_RAD;
@@ -179,6 +241,13 @@ public final class LmActsClient {
     /** Montado: o corpo virado pra vítima no desenho (o jogo vira o corpo pro olhar a cada tick). */
     static void faceBody(Player p) {
         Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind == LmAttack.GRAB) {
+            // segurando: o corpo no rumo do olhar (a boca aponta pra onde se olha)
+            float yaw = p.getYRot();
+            p.yBodyRot = yaw;
+            p.yBodyRotO = p.yRotO;
+            return;
+        }
         double[] s = a == null ? null : seat(p, a);
         if (s == null) return;
         p.yBodyRot = (float) s[3];
@@ -192,11 +261,73 @@ public final class LmActsClient {
         return false;
     }
 
+    /** Quem está segurando esse na boca (ou null). */
+    @Nullable
+    static Player holder(Entity victim) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return null;
+        for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+            Act a = en.getValue();
+            if (a.kind == LmAttack.GRAB && a.target == victim.getId()) {
+                Player p = mc.level.getPlayerByUUID(en.getKey());
+                if (p != null) return p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Quem está na boca de alguém: onde desenhar (os pés) e o rumo do corpo, {x, z, rumo}, a
+     * partir de quem segura neste quadro (a posição que vem do servidor chega atrasada e o corpo
+     * ia ficar pra trás da boca). Com o balanço da sacudida.
+     */
+    @Nullable
+    static double[] heldSpot(LivingEntity victim, LmKnock.State ks, float partial) {
+        Player h = holder(victim);
+        if (h == null) return null;
+        Act a = ACTS.get(h.getUUID());
+        float swing = 0F;
+        if (a != null && a.shake >= 0) {
+            float t = (a.shake + partial) / LmAttacks.SHAKE_EVERY;
+            swing = SWING * Mth.sin(t * Mth.TWO_PI);
+        }
+        double hx = Mth.lerp(partial, h.xo, h.getX()), hz = Mth.lerp(partial, h.zo, h.getZ());
+        return LmAttacks.dragSpot(hx, hz, h.getViewYRot(partial), swing, victim, ks.back, ks.side);
+    }
+
+    /** Segurando, atacar: sacode (o próprio jogador já começa a animação). */
+    static void localShake(LocalPlayer p) {
+        Act a = ACTS.get(p.getUUID());
+        // o mesmo clique que agarrou não sacode
+        if (a == null || a.kind != LmAttack.GRAB || a.shake >= 0 || a.age < 4) return;
+        a.shake = 0;
+        LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.SHAKE, a.target));
+    }
+
     /** No meio de um golpe longo não anda, não pula e não bate (o golpe é que bate). */
     @SubscribeEvent
     public static void onInput(MovementInputUpdateEvent event) {
-        if (!busy(event.getEntity())) return;
+        Player p = event.getEntity();
         var in = event.getInput();
+        // só o apertar conta (segurando o pulo desde antes de agarrar não arremessa na hora)
+        boolean jumpPressed = in.jumping && !jumpHeld;
+        jumpHeld = in.jumping;
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind == LmAttack.GRAB && p instanceof LocalPlayer lp) {
+            // segurando: anda (devagar, o servidor freia) e o pulo vira arremesso
+            if (jumpPressed) {
+                ACTS.put(lp.getUUID(), new Act(LmAttack.THROW, -1, 0));
+                LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.THROW, a.target));
+            }
+            in.jumping = false;
+            return;
+        }
+        if (a != null && a.kind == LmAttack.THROW) {
+            // o pulo que arremessou não vira pulo
+            in.jumping = false;
+            return;
+        }
+        if (!locked(p)) return;
         in.forwardImpulse = 0F;
         in.leftImpulse = 0F;
         in.up = in.down = in.left = in.right = false;
@@ -207,10 +338,10 @@ public final class LmActsClient {
     @SubscribeEvent
     public static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
         LocalPlayer p = Minecraft.getInstance().player;
-        if (p != null && busy(p)) {
-            event.setCanceled(true);
-            event.setSwingHand(false);
-        }
+        if (p == null || !busy(p)) return;
+        event.setCanceled(true);
+        event.setSwingHand(false);
+        if (event.isAttack() && holding(p)) localShake(p);
     }
 
     /** De cara no chão: o chão estoura (terra/areia voando pra todo lado e a poeira em roda). */
@@ -240,5 +371,6 @@ public final class LmActsClient {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ACTS.clear();
+        jumpHeld = false;
     }
 }

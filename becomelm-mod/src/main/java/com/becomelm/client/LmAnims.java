@@ -31,6 +31,13 @@ final class LmAnims {
     static final RawAnimation BITES = RawAnimation.begin().thenLoop("feed_mob");
     /** Errou a queda: de cara no chão. */
     static final RawAnimation FACEPLANT = RawAnimation.begin().thenPlayAndHold("faceplant");
+    /** Na boca: o bote curto da mordida, segurando (parado / andando), a sacudida e o arremesso. */
+    static final RawAnimation GRAB_START = RawAnimation.begin().thenPlayAndHold("grab_start");
+    static final RawAnimation GRAB_HOLD = RawAnimation.begin().thenLoop("grab_hold");
+    static final RawAnimation GRAB_WALK = RawAnimation.begin().thenLoop("grab_walk");
+    static final RawAnimation GRAB_SHAKE = RawAnimation.begin().thenLoop("grab_shake");
+    static final RawAnimation GRAB_THROW = RawAnimation.begin().thenPlayAndHold("grab_throw");
+    private static final int GRAB_START_TICKS = 6;
     /** As mordidas do vídeo: a cabeça mergulha a cada 0,24 s (o feed_mob tem 0,6 s). */
     private static final double BITE_SPEED = 0.6D / 0.24D;
     /** Fase 2: correndo em pé curvado, desesperado. */
@@ -48,6 +55,12 @@ final class LmAnims {
         if (act != null) {
             if (act.kind == LmAttack.SMASH) return act.age < LmAttacks.BITE_FROM ? SMASH : BITES;
             if (act.kind == LmAttack.FACEPLANT) return FACEPLANT;
+            if (act.kind == LmAttack.GRAB) {
+                if (act.shake >= 0) return GRAB_SHAKE;
+                if (act.age < GRAB_START_TICKS) return GRAB_START;
+                return groundSpeed(p) > MOVING ? GRAB_WALK : GRAB_HOLD;
+            }
+            if (act.kind == LmAttack.THROW) return GRAB_THROW;
         }
         LmTransform.Phase tp = LmTransformClient.phase(p);
         if (tp != null) {
@@ -81,7 +94,12 @@ final class LmAnims {
      */
     static double speed(AbstractClientPlayer p) {
         LmActsClient.Act act = LmActsClient.get(p);
-        if (act != null) return act.kind == LmAttack.SMASH && act.age >= LmAttacks.BITE_FROM ? BITE_SPEED : 1D;
+        if (act != null) {
+            if (act.kind == LmAttack.SMASH && act.age >= LmAttacks.BITE_FROM) return BITE_SPEED;
+            // arrastando: o passo acompanha a velocidade
+            if (act.kind == LmAttack.GRAB && act.shake < 0) return Mth.clamp(groundSpeed(p) * 8.0D, 0.5D, 1.6D);
+            return 1D;
+        }
         LmMode mode = LmModes.get(p);
         double v = groundSpeed(p);
         if (v <= MOVING || !p.onGround()) return 1D;

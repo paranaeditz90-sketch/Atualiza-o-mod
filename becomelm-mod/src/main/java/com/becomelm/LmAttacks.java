@@ -2,8 +2,10 @@ package com.becomelm;
 
 import com.becomelm.network.LmNetwork;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -55,6 +57,27 @@ public final class LmAttacks {
     /** Até quanto tempo depois do pulo alto ainda vale cair em cima (ou de cara). */
     private static final int SKY_WINDOW = 120;
 
+    // Morder e agarrar: no lugar da língua do Froggydude (o personagem do LM é um cachorro).
+    // Galopando, atacar bem de perto = morde e segura na boca; andando, arrasta; atacar de
+    // novo = sacode; pular = arremessa.
+    public static final double GRAB_RANGE = 2.3D;
+    public static final float GRAB_DAMAGE = 2F;
+    public static final float SHAKE_DAMAGE = 1.5F;
+    /** A sacudida: 0,8 s, uma mordida forte a cada ida e volta da cabeça (0,2 s). */
+    public static final int SHAKE_TICKS = 16;
+    public static final int SHAKE_EVERY = 4;
+    /** Solta sozinho depois de 10 s. */
+    public static final int GRAB_MAX = 200;
+    /** A animação de jogar longe. */
+    public static final int THROW_TICKS = 9;
+    private static final double THROW_SPEED = 0.85D;
+    private static final double THROW_UP = 0.42D;
+    /** A boca de quem segura: na frente e rente ao chão (a pose de segurar abaixa a cara). */
+    public static final double MOUTH = 1.05D;
+    /** Segurando alguém na boca anda com 55% da velocidade. */
+    private static final double DRAG_SLOW = -0.45D;
+    private static final UUID DRAG_ID = UUID.fromString("5b2d7e19-0c4a-4f6e-9d83-1a7c2e4b6f05");
+
     private static final UUID LOCK_ID = UUID.fromString("9a4e1f32-5c7d-4b8e-a0f6-2d3c4b5a6e71");
     private static final boolean DEBUG = Boolean.getBoolean("becomelm.debug");
 
@@ -66,6 +89,9 @@ public final class LmAttacks {
         @Nullable
         final Vec3 at;
         int age;
+        /** Agarrado: quando começou a última sacudida, e há quantos ticks a vítima não acompanha. */
+        int shakeAt = -1000;
+        int stuck;
 
         Act(LmAttack kind, @Nullable LivingEntity target) {
             this.kind = kind;
@@ -92,6 +118,9 @@ public final class LmAttacks {
             case POUNCE -> startPounce(p, targetId);
             case SMASH -> startSmash(p, targetId);
             case FACEPLANT -> startFaceplant(p);
+            case GRAB -> startGrab(p, targetId);
+            case SHAKE -> shake(p);
+            case THROW -> toss(p);
             default -> {
             }
         }
@@ -141,6 +170,66 @@ public final class LmAttacks {
         LmNetwork.sendAct(p, LmAttack.FACEPLANT, -1, 0);
     }
 
+    private static void startGrab(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).fast() || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, GRAB_RANGE + SLACK) || !LmKnock.canKnock(t)
+                || holder(t) != null) return;
+        ACTS.put(p.getUUID(), new Act(LmAttack.GRAB, t));
+        drag(p, true);
+        LmKnock.grab(t, p, p.getYRot());
+        boolean hurt = hurtInPlace(p, t, GRAB_DAMAGE);
+        LmNetwork.sendAct(p, LmAttack.GRAB, t.getId(), 0);
+        LmNetwork.sendHit(p, t, LmAttack.GRAB, hurt, 0);
+    }
+
+    private static void shake(ServerPlayer p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || a.kind != LmAttack.GRAB || a.target == null || a.age - a.shakeAt < SHAKE_TICKS) return;
+        a.shakeAt = a.age;
+        LmNetwork.sendAct(p, LmAttack.SHAKE, a.target.getId(), a.age);
+    }
+
+    private static void toss(ServerPlayer p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind == LmAttack.GRAB) release(p, a, true);
+    }
+
+    /** Quem está segurando esse na boca (ou null). */
+    @Nullable
+    private static UUID holder(LivingEntity t) {
+        for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+            if (en.getValue().kind == LmAttack.GRAB && en.getValue().target == t) return en.getKey();
+        }
+        return null;
+    }
+
+    /**
+     * Onde fica quem está sendo arrastado: {x, z, rumo do corpo}. A boca fica na frente de quem
+     * segura. De costas: a cabeça da vítima na boca e o corpo esticado pra frente, cara pro céu.
+     * De lado (bicho de quatro): virado pra quem segura, a cabeça na boca. "swing" = o balanço
+     * da sacudida (graus, em volta da boca). Vale pros dois lados (o cliente desenha com isso).
+     */
+    public static double[] dragSpot(double hx, double hz, float holderYaw, float swing, LivingEntity victim,
+                                    boolean back, int side) {
+        float y = holderYaw * Mth.DEG_TO_RAD;
+        double mx = hx - Mth.sin(y) * MOUTH, mz = hz + Mth.cos(y) * MOUTH;
+        float body = holderYaw + swing;
+        float b = body * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(b), fz = Mth.cos(b);
+        if (back) {
+            double eh = victim.getEyeHeight();
+            return new double[] {mx + fx * eh, mz + fz * eh, body};
+        }
+        // de lado: as costas vão pra direita dele ("side") e a cabeça fica na frente do corpo,
+        // meio de lado: os pés ficam pra trás e pro outro lado
+        float vyaw = body + 180F;
+        float v = vyaw * Mth.DEG_TO_RAD;
+        double rx = -Mth.cos(v) * side, rz = -Mth.sin(v) * side;
+        double fwd = victim.getBbWidth() * 0.6D, up = victim.getBbHeight() * 0.6D;
+        return new double[] {mx + fx * fwd - rx * up, mz + fz * fwd - rz * up, vyaw};
+    }
+
     /** Dá pra bater nesse? (vale pros dois lados: o cliente usa pra escolher o alvo). */
     public static boolean canTarget(Player p, LivingEntity t) {
         if (t == p || !t.isAlive() || t.isInvulnerable() || t instanceof ArmorStand) return false;
@@ -168,7 +257,73 @@ public final class LmAttacks {
             case FACEPLANT -> {
                 if (a.age >= FACEPLANT_TICKS) end(p, a);
             }
+            case GRAB -> tickGrab(p, a);
+            case THROW -> {
+                if (a.age >= THROW_TICKS) end(p, a);
+            }
             default -> end(p, a);
+        }
+    }
+
+    private static void tickGrab(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        LmKnock.State ks = t == null ? null : LmKnock.get(t);
+        if (t == null || ks == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || a.age > GRAB_MAX
+                || !LmModes.get(p).fast() || LmTransform.active(p) || LmKnock.lying(p)) {
+            release(p, a, false);
+            return;
+        }
+        double[] spot = dragSpot(p.getX(), p.getZ(), p.getYRot(), 0F, t, ks.back, ks.side);
+        LmKnock.steer(t, (float) spot[2], 10);
+        double dx = spot[0] - t.getX(), dz = spot[1] - t.getZ();
+        if (DEBUG && a.age % 20 == 0) {
+            System.out.printf("[LMATK] segurando t=%d quem=%.2f,%.2f rumo=%.0f lugar=%.2f,%.2f vitima=%.2f,%.2f costas=%s%n",
+                    a.age, p.getX(), p.getZ(), p.getYRot(), spot[0], spot[1], t.getX(), t.getZ(), ks.back);
+        }
+        // preso atrás de uma parede (ou o jogador vítima não acompanha): solta
+        if (dx * dx + dz * dz > 9D) {
+            if (++a.stuck > 10) {
+                release(p, a, false);
+                return;
+            }
+        } else {
+            a.stuck = 0;
+        }
+        if (!(t instanceof Player)) {
+            // arrastado com colisão (não atravessa parede nem entra no bloco); o jogador vítima
+            // se arrasta no cliente dele
+            t.move(MoverType.SELF, new Vec3(dx, 0D, dz));
+            Vec3 v = t.getDeltaMovement();
+            t.setDeltaMovement(0D, v.y, 0D);
+        }
+        int k = a.age - a.shakeAt;
+        if (k > 0 && k <= SHAKE_TICKS && k % SHAKE_EVERY == 0) {
+            boolean hurt = hurtInPlace(p, t, SHAKE_DAMAGE);
+            LmNetwork.sendHit(p, t, LmAttack.SHAKE, hurt, k / SHAKE_EVERY);
+        }
+    }
+
+    /** Solta quem estava na boca; arremessando, joga pra frente e faz a animação de jogar. */
+    private static void release(ServerPlayer p, Act a, boolean toss) {
+        ACTS.remove(p.getUUID());
+        drag(p, false);
+        LivingEntity t = a.target;
+        if (t != null && t.isAlive() && !t.isRemoved()) {
+            if (toss) {
+                float y = p.getYRot() * Mth.DEG_TO_RAD;
+                t.setDeltaMovement(-Mth.sin(y) * THROW_SPEED, THROW_UP, Mth.cos(y) * THROW_SPEED);
+                t.hurtMarked = true;
+                t.hasImpulse = true;
+            }
+            LmKnock.letGo(t, LmKnock.DOWN);
+        }
+        if (DEBUG) System.out.printf("[LMATK] solta t=%d arremesso=%s%n", a.age, toss);
+        if (toss) {
+            ACTS.put(p.getUUID(), new Act(LmAttack.THROW, null));
+            LmNetwork.sendAct(p, LmAttack.THROW, -1, 0);
+            if (t != null) LmNetwork.sendHit(p, t, LmAttack.THROW, false, 0);
+        } else {
+            LmNetwork.sendAct(p, null, -1, 0);
         }
     }
 
@@ -234,6 +389,10 @@ public final class LmAttacks {
     }
 
     private static void end(ServerPlayer p, Act a) {
+        if (a.kind == LmAttack.GRAB) {
+            release(p, a, false);
+            return;
+        }
         if (DEBUG) System.out.printf("[LMATK] fim %s t=%d%n", a.kind, a.age);
         ACTS.remove(p.getUUID());
         if (a.kind == LmAttack.POUNCE) return;
@@ -248,6 +407,14 @@ public final class LmAttacks {
         if (a != null && a.kind != LmAttack.POUNCE) {
             LmNetwork.sendActTo(viewer, p, a.kind, a.target == null ? -1 : a.target.getId(), a.age);
         }
+    }
+
+    private static void drag(ServerPlayer p, boolean on) {
+        AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        if (speed.getModifier(DRAG_ID) != null) speed.removeModifier(DRAG_ID);
+        if (on) speed.addTransientModifier(new AttributeModifier(DRAG_ID, "BecomeLM arrastando", DRAG_SLOW,
+                AttributeModifier.Operation.MULTIPLY_TOTAL));
     }
 
     private static void lock(ServerPlayer p, boolean on) {

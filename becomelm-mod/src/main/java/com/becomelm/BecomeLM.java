@@ -48,6 +48,8 @@ public final class BecomeLM {
     public static final RegistryObject<SoundEvent> PUNCH_B = sound("punch_b");
     /** A mordida. */
     public static final RegistryObject<SoundEvent> BITE = sound("bite");
+    /** Arremessou quem estava na boca (o vento do tranco). */
+    public static final RegistryObject<SoundEvent> THROW = sound("throw");
 
     public static final RegistryObject<SimpleParticleType> DUST_PUFF =
             PARTICLES.register("dust_puff", () -> new SimpleParticleType(false));

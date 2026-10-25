@@ -189,5 +189,16 @@
         "volume": 1.0
       }
     ]
+  },
+  "throw": {
+    "subtitle": "subtitles.becomelm.throw",
+    "sounds": [
+      {
+        "name": "minecraft:entity.player.attack.sweep",
+        "type": "event",
+        "pitch": 0.75,
+        "volume": 1.0
+      }
+    ]
   }
 }
