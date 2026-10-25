@@ -39,8 +39,13 @@ final class JumpScare {
     /** Sumido e calado antes da fala. */
     private static final int GONE_MIN = 30;
     private static final int GONE_MAX = 110;
-    /** A fala inteira ("I see you! hihihi... you can't hide from me!"). */
-    private static final int VOICE_MAX = 147;
+    /**
+     * Até o fim do "...you can't hide from me!" (o clipe do pacote de voz termina o "me!" em
+     * 6,7 s): o bote só vem depois. Antes, virar pra trás no meio da fala já disparava o
+     * susto e cortava a frase (LM, v0.7.11: "dá o jumpscare antes de terminar"). Uma
+     * respiradinha (0,3 s) depois do "me!" e aí ele pula.
+     */
+    private static final int LINE_END = 140;
     /** O jogo vira a tua câmera pra ele (LM: "o jogo deveria forçar o jogador a olhar pra trás"). */
     private static final int TURN_TICKS = 6;
     /** Se jogando na tua cara antes de cair em cima. */
@@ -111,16 +116,18 @@ final class JumpScare {
                 if (!spoke && !froggy.isMuted()) {
                     // atrás de ti, colado: o som vem das tuas costas
                     froggy.setSilent(false);
-                    spoke = froggy.speak(VoiceSituation.SEE_YOU, true);
-                    if (!spoke) froggy.playSound(ModSounds.AMBIENT.get(), 1.4F, 0.75F); // sem o pacote de voz
+                    if (!froggy.speak(VoiceSituation.SEE_YOU, true)) {
+                        froggy.playSound(ModSounds.AMBIENT.get(), 1.4F, 0.75F);
+                    }
+                    spoke = true;
                     froggy.brainLog("jumpscare em " + p.getScoreboardName() + ": \"I see you\" nas costas");
                     stageAt = froggy.tickCount;
                     t = 0;
                 }
                 if (froggy.tickCount % 5 == 0) tactics.moveTo(tactics.blindSpot(p, 2.2D), FroggyCombatGoal.huntSpeed());
                 froggy.getLookControl().setLookAt(p, 30.0F, 30.0F);
-                // tu vira pra ver de onde vem a voz (ou a fala acaba): já é tarde
-                if (t >= 30 && facing(p) || t >= VOICE_MAX) strike(p);
+                // a fala vai até o fim (virar pra trás não adianta: ele está sumido); no "me!", já é tarde
+                if (spoke && t >= LINE_END) strike(p);
             }
             case TURN -> {
                 // a tua câmera gira à força pra cara dele; ele parado te encarando

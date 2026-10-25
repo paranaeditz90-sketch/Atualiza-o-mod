@@ -1,4 +1,4 @@
-# Froggydude - v0.7.10: o jumpscare no escuro (sobre a v0.7.9)
+# Froggydude - v0.7.11: o "I see you" inteiro antes do susto (sobre a v0.7.10)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,13 +13,21 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.10) - o escuro no jumpscare:
+O que testar agora (v0.7.11) - a fala do jumpscare:
+A) A FALA INTEIRA (LM: "ele dá o jumpscare antes de terminar 'You can't hide from me'"): antes, virar
+   pra trás no meio da fala já disparava o susto e cortava a frase. Agora ele espera o "...you can't hide
+   from me!" acabar (sumido, nas tuas costas - virar não adianta) e pula 0,2 s depois do "me!".
+   Medido na gravação: fala de 11,95 s a 18,63 s, clarão do susto em 18,85 s.
+B) Pacote de voz 0.7.11: a fala do "I see you" já fica carregada na memória desde o começo do jogo
+   (antes o celular carregava na hora de tocar e podia atrasar). Troca o pacote de voz pelo novo.
+
+Da v0.7.10 - o escuro no jumpscare:
 A) O EFEITO DO WARDEN (LM): quando ele some, a tela começa a escurecer em pulsos (a Escuridão do warden,
    sem ícone), fica escura durante o "I SEE YOU" e ele aparece no escuro em cima de ti; o escuro vai
    embora sozinho uns segundos depois, no meio da cutscene.
 B) Virar a câmera não salva: enquanto ele está sumido, ele corre pras tuas costas toda vez que tu vira;
-   depois da fala começar, se tu virar pra voz, ele aparece na tua frente na hora; se não virar, o jogo
-   vira por ti quando a fala acaba.
+   quando a fala acaba, se tu já estiver virado pra ele, ele aparece na tua frente; se não, o jogo vira
+   por ti. (Na v0.7.11 ele não aparece mais no meio da fala.)
    Testado (com som): some, escurece, a fala, o giro, ele no escuro, a cutscene, a luz volta.
 
 Da v0.7.9 - o warden e largar a presa:
