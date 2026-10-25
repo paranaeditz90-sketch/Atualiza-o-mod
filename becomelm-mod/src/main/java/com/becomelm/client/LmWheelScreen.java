@@ -19,14 +19,20 @@ import org.joml.Matrix4f;
 
 /**
  * A roda (estilo a de emotes do Essential): no meio fica o "Humano" (desliga), em volta
- * os jeitos do FroggyDude, e embaixo a fileira das câmeras. Toca/clica pra escolher;
+ * os jeitos do FroggyDude (galope à esquerda, em pé à direita, a fase 2 embaixo), e do
+ * lado a fileira das câmeras. Toca/clica pra escolher;
  * no PC dá também pra segurar a tecla, apontar e soltar. Pensada pro celular: gomos
  * grandes, poucas coisas na tela, e o jogo não pausa.
  */
 public class LmWheelScreen extends Screen {
 
-    /** Os gomos, no sentido horário a partir da esquerda (o primeiro ocupa a metade esquerda). */
-    private static final LmMode[] MODES = {LmMode.GALLOP, LmMode.STAND};
+    /**
+     * Os gomos e onde cada um fica (graus da tela: 0 = direita, 90 = embaixo): o galope e o
+     * em pé continuam onde estavam (esquerda e direita); a fase 2 entra embaixo.
+     */
+    private static final LmMode[] MODES = {LmMode.GALLOP, LmMode.STAND, LmMode.FRENZY};
+    private static final float[] FROM = {135F, 270F, 45F};
+    private static final float[] TO = {270F, 405F, 135F};
     private static final LmCamera.Shot[] SHOTS = LmCamera.Shot.values();
 
     private static final int BASE = 0xC0141A14;
@@ -104,11 +110,9 @@ public class LmWheelScreen extends Screen {
         Matrix4f m = gfx.pose().last().pose();
         BufferBuilder bb = Tesselator.getInstance().getBuilder();
         bb.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
-        float span = 360F / MODES.length;
         for (int i = 0; i < MODES.length; i++) {
             int col = hover == MODES[i] ? HOVER : mode == MODES[i] ? CURRENT : BASE;
-            float from = 90F + i * span + 2F;
-            ring(bb, m, from, from + span - 4F, inner + 3, outer, col);
+            ring(bb, m, FROM[i] + 2F, TO[i] - 2F, inner + 3, outer, col);
         }
         int mid = hover == LmMode.HUMAN ? HOVER : mode == LmMode.HUMAN ? CURRENT : BASE;
         ring(bb, m, 0F, 360F, 0, inner - 1, mid);
@@ -118,7 +122,7 @@ public class LmWheelScreen extends Screen {
 
         // nomes dos gomos
         for (int i = 0; i < MODES.length; i++) {
-            float a = (90F + i * span + span / 2F) * Mth.DEG_TO_RAD;
+            float a = (FROM[i] + TO[i]) / 2F * Mth.DEG_TO_RAD;
             int r = (inner + outer) / 2;
             label(gfx, Component.translatable("becomelm.mode." + MODES[i].id), cx + Math.round(Mth.cos(a) * r),
                     cy + Math.round(Mth.sin(a) * r));
@@ -190,8 +194,11 @@ public class LmWheelScreen extends Screen {
         if (d < inner) return LmMode.HUMAN;
         if (d > outer * 1.25D) return null;
         float ang = (float) (Mth.atan2(dy, dx) * Mth.RAD_TO_DEG);
-        float rel = ((ang - 90F) % 360F + 360F) % 360F;
-        return MODES[Math.min(MODES.length - 1, (int) (rel / (360F / MODES.length)))];
+        for (int i = 0; i < MODES.length; i++) {
+            float rel = ((ang - FROM[i]) % 360F + 360F) % 360F;
+            if (rel < TO[i] - FROM[i]) return MODES[i];
+        }
+        return null;
     }
 
     private boolean choose(Object o) {

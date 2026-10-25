@@ -25,9 +25,15 @@ public final class LmModes {
         return LmMode.byId(player.getPersistentData().getString(KEY));
     }
 
-    /** Servidor: troca, salva e avisa todo mundo que vê esse jogador (e ele mesmo). */
+    /**
+     * Servidor: troca, salva e avisa todo mundo que vê esse jogador (e ele mesmo). Entrar na
+     * fase 2 começa a transformação; sair no meio para ela.
+     */
     public static void set(ServerPlayer player, LmMode mode) {
+        LmMode before = get(player);
         player.getPersistentData().putString(KEY, mode.id);
+        if (mode == LmMode.FRENZY && before != LmMode.FRENZY) LmTransform.start(player);
+        else if (mode != LmMode.FRENZY) LmTransform.cancel(player);
         LmMovement.tick(player, mode);
         LmNetwork.sendMode(player, mode);
     }

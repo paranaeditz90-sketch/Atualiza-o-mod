@@ -7,6 +7,7 @@ import com.becomelm.LmKnock;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
+import com.becomelm.LmTransform;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -51,6 +52,10 @@ public final class LmNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_SERVER));
         CHANNEL.registerMessage(id++, HitFx.class, HitFx::encode, HitFx::decode, HitFx::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, TransformSync.class, TransformSync::encode, TransformSync::decode,
+                TransformSync::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, TransformGo.class, TransformGo::encode, TransformGo::decode, TransformGo::handle,
+                Optional.of(NetworkDirection.PLAY_TO_SERVER));
     }
 
     public static void sendMode(ServerPlayer player, LmMode mode) {
@@ -74,6 +79,15 @@ public final class LmNetwork {
         HitFx fx = new HitFx(attacker.getId(), target.getId(), kind, hurt);
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> target), fx);
         if (target != attacker) CHANNEL.send(PacketDistributor.PLAYER.with(() -> attacker), fx);
+    }
+
+    /** Em que pedaço da transformação o jogador está (null = acabou ou parou). */
+    public static void sendTransform(ServerPlayer p, LmTransform.State st) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> p), TransformSync.of(p, st));
+    }
+
+    public static void sendTransformTo(ServerPlayer viewer, ServerPlayer p, LmTransform.State st) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), TransformSync.of(p, st));
     }
 
     // ------------------------------------------------------------------ pacotes
@@ -214,6 +228,47 @@ public final class LmNetwork {
         static void handle(HitFx m, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.becomelm.client.LmAttackClient.hit(m.attacker, m.target, m.kind, m.hurt)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Servidor -> quem vê: a transformação desse jogador (fase -1 = acabou). */
+    public record TransformSync(UUID player, int phase, int age) {
+        static TransformSync of(ServerPlayer p, LmTransform.State st) {
+            return st == null ? new TransformSync(p.getUUID(), -1, 0) : new TransformSync(p.getUUID(), st.phase.ordinal(), st.age);
+        }
+
+        static void encode(TransformSync m, FriendlyByteBuf buf) {
+            buf.writeUUID(m.player);
+            buf.writeByte(m.phase);
+            buf.writeVarInt(m.age);
+        }
+
+        static TransformSync decode(FriendlyByteBuf buf) {
+            return new TransformSync(buf.readUUID(), buf.readByte(), buf.readVarInt());
+        }
+
+        static void handle(TransformSync m, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.becomelm.client.LmTransformClient.set(m.player, m.phase, m.age)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Cliente -> servidor: estava torto e andei (arranca). */
+    public record TransformGo() {
+        static void encode(TransformGo m, FriendlyByteBuf buf) {
+        }
+
+        static TransformGo decode(FriendlyByteBuf buf) {
+            return new TransformGo();
+        }
+
+        static void handle(TransformGo m, Supplier<NetworkEvent.Context> ctx) {
+            ServerPlayer sender = ctx.get().getSender();
+            ctx.get().enqueueWork(() -> {
+                if (sender != null) LmTransform.go(sender);
+            });
             ctx.get().setPacketHandled(true);
         }
     }

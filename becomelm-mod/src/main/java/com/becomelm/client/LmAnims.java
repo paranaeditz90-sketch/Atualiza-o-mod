@@ -3,6 +3,7 @@ package com.becomelm.client;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
+import com.becomelm.LmTransform;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.util.Mth;
 import software.bernie.geckolib.core.animation.RawAnimation;
@@ -19,6 +20,13 @@ final class LmAnims {
     /** Cópias dos pulos do Froggydude que já começam no ar (tools/make_anims.py). */
     static final RawAnimation LEAP = RawAnimation.begin().thenPlayAndHold("leap_air");
     static final RawAnimation SKY = RawAnimation.begin().thenPlayAndHold("sky_air");
+    /** Transformação (as do Froggydude: a contorção acertada com o vídeo). */
+    static final RawAnimation CONTORT = RawAnimation.begin().thenPlayAndHold("contort");
+    static final RawAnimation CONTORT_HOLD = RawAnimation.begin().thenLoop("contort_hold");
+    static final RawAnimation ROAR = RawAnimation.begin().thenPlayAndHold("roar");
+    /** Fase 2: correndo em pé curvado, desesperado. */
+    static final RawAnimation FRENZY_RUN = RawAnimation.begin().thenLoop("run_frenzy");
+    static final RawAnimation FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
 
     /** Abaixo disso (blocos por tick) ele está parado. */
     private static final double MOVING = 0.02D;
@@ -27,6 +35,14 @@ final class LmAnims {
     }
 
     static RawAnimation pick(AbstractClientPlayer p) {
+        LmTransform.Phase tp = LmTransformClient.phase(p);
+        if (tp != null) {
+            return switch (tp) {
+                case CONTORT -> CONTORT;
+                case HOLD -> CONTORT_HOLD;
+                case ROAR -> ROAR;
+            };
+        }
         LmMode mode = LmModes.get(p);
         LmMove move = LmMoves.airborne(p);
         boolean moving = groundSpeed(p) > MOVING;
@@ -40,6 +56,7 @@ final class LmAnims {
             if (moving && !p.isShiftKeyDown()) return RUN;
             return CROUCH_IDLE;
         }
+        if (mode == LmMode.FRENZY) return moving ? FRENZY_RUN : FRENZY_IDLE;
         return moving ? WALK : IDLE;
     }
 
@@ -53,6 +70,7 @@ final class LmAnims {
         double v = groundSpeed(p);
         if (v <= MOVING || !p.onGround()) return 1D;
         if (mode == LmMode.GALLOP) return p.isShiftKeyDown() ? 1D : runSpeed(v);
+        if (mode == LmMode.FRENZY) return runSpeed(v);
         return Mth.clamp(v * 7.0D, 0.5D, 2.0D);
     }
 

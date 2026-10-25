@@ -85,5 +85,55 @@
         "volume": 0.9
       }
     ]
+  },
+  "contort": {
+    "subtitle": "subtitles.becomelm.contort",
+    "sounds": []
+  },
+  "crack_seq": {
+    "subtitle": "subtitles.becomelm.crack",
+    "sounds": [
+      {
+        "name": "minecraft:block.bone_block.break",
+        "type": "event",
+        "pitch": 0.8,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:block.bone_block.break",
+        "type": "event",
+        "pitch": 0.65,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:block.bone_block.hit",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 1.0
+      }
+    ]
+  },
+  "crack": {
+    "subtitle": "subtitles.becomelm.crack",
+    "sounds": [
+      {
+        "name": "minecraft:block.bone_block.break",
+        "type": "event",
+        "pitch": 0.8,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:block.bone_block.break",
+        "type": "event",
+        "pitch": 0.65,
+        "volume": 1.0
+      },
+      {
+        "name": "minecraft:block.bone_block.hit",
+        "type": "event",
+        "pitch": 0.7,
+        "volume": 1.0
+      }
+    ]
   }
 }

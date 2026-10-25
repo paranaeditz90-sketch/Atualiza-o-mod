@@ -37,6 +37,12 @@ public final class BecomeLM {
     public static final RegistryObject<SoundEvent> CHARGED = sound("charged");
     /** O bote acertando o bicho. */
     public static final RegistryObject<SoundEvent> POUNCE_HIT = sound("pounce_hit");
+    /** Transformação: o som original inteiro (vazio sem o pacote de sons; com ele, só os estalos). */
+    public static final RegistryObject<SoundEvent> CONTORT = sound("contort");
+    /** Os estalos da contorção nos tempos do original (osso do jogo; o pacote cala, o clipe já tem). */
+    public static final RegistryObject<SoundEvent> CRACK_SEQ = sound("crack_seq");
+    /** Um estalo solto (torto, esperando arrancar). */
+    public static final RegistryObject<SoundEvent> CRACK = sound("crack");
 
     public static final RegistryObject<SimpleParticleType> DUST_PUFF =
             PARTICLES.register("dust_puff", () -> new SimpleParticleType(false));

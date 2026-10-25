@@ -45,6 +45,7 @@ public final class LmServerEvents {
         if (!(event.getEntity() instanceof ServerPlayer viewer)) return;
         if (event.getTarget() instanceof ServerPlayer target) LmNetwork.sendModeTo(viewer, target, LmModes.get(target));
         LmKnock.sendTo(viewer, event.getTarget());
+        LmTransform.sendTo(viewer, event.getTarget());
     }
 
     @SubscribeEvent
@@ -55,7 +56,10 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            if (event.player instanceof ServerPlayer sp) LmAttacks.tick(sp);
+            if (event.player instanceof ServerPlayer sp) {
+                LmAttacks.tick(sp);
+                LmTransform.tick(sp);
+            }
             return;
         }
         Player p = event.player;
@@ -102,11 +106,13 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         LmAttacks.forget(event.getEntity());
+        LmTransform.forget(event.getEntity());
     }
 
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         LmKnock.clear();
         LmAttacks.clear();
+        LmTransform.clear();
     }
 }

@@ -24,6 +24,8 @@ public final class LmAttacks {
     public static final double POUNCE_RANGE = 7.0D;
     /** 3,5 corações. */
     public static final float POUNCE_DAMAGE = 7F;
+    /** Na fase 2 tudo bate mais forte (igual ao Froggydude). */
+    public static final float FRENZY_DAMAGE = 1.6F;
     /** Tempo pra chegar no bicho depois de pular (o bote leva ~0,4 s). */
     private static final int POUNCE_TIME = 16;
     private static final int POUNCE_COOLDOWN = 10;
@@ -53,7 +55,7 @@ public final class LmAttacks {
     }
 
     private static void startPounce(ServerPlayer p, int targetId) {
-        if (LmModes.get(p) != LmMode.GALLOP || LmKnock.lying(p) || ACTS.containsKey(p.getUUID())) return;
+        if (!LmModes.get(p).fast() || LmTransform.active(p) || LmKnock.lying(p) || ACTS.containsKey(p.getUUID())) return;
         long now = p.level().getGameTime();
         Long last = LAST.get(p.getUUID());
         if (last != null && now - last < POUNCE_COOLDOWN) return;
@@ -98,7 +100,8 @@ public final class LmAttacks {
         ACTS.remove(p.getUUID());
         Vec3 d = new Vec3(t.getX() - p.getX(), 0D, t.getZ() - p.getZ());
         d = d.lengthSqr() < 1.0E-4D ? Vec3.directionFromRotation(0F, p.getYRot()) : d.normalize();
-        boolean hurt = t.hurt(p.damageSources().playerAttack(p), POUNCE_DAMAGE);
+        float dmg = POUNCE_DAMAGE * (LmModes.get(p) == LmMode.FRENZY ? FRENZY_DAMAGE : 1F);
+        boolean hurt = t.hurt(p.damageSources().playerAttack(p), dmg);
         if (hurt) {
             t.knockback(0.8D, -d.x, -d.z);
             t.hurtMarked = true;

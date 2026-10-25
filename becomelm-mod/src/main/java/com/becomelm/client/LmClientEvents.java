@@ -151,6 +151,9 @@ public final class LmClientEvents {
             charge = 0;
             p.setDeltaMovement(v.x + fx * SKY_PUSH, SKY_VY, v.z + fz * SKY_PUSH);
             LmMoves.local(p, LmMove.SKY);
+        } else if (mode == LmMode.FRENZY) {
+            // em pé curvado: pulo normal (no vídeo ele não pula de sapo na fase 2)
+            return;
         } else if (mode == LmMode.GALLOP && p.isSprinting()) {
             p.setDeltaMovement(v.x + fx * LEAP_PUSH, v.y * LEAP_UP, v.z + fz * LEAP_PUSH);
             LmMoves.local(p, LmMove.LEAP);
@@ -166,7 +169,7 @@ public final class LmClientEvents {
     @SubscribeEvent
     public static void onFov(ComputeFovModifierEvent event) {
         Player p = event.getPlayer();
-        if (LmModes.get(p) != LmMode.GALLOP || p.isUsingItem()) return;
+        if (!LmModes.get(p).fast() || p.isUsingItem()) return;
         AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
         float walk = p.getAbilities().getWalkingSpeed();
         if (speed == null || walk <= 0F) return;
@@ -214,7 +217,8 @@ public final class LmClientEvents {
      */
     private static void strides(Minecraft mc) {
         for (AbstractClientPlayer p : mc.level.players()) {
-            if (LmModes.get(p) != LmMode.GALLOP || p.isSpectator() || p.isInvisible() || !replaceable(p)) {
+            LmMode mode = LmModes.get(p);
+            if (!mode.fast() || p.isSpectator() || p.isInvisible() || !replaceable(p) || LmTransformClient.busy(p)) {
                 STRIDES.remove(p.getId());
                 continue;
             }
@@ -222,21 +226,23 @@ public final class LmClientEvents {
             if (!p.onGround() || v < 0.05D || p.isShiftKeyDown()) continue;
             double[] s = STRIDES.computeIfAbsent(p.getId(), k -> new double[2]);
             s[0] += LmAnims.runSpeed(v);
-            if (s[0] >= 2.5D) {
-                s[0] -= 2.5D;
+            // galope: 2 patadas por passada de 5 ticks; fase 2 (run_frenzy, 0,3 s): 2 passos em 6 ticks
+            double every = mode == LmMode.FRENZY ? 3.0D : 2.5D;
+            if (s[0] >= every) {
+                s[0] -= every;
                 s[1] = s[1] > 0D ? 0D : 1D;
-                strideEffects(p, s[1] > 0D, p.isSprinting());
+                strideEffects(p, s[1] > 0D, p.isSprinting(), mode == LmMode.FRENZY);
             }
         }
     }
 
-    private static void strideEffects(AbstractClientPlayer p, boolean hind, boolean fast) {
+    private static void strideEffects(AbstractClientPlayer p, boolean hind, boolean fast, boolean biped) {
         float yaw = p.yBodyRot * Mth.DEG_TO_RAD;
         double fx = -Mth.sin(yaw), fz = Mth.cos(yaw);
-        double off = hind ? -0.45D : 0.55D;
+        double off = biped ? 0.1D : hind ? -0.45D : 0.55D;
         double px = p.getX() + fx * off, pz = p.getZ() + fz * off;
         var rnd = p.getRandom();
-        int puffs = fast ? 6 : 3;
+        int puffs = biped ? (fast ? 9 : 4) : fast ? 6 : 3;
         for (int i = 0; i < puffs; i++) {
             double side = (rnd.nextDouble() - 0.5D) * 0.12D;
             p.level().addParticle(BecomeLM.DUST_PUFF.get(),
@@ -244,7 +250,13 @@ public final class LmClientEvents {
                     -fx * (0.02D + rnd.nextDouble() * 0.05D) + fz * side, 0.004D + rnd.nextDouble() * 0.012D,
                     -fz * (0.02D + rnd.nextDouble() * 0.05D) - fx * side);
         }
-        if (hind) {
+        if (biped) {
+            // fase 2: só o passo pesado no bloco, a cada pé
+            BlockState under = p.getBlockStateOn();
+            SoundType type = under.getSoundType();
+            p.level().playLocalSound(px, p.getY(), pz, type.getStepSound(), SoundSource.PLAYERS,
+                    type.getVolume() * 0.4F, type.getPitch() * 0.8F, false);
+        } else if (hind) {
             float pitch = 0.9F + rnd.nextFloat() * 0.2F;
             p.level().playLocalSound(px, p.getY(), pz, BecomeLM.GALLOP.get(), SoundSource.PLAYERS,
                     fast ? 0.7F : 0.45F, pitch, false);

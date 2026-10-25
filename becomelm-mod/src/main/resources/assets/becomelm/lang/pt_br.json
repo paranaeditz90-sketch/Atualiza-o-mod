@@ -21,5 +21,9 @@
   "subtitles.becomelm.charged": "Pulo alto pronto",
   "becomelm.command.done": "%s jogador(es): %s",
   "becomelm.command.knocked": "%s derrubado(s)",
-  "subtitles.becomelm.pounce_hit": "FroggyDude derruba"
+  "subtitles.becomelm.pounce_hit": "FroggyDude derruba",
+  "becomelm.mode.frenzy": "Fase 2",
+  "becomelm.mode.toast.frenzy": "Fase 2: se transformando (anda pra arrancar)",
+  "subtitles.becomelm.contort": "Ossos do FroggyDude estalam",
+  "subtitles.becomelm.crack": "Osso estala"
 }

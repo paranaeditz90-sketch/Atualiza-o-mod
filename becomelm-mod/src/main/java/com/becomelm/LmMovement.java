@@ -14,8 +14,8 @@ import java.util.UUID;
  * não espera o servidor pra acelerar; o servidor confirma o mesmo valor).
  *
  * Galope correndo: ~14 blocos/s (o FroggyDude caçando, medido nos vídeos, faz ~15);
- * galope sem correr: ~6,5 b/s; em pé: velocidade normal de jogador. De quatro ele
- * sobe 1 bloco sem pular (o galope não trava em cada degrau).
+ * galope sem correr: ~6,5 b/s; em pé: velocidade normal de jogador; fase 2 correndo:
+ * ~15 b/s. Rápido ele sobe 1 bloco sem pular (o galope não trava em cada degrau).
  */
 public final class LmMovement {
 
@@ -27,15 +27,22 @@ public final class LmMovement {
     static final double GALLOP = 1.5D;
     /** Soma no passo (o normal é 0,6). */
     static final double STEP = 0.5D;
+    /** Fase 2: correndo em pé curvado, um pouco mais que o galope (no vídeo ele dispara). */
+    static final double FRENZY_RUN = 1.7D;
+    static final double FRENZY_WALK = 0.6D;
 
     private LmMovement() {
     }
 
     public static void tick(Player player, LmMode mode) {
-        double speed = mode == LmMode.GALLOP ? (player.isSprinting() ? GALLOP : TROT) : 0D;
+        double speed = switch (mode) {
+            case GALLOP -> player.isSprinting() ? GALLOP : TROT;
+            case FRENZY -> player.isSprinting() ? FRENZY_RUN : FRENZY_WALK;
+            default -> 0D;
+        };
         set(player, Attributes.MOVEMENT_SPEED, SPEED_ID, "BecomeLM galope", speed, AttributeModifier.Operation.MULTIPLY_TOTAL);
         set(player, ForgeMod.STEP_HEIGHT_ADDITION.get(), STEP_ID, "BecomeLM passo",
-                mode == LmMode.GALLOP ? STEP : 0D, AttributeModifier.Operation.ADDITION);
+                mode.fast() ? STEP : 0D, AttributeModifier.Operation.ADDITION);
     }
 
     private static void set(Player player, Attribute attribute, UUID id, String name, double amount,

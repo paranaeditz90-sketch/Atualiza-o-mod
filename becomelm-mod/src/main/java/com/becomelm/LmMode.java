@@ -7,7 +7,9 @@ public enum LmMode {
     /** FroggyDude em pé, andando como gente. */
     STAND("stand"),
     /** FroggyDude de quatro, galopando (rápido). */
-    GALLOP("gallop");
+    GALLOP("gallop"),
+    /** Fase 2: depois da transformação, em pé curvado, correndo desesperado (mais rápido ainda). */
+    FRENZY("frenzy");
 
     public final String id;
 
@@ -17,6 +19,11 @@ public enum LmMode {
 
     public boolean froggy() {
         return this != HUMAN;
+    }
+
+    /** Os jeitos de correr rápido (galope e fase 2): bote, poeira, campo de visão. */
+    public boolean fast() {
+        return this == GALLOP || this == FRENZY;
     }
 
     public static LmMode byId(String id) {

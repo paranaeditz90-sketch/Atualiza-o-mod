@@ -3,7 +3,6 @@ package com.becomelm.client;
 import com.becomelm.BecomeLM;
 import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
-import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
 import com.becomelm.network.LmNetwork;
@@ -51,7 +50,7 @@ public final class LmAttackClient {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (p == null || mc.screen != null || !LmClientEvents.serverHasMod()) return;
-        if (LmModes.get(p) != LmMode.GALLOP || LmKnockClient.lying(p) || p.isSpectator()) return;
+        if (!LmModes.get(p).fast() || LmKnockClient.lying(p) || LmTransformClient.busy(p) || p.isSpectator()) return;
         LivingEntity target = pickTarget(mc, p, LmAttacks.POUNCE_RANGE);
         if (target == null) return;
         // é bote, não soco: sem o golpe do vanilla (nem o braço balançando)

@@ -1,6 +1,5 @@
 package com.becomelm.mixin;
 
-import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -19,7 +18,7 @@ public abstract class EntitySprintDirtMixin {
 
     @Inject(method = "spawnSprintParticle", at = @At("HEAD"), cancellable = true)
     private void becomelm$noSprintDirt(CallbackInfo ci) {
-        if ((Object) this instanceof Player p && p.level().isClientSide() && LmModes.get(p) == LmMode.GALLOP) {
+        if ((Object) this instanceof Player p && p.level().isClientSide() && LmModes.get(p).fast()) {
             ci.cancel();
         }
     }

@@ -21,5 +21,9 @@
   "subtitles.becomelm.charged": "High jump ready",
   "becomelm.command.done": "%s player(s): %s",
   "becomelm.command.knocked": "Knocked down %s",
-  "subtitles.becomelm.pounce_hit": "FroggyDude tackles"
+  "subtitles.becomelm.pounce_hit": "FroggyDude tackles",
+  "becomelm.mode.frenzy": "Phase 2",
+  "becomelm.mode.toast.frenzy": "Phase 2: transforming (move to dash)",
+  "subtitles.becomelm.contort": "FroggyDude bones crack",
+  "subtitles.becomelm.crack": "Bone cracks"
 }
