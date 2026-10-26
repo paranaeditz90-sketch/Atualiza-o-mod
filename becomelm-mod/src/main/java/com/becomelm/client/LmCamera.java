@@ -109,6 +109,8 @@ public final class LmCamera {
     static boolean hides(Entity e) {
         // recortando o corpo em pedaços: tem que desenhar a vítima mesmo assim
         if (com.becomelm.client.pieces.BodyPieces.capturing) return false;
+        // na finalização a câmera é a da cena (a vítima tem que aparecer)
+        if (LmFinishClient.directing()) return false;
         return active() && shot == Shot.VICTIM && e.getId() == victimId;
     }
 
@@ -258,7 +260,7 @@ public final class LmCamera {
     }
 
     /** A câmera não entra na parede: encosta no que estiver entre ele e ela. */
-    private static Vec3 clip(LocalPlayer p, Vec3 from, Vec3 to) {
+    static Vec3 clip(LocalPlayer p, Vec3 from, Vec3 to) {
         BlockHitResult hit = p.level().clip(new ClipContext(from, to, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, p));
         if (hit.getType() == HitResult.Type.MISS) return to;
         Vec3 d = to.subtract(from);
@@ -282,17 +284,19 @@ public final class LmCamera {
 
     @SubscribeEvent
     public static void onOverlay(RenderGuiOverlayEvent.Pre event) {
-        if (active() && !LmHud.ID.equals(event.getOverlay().id())) event.setCanceled(true);
+        if ((active() || LmFinishClient.directing() || LmFinishClient.victimView()) && !LmHud.ID.equals(event.getOverlay().id())) {
+            event.setCanceled(true);
+        }
     }
 
     @SubscribeEvent
     public static void onHand(RenderHandEvent event) {
-        if (active()) event.setCanceled(true);
+        if (active() || LmFinishClient.directing() || LmFinishClient.victimView()) event.setCanceled(true);
     }
 
     @SubscribeEvent
     public static void onHighlight(RenderHighlightEvent.Block event) {
-        if (active()) event.setCanceled(true);
+        if (active() || LmFinishClient.directing()) event.setCanceled(true);
     }
 
     static void reset() {

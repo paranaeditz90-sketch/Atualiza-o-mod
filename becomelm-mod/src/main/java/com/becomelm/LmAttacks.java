@@ -16,7 +16,9 @@ import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -105,6 +107,10 @@ public final class LmAttacks {
     private static final Map<UUID, Act> ACTS = new HashMap<>();
     private static final Map<UUID, Long> LAST = new HashMap<>();
     private static final Map<UUID, Long> SKY = new HashMap<>();
+    /** /becomelm finisher: o próximo golpe desses vira a finalização com certeza. */
+    private static final Set<UUID> ARMED = new HashSet<>();
+    /** Mata no fim da finalização (o bastante pra qualquer bicho do tamanho de gente). */
+    private static final float FINISH_KILL = 1.0E6F;
 
     private LmAttacks() {
     }
@@ -158,6 +164,7 @@ public final class LmAttacks {
         Entity e = p.level().getEntity(targetId);
         if (!(e instanceof LivingEntity t) || !canHit(p, t, SMASH_REACH + SLACK + 1.0D)) return;
         SKY.remove(p.getUUID());
+        if (tryFinish(p, t)) return;
         Act a = new Act(LmAttack.SMASH, t);
         ACTS.put(p.getUUID(), a);
         lock(p, true);
@@ -173,6 +180,7 @@ public final class LmAttacks {
         Entity e = p.level().getEntity(targetId);
         if (!(e instanceof LivingEntity t) || !canHit(p, t, GRAB_RANGE + SLACK) || !LmKnock.canKnock(t)
                 || holder(t) != null) return;
+        if (tryFinish(p, t)) return;
         ACTS.put(p.getUUID(), new Act(LmAttack.GRAB, t));
         drag(p, true);
         LmKnock.grab(t, p, p.getYRot());
@@ -207,9 +215,68 @@ public final class LmAttacks {
         LmNetwork.sendAct(p, LmAttack.PILE, yawX10, 0);
     }
 
+    // ------------------------------------------------------------ finalização
+
+    /** /becomelm finisher: o próximo golpe desse jogador que encostar em alguém vira a finalização. */
+    public static void arm(ServerPlayer p) {
+        ARMED.add(p.getUUID());
+    }
+
+    /** O soco normal (em pé) encostou: se virou a finalização, o soco não acontece. */
+    public static boolean melee(ServerPlayer p, LivingEntity t) {
+        if (!LmModes.get(p).froggy() || !free(p) || !canHit(p, t, 6.0D)) return false;
+        return tryFinish(p, t);
+    }
+
+    /**
+     * Um golpe encostou nesse bicho: sorteia a finalização (raríssima: até de vida cheia) ou usa
+     * a armada pelo comando. Começou = true, e o golpe normal não acontece.
+     */
+    private static boolean tryFinish(ServerPlayer p, LivingEntity t) {
+        if (!LmFinish.canFinish(t) || !LmFinish.alive(t) || taken(t)) return false;
+        if (!ARMED.remove(p.getUUID()) && p.getRandom().nextDouble() >= LmConfig.FINISHER_CHANCE.get()) return false;
+        Act a = new Act(LmAttack.FINISH, t);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        // derrubado de lado antes (o bote de outro golpe): deita de costas de novo
+        LmKnock.State ks = LmKnock.get(t);
+        if (ks != null && !ks.back) LmKnock.forget(t);
+        LmKnock.knockBack(t, p, LmFinish.TICKS + 10);
+        LmNetwork.sendAct(p, LmAttack.FINISH, t.getId(), 0);
+        if (DEBUG) System.out.printf("[LMATK] finalização em %s%n", t);
+        return true;
+    }
+
+    /** Alguém já está fazendo um golpe longo nesse bicho. */
+    private static boolean taken(LivingEntity t) {
+        for (Act a : ACTS.values()) {
+            if (a.target == t) return true;
+        }
+        return false;
+    }
+
+    private static void tickFinish(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (t == null || !LmFinish.alive(t) || t.level() != p.level() || p.distanceToSqr(t) > 25D) {
+            if (DEBUG) System.out.printf("[LMATK] finalização interrompida t=%d%n", a.age);
+            end(p, a);
+            return;
+        }
+        // presa embaixo dele a cena toda (o jogador vítima se segura no cliente dele)
+        Vec3 v = t.getDeltaMovement();
+        t.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
+        if (a.age < LmFinish.TICKS) return;
+        // o fim: morre com o golpe dele (conta a morte pra ele, e o corpo quebra embaixo dele)
+        hurtInPlace(p, t, FINISH_KILL);
+        if (DEBUG) System.out.printf("[LMATK] finalização acabou: vivo=%s%n", t.isAlive());
+        end(p, a);
+    }
+
     /**
      * Quanto o corpo de quem ele matou se espalha: montado em cima, pouco (o monte fica
-     * embaixo dele, como no 10v1); na boca, médio; no bote, voa.
+     * embaixo dele, como no 10v1); na boca, médio; no bote, voa. Na finalização, quase nada
+     * (o corpo já está aberto embaixo dele).
      */
     public static float breakPower(ServerPlayer killer) {
         Act a = ACTS.get(killer.getUUID());
@@ -217,6 +284,7 @@ public final class LmAttacks {
         return switch (a.kind) {
             case SMASH -> 0.35F;
             case GRAB -> 0.6F;
+            case FINISH -> 0.15F;
             default -> 1.0F;
         };
     }
@@ -287,6 +355,7 @@ public final class LmAttacks {
             case PILE -> {
                 if (a.age >= PILE_MAX) end(p, a);
             }
+            case FINISH -> tickFinish(p, a);
             default -> end(p, a);
         }
     }
@@ -362,6 +431,7 @@ public final class LmAttacks {
         AABB reach = p.getBoundingBox().inflate(0.6D, 0.5D, 0.6D);
         if (!reach.intersects(t.getBoundingBox())) return;
         ACTS.remove(p.getUUID());
+        if (canHit(p, t, POUNCE_RANGE + SLACK) && tryFinish(p, t)) return;
         Vec3 d = new Vec3(t.getX() - p.getX(), 0D, t.getZ() - p.getZ());
         d = d.lengthSqr() < 1.0E-4D ? Vec3.directionFromRotation(0F, p.getYRot()) : d.normalize();
         boolean hurt = t.hurt(p.damageSources().playerAttack(p), POUNCE_DAMAGE * mul(p));
@@ -463,11 +533,13 @@ public final class LmAttacks {
         ACTS.remove(p.getUUID());
         LAST.remove(p.getUUID());
         SKY.remove(p.getUUID());
+        ARMED.remove(p.getUUID());
     }
 
     public static void clear() {
         ACTS.clear();
         LAST.clear();
         SKY.clear();
+        ARMED.clear();
     }
 }

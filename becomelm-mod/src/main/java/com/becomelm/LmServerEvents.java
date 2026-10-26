@@ -13,6 +13,7 @@ import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -102,6 +103,15 @@ public final class LmServerEvents {
         }
         LmBloodType blood = LmBloodType.of(victim);
         LmNetwork.sendBreak(victim, (float) dx, 0.15F, (float) dz, LmAttacks.breakPower(killer), blood.color, blood.bleeds());
+    }
+
+    /** O soco normal (em pé) também pode virar a finalização, raríssimo. */
+    @SubscribeEvent
+    public static void onMelee(AttackEntityEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p && event.getTarget() instanceof LivingEntity t
+                && LmAttacks.melee(p, t)) {
+            event.setCanceled(true);
+        }
     }
 
     /** Deitado ninguém bate (o zumbi no chão não morde o pé de quem passa). */

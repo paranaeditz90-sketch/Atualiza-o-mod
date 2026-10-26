@@ -20,6 +20,7 @@ import java.util.List;
  * /becomelm gallop | stand | human - troca o próprio modo pelo chat (o mesmo da roda;
  * serve de reserva se a roda não abrir no celular). Com nome de jogador (só op):
  * /becomelm gallop Amigo. /becomelm knock alvo (só op): derruba, pra testar.
+ * /becomelm finisher [jogadores] (só op): o próximo golpe vira a finalização.
  */
 @Mod.EventBusSubscriber(modid = BecomeLM.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class LmCommand {
@@ -41,7 +42,18 @@ public final class LmCommand {
         root.then(Commands.literal("knock").requires(src -> src.hasPermission(2))
                 .then(Commands.argument("targets", EntityArgument.entities())
                         .executes(ctx -> knock(ctx.getSource(), EntityArgument.getEntities(ctx, "targets")))));
+        root.then(Commands.literal("finisher").requires(src -> src.hasPermission(2))
+                .executes(ctx -> arm(ctx.getSource(), List.of(ctx.getSource().getPlayerOrException())))
+                .then(Commands.argument("players", EntityArgument.players())
+                        .executes(ctx -> arm(ctx.getSource(), EntityArgument.getPlayers(ctx, "players")))));
         d.register(root);
+    }
+
+    /** O próximo golpe de cada um vira a finalização (pra testar e gravar sem esperar a sorte). */
+    private static int arm(CommandSourceStack src, Collection<ServerPlayer> players) {
+        for (ServerPlayer p : players) LmAttacks.arm(p);
+        src.sendSuccess(() -> Component.translatable("becomelm.command.finisher", players.size()), false);
+        return players.size();
     }
 
     private static int apply(CommandSourceStack src, Collection<ServerPlayer> players, LmMode mode) {

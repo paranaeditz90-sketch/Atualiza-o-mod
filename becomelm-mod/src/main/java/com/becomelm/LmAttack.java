@@ -21,7 +21,9 @@ public enum LmAttack {
     /** (pedido) levantar do monte. */
     GET_UP,
     /** (só no cliente) levantando do monte. */
-    RISE;
+    RISE,
+    /** Golpe de finalização: a cena da barriga (LmFinish). Raríssimo. */
+    FINISH;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

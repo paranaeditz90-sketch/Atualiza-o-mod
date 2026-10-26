@@ -2,6 +2,7 @@ package com.becomelm.client;
 
 import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
+import com.becomelm.LmFinish;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
@@ -42,6 +43,12 @@ final class LmAnims {
     static final RawAnimation PILE_RISE = RawAnimation.begin().thenPlayAndHold("pile_rise");
     /** As mordidas do vídeo: a cabeça mergulha a cada 0,24 s (o feed_mob tem 0,6 s). */
     private static final double BITE_SPEED = 0.6D / 0.24D;
+    /** Finalização (LmFinish): monta, cava, abre, come e encara. */
+    static final RawAnimation FIN_MOUNT = RawAnimation.begin().thenPlayAndHold("fin_mount");
+    static final RawAnimation FIN_DIG = RawAnimation.begin().thenLoop("fin_dig");
+    static final RawAnimation FIN_OPEN = RawAnimation.begin().thenPlayAndHold("fin_open");
+    static final RawAnimation FIN_FEED = RawAnimation.begin().thenLoop("fin_feed");
+    static final RawAnimation FIN_STARE = RawAnimation.begin().thenLoop("fin_stare");
     /** Fase 2: correndo em pé curvado, desesperado. */
     static final RawAnimation FRENZY_RUN = RawAnimation.begin().thenLoop("run_frenzy");
     static final RawAnimation FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
@@ -64,6 +71,15 @@ final class LmAnims {
             if (act.kind == LmAttack.THROW) return GRAB_THROW;
             if (act.kind == LmAttack.PILE) return act.age < LmActsClient.PILE_DROP ? PILE_DROP : PILE_LIE;
             if (act.kind == LmAttack.RISE) return PILE_RISE;
+            if (act.kind == LmAttack.FINISH) {
+                return switch (LmFinish.phase(act.age)) {
+                    case MOUNT -> FIN_MOUNT;
+                    case DIG -> FIN_DIG;
+                    case OPEN -> FIN_OPEN;
+                    case FEED -> FIN_FEED;
+                    case STARE -> FIN_STARE;
+                };
+            }
         }
         LmTransform.Phase tp = LmTransformClient.phase(p);
         if (tp != null) {

@@ -1,6 +1,6 @@
 # Onde paramos (pra retomar numa conversa nova)
 
-Atualizado em 26/10/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
+Atualizado em 26/10/2026 (tarde). Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
 neste repositório, na branch `claude/froggydude-mod-research-pxrwch`, e escreve:
 **"lê o PROGRESSO.md e continua de onde parou"**.
 
@@ -14,7 +14,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 | mod | pasta | versão | estado |
 |---|---|---|---|
 | Froggydude (a IA) | `froggydude-mod/` | 0.7.12 | CI verde, entregue |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.2.1 (rede "4") | CI verde, entregue |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.2.1 entregue (rede "4"); no código já tem a finalização parte 1 (rede "5") | CI verde na 0.2.1 |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -28,23 +28,20 @@ O plano grande da IA: `PLANO.md`.
 
 ---
 
-## Decisão pendente agora: o som dos ossos (#160)
+## Som dos ossos (#160): o LM escolheu o 5
 
-O LM ouviu 6 candidatos em 26/10 e vai escolher:
-
-1. começo original do "MINECRAFT BUT I'M THE HORROR MOD" (gemido de dor + ossos)
-2. pente fino: só o crec-crec, sem o gemido
-3. o 2 meio estourado
-4. o "4" da rodada anterior (som do vídeo do LM + meu 3 misto) meio estourado (o LM achou o 4 "bonzinho, mas precisa ficar meio estourado")
-5. meu misto + os ossos do horror mod no lugar do som do LM, meio estourado
-6. um estalo só (pras costelas da cutscene), meio estourado
+Em 26/10 o LM ouviu os 6 candidatos e escolheu o **5**: o meu misto (CC0) + os ossos do
+"MINECRAFT BUT I'M THE HORROR MOD" no pente fino, meio estourado.
+- Dentro do mod vai só a parte livre (o misto CC0, meio estourado).
+- A versão completa (com o horror mod, que é do FroggyDude) vai no pacote pessoal BecomeLM-Sons.
+- Usar na transformação (`crack_seq`/`crack`) e nas costelas da finalização (o estalo 6 é o modelo).
+- Ainda não foi colocado no mod (entra junto com a parte 2 da finalização).
 
 Descobertas:
-- O crec-crec do horror mod é a voz dele (gemido rangido). O removedor de voz (Demucs) jogou tudo pra "voz", então o pente fino separa tom (gemido) de batida (estalo). O gemido cai 66 dB.
-- Depois que o LM escolher, o som vai pra transformação (`crack_seq`/`crack` do BecomeLM) e pras costelas da cutscene. Se o escolhido tiver som do FroggyDude ou do LM, vai pro pacote pessoal, e o mod fica com o misto CC0 de reserva.
+- O crec-crec do horror mod é a voz dele (gemido de dor rangido). O removedor de voz (Demucs) jogou tudo pra "voz", então o pente fino separa tom (gemido) de batida (estalo). O gemido cai 66 dB.
 
 Pra refazer os 6 sons do zero: `becomelm-mod/tools/som/refazer_ossos.sh pasta_entrada pasta_saida`.
-A pasta de entrada precisa de 3 arquivos que o LM tem (ele mandou na conversa):
+A pasta de entrada precisa de 3 arquivos que o LM tem (estão no zip LM_SALVAR_26-10, pasta 3):
 `horror.mp4` (Screenrecorder-2026-09-30-16-01-56, 5,6 s), `voicemod.mp3`, `video.mp4` (lv_0_20261025230010).
 Os sons CC0 o script baixa sozinho:
 - "Deep bone crack/break SFX", Zane Little Music, https://opengameart.org/content/deep-bone-crackbreak-sfx
@@ -54,11 +51,20 @@ O que cada script faz está no começo de cada `.py` em `becomelm-mod/tools/som/
 
 ---
 
-## Próximo trabalho: golpe de finalização com cutscene (#162). Ainda não comecei o código.
+## Golpe de finalização com cutscene (#162)
 
-O LM pediu: "cutscenes diferentes de quando eu mato algum mob/player... começo a arranhar a barriga,
-aparecem os órgãos e o canibalismo... estilo FroggyDude só que com mais gore e estilos diferentes".
-Ele mandou esperar o som dos ossos ficar aprovado antes de codar.
+**Parte 1 feita (26/10), esperando o LM aprovar o vídeo** (`BecomeLM_finalizacao_parte1.mp4`):
+- `LmFinish` (linha do tempo), `LmAttack.FINISH`, `LmAttacks.tryFinish/tickFinish` (servidor),
+  `LmConfig` (`becomelm-common.toml`, chance 0,01), `/becomelm finisher [jogadores]`, rede "5".
+- Gatilho: soco normal (AttackEntityEvent), bote, agarrar e queda do céu.
+- Cliente: senta nas coxas (0,45), escorrega montando; animações `fin_mount/dig/open/feed/stare`
+  (make_anims.py); `LmFinishClient` = câmera em 8 planos + plano do fim (1,5 s) + sem HUD + sem nome;
+  vítima jogador vê dos próprios olhos (LmKnockClient.onCamera), FOV maior, sem HUD.
+- Testado: aldeão (sozinho) e amigo (2 clientes + servidor dedicado).
+
+**Parte 2 (próxima):** o gore — ferida crescendo, sangue espirrando, costelas (som 5), órgãos,
+a tripa até a boca, a cara suja, a vítima se debatendo; sons da cena.
+**Parte 3:** bicho de quatro patas (ovelha, vaca...).
 
 Respostas do LM:
 - **Gatilho:** é um evento raríssimo, pode acontecer até com o bicho de vida cheia ("ovelha com vida cheia, ataco e começa uma cutscene").

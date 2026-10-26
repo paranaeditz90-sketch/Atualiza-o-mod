@@ -6,7 +6,9 @@ import net.minecraft.core.particles.SimpleParticleType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -62,6 +64,7 @@ public final class BecomeLM {
         SOUNDS.register(bus);
         PARTICLES.register(bus);
         LmNetwork.register();
+        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, LmConfig.SPEC, "becomelm-common.toml");
     }
 
     public static ResourceLocation id(String path) {

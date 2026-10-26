@@ -221,6 +221,109 @@ EXTRA.update({
 })
 
 
+# a finalização (LmFinish): ajoelhado em cima da vítima de costas, nas coxas dela, virado pra
+# cabeça (a mesma base do sky_smash). Monta, cava a barriga com as patas alternando feito
+# cachorro, enfia as mãos e abre pros lados, come (mergulha a cara, rasga sacudindo, puxa a tripa
+# até a boca e mastiga: 3 vezes) e no fim levanta a cara e encara a câmera, respirando pesado.
+def _kneel(**over):
+    pose = {
+        'root': {'rotation': [0, 0, 0], 'position': [0, -4, 0]},
+        'waist': {'rotation': [25, 0, 0]},
+        'head': {'rotation': [22, 0, 0]},
+        'right_arm': {'rotation': [-55, 0, 10]},
+        'left_arm': {'rotation': [-55, 0, -10]},
+        'right_leg': {'rotation': [-5, 0, 18]},
+        'left_leg': {'rotation': [-5, 0, -18]},
+        'right_shin': {'rotation': [95, 0, 0]},
+        'left_shin': {'rotation': [95, 0, 0]},
+    }
+    for bone, chans in over.items():
+        pose.setdefault(bone, {}).update(chans)
+    return pose
+
+
+# cavando: o braço vai lá na frente (-125), afunda (-95), puxa de volta raspando pra baixo do
+# peito (-45) e sobe de novo; o outro faz o mesmo meio ciclo depois
+_REACH, _IN, _DRAG, _LIFT_ARM = -125, -95, -45, -100
+
+
+def _dig(t, right, left, twist):
+    return _kneel(root={'position': [0, -4.4 if t in (0.1, 0.3) else -4, 0]},
+                  waist={'rotation': [55, twist, 0]}, head={'rotation': [12, -twist, 0]},
+                  right_arm={'rotation': [right, 0, 14]}, left_arm={'rotation': [left, 0, -14]})
+
+
+_FEED_HOLD = dict(right_arm={'rotation': [-70, 0, 35]}, left_arm={'rotation': [-70, 0, -35]})
+
+EXTRA.update({
+    'fin_mount': _anim(0.4, 'hold_on_last_frame', [
+        (0.0, _kneel(root={'position': [0, -1, 0]}, waist={'rotation': [50, 0, 0]}, head={'rotation': [10, 0, 0]},
+                     right_arm={'rotation': [-110, 0, 14]}, left_arm={'rotation': [-110, 0, -14]},
+                     right_shin={'rotation': [60, 0, 0]}, left_shin={'rotation': [60, 0, 0]})),
+        (0.2, _kneel(root={'position': [0, -4.6, 0]}, waist={'rotation': [35, 0, 0]},
+                     right_arm={'rotation': [-80, 0, 12]}, left_arm={'rotation': [-80, 0, -12]})),
+        (0.4, _kneel()),
+    ]),
+    'fin_dig': _anim(0.4, True, [
+        (0.0, _dig(0.0, _REACH, _DRAG, 6)),
+        (0.1, _dig(0.1, _IN, _LIFT_ARM, 3)),
+        (0.2, _dig(0.2, _DRAG, _REACH, -6)),
+        (0.3, _dig(0.3, _LIFT_ARM, _IN, -3)),
+        (0.4, _dig(0.4, _REACH, _DRAG, 6)),
+    ]),
+    # as duas mãos afundam e puxam pros lados (o estalo das costelas é no tranco, 0,45 s)
+    'fin_open': _anim(0.9, 'hold_on_last_frame', [
+        (0.0, _kneel(waist={'rotation': [58, 0, 0]}, head={'rotation': [10, 0, 0]},
+                     right_arm={'rotation': [-70, 0, 6]}, left_arm={'rotation': [-70, 0, -6]})),
+        (0.25, _kneel(waist={'rotation': [62, 0, 0]}, head={'rotation': [14, 0, 0]},
+                      right_arm={'rotation': [-55, 0, 10]}, left_arm={'rotation': [-55, 0, -10]})),
+        (0.45, _kneel(waist={'rotation': [40, 0, 0]}, head={'rotation': [-5, 0, 0]},
+                      right_arm={'rotation': [-75, 0, 58]}, left_arm={'rotation': [-75, 0, -58]})),
+        (0.6, _kneel(waist={'rotation': [44, 0, 0]}, head={'rotation': [18, 0, 0]},
+                     right_arm={'rotation': [-70, 0, 50]}, left_arm={'rotation': [-70, 0, -50]})),
+        (0.9, _kneel(waist={'rotation': [45, 0, 0]}, head={'rotation': [24, 0, 0]}, **_FEED_HOLD)),
+    ]),
+    # 1,8 s (36 ticks, LmFinish.FEED_CYCLE): mergulha, rasga sacudindo, puxa a tripa até a boca, mastiga
+    'fin_feed': _anim(1.8, True, [
+        (0.0, _kneel(waist={'rotation': [45, 0, 0]}, head={'rotation': [24, 0, 0]}, **_FEED_HOLD)),
+        (0.3, _kneel(root={'position': [0, -4.8, 0]}, waist={'rotation': [86, 0, 0]}, head={'rotation': [2, 0, 0]},
+                     **_FEED_HOLD)),
+        (0.45, _kneel(root={'position': [0, -4.8, 0]}, waist={'rotation': [84, 8, 4]}, head={'rotation': [0, 25, 0]},
+                      **_FEED_HOLD)),
+        (0.55, _kneel(root={'position': [0, -4.8, 0]}, waist={'rotation': [84, -8, -4]}, head={'rotation': [0, -25, 0]},
+                      **_FEED_HOLD)),
+        (0.65, _kneel(root={'position': [0, -4.8, 0]}, waist={'rotation': [84, 8, 4]}, head={'rotation': [0, 25, 0]},
+                      **_FEED_HOLD)),
+        (0.75, _kneel(root={'position': [0, -4.8, 0]}, waist={'rotation': [84, -6, -3]}, head={'rotation': [0, -18, 0]},
+                      **_FEED_HOLD)),
+        (1.0, _kneel(waist={'rotation': [28, 0, 0]}, head={'rotation': [-38, 0, 0]},
+                     right_arm={'rotation': [-150, 0, 18]}, left_arm={'rotation': [-75, 0, -30]})),
+        (1.2, _kneel(waist={'rotation': [24, 0, 0]}, head={'rotation': [-12, 0, 0]},
+                     right_arm={'rotation': [-120, 0, 15]}, left_arm={'rotation': [-70, 0, -30]})),
+        (1.32, _kneel(waist={'rotation': [24, 0, 0]}, head={'rotation': [-2, 0, 0]},
+                      right_arm={'rotation': [-115, 0, 15]}, left_arm={'rotation': [-70, 0, -30]})),
+        (1.44, _kneel(waist={'rotation': [24, 0, 0]}, head={'rotation': [-14, 0, 0]},
+                      right_arm={'rotation': [-115, 0, 15]}, left_arm={'rotation': [-70, 0, -30]})),
+        (1.56, _kneel(waist={'rotation': [24, 0, 0]}, head={'rotation': [-2, 0, 0]},
+                      right_arm={'rotation': [-110, 0, 15]}, left_arm={'rotation': [-70, 0, -30]})),
+        (1.8, _kneel(waist={'rotation': [45, 0, 0]}, head={'rotation': [24, 0, 0]}, **_FEED_HOLD)),
+    ]),
+    # encara a câmera (que está na frente da cara dele), os ombros subindo e descendo, a cabeça tombando
+    'fin_stare': _anim(2.0, True, [
+        (0.0, _kneel(waist={'rotation': [6, 0, 0]}, head={'rotation': [-6, 0, 8]},
+                     right_arm={'rotation': [-22, 0, 12]}, left_arm={'rotation': [-22, 0, -12]})),
+        (0.5, _kneel(root={'position': [0, -3.6, 0]}, waist={'rotation': [2, 0, 0]}, head={'rotation': [-9, 0, 12]},
+                     right_arm={'rotation': [-18, 0, 14]}, left_arm={'rotation': [-18, 0, -14]})),
+        (1.0, _kneel(waist={'rotation': [8, 0, 0]}, head={'rotation': [-5, 0, 6]},
+                     right_arm={'rotation': [-24, 0, 12]}, left_arm={'rotation': [-24, 0, -12]})),
+        (1.5, _kneel(root={'position': [0, -3.6, 0]}, waist={'rotation': [2, 0, 0]}, head={'rotation': [-9, 0, 14]},
+                     right_arm={'rotation': [-18, 0, 14]}, left_arm={'rotation': [-18, 0, -14]})),
+        (2.0, _kneel(waist={'rotation': [6, 0, 0]}, head={'rotation': [-6, 0, 8]},
+                     right_arm={'rotation': [-22, 0, 12]}, left_arm={'rotation': [-22, 0, -12]})),
+    ]),
+})
+
+
 def value_at(frames, t):
     keys = sorted(frames, key=float)
     times = [float(k) for k in keys]

@@ -28,5 +28,6 @@
   "subtitles.becomelm.crack": "Bone cracks",
   "subtitles.becomelm.punch": "FroggyDude punches",
   "subtitles.becomelm.bite": "FroggyDude bites",
-  "subtitles.becomelm.throw": "FroggyDude throws"
+  "subtitles.becomelm.throw": "FroggyDude throws",
+  "becomelm.command.finisher": "Next hit of %s player(s) will be the finisher"
 }

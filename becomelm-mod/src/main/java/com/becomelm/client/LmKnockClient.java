@@ -12,6 +12,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Endermite;
 import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.entity.monster.Spider;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -205,6 +206,19 @@ public final class LmKnockClient {
         Vec3 d = headDir(s, held != null ? (float) held[2] : s.yaw);
         double drop = (p.getEyeHeight() - LYING_EYE) * k;
         cam.setPosition(cam.getPosition().add(d.x * drop * 0.8D, -drop, d.z * drop * 0.8D));
+        Player fin = s.back ? LmActsClient.finisher(p) : null;
+        if (fin != null) {
+            // finalizado: vê com os próprios olhos quem está em cima. Ele se debruça na barriga, bem
+            // em cima da cara: o olho recua um pouco (como quem encolhe a cabeça) e mira no peito dele
+            cam.setPosition(cam.getPosition().add(d.x * 0.3D * k, 0D, d.z * 0.3D * k));
+            Vec3 at = fin.getPosition((float) event.getPartialTick()).add(d.x * 0.35D, 1.0D, d.z * 0.35D);
+            Vec3 to = at.subtract(cam.getPosition());
+            float yaw = (float) (Mth.atan2(to.z, to.x) * Mth.RAD_TO_DEG) - 90F;
+            float pitch = (float) -(Mth.atan2(to.y, Math.sqrt(to.x * to.x + to.z * to.z)) * Mth.RAD_TO_DEG);
+            event.setYaw(Mth.rotLerp(k, event.getYaw(), yaw));
+            event.setPitch(Mth.lerp(k, event.getPitch(), pitch));
+            return;
+        }
         if (s.back) event.setPitch(event.getPitch() + (BACK_PITCH - event.getPitch()) * k);
         else event.setRoll(event.getRoll() + s.side * 90F * CAMERA_ROLL * k);
     }

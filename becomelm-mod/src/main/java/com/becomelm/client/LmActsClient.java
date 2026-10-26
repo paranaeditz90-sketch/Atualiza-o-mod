@@ -3,6 +3,7 @@ package com.becomelm.client;
 import com.becomelm.BecomeLM;
 import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
+import com.becomelm.LmFinish;
 import com.becomelm.LmKnock;
 import com.becomelm.network.LmNetwork;
 import net.minecraft.client.Camera;
@@ -49,6 +50,9 @@ public final class LmActsClient {
         int shake = -1;
         /** No monte: o rumo do corpo deitado. */
         float pileYaw;
+        /** Finalização: de onde ele saiu (escorrega até o quadril dela enquanto monta). */
+        @Nullable
+        Vec3 from;
 
         Act(LmAttack kind, int target, int age) {
             this.kind = kind;
@@ -60,6 +64,8 @@ public final class LmActsClient {
     private static final Map<UUID, Act> ACTS = new HashMap<>();
     /** De costas: senta em cima do quadril dela, virado pra cabeça (os socos descem na cara). */
     private static final double SEAT = 0.5D;
+    /** Na finalização senta um pouco mais pra trás (nas coxas): a barriga fica livre na frente dele. */
+    private static final double FINISH_SEAT = 0.45D;
     /** De lado (bicho de quatro): ajoelhado do lado da barriga, a essa distância do corpo. */
     private static final double BESIDE = 0.45D;
     /** O que o próprio jogador começou e o servidor não confirmou nesse tempo, não valeu. */
@@ -85,6 +91,16 @@ public final class LmActsClient {
         if (kind < 0) {
             Act old = ACTS.remove(player);
             if (old != null && old.kind == LmAttack.PILE) rise(player, old);
+            Minecraft mc = Minecraft.getInstance();
+            if (old != null && old.kind == LmAttack.FINISH) {
+                if (old.age >= LmFinish.TICKS - 5) {
+                    // acabou a cena: ainda fica 1,5 s ajoelhado encarando (no plano do fim) e levanta
+                    Act hold = new Act(LmAttack.FINISH, -1, old.age);
+                    hold.confirmed = true;
+                    ACTS.put(player, hold);
+                }
+                if (mc.player != null && mc.player.getUUID().equals(player)) LmFinishClient.ended(old.age);
+            }
             return;
         }
         LmAttack k = LmAttack.byOrdinal(kind);
@@ -169,10 +185,36 @@ public final class LmActsClient {
         return ACTS.containsKey(p.getUUID());
     }
 
-    /** Montado socando ou deitado no monte: não anda nem bate. */
+    /** Montado socando, finalizando ou deitado no monte: não anda nem bate. */
     static boolean locked(Player p) {
         Act a = ACTS.get(p.getUUID());
-        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.PILE);
+        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.PILE || a.kind == LmAttack.FINISH);
+    }
+
+    /** Montado em cima de alguém (socando ou finalizando). */
+    private static boolean riding(Act a) {
+        return a.kind == LmAttack.SMASH || a.kind == LmAttack.FINISH;
+    }
+
+    /** O próprio jogador está finalizando alguém agora (a câmera vira a da cena). */
+    @Nullable
+    static Act finishing(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && a.kind == LmAttack.FINISH ? a : null;
+    }
+
+    /** Quem está finalizando essa vítima (ou null). */
+    @Nullable
+    static Player finisher(Entity victim) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return null;
+        for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+            if (en.getValue().kind == LmAttack.FINISH && en.getValue().target == victim.getId()) {
+                Player p = mc.level.getPlayerByUUID(en.getKey());
+                if (p != null) return p;
+            }
+        }
+        return null;
     }
 
     /** Alguém na boca (anda arrastando). */
@@ -205,6 +247,7 @@ public final class LmActsClient {
             case THROW -> LmAttacks.THROW_TICKS + 10;
             case PILE -> LmAttacks.PILE_MAX + 40;
             case RISE -> RISE_TICKS;
+            case FINISH -> LmFinish.TICKS + 30;
             default -> 40;
         };
     }
@@ -218,7 +261,7 @@ public final class LmActsClient {
             victimTick(p);
             return;
         }
-        if (a.kind != LmAttack.SMASH && a.kind != LmAttack.PILE) return;
+        if (!riding(a) && a.kind != LmAttack.PILE) return;
         Vec3 v = p.getDeltaMovement();
         p.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
         if (a.kind == LmAttack.PILE) {
@@ -227,7 +270,15 @@ public final class LmActsClient {
         }
         double[] s = seat(p, a);
         if (s == null) return;
-        p.setPos(s[0], s[1], s[2]);
+        if (a.kind == LmAttack.FINISH && a.age < LmFinish.Phase.DIG.from) {
+            // montando: escorrega de onde estava até o quadril dela
+            if (a.from == null) a.from = p.position();
+            float k = Mth.clamp((a.age + 1F) / LmFinish.Phase.DIG.from, 0F, 1F);
+            k = k * k * (3F - 2F * k);
+            p.setPos(Mth.lerp(k, a.from.x, s[0]), Mth.lerp(k, a.from.y, s[1]), Mth.lerp(k, a.from.z, s[2]));
+        } else {
+            p.setPos(s[0], s[1], s[2]);
+        }
         float yaw = (float) s[3];
         if (!a.faced) {
             // olha pra cara dela lá embaixo (depois dá pra olhar em volta)
@@ -267,7 +318,7 @@ public final class LmActsClient {
      */
     @Nullable
     private static double[] seat(Player p, Act a) {
-        if (a.kind != LmAttack.SMASH) return null;
+        if (!riding(a)) return null;
         Entity e = p.level().getEntity(a.target);
         if (!(e instanceof LivingEntity victim)) return null;
         LmKnock.State ks = LmKnockClient.get(victim);
@@ -289,7 +340,8 @@ public final class LmActsClient {
         Vec3 at = victim.position();
         // de costas a cabeça dela vai pra "d" e ele senta no quadril; de lado as costas dela vão
         // pra "d" e ele fica do lado da barriga, virado pra ela
-        Vec3 spot = back ? at.add(d.scale(SEAT)) : at.subtract(d.scale(victim.getBbWidth() * 0.5D + BESIDE));
+        double seat = a.kind == LmAttack.FINISH ? FINISH_SEAT : SEAT;
+        Vec3 spot = back ? at.add(d.scale(seat)) : at.subtract(d.scale(victim.getBbWidth() * 0.5D + BESIDE));
         return new double[] {spot.x, at.y, spot.z, Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG - 90D};
     }
 
@@ -316,7 +368,7 @@ public final class LmActsClient {
 
     private static boolean mounted(LocalPlayer me) {
         for (Act a : ACTS.values()) {
-            if (a.kind == LmAttack.SMASH && a.target == me.getId()) return true;
+            if (riding(a) && a.target == me.getId()) return true;
         }
         return false;
     }
