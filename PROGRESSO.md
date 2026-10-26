@@ -14,7 +14,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 | mod | pasta | versão | estado |
 |---|---|---|---|
 | Froggydude (a IA) | `froggydude-mod/` | 0.7.13 | entregue em 26/10 (o halo) |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.2 (rede "7") | entregue em 26/10 |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.3 (rede "7") | 26/10: a flexão no monte |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -136,12 +136,21 @@ Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender
    - Só em pé (de 4 continua o bote e o agarrar). Dano: 1 coração por pancada (igual a queda do céu).
    - Código: `LmAttack.HAMMER`/`HAMMER_STOP`, `LmAttacks.startHammer/tickHammer`, `LmAttackClient.hammerTarget/hammerTick`;
      montado igual o esmagamento (`riding`), animação `sky_smash`, escorrega 0,2 s até em cima; rede "7".
-2. **Comer no monte em flexão** (o LM mandou o vídeo: 10v1 "Manhunt but I have RABIES" ~1:50-1:56 + print circulado):
-   - Deitado no monte, o quadril e a bunda ficam no chão.
-   - O tronco sobe e desce dobrando na cintura (parecido com flexão).
-   - Os ombros ficam encolhidos pra cima e a cabeça mergulha.
-   - "Repare no ombro, tronco e cabeça".
-   - Rever também 10v1 0:21.8 e How many days 0:44 (já baixados em 60 qps).
+2. **Comer no monte em flexão: FEITO na 0.3.3** (o LM mandou o vídeo: 10v1 "Manhunt but I have RABIES" ~1:50-1:56 + print circulado):
+   - Medido a 60 qps: How many days 0:44 (de frente), 10v1 0:22 (deserto) e 1:55 (de pertinho). Uma mergulhada a cada
+     0,25-0,4 s (usei 0,3 s); o topo da cabeça desce ~5-6 px (de olhar pra frente a olhar pra baixo); os ombros quase
+     não mexem e ficam na altura do meio da cabeça (de frente); a cabeça tomba ~25 graus pros lados, devagar.
+   - 1ª tentativa (braços abertos em "A", fincados do lado) o LM barrou: "ele não abre os braços". Mandei 3 jeitos de
+     braço pra frente (esfinge, abraçando a comida, V aberto) e o LM escolheu a **esfinge**.
+   - `pile_lie` novo (`make_anims.py`, `_push`): quadril e pernas deitados, peito empinado 24 graus que desce pra 12 a
+     cada mergulho, braços retos pra frente por cima do monte (ângulos tirados do esqueleto: a mão fica nos cacos, ~2
+     blocos na frente dos pés, escorrega ~0,1 bloco no mergulho), ombros encolhidos 2 px, 8 mergulhos em 2,4 s com o
+     tombo da cabeça variando. `PILE_CENTER` 1,4 (era o `PILE_CHEST` 1,0): o meio do monte fica embaixo dos ombros.
+   - `pile_drop` sem a pose em pé no começo (de 4 ele ficava em pé um instante antes de cair).
+   - Servidor: `PILE_DIPS` = os 8 mergulhos, `PILE_BITES` = 3 deles (come no mesmo ritmo de antes), contando do
+     `PILE_LIE_START` (deitar + 3 ticks de mistura do controlador). Cliente: os cacos mexem em todo mergulho, o
+     barulho só nas mordidas; o olho em primeira pessoa fica em cima do peito e desce um pouco junto.
+   - Testado com 2 clientes + servidor (de frente, de lado, na diagonal, deitar de 4 e o mortal saindo).
 3. **Finalização parte 2** (o gore): o LM aprovou seguir.
 
 ## Outras pendências

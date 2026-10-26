@@ -325,19 +325,20 @@ public final class BodyPieces {
     }
 
     /**
-     * Deitado no monte: quando a cabeça esfrega ou afunda, os cacos embaixo da cara pulam um
-     * tico e giram (e fazem o barulho molhado).
+     * Deitado no monte: a cada mergulho da flexão os cacos embaixo da cara pulam um tico e
+     * giram; nas mordidas de verdade (3 por ciclo) mexem mais e fazem o barulho molhado.
      */
     private static void nuzzle(ClientLevel level) {
         RandomSource r = level.random;
         for (Player f : level.players()) {
             Vec3 head = LmActsClient.pileDip(f);
             if (head == null) continue;
-            boolean squished = false;
+            boolean bite = LmActsClient.pileBite(f);
+            boolean squished = !bite;
             for (Piece p : PIECES) {
                 double dx = p.x - head.x, dz = p.z - head.z;
                 if (dx * dx + dz * dz > 0.8D * 0.8D || Math.abs(p.y - head.y) > 1.2D) continue;
-                if (r.nextInt(3) == 0) continue;
+                if (r.nextInt(bite ? 3 : 2) == 0) continue;
                 p.wake();
                 p.vel.add((float) r.nextGaussian() * 0.3F, 0.5F + r.nextFloat() * 0.7F, (float) r.nextGaussian() * 0.3F);
                 p.ang.add((float) r.nextGaussian() * 3F, (float) r.nextGaussian() * 3F, (float) r.nextGaussian() * 3F);

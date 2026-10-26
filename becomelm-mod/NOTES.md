@@ -4,6 +4,24 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.3 — comer no monte em flexão
+
+- **Deitado no monte comendo**: agora é a "flexão" dos vídeos (medido a 60 qps no How many days
+  0:44, de frente, e no 10v1 0:22 e 1:55). O quadril e as pernas ficam deitados nos cacos (a bunda
+  não levanta), o peito fica empinado e os **braços vão retos pra frente por cima do monte**,
+  tipo esfinge (o LM escolheu; ele não abre os braços pro lado), o que deixa os **ombros lá em
+  cima**, do lado da cabeça. A cada **0,3 s** o tronco desce e a cara mergulha nos cacos entre os
+  braços (de olhar pra frente a olhar pra baixo) e volta; as mãos ficam em cima dos cacos e a
+  cabeça vai tombando devagar pra um lado e pro outro. Antes ele ficava deitado reto com a cara
+  no chão.
+- Ele deita um pouco mais pra trás do monte (os ombros em cima do meio dele), pra cara e os
+  braços caírem em cima dos cacos.
+- De 4, clicar no monte não fica mais em pé um instante antes de se jogar: cai direto.
+- Os cacos embaixo da cara mexem a cada mergulho; nas mordidas de verdade (3 a cada 2,4 s, o
+  mesmo ritmo de antes pra encher a fome) mexem mais, sangram e fazem o barulho molhado.
+- Em primeira pessoa o olho fica em cima do peito empinado e desce um pouco em cada mergulho.
+- A rede não mudou: quem está com a 0.3.2 ainda conecta, mas vê o jeito antigo. Atualiza todo mundo.
+
 ## v0.3.2 — as pancadas com os dois braços e o sangue colado na cara
 
 - **Pancadas (em pé)**: segurando o **atacar** com um bicho na mira, a primeira pancada derruba

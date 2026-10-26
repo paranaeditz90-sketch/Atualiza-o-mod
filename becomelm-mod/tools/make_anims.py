@@ -181,34 +181,58 @@ def _stand():
     }
 
 
-_LIFT = dict(waist={'rotation': [-12, 0, 0]}, root={'position': [0, 6, 0]},
-             right_arm={'rotation': [-70, 0, 40]}, left_arm={'rotation': [-70, 0, -40]})
+# comendo no monte em "flexão" (LM: "fica com o ombro pra cima enquanto come e o tronco sobe e
+# desce, parecido com flexão mesmo", "sem levantar a bunda"). Medido a 60 qps no How many days
+# (0:44, de frente) e no 10v1 (0:22 no deserto, 1:55 de pertinho): o quadril e as pernas ficam
+# deitados nos cacos, o peito empinado e os braços retos pra frente por cima do monte, tipo esfinge
+# (o LM escolheu; ele não abre os braços pro lado), o que sobe os ombros pro lado da cabeça (de
+# frente ficam na altura do meio dela). A cada 0,3 s o tronco desce e a cara mergulha nos cacos
+# entre os braços (de olhar pra frente a olhar pra baixo: o topo da cabeça desce ~6 px) e volta; a
+# cabeça vai tombando devagar pra um lado e pro outro (~20 graus).
+# (cintura X, cabeça X, braço X, braço Z) em cima e afundado; os braços vêm do esqueleto (rig.py):
+# a mão fica parada em cima dos cacos (~2 blocos na frente dos pés, 0,4 pro lado) enquanto o tronco desce
+_PUSH_UP = (-24, -46, -114.5, -19.0)
+_PUSH_DOWN = (-12, -6, -134.5, -14.0)
+_SHRUG = 2.0
+# 8 mergulhadas no ciclo (2,4 s): o tombo (Y da cabeça, que de frente é tombar pro ombro) e o virar (Z)
+_TILTS = (0, 12, 22, 16, 0, -14, -22, -12)
+_TURNS = (0, 5, 9, 5, 0, -5, -9, -4)
+
+
+def _push(dip, tilt=0, turn=0):
+    """dip 0 = em cima (ombros altos, olhando pra frente), 1 = a cara afundada nos cacos."""
+    w, h, ax, az = (a + (b - a) * dip for a, b in zip(_PUSH_UP, _PUSH_DOWN))
+    return _prone(waist={'rotation': [round(w, 2), round(tilt * 0.15, 2), 0]},
+                  head={'rotation': [round(h, 2), tilt, turn]},
+                  right_arm={'rotation': [round(ax, 2), 0, round(az, 2)], 'position': [0, _SHRUG, 0]},
+                  left_arm={'rotation': [round(ax, 2), 0, round(-az, 2)], 'position': [0, _SHRUG, 0]})
+
+
+def _push_keys():
+    keys = []
+    for i, (tilt, turn) in enumerate(zip(_TILTS, _TURNS)):
+        t = round(i * 0.3, 2)
+        keys += [(t, _push(0, tilt, turn)), (round(t + 0.05, 2), _push(0.12, tilt, turn)),
+                 (round(t + 0.15, 2), _push(1, tilt, turn)), (round(t + 0.2, 2), _push(0.92, tilt, turn))]
+    return keys + [(2.4, _push(0, _TILTS[0], _TURNS[0]))]
+
 
 EXTRA.update({
-    'pile_drop': _anim(0.4, 'hold_on_last_frame', [
-        (0.0, _stand()),
-        (0.12, _prone(root={'rotation': [40, 0, 0], 'position': [0, 2, 0]}, head={'rotation': [-10, 0, 0]},
-                      right_arm={'rotation': [-120, 0, 30]}, left_arm={'rotation': [-120, 0, -30]},
-                      right_leg={'rotation': [0, 0, 4]}, left_leg={'rotation': [0, 0, -4]},
-                      right_shin={'rotation': [0, 0, 0]}, left_shin={'rotation': [0, 0, 0]})),
-        (0.25, _prone(root={'rotation': [92, 0, 0], 'position': [0, 5, 0]},
-                      right_arm={'rotation': [-40, 0, 70]}, left_arm={'rotation': [-40, 0, -70]})),
-        (0.4, _prone()),
+    # se joga no monte: sem pose em pé no começo (o controlador já mistura de onde ele estiver;
+    # de 4 ele ficava em pé um instante antes de cair)
+    'pile_drop': _anim(0.28, 'hold_on_last_frame', [
+        (0.0, _prone(root={'rotation': [40, 0, 0], 'position': [0, 2, 0]}, head={'rotation': [-10, 0, 0]},
+                     right_arm={'rotation': [-120, 0, 30]}, left_arm={'rotation': [-120, 0, -30]},
+                     right_leg={'rotation': [0, 0, 4]}, left_leg={'rotation': [0, 0, -4]},
+                     right_shin={'rotation': [0, 0, 0]}, left_shin={'rotation': [0, 0, 0]})),
+        (0.13, _prone(root={'rotation': [92, 0, 0], 'position': [0, 5, 0]}, waist={'rotation': [-20, 0, 0]},
+                      head={'rotation': [-30, 0, 0]},
+                      right_arm={'rotation': [-50, 0, 62]}, left_arm={'rotation': [-50, 0, -62]})),
+        (0.28, _push(0)),
     ]),
-    'pile_lie': _anim(2.4, True, [
-        (0.0, _prone()),
-        (0.3, _prone(head={'rotation': [-18, 10, 26]}, waist={'rotation': [3, 0, 0]})),
-        (0.6, _prone(head={'rotation': [-28, 0, 0]})),
-        (0.9, _prone(head={'rotation': [-18, -10, -26]}, waist={'rotation': [3, 0, 0]})),
-        (1.2, _prone()),
-        (1.4, _prone(head={'rotation': [6, 0, 0]}, waist={'rotation': [5, 0, 0]})),
-        (1.55, _prone(head={'rotation': [-22, 0, 0]})),
-        (1.9, _prone(head={'rotation': [-62, 14, 8]}, **_LIFT)),
-        (2.15, _prone(head={'rotation': [-58, -12, -6]}, **_LIFT)),
-        (2.4, _prone()),
-    ]),
+    'pile_lie': _anim(2.4, True, _push_keys()),
     'pile_rise': _anim(0.5, 'hold_on_last_frame', [
-        (0.0, _prone()),
+        (0.0, _push(0)),
         (0.15, _prone(root={'rotation': [70, 0, 0], 'position': [0, 5, 0]}, head={'rotation': [-30, 0, 0]},
                       right_arm={'rotation': [-90, 0, 12]}, left_arm={'rotation': [-90, 0, -12]})),
         (0.3, _prone(root={'rotation': [30, 0, 0], 'position': [0, 3, 0]}, waist={'rotation': [30, 0, 0]},

@@ -231,7 +231,7 @@ public final class LmAttackClient {
     }
 
     /**
-     * Deita de bruços no monte de pedaços na frente: o peito no meio do monte, virado pra ele
+     * Deita de bruços no monte de pedaços na frente: os ombros no meio do monte, virado pra ele
      * (a cara afunda nos cacos, como no 10v1 0:21 e no How many days 0:44).
      */
     private static boolean tryPile(Minecraft mc, LocalPlayer p) {
@@ -245,8 +245,8 @@ public final class LmAttackClient {
         double d = to.length();
         Vec3 dir = d < 1.0E-3D ? h : to.scale(1D / d);
         float yaw = (float) (Mth.atan2(dir.z, dir.x) * Mth.RAD_TO_DEG) - 90F;
-        // os pés ficam antes do monte (deitado, o peito fica em cima dele); sem atravessar parede
-        Vec3 feet = new Vec3(pile.x, p.getY(), pile.z).subtract(dir.scale(LmActsClient.PILE_CHEST));
+        // os pés ficam antes do monte (deitado, os ombros ficam em cima dele); sem atravessar parede
+        Vec3 feet = new Vec3(pile.x, p.getY(), pile.z).subtract(dir.scale(LmActsClient.PILE_CENTER));
         AABB moved = p.getBoundingBox().move(feet.x - p.getX(), 0D, feet.z - p.getZ());
         if (p.level().noCollision(p, moved)) p.setPos(feet.x, p.getY(), feet.z);
         p.setYRot(yaw);

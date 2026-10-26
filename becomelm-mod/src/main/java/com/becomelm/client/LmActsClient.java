@@ -73,13 +73,24 @@ public final class LmActsClient {
     private static final int CONFIRM = 20;
     /** O quanto quem está na boca balança pra cada lado na sacudida (graus). */
     private static final float SWING = 28F;
-    /** No monte: o tempo de deitar e o ciclo da cabeça, com as esfregadas e a afundada (os mesmos do servidor, que come nelas). */
+    /** No monte: o tempo de deitar e o ciclo da flexão, com os mergulhos e as mordidas (os mesmos do servidor, que come nelas). */
     static final int PILE_DROP = LmAttacks.PILE_DROP;
+    private static final int PILE_LIE_START = LmAttacks.PILE_LIE_START;
     private static final int PILE_CYCLE = LmAttacks.PILE_CYCLE;
     private static final int[] PILE_DIPS = LmAttacks.PILE_DIPS;
-    /** O peito fica a ~1 bloco dos pés (deitado de bruços) e a cara a ~1,55. */
-    static final double PILE_CHEST = 1.0D;
-    private static final double PILE_FACE = 1.55D;
+    private static final int[] PILE_BITES = LmAttacks.PILE_BITES;
+    /** Um mergulho da flexão: 6 ticks (0,3 s). */
+    private static final int PILE_BOB = 6;
+    /**
+     * Deitado em esfinge: o meio do monte fica a ~1,4 bloco dos pés, embaixo dos ombros (a cara e
+     * os braços caem em cima dos cacos); a cara, lá embaixo no mergulho, fica a ~1,7.
+     */
+    static final double PILE_CENTER = 1.4D;
+    private static final double PILE_FACE = 1.7D;
+    /** Primeira pessoa no monte: o olho em cima do peito empinado, que desce um tanto em cada mergulho. */
+    private static final double PILE_EYE = 1.85D;
+    private static final double PILE_EYE_Y = 0.8D;
+    private static final double PILE_EYE_DIP = 0.15D;
     private static final int RISE_TICKS = 10;
     /** O pulo do mortal (o normal é 0,42 pra cima): ~1,4 bloco de altura, ~0,6 s no ar. */
     private static final double FLIP_UP = 0.5D;
@@ -183,18 +194,39 @@ public final class LmActsClient {
     }
 
     /**
-     * Deitado no monte, a cabeça esfrega ou afunda neste tick: onde está a cara (os cacos ali
-     * pulam). Senão, null.
+     * Deitado no monte, a cara está lá embaixo nos cacos neste tick: onde ela está (os cacos ali
+     * mexem). Senão, null.
      */
     @Nullable
     public static Vec3 pileDip(Player p) {
         Act a = ACTS.get(p.getUUID());
-        if (a == null || a.kind != LmAttack.PILE || a.age < PILE_DROP) return null;
-        int c = (a.age - PILE_DROP) % PILE_CYCLE;
+        if (a == null || a.kind != LmAttack.PILE || a.age < PILE_LIE_START) return null;
+        int c = (a.age - PILE_LIE_START) % PILE_CYCLE;
         for (int d : PILE_DIPS) {
             if (c == d) return pileFace(p, a.pileYaw);
         }
         return null;
+    }
+
+    /** Este mergulho é uma das mordidas de verdade (as que enchem a fome no servidor). */
+    public static boolean pileBite(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || a.kind != LmAttack.PILE || a.age < PILE_LIE_START) return false;
+        int c = (a.age - PILE_LIE_START) % PILE_CYCLE;
+        for (int d : PILE_BITES) {
+            if (c == d) return true;
+        }
+        return false;
+    }
+
+    /** O quanto a cara está afundada (0 em cima, 1 lá embaixo), no mesmo desenho do pile_lie. */
+    private static float pileDipAmount(Act a, float partial) {
+        if (a.age < PILE_LIE_START) return 0F;
+        float ph = ((a.age - PILE_LIE_START) % PILE_BOB + partial) / PILE_BOB;
+        if (ph < 1F / 6F) return ph * 6F * 0.12F;
+        if (ph < 0.5F) return 0.12F + (ph - 1F / 6F) * 3F * 0.88F;
+        if (ph < 2F / 3F) return 1F - (ph - 0.5F) * 6F * 0.08F;
+        return 0.92F * (1F - ph) * 3F;
     }
 
     private static Vec3 pileFace(Player p, float yawDeg) {
@@ -480,7 +512,7 @@ public final class LmActsClient {
         in.shiftKeyDown = false;
     }
 
-    /** Primeira pessoa no monte: o olho desce até a cara, deitada em cima dos pedaços. */
+    /** Primeira pessoa no monte: o olho vai pra cara, em cima do peito empinado, e mergulha junto. */
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
         Minecraft mc = Minecraft.getInstance();
@@ -502,11 +534,12 @@ public final class LmActsClient {
         float k = a.kind == LmAttack.PILE ? Math.min(1F, t / PILE_DROP) : 1F - Math.min(1F, t / RISE_TICKS);
         k = k * k * (3F - 2F * k);
         float y = a.pileYaw * Mth.DEG_TO_RAD;
+        float dip = a.kind == LmAttack.PILE ? pileDipAmount(a, partial) : 0F;
         Vec3 feet = p.getPosition(partial);
-        Vec3 face = feet.add(-Mth.sin(y) * PILE_FACE, 0.45D, Mth.cos(y) * PILE_FACE);
+        Vec3 face = feet.add(-Mth.sin(y) * PILE_EYE, PILE_EYE_Y - dip * PILE_EYE_DIP, Mth.cos(y) * PILE_EYE);
         Vec3 pos = cam.getPosition();
         cam.setPosition(pos.add(face.subtract(pos).scale(k)));
-        event.setPitch(event.getPitch() + (35F - event.getPitch()) * k * 0.7F);
+        event.setPitch(event.getPitch() + (35F + dip * 8F - event.getPitch()) * k * 0.7F);
     }
 
     @SubscribeEvent
