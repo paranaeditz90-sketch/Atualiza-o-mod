@@ -35,6 +35,7 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
+import javax.annotation.Nullable;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -526,6 +527,7 @@ public final class BloodStains {
 
     private static void clearAll() {
         STAINS.clear();
+        SkinAlpha.clear();
     }
 
     // ---------------------------------------------------------------- salvar o teu (Extremo)
@@ -584,11 +586,28 @@ public final class BloodStains {
     private static final Decals DECALS = new Decals();
 
     /**
+     * O pixel da camada de fora que fica em cima deste pixel da parte de dentro (índice no
+     * 64x64), ou -1 se ele não é de uma parte de dentro.
+     */
+    static int outerOf(int x, int y) {
+        if (x < 0 || y < 0 || x >= N || y >= N) return -1;
+        if (y < 16) return x < 32 ? y * N + x + 32 : -1;                   // cabeça -> chapéu
+        if (y < 32) return x < 56 ? (y + 16) * N + x : -1;                 // perna, corpo, braço direitos
+        if (y >= 48 && x >= 16 && x < 32) return y * N + x - 16;           // perna esquerda -> calça
+        if (y >= 48 && x >= 32 && x < 48) return y * N + x + 16;           // braço esquerdo -> manga
+        return -1;
+    }
+
+    /**
      * (v0.6.1) O sangue grudado sem textura gerada na hora. No celular (MobileGlues) a
      * textura dinâmica desenhada por cima apagava o corpo inteiro (3ª pessoa, inventário,
-     * a mão). Agora a camada de fora de cada parte é "desenhada" aqui só pra saber onde
-     * cada face está (já na pose da animação), e cada pixel sujo vira um quadradinho
-     * colado nela: textura branca fixa, cor e transparência no vértice.
+     * a mão). Agora cada parte é "desenhada" aqui só pra saber onde cada face está (já na
+     * pose da animação), e cada pixel sujo vira um quadradinho colado nela: textura branca
+     * fixa, cor e transparência no vértice.
+     *
+     * (v0.7.13) O sangue fica na camada de fora só onde a skin tem pixel ali (o cabelo, o
+     * chapéu); no resto vai na pele, colado na parte de dentro. Na camada de fora vazia ele
+     * boiava meio pixel pra fora, a "casca" em volta da cabeça.
      */
     private static final class Decals implements VertexConsumer {
         /** Um fio pra fora da face, pra não brigar com o pixel da skin no mesmo lugar. */
@@ -599,14 +618,33 @@ public final class BloodStains {
         private Stain stain;
         private VertexConsumer out;
         private int light, overlay;
+        /** Onde a skin tem pixel (null = não deu pra ler: tudo na pele). */
+        @Nullable
+        private boolean[] opaque;
+        /** A camada de fora da parte sendo desenhada aparece (a pessoa pode desligar na skin). */
+        private boolean outerShown = true;
 
-        Decals begin(Stain s, VertexConsumer out, int light, int overlay) {
+        Decals begin(Stain s, VertexConsumer out, int light, int overlay, @Nullable boolean[] opaque) {
             this.stain = s;
             this.out = out;
             this.light = light;
             this.overlay = overlay;
+            this.opaque = opaque;
+            this.outerShown = true;
             this.n = 0;
             return this;
+        }
+
+        /** O sangue que vai neste pixel da face (0 = nada). */
+        private int color(int tx, int ty) {
+            int o = outerOf(tx, ty);
+            if (o >= 0) {
+                // pele: recebe o sangue de fora onde a camada de fora não tem nada por cima
+                if (outerShown && opaque != null && opaque[o]) return 0;
+                return stain.color(o % N, o / N);
+            }
+            if (opaque == null || tx < 0 || ty < 0 || tx >= N || ty >= N || !opaque[ty * N + tx]) return 0;
+            return stain.color(tx, ty);
         }
 
         /** O jeito que o ModelPart.Cube manda cada canto (posição já transformada, UV de 0 a 1). */
@@ -637,7 +675,7 @@ public final class BloodStains {
             float w = tx1 - tx0, h = ty1 - ty0;
             for (int ty = ty0; ty < ty1; ty++) {
                 for (int tx = tx0; tx < tx1; tx++) {
-                    int argb = stain.color(tx, ty);
+                    int argb = color(tx, ty);
                     if (argb == 0) continue;
                     float s0 = (tx - tx0) / w, s1 = (tx + 1 - tx0) / w, t0 = (ty - ty0) / h, t1 = (ty + 1 - ty0) / h;
                     put(a, b, c, d, s0, t0, argb);
@@ -665,12 +703,20 @@ public final class BloodStains {
                     (argb >>> 24) / 255F, 0.5F, 0.5F, overlay, light, nx, ny, nz);
         }
 
-        /** A camada de fora dessa parte, mesmo que a pessoa tenha desligado ela na skin. */
+        /** Uma parte do modelo (mesmo que esteja escondida agora: só serve pra achar as faces). */
         void part(ModelPart part, PoseStack ps) {
             boolean vis = part.visible;
             part.visible = true;
             part.render(ps, this, light, overlay);
             part.visible = vis;
+        }
+
+        /** A parte de dentro e a camada de fora dela: na de fora só se ela aparece. */
+        void pair(ModelPart inner, ModelPart outer, PoseStack ps) {
+            outerShown = outer.visible;
+            part(inner, ps);
+            if (outerShown) part(outer, ps);
+            outerShown = true;
         }
 
         // o resto do VertexConsumer: o ModelPart só usa o vertex completo acima
@@ -726,10 +772,10 @@ public final class BloodStains {
     public static VertexConsumer decalsFor(AbstractClientPlayer player, MultiBufferSource buffers, int light, int overlay) {
         Stain s = STAINS.get(player.getUUID());
         if (s == null || s.total < 0.5F || player.isInvisible() || !gore().skinStains()) return null;
-        return DECALS.begin(s, buffers.getBuffer(RenderType.entityTranslucent(DOT)), light, overlay);
+        return DECALS.begin(s, buffers.getBuffer(RenderType.entityTranslucent(DOT)), light, overlay, SkinAlpha.of(player));
     }
 
-    /** A camada: o sangue colado na camada de fora de cada parte que aparece. */
+    /** A camada: o sangue colado em cada parte que aparece (na de fora onde a skin tem pixel, senão na pele). */
     public static class Layer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
 
         public Layer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
@@ -744,14 +790,14 @@ public final class BloodStains {
             if (s == null || s.total < 0.5F || player.isInvisible() || !gore().skinStains()) return;
             PlayerModel<AbstractClientPlayer> m = getParentModel();
             Decals d = DECALS.begin(s, buffers.getBuffer(RenderType.entityTranslucent(DOT)), light,
-                    LivingEntityRenderer.getOverlayCoords(player, 0F));
+                    LivingEntityRenderer.getOverlayCoords(player, 0F), SkinAlpha.of(player));
             // só onde a parte de dentro aparece (o ombro sem braço não suja)
-            if (m.head.visible) d.part(m.hat, ps);
-            if (m.body.visible) d.part(m.jacket, ps);
-            if (m.rightArm.visible) d.part(m.rightSleeve, ps);
-            if (m.leftArm.visible && !ClientArmState.isArmless(player.getId())) d.part(m.leftSleeve, ps);
-            if (m.rightLeg.visible) d.part(m.rightPants, ps);
-            if (m.leftLeg.visible) d.part(m.leftPants, ps);
+            if (m.head.visible) d.pair(m.head, m.hat, ps);
+            if (m.body.visible) d.pair(m.body, m.jacket, ps);
+            if (m.rightArm.visible) d.pair(m.rightArm, m.rightSleeve, ps);
+            if (m.leftArm.visible && !ClientArmState.isArmless(player.getId())) d.pair(m.leftArm, m.leftSleeve, ps);
+            if (m.rightLeg.visible) d.pair(m.rightLeg, m.rightPants, ps);
+            if (m.leftLeg.visible) d.pair(m.leftLeg, m.leftPants, ps);
         }
     }
 
@@ -778,8 +824,9 @@ public final class BloodStains {
         } finally {
             inArm = false;
         }
-        ModelPart sleeve = right ? renderer.getModel().rightSleeve : renderer.getModel().leftSleeve;
+        PlayerModel<AbstractClientPlayer> m = renderer.getModel();
         DECALS.begin(s, event.getMultiBufferSource().getBuffer(RenderType.entityTranslucent(DOT)),
-                event.getPackedLight(), OverlayTexture.NO_OVERLAY).part(sleeve, event.getPoseStack());
+                event.getPackedLight(), OverlayTexture.NO_OVERLAY, SkinAlpha.of(player))
+                .pair(right ? m.rightArm : m.leftArm, right ? m.rightSleeve : m.leftSleeve, event.getPoseStack());
     }
 }

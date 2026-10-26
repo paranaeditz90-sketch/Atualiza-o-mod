@@ -13,7 +13,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.12 | CI verde, entregue |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.13 | o halo consertado (commit), entrega junto com o BecomeLM 0.3.2 |
 | BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.1 (rede "6") | entregue em 26/10 |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
@@ -128,9 +128,30 @@ Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender
   animação usava `mc.getFrameTime()`, que gira de 0 a 1 com o jogo pausado. Agora usa o pedaço
   de tick do desenho (congela na pausa).
 
+## Fila (pedidos do LM em 26/10, à tarde), nessa ordem
+
+1. **Pancadas com os dois braços** (em andamento, código escrito, falta testar). Respostas do LM:
+   - Segurar o atacar = martela sem parar, 4 por segundo (soltou, para).
+   - A 1ª pancada derruba o bicho de costas, olhando pra cima pro jogador, e ele fica em cima martelando.
+   - Só em pé (de 4 continua o bote e o agarrar). Dano: 1 coração por pancada (igual a queda do céu).
+   - Código: `LmAttack.HAMMER`/`HAMMER_STOP`, `LmAttacks.startHammer/tickHammer`, `LmAttackClient.hammerTarget/hammerTick`;
+     montado igual o esmagamento (`riding`), animação `sky_smash`, escorrega 0,2 s até em cima; rede "7".
+2. **Comer no monte em flexão** (o LM mandou o vídeo: 10v1 "Manhunt but I have RABIES" ~1:50-1:56 + print circulado):
+   - Deitado no monte, o quadril e a bunda ficam no chão.
+   - O tronco sobe e desce dobrando na cintura (parecido com flexão).
+   - Os ombros ficam encolhidos pra cima e a cabeça mergulha.
+   - "Repare no ombro, tronco e cabeça".
+   - Rever também 10v1 0:21.8 e How many days 0:44 (já baixados em 60 qps).
+3. **Finalização parte 2** (o gore): o LM aprovou seguir.
+
 ## Outras pendências
 
-- **Halo na cabeça:** o sangue na skin desenha uma "casca" meio transparente em volta da cabeça (aparece igual no corpo normal e no do BecomeLM). Perguntar ao LM: deixa assim ou conserto nos dois mods?
+- **Halo na cabeça: CONSERTADO (26/10, o LM pediu nos dois mods)**, entrega junto com a 0.3.2:
+  - Causa: o sangue ia na camada de fora da skin (meio pixel pra fora do corpo), e onde a skin não tem nada ali ele ficava boiando.
+  - Agora o sangue fica na camada de fora só onde a skin tem pixel. No resto vai colado na pele.
+  - A skin é lida do PNG (`SkinAlpha` no mod da IA, `LmSkinAlpha` no BecomeLM), nunca da placa de vídeo, porque no celular é arriscado.
+  - A cara suja do BecomeLM (`LmBloodFace`) virou pingos colados, igual o sangue do mod da IA.
+  - Testado com antes e depois (2 clientes + servidor, a câmera do amigo do lado da cabeça).
 - #154 pacote de sons pessoal do BecomeLM: falta a patada do galope e o impacto do bote.
 - #155 teste completo, notas e versão.
 - #156 câmera ajustável (ângulo livre) + como gravar a tela no celular.

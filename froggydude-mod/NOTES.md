@@ -1,4 +1,4 @@
-# Froggydude - v0.7.12: o sangue na skin também no corpo do BecomeLM (sobre a v0.7.11)
+# Froggydude - v0.7.13: o sangue na skin colado no corpo, sem a casca em volta da cabeça (sobre a v0.7.12)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,15 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.12) - só pra quem usa o BecomeLM junto:
+O que testar agora (v0.7.13):
+A) SEM A CASCA (o "halo" que o LM viu): o sangue grudado na skin ia sempre na camada de fora (chapéu,
+   jaqueta, mangas, calça), que fica meio pixel pra fora do corpo. Onde a skin não tem nada nessa camada,
+   o sangue ficava boiando, uma casca meio transparente em volta da cabeça. Agora ele lê a skin (o PNG,
+   nunca a placa de vídeo, que no celular é arriscado) e só põe o sangue na camada de fora onde ela tem
+   pixel (cabelo, chapéu); no resto vai colado na pele. Vale no corpo normal, na mão em primeira pessoa e
+   no corpo do BecomeLM. Skin que não dá pra ler: tudo na pele.
+
+Da v0.7.12 - só pra quem usa o BecomeLM junto:
 A) O SANGUE NA SKIN (LM: "o jogador fica limpo"): virado no FroggyDude pelo BecomeLM, o sangue que este
    mod gruda na skin não aparecia (a camada dele só desenhava no corpo de jogador normal). Agora tem uma
    porta (BloodStains.decalsFor) e o BecomeLM 0.2.1 desenha o mesmo sangue no corpo dele. Sem o BecomeLM
