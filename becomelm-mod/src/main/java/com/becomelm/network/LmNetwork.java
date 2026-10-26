@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  */
 public final class LmNetwork {
 
-    private static final String VERSION = "3";
+    private static final String VERSION = "4";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeLM.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 
@@ -91,7 +91,7 @@ public final class LmNetwork {
         if (target != attacker) CHANNEL.send(PacketDistributor.PLAYER.with(() -> attacker), fx);
     }
 
-    /** O golpe longo que o jogador está dando (montado socando, de cara no chão...); kind null = acabou. */
+    /** O golpe longo que o jogador está dando (montado socando, segurando na boca, no monte...); kind null = acabou. */
     public static void sendAct(ServerPlayer p, LmAttack kind, int target, int age) {
         CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> p),
                 new ActSync(p.getUUID(), kind == null ? -1 : kind.ordinal(), target, age));

@@ -52,9 +52,7 @@ public final class LmAttacks {
     /** As mordidas começam com um respiro depois do último soco. */
     public static final int BITE_FROM = SMASH_FIRST + PUNCHES * SMASH_EVERY + 2;
     public static final int SMASH_TICKS = BITE_FROM + BITES * SMASH_EVERY + 2;
-    /** Errou: de cara no chão (a animação "faceplant", 1,7 s). */
-    public static final int FACEPLANT_TICKS = 34;
-    /** Até quanto tempo depois do pulo alto ainda vale cair em cima (ou de cara). */
+    /** Até quanto tempo depois do pulo alto ainda vale cair em cima. */
     private static final int SKY_WINDOW = 120;
 
     // Morder e agarrar: no lugar da língua do Froggydude (o personagem do LM é um cachorro).
@@ -121,7 +119,6 @@ public final class LmAttacks {
         switch (kind) {
             case POUNCE -> startPounce(p, targetId);
             case SMASH -> startSmash(p, targetId);
-            case FACEPLANT -> startFaceplant(p);
             case GRAB -> startGrab(p, targetId);
             case SHAKE -> shake(p);
             case THROW -> toss(p);
@@ -169,14 +166,6 @@ public final class LmAttacks {
         boolean hurt = hurtInPlace(p, t, SMASH_IMPACT);
         LmNetwork.sendAct(p, LmAttack.SMASH, t.getId(), 0);
         LmNetwork.sendHit(p, t, LmAttack.SMASH, hurt, 0);
-    }
-
-    private static void startFaceplant(ServerPlayer p) {
-        if (!free(p) || !skyRecent(p)) return;
-        SKY.remove(p.getUUID());
-        ACTS.put(p.getUUID(), new Act(LmAttack.FACEPLANT, null));
-        lock(p, true);
-        LmNetwork.sendAct(p, LmAttack.FACEPLANT, -1, 0);
     }
 
     private static void startGrab(ServerPlayer p, int targetId) {
@@ -291,9 +280,6 @@ public final class LmAttacks {
         switch (a.kind) {
             case POUNCE -> tickPounce(p, a);
             case SMASH -> tickSmash(p, a);
-            case FACEPLANT -> {
-                if (a.age >= FACEPLANT_TICKS) end(p, a);
-            }
             case GRAB -> tickGrab(p, a);
             case THROW -> {
                 if (a.age >= THROW_TICKS) end(p, a);

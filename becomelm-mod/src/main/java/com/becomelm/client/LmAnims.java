@@ -29,8 +29,6 @@ final class LmAnims {
     /** Montado socando (0,5 s = 2 socos: 1 a cada 0,25 s, como no vídeo) e as mordidas. */
     static final RawAnimation SMASH = RawAnimation.begin().thenLoop("sky_smash");
     static final RawAnimation BITES = RawAnimation.begin().thenLoop("feed_mob");
-    /** Errou a queda: de cara no chão. */
-    static final RawAnimation FACEPLANT = RawAnimation.begin().thenPlayAndHold("faceplant");
     /** Na boca: o bote curto da mordida, segurando (parado / andando), a sacudida e o arremesso. */
     static final RawAnimation GRAB_START = RawAnimation.begin().thenPlayAndHold("grab_start");
     static final RawAnimation GRAB_HOLD = RawAnimation.begin().thenLoop("grab_hold");
@@ -58,7 +56,6 @@ final class LmAnims {
         LmActsClient.Act act = LmActsClient.get(p);
         if (act != null) {
             if (act.kind == LmAttack.SMASH) return act.age < LmAttacks.BITE_FROM ? SMASH : BITES;
-            if (act.kind == LmAttack.FACEPLANT) return FACEPLANT;
             if (act.kind == LmAttack.GRAB) {
                 if (act.shake >= 0) return GRAB_SHAKE;
                 if (act.age < GRAB_START_TICKS) return GRAB_START;

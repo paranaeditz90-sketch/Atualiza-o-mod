@@ -4,6 +4,27 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.2.1 — os ataques, parte 2 (cair do céu, agarrar, o monte de pedaços)
+
+- **Cair do céu em cima**: pulo super alto (segurar o agachar até o "clique" e pular) e, na
+  descida, um bicho/jogador até ~8 blocos embaixo puxa a queda pra cima dele. Caiu em cima:
+  derruba de costas, senta no peito e **soca com as duas mãos juntas** (como no original,
+  4 por segundo, 1 coração cada) e depois **morde** a cara. ~3,6 s. Sem ninguém embaixo,
+  pousa normal (a "queda de cara" saiu: fica pro editor de animações).
+- **Agarrar na boca** (galope ou fase 2): atacar com o bicho **colado** (até ~2,3 blocos) =
+  morde e segura; andando, arrasta (mais devagar); **atacar de novo** = sacode;
+  **pular** = arremessa. Solta sozinho depois de 10 s. Mais longe continua sendo o bote.
+- **Quem o FroggyDude mata vira pedaços** (~60 cacos com a skin por fora, ficam 90 s) e
+  sangue (cor de cada bicho; esqueleto, slime e golem não sangram).
+- **Deitar no monte de pedaços**: matou no esmagamento, ele já deita em cima; ou **atacar**
+  sem ninguém na mira com um monte na frente. A cara vai ficando **toda vermelha** (~6 s) e
+  fica suja ~1,5 min. Andar = levanta.
+- **Com o mod Froggydude junto** (precisa da **0.7.12**): o sangue que ele gruda na skin
+  (bater, levar golpe, gotas caindo) agora aparece no corpo do FroggyDude também (antes o
+  corpo ficava limpo). É igual ao do corpo normal, inclusive no "chapéu" da skin.
+- Sons provisórios (do Minecraft) pros socos, mordida e arremesso até o pacote de sons.
+- Os amigos precisam da v0.2.1 (a v0.2.0 não conecta com a v0.2.1).
+
 ## v0.2.0 — os ataques, parte 1 (derrubar + bote)
 
 Medido nos vídeos dele em 60 qps (study/RELATORIO_1.md no scratchpad) e escolhido pelo LM.
@@ -56,12 +77,14 @@ Medido nos vídeos dele em 60 qps (study/RELATORIO_1.md no scratchpad) e escolhi
 - Skin fina (Alex): o modelo tem braço de 4 px, então sobra 1 px no braço.
 - Armadura e item na mão não aparecem no corpo do FroggyDude (por enquanto).
 - Nadando, dormindo, de élitro ou montado: volta o corpo de jogador normal.
-- Ainda falta: cair do céu + socos, morder/sacudir/arrastar, comer, os sons dele (pacote à
-  parte) e as vozes (pacote à parte).
+- Ainda falta: os sons dele (pacote à parte), as vozes (pacote à parte), a câmera ajustável
+  e o editor das próprias animações.
 
 ## Desenvolvimento
 
 - `python3 tools/make_anims.py` regenera `lm.animation.json` a partir das animações do
   Froggydude (com cópias dos pulos que já começam no ar).
 - `./gradlew runClient -PquickWorld=<mundo> -PlmDebug=1` abre direto num mundo e loga a câmera.
+- `-PwithFroggy=../froggydude-mod/build/libs/froggydude-X.jar` roda junto com o mod Froggydude
+  (pra testar o sangue na skin); o build normal não muda.
 - Mixin com refmap (MixinGradle) só pra desligar a terra da corrida no galope.

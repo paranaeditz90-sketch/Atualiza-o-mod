@@ -84,6 +84,19 @@ dependencies {
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
+// Teste com o mod do Froggydude junto (só com -PwithFroggy=caminho/froggydude-X.jar; o build normal
+// não muda): o sangue que ele gruda na skin precisa aparecer no corpo do FroggyDude daqui
+if (project.hasProperty('withFroggy')) {
+    def froggyJar = file(project.property('withFroggy'))
+    def froggyVersion = (froggyJar.name =~ /froggydude-(.+)\.jar/)[0][1]
+    repositories {
+        flatDir { dirs froggyJar.parentFile }
+    }
+    dependencies {
+        runtimeOnly fg.deobf("local:froggydude:${froggyVersion}")
+    }
+}
+
 tasks.named('processResources', ProcessResources).configure {
     var replaceProperties = [
             minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,

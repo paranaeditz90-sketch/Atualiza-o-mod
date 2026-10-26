@@ -8,13 +8,10 @@ import com.becomelm.network.LmNetwork;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.core.particles.BlockParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
@@ -32,7 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Os golpes longos de cada jogador (montado socando, de cara no chão, segurando na boca), do
+ * Os golpes longos de cada jogador (montado socando, segurando na boca, deitado no monte), do
  * lado de quem vê: a animação certa e, pro próprio jogador, ficar parado em cima da vítima até
  * acabar, ou arrastar quem está na boca.
  */
@@ -115,15 +112,11 @@ public final class LmActsClient {
         // no monte o "alvo" é o rumo do corpo deitado (graus x10)
         if (k == LmAttack.PILE) a.pileYaw = target / 10F;
         ACTS.put(player, a);
-        Minecraft mc = Minecraft.getInstance();
-        Player p = k == LmAttack.FACEPLANT && mc.level != null ? mc.level.getPlayerByUUID(player) : null;
-        if (p != null) faceplantBurst(p);
     }
 
     /** O próprio jogador já começa (sem esperar o servidor): a animação sai no quadro do pouso. */
     static void startLocal(LocalPlayer p, LmAttack kind, int target) {
         ACTS.put(p.getUUID(), new Act(kind, target, 0));
-        if (kind == LmAttack.FACEPLANT) faceplantBurst(p);
     }
 
     /** Deita no monte (o próprio jogador já começa; o servidor confirma). */
@@ -176,10 +169,10 @@ public final class LmActsClient {
         return ACTS.containsKey(p.getUUID());
     }
 
-    /** Montado socando, de cara no chão ou deitado no monte: não anda nem bate. */
+    /** Montado socando ou deitado no monte: não anda nem bate. */
     static boolean locked(Player p) {
         Act a = ACTS.get(p.getUUID());
-        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.FACEPLANT || a.kind == LmAttack.PILE);
+        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.PILE);
     }
 
     /** Alguém na boca (anda arrastando). */
@@ -208,7 +201,6 @@ public final class LmActsClient {
     private static int limit(LmAttack kind) {
         return switch (kind) {
             case SMASH -> LmAttacks.SMASH_TICKS + 20;
-            case FACEPLANT -> LmAttacks.FACEPLANT_TICKS + 10;
             case GRAB -> LmAttacks.GRAB_MAX + 20;
             case THROW -> LmAttacks.THROW_TICKS + 10;
             case PILE -> LmAttacks.PILE_MAX + 40;
@@ -226,7 +218,7 @@ public final class LmActsClient {
             victimTick(p);
             return;
         }
-        if (a.kind != LmAttack.SMASH && a.kind != LmAttack.FACEPLANT && a.kind != LmAttack.PILE) return;
+        if (a.kind != LmAttack.SMASH && a.kind != LmAttack.PILE) return;
         Vec3 v = p.getDeltaMovement();
         p.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
         if (a.kind == LmAttack.PILE) {
@@ -444,30 +436,6 @@ public final class LmActsClient {
         event.setCanceled(true);
         event.setSwingHand(false);
         if (event.isAttack() && holding(p)) localShake(p);
-    }
-
-    /** De cara no chão: o chão estoura (terra/areia voando pra todo lado e a poeira em roda). */
-    private static void faceplantBurst(Player p) {
-        var level = p.level();
-        var rnd = level.getRandom();
-        float r = p.getYRot() * Mth.DEG_TO_RAD;
-        double fx = -Mth.sin(r), fz = Mth.cos(r);
-        // o corpo cai pra frente: o meio dele fica ~0,8 bloco na frente dos pés
-        double cx = p.getX() + fx * 0.8D, cz = p.getZ() + fz * 0.8D;
-        for (int i = 0; i < 20; i++) {
-            double a = i / 20D * Math.PI * 2D;
-            double s = 0.12D + rnd.nextDouble() * 0.1D;
-            level.addParticle(BecomeLM.DUST_PUFF.get(), cx + Math.cos(a) * 0.6D, p.getY() + 0.08D,
-                    cz + Math.sin(a) * 0.6D, Math.cos(a) * s, 0.02D, Math.sin(a) * s);
-        }
-        BlockState below = p.getBlockStateOn();
-        if (below.isAir() || (p == Minecraft.getInstance().player && LmCamera.active())) return;
-        BlockParticleOption crumbs = new BlockParticleOption(ParticleTypes.BLOCK, below);
-        for (int i = 0; i < 40; i++) {
-            level.addParticle(crumbs, cx + (rnd.nextDouble() - 0.5D) * 1.6D, p.getY() + 0.15D,
-                    cz + (rnd.nextDouble() - 0.5D) * 1.6D,
-                    (rnd.nextDouble() - 0.5D) * 0.5D, 0.2D + rnd.nextDouble() * 0.35D, (rnd.nextDouble() - 0.5D) * 0.5D);
-        }
     }
 
     @SubscribeEvent

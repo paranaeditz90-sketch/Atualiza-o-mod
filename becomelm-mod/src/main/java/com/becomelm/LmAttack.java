@@ -6,8 +6,6 @@ public enum LmAttack {
     POUNCE,
     /** Caiu do pulo alto em cima do bicho: monta, soca e morde. */
     SMASH,
-    /** Caiu do pulo alto e não tinha ninguém embaixo: de cara no chão. */
-    FACEPLANT,
     /** (efeito) um soco do SMASH. */
     PUNCH,
     /** (efeito) uma mordida. */

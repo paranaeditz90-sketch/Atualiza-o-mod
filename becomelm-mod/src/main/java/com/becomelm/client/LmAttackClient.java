@@ -40,8 +40,7 @@ import javax.annotation.Nullable;
  * acerta, pra todo mundo.
  *
  * Pulo alto: descendo, ele vai na direção do bicho que estiver embaixo (dá pra mirar
- * olhando pra ele); caiu perto = monta, soca e morde; caiu longe de todo mundo = de cara
- * no chão (o vídeo do AJ rolando pra fora).
+ * olhando pra ele); caiu perto = monta, soca e morde.
  */
 @Mod.EventBusSubscriber(modid = BecomeLM.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LmAttackClient {
@@ -132,7 +131,7 @@ public final class LmAttackClient {
         return best;
     }
 
-    /** Pousou do pulo alto: caiu perto de alguém = monta; senão, de cara no chão. */
+    /** Pousou do pulo alto: caiu perto de alguém = monta, soca e morde (longe de todos, pousa normal). */
     static void skyLanded(LocalPlayer p) {
         int id = skyTarget;
         skyTarget = -1;
@@ -150,13 +149,9 @@ public final class LmAttackClient {
                 }
             }
         }
-        if (t != null) {
-            LmActsClient.startLocal(p, LmAttack.SMASH, t.getId());
-            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.SMASH, t.getId()));
-        } else {
-            LmActsClient.startLocal(p, LmAttack.FACEPLANT, -1);
-            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.FACEPLANT, -1));
-        }
+        if (t == null) return;
+        LmActsClient.startLocal(p, LmAttack.SMASH, t.getId());
+        LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.SMASH, t.getId()));
     }
 
     private static boolean near(LocalPlayer p, LivingEntity t) {
