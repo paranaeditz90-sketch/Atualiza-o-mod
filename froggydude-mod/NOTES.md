@@ -1,4 +1,4 @@
-# Froggydude - v0.7.11: o "I see you" inteiro antes do susto (sobre a v0.7.10)
+# Froggydude - v0.7.12: o sangue na skin também no corpo do BecomeLM (sobre a v0.7.11)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,13 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.11) - a fala do jumpscare:
+O que testar agora (v0.7.12) - só pra quem usa o BecomeLM junto:
+A) O SANGUE NA SKIN (LM: "o jogador fica limpo"): virado no FroggyDude pelo BecomeLM, o sangue que este
+   mod gruda na skin não aparecia (a camada dele só desenhava no corpo de jogador normal). Agora tem uma
+   porta (BloodStains.decalsFor) e o BecomeLM 0.2.1 desenha o mesmo sangue no corpo dele. Sem o BecomeLM
+   nada muda. Atualiza os dois .jar juntos.
+
+Da v0.7.11 - a fala do jumpscare:
 A) A FALA INTEIRA (LM: "ele dá o jumpscare antes de terminar 'You can't hide from me'"): antes, virar
    pra trás no meio da fala já disparava o susto e cortava a frase. Agora ele espera o "...you can't hide
    from me!" acabar (sumido, nas tuas costas - virar não adianta) e pula 0,2 s depois do "me!".

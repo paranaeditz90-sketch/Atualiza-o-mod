@@ -717,6 +717,18 @@ public final class BloodStains {
         }
     }
 
+    /**
+     * Pra outro mod que desenha o jogador com outro modelo no lugar do vanilla (o BecomeLM, que
+     * vira o corpo do jogador no FroggyDude): um VertexConsumer que recebe as faces do modelo
+     * dele (posição já na pose, UV de 0 a 1 no layout da skin) e cola o sangue dessa pessoa
+     * nelas, igual na camada normal. Null se ela está limpa (ou o gore não suja a skin).
+     */
+    public static VertexConsumer decalsFor(AbstractClientPlayer player, MultiBufferSource buffers, int light, int overlay) {
+        Stain s = STAINS.get(player.getUUID());
+        if (s == null || s.total < 0.5F || player.isInvisible() || !gore().skinStains()) return null;
+        return DECALS.begin(s, buffers.getBuffer(RenderType.entityTranslucent(DOT)), light, overlay);
+    }
+
     /** A camada: o sangue colado na camada de fora de cada parte que aparece. */
     public static class Layer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
 
