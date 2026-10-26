@@ -54,13 +54,15 @@ public class LmModel extends GeoModel<LmAnimatable> {
      * FroggyDude é um só pra todos), anda de tick em tick (fica travado a 20 quadros) e é um
      * relógio só pro modelo inteiro: com dois jogadores na tela um empurrava o tempo do
      * outro. Aqui cada jogador anda no próprio tempo, liso, com o pedaço de tick do quadro.
+     * O pedaço de tick é o do desenho (congela na pausa); o do timer (getFrameTime) continua
+     * girando de 0 a 1 com o jogo pausado e a corrida seguia atrás do menu (bug do LM).
      */
     @Override
     public void handleAnimations(LmAnimatable animatable, long instanceId, AnimationState<LmAnimatable> state) {
         Minecraft mc = Minecraft.getInstance();
         AnimatableManager<LmAnimatable> manager = animatable.getAnimatableInstanceCache().getManagerForId(instanceId);
         Entity e = state.getData(DataTickets.ENTITY);
-        double now = (e != null ? e.tickCount : 0) + mc.getFrameTime();
+        double now = (e != null ? e.tickCount : 0) + state.getPartialTick();
         if (manager.getFirstTickTime() == -1D) manager.startedAt(now);
         double t = now - manager.getFirstTickTime();
         if (!mc.isPaused()) manager.updatedAt(t);

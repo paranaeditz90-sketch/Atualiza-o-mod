@@ -72,10 +72,10 @@ public final class LmActsClient {
     private static final int CONFIRM = 20;
     /** O quanto quem está na boca balança pra cada lado na sacudida (graus). */
     private static final float SWING = 28F;
-    /** No monte: o tempo de deitar e o ciclo da cabeça (pile_lie, 2,4 s), com as esfregadas e a afundada. */
-    static final int PILE_DROP = 8;
-    private static final int PILE_CYCLE = 48;
-    private static final int[] PILE_DIPS = {6, 18, 28};
+    /** No monte: o tempo de deitar e o ciclo da cabeça, com as esfregadas e a afundada (os mesmos do servidor, que come nelas). */
+    static final int PILE_DROP = LmAttacks.PILE_DROP;
+    private static final int PILE_CYCLE = LmAttacks.PILE_CYCLE;
+    private static final int[] PILE_DIPS = LmAttacks.PILE_DIPS;
     /** O peito fica a ~1 bloco dos pés (deitado de bruços) e a cara a ~1,55. */
     static final double PILE_CHEST = 1.0D;
     private static final double PILE_FACE = 1.55D;

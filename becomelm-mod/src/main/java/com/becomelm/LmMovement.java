@@ -30,6 +30,12 @@ public final class LmMovement {
     /** Fase 2: correndo em pé curvado, um pouco mais que o galope (no vídeo ele dispara). */
     static final double FRENZY_RUN = 1.7D;
     static final double FRENZY_WALK = 0.6D;
+    /**
+     * A fome que correr cobra por tick, no máximo (LM: galopar gasta igual correr normal). O
+     * vanilla cobra 0,1 por bloco corrido; o jogador correndo faz 5,6 b/s = 28 cm por tick. O
+     * galope (~14 b/s) pagava 2,5x mais e a barra sumia.
+     */
+    public static final float SPRINT_HUNGER_TICK = 0.1F * 0.28F;
 
     private LmMovement() {
     }

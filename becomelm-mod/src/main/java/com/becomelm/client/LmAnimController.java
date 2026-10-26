@@ -1,5 +1,6 @@
 package com.becomelm.client;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.entity.Entity;
 import software.bernie.geckolib.constant.DataTickets;
@@ -35,7 +36,8 @@ final class LmAnimController extends AnimationController<LmAnimatable> {
             this.elapsed = 0D;
             return 0D;
         }
-        if (this.lastTick < 0D || tick < this.lastTick) {
+        if (this.lastTick < 0D || tick < this.lastTick || Minecraft.getInstance().isPaused()) {
+            // pausado (mundo sozinho), nada anda
             this.lastTick = tick;
         }
         AbstractClientPlayer p = LmRenderer.rendering;

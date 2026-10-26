@@ -4,6 +4,28 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.0 — comer de verdade, o galope com menos fome, a pausa e a finalização (parte 1)
+
+- **Comer os bichos enche a fome** (só quem sangra; esqueleto, slime e golem não):
+  - cada mordida que tira sangue (as do esmagamento, a do agarrar, cada sacudida) = **meia
+    coxinha**;
+  - deitado no monte de pedaços, cada vez que a cara afunda = meia coxinha, **até 4 coxinhas**
+    por monte;
+  - a finalização: 3 mastigadas de **2 coxinhas** (6 no total) e bastante saturação.
+  - Enche a saturação junto (a barra demora a cair depois). **Arrota** quando a barra enche.
+- **O galope gasta fome igual um jogador correndo** (antes gastava ~2,5x mais, porque corre
+  2,5x mais: a barra sumia em ~1 min galopando). Vale pra fase 2 também.
+- **Bug consertado**: pausar o jogo correndo, ele continuava correndo parado atrás do menu.
+- **Golpe de finalização, parte 1 (ainda sem o gore)**: raríssimo (**1 em 100** golpes, muda
+  em `config/becomelm-common.toml`); pra gravar, `/becomelm finisher` (op) faz o próximo
+  golpe virar a cena. Sai no soco, no bote, no agarrar e na queda do céu, em quem fica em pé e
+  sangra (gente, aldeão, zumbi; filhote e chefão não). A vítima cai de costas, ele monta nas
+  coxas dela e cava a barriga, abre, come 3 vezes e encara a câmera (~11,5 s); no fim ela
+  morre e o corpo estoura embaixo dele. Câmera automática em 8 planos, sem HUD. O amigo que é
+  a vítima vê dos próprios olhos, sem HUD, e não se mexe. A ferida, os órgãos, o sangue e os
+  sons vêm na parte 2.
+- Os amigos precisam da v0.3.0 (a v0.2.x não conecta com a v0.3.0).
+
 ## v0.2.1 — os ataques, parte 2 (cair do céu, agarrar, o monte de pedaços)
 
 - **Cair do céu em cima**: pulo super alto (segurar o agachar até o "clique" e pular) e, na

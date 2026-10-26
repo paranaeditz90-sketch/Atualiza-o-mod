@@ -2,6 +2,8 @@ package com.becomelm;
 
 import com.becomelm.network.LmNetwork;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -11,6 +13,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodData;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -76,6 +79,28 @@ public final class LmAttacks {
     public static final double MOUTH = 1.05D;
     /** Deitado no monte: levanta sozinho depois de 1 min. */
     public static final int PILE_MAX = 1200;
+    /**
+     * No monte: o tempo de deitar, o ciclo da cabeça (pile_lie, 2,4 s) e os ticks do ciclo em
+     * que a cara esfrega ou afunda nos cacos (o cliente anima com os mesmos; aqui ele come).
+     */
+    public static final int PILE_DROP = 8;
+    public static final int PILE_CYCLE = 48;
+    public static final int[] PILE_DIPS = {6, 18, 28};
+
+    // Comer (LM: "eu como os mobs e não regenero a fome"): só bicho que sangra. O LM escolheu
+    // o "médio": meia coxinha por mordida, até 4 coxinhas no monte, 6 na finalização.
+    /** Uma mordida que tira sangue: meia coxinha (1 ponto da barra de 20). */
+    private static final int BITE_FOOD = 1;
+    private static final float BITE_SATURATION = 0.3F;
+    /** Cada afundada da cara no monte: meia coxinha; no máximo 4 coxinhas por monte. */
+    private static final int PILE_FOOD = 1;
+    private static final int PILE_FOOD_MAX = 8;
+    private static final float PILE_SATURATION = 0.4F;
+    /** Cada uma das 3 mastigadas da finalização: 2 coxinhas. */
+    private static final int FINISH_FOOD = 4;
+    private static final float FINISH_SATURATION = 0.8F;
+    /** O tick de cada mergulho da finalização em que ele mastiga (fin_feed: 1,2 a 1,56 s). */
+    private static final int FINISH_CHEW = 26;
     /** Segurando alguém na boca anda com 55% da velocidade. */
     private static final double DRAG_SLOW = -0.45D;
     private static final UUID DRAG_ID = UUID.fromString("5b2d7e19-0c4a-4f6e-9d83-1a7c2e4b6f05");
@@ -96,6 +121,8 @@ public final class LmAttacks {
         int stuck;
         /** No monte: o rumo do corpo deitado (graus x10, quem vê desenha com ele). */
         int data;
+        /** No monte: quanto já comeu (pontos de fome). */
+        int fed;
 
         Act(LmAttack kind, @Nullable LivingEntity target) {
             this.kind = kind;
@@ -185,6 +212,7 @@ public final class LmAttacks {
         drag(p, true);
         LmKnock.grab(t, p, p.getYRot());
         boolean hurt = hurtInPlace(p, t, GRAB_DAMAGE);
+        bite(p, t, hurt);
         LmNetwork.sendAct(p, LmAttack.GRAB, t.getId(), 0);
         LmNetwork.sendHit(p, t, LmAttack.GRAB, hurt, 0);
     }
@@ -266,6 +294,10 @@ public final class LmAttacks {
         Vec3 v = t.getDeltaMovement();
         t.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
         if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
+        int f = a.age - LmFinish.Phase.FEED.from;
+        if (f >= 0 && a.age < LmFinish.Phase.STARE.from && f % LmFinish.FEED_CYCLE == FINISH_CHEW) {
+            eat(p, FINISH_FOOD, FINISH_SATURATION);
+        }
         if (a.age < LmFinish.TICKS) return;
         // o fim: morre com o golpe dele (conta a morte pra ele, e o corpo quebra embaixo dele)
         hurtInPlace(p, t, FINISH_KILL);
@@ -354,6 +386,7 @@ public final class LmAttacks {
             }
             case PILE -> {
                 if (a.age >= PILE_MAX) end(p, a);
+                else pileEat(p, a);
             }
             case FINISH -> tickFinish(p, a);
             default -> end(p, a);
@@ -394,6 +427,7 @@ public final class LmAttacks {
         int k = a.age - a.shakeAt;
         if (k > 0 && k <= SHAKE_TICKS && k % SHAKE_EVERY == 0) {
             boolean hurt = hurtInPlace(p, t, SHAKE_DAMAGE);
+            bite(p, t, hurt);
             LmNetwork.sendHit(p, t, LmAttack.SHAKE, hurt, k / SHAKE_EVERY);
         }
     }
@@ -472,9 +506,43 @@ public final class LmAttacks {
         int b = a.age - BITE_FROM;
         if (b >= 0 && b % SMASH_EVERY == 0 && b / SMASH_EVERY < BITES) {
             boolean hurt = hurtInPlace(p, t, BITE_DAMAGE);
+            bite(p, t, hurt);
             LmNetwork.sendHit(p, t, LmAttack.BITE, hurt, b / SMASH_EVERY);
         }
         if (a.age >= SMASH_TICKS) end(p, a);
+    }
+
+    // ------------------------------------------------------------ comer
+
+    /** Uma mordida que tirou sangue de quem sangra: come. */
+    private static void bite(ServerPlayer p, LivingEntity t, boolean hurt) {
+        if (hurt && LmBloodType.of(t).bleeds()) eat(p, BITE_FOOD, BITE_SATURATION);
+    }
+
+    /** Deitado no monte: cada vez que a cara afunda nos cacos ele come um pedaço (até o monte acabar). */
+    private static void pileEat(ServerPlayer p, Act a) {
+        if (a.age < PILE_DROP || a.fed >= PILE_FOOD_MAX) return;
+        int c = (a.age - PILE_DROP) % PILE_CYCLE;
+        for (int d : PILE_DIPS) {
+            if (c == d) {
+                eat(p, PILE_FOOD, PILE_SATURATION);
+                a.fed += PILE_FOOD;
+                return;
+            }
+        }
+    }
+
+    /** Enche a fome e a saturação (como comer um item); arrota quando a barra completa. */
+    private static void eat(ServerPlayer p, int food, float saturation) {
+        FoodData fd = p.getFoodData();
+        boolean hungry = fd.needsFood();
+        fd.eat(food, saturation);
+        if (hungry && !fd.needsFood()) {
+            p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.PLAYER_BURP, SoundSource.PLAYERS,
+                    0.6F, p.getRandom().nextFloat() * 0.1F + 0.9F);
+        }
+        if (DEBUG) System.out.printf("[LMATK] comeu +%d fome=%d saturacao=%.1f%n", food, fd.getFoodLevel(),
+                fd.getSaturationLevel());
     }
 
     /** Dano sem o empurrão (a vítima está presa embaixo) e sem a pausa de invencibilidade entre golpes. */

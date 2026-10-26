@@ -14,7 +14,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 | mod | pasta | versão | estado |
 |---|---|---|---|
 | Froggydude (a IA) | `froggydude-mod/` | 0.7.12 | CI verde, entregue |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.2.1 entregue (rede "4"); no código já tem a finalização parte 1 (rede "5") | CI verde na 0.2.1 |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.0 (rede "5") | entregue em 26/10 |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -97,6 +97,17 @@ Como montar (em cima do que já existe):
 Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender`.
 
 ---
+
+## Feito na 0.3.0 (26/10, pedidos do LM)
+
+- Comer os bichos enche a fome e a saturação (o LM escolheu o "médio"): mordida que tira sangue
+  = 1 ponto; afundar a cara no monte = 1 ponto, até 8 por monte; finalização = 3 x 4 pontos;
+  arroto quando enche. Só bicho que sangra. Código: `LmAttacks` (bite, pileEat, eat).
+- O galope (e a fase 2) gasta fome igual um jogador correndo normal: mixin
+  `PlayerGallopHungerMixin` limita a cobrança de correr no chão a 0,028 por tick.
+- Bug: correndo e pausando, o corpo continuava correndo atrás do menu. Causa: o relógio da
+  animação usava `mc.getFrameTime()`, que gira de 0 a 1 com o jogo pausado. Agora usa o pedaço
+  de tick do desenho (congela na pausa).
 
 ## Outras pendências
 
