@@ -1,0 +1,18 @@
+{
+  "extraKnownMarketplaces": {
+    "claude-video": {
+      "source": {
+        "source": "github",
+        "repo": "bradautomates/claude-video"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "watch@claude-video": true
+  },
+  "env": {
+    "WATCH_ENGINE": "local",
+    "WATCH_WHISPER_BACKEND": "none",
+    "WATCH_DETAIL": "balanced"
+  }
+}
