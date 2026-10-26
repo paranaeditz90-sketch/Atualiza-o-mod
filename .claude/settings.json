@@ -12,7 +12,24 @@
   },
   "env": {
     "WATCH_ENGINE": "local",
-    "WATCH_WHISPER_BACKEND": "none",
+    "WATCH_WHISPERX_MODEL": "small",
     "WATCH_DETAIL": "balanced"
-  }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "playwright",
+    "serena"
+  ]
 }

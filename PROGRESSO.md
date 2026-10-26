@@ -157,9 +157,14 @@ Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender
 
 - **/watch instalado (26/10, pedido do LM)**: o plugin `watch@claude-video` (github.com/bradautomates/claude-video)
   tira quadros e legenda de um vídeo (link ou arquivo) pra eu estudar. Fica gravado em `.claude/settings.json`,
-  então carrega sozinho em toda sessão nova. Escolhas do LM: motor local (sem chave, nada sai daqui), só legenda
-  (sem transcrição), detalhe balanced. É pro próximo vídeo do FroggyDude (o LM avisa quando sair). O YouTube
-  costuma bloquear download daqui; TikTok funciona.
+  então carrega sozinho em toda sessão nova. Escolhas do LM: motor local (sem chave, nada sai daqui), detalhe
+  balanced; vídeo sem legenda: **transcrição local com WhisperX** (o LM trocou em 26/10; instalar com
+  `bash .claude/scripts/install-whisperx.sh`, ~3 min, nunca com o setup.py do plugin, que quebra no Linux).
+  YouTube: metadados e legenda sim, o vídeo em si o YouTube recusa (403); TikTok funciona.
+- **Configuração do Claude Code na nuvem (26/10, pedido do LM; sem commit até o OK dele)**: `CLAUDE.md` com as
+  regras; 5 skills novas (`forge-expert`, `zalith-compat`, `video-motion-analysis`, `frontend-design`,
+  `quality-review`) + 3 do Superpowers (MIT); gancho de início de sessão; `.mcp.json` com Context7, Playwright e
+  Serena (aprovar na sessão; Context7 precisa de `CONTEXT7_API_KEY`); testes em `.claude/tests` (27, verdes).
 - **Halo na cabeça: CONSERTADO e entregue (26/10, BecomeLM 0.3.2 + Froggydude 0.7.13)**:
   - Causa: o sangue ia na camada de fora da skin (meio pixel pra fora do corpo), e onde a skin não tem nada ali ele ficava boiando.
   - Agora o sangue fica na camada de fora só onde a skin tem pixel. No resto vai colado na pele.

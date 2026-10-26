@@ -1,0 +1,4 @@
+# Python dos scripts do .claude/ (skills, testes)
+__pycache__/
+# saída do Playwright MCP quando roda sem --output-dir
+.playwright-mcp/
