@@ -4,6 +4,19 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.2 — as pancadas com os dois braços e o sangue colado na cara
+
+- **Pancadas (em pé)**: segurando o **atacar** com um bicho na mira, a primeira pancada derruba
+  ele de costas (olhando pra cima) e o FroggyDude fica em cima martelando com os **dois braços
+  juntos**, 4 por segundo, 1 coração cada (o esmagamento do Froggydude). Soltou, ele levanta e o
+  bicho fica mais um pouquinho no chão e levanta rolando. Um toque rápido dá a pancada que derruba
+  e mais uma. Matou: deita no monte e come. Só em pé; de 4 continua o bote e o agarrar. Amigo só
+  se o servidor deixar PvP.
+- **Sem a casca de sangue em volta da cabeça**: a cara suja de comer no monte agora fica colada
+  no rosto (antes boiava meio pixel pra fora, na camada do chapéu da skin). Com o mod Froggydude
+  junto, atualiza ele pra **0.7.13** (o sangue dele na skin também ficou colado).
+- Os amigos precisam da v0.3.2 (a v0.3.1 não conecta com a v0.3.2).
+
 ## v0.3.1 — o mortal saindo do monte
 
 - **Mortal**: deitado no monte de pedaços comendo, **pular** = ele sai do monte num mortal

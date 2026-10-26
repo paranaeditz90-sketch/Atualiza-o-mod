@@ -51,7 +51,7 @@ public final class LmActsClient {
         int shake = -1;
         /** No monte: o rumo do corpo deitado. */
         float pileYaw;
-        /** Finalização: de onde ele saiu (escorrega até o quadril dela enquanto monta). */
+        /** Montando (finalização e martelar): de onde ele saiu, escorrega até em cima dela. */
         @Nullable
         Vec3 from;
 
@@ -206,15 +206,15 @@ public final class LmActsClient {
         return ACTS.containsKey(p.getUUID());
     }
 
-    /** Montado socando, finalizando ou deitado no monte: não anda nem bate. */
+    /** Montado socando, martelando, finalizando ou deitado no monte: não anda nem bate. */
     static boolean locked(Player p) {
         Act a = ACTS.get(p.getUUID());
-        return a != null && (a.kind == LmAttack.SMASH || a.kind == LmAttack.PILE || a.kind == LmAttack.FINISH);
+        return a != null && (riding(a) || a.kind == LmAttack.PILE);
     }
 
-    /** Montado em cima de alguém (socando ou finalizando). */
+    /** Montado em cima de alguém (socando, martelando ou finalizando). */
     private static boolean riding(Act a) {
-        return a.kind == LmAttack.SMASH || a.kind == LmAttack.FINISH;
+        return a.kind == LmAttack.SMASH || a.kind == LmAttack.HAMMER || a.kind == LmAttack.FINISH;
     }
 
     /** O próprio jogador está finalizando alguém agora (a câmera vira a da cena). */
@@ -269,6 +269,7 @@ public final class LmActsClient {
             case PILE -> LmAttacks.PILE_MAX + 40;
             case RISE -> RISE_TICKS;
             case FINISH -> LmFinish.TICKS + 30;
+            case HAMMER -> LmAttacks.HAMMER_MAX + 20;
             default -> 40;
         };
     }
@@ -291,10 +292,11 @@ public final class LmActsClient {
         }
         double[] s = seat(p, a);
         if (s == null) return;
-        if (a.kind == LmAttack.FINISH && a.age < LmFinish.Phase.DIG.from) {
-            // montando: escorrega de onde estava até o quadril dela
+        int mount = a.kind == LmAttack.FINISH ? LmFinish.Phase.DIG.from : a.kind == LmAttack.HAMMER ? LmAttacks.HAMMER_MOUNT : 0;
+        if (a.age < mount) {
+            // montando: escorrega de onde estava até em cima dela
             if (a.from == null) a.from = p.position();
-            float k = Mth.clamp((a.age + 1F) / LmFinish.Phase.DIG.from, 0F, 1F);
+            float k = Mth.clamp((a.age + 1F) / mount, 0F, 1F);
             k = k * k * (3F - 2F * k);
             p.setPos(Mth.lerp(k, a.from.x, s[0]), Mth.lerp(k, a.from.y, s[1]), Mth.lerp(k, a.from.z, s[2]));
         } else {

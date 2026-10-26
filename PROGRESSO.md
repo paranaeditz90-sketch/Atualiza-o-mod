@@ -13,8 +13,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.13 | o halo consertado (commit), entrega junto com o BecomeLM 0.3.2 |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.1 (rede "6") | entregue em 26/10 |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.13 | entregue em 26/10 (o halo) |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.2 (rede "7") | entregue em 26/10 |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -130,7 +130,7 @@ Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender
 
 ## Fila (pedidos do LM em 26/10, à tarde), nessa ordem
 
-1. **Pancadas com os dois braços** (em andamento, código escrito, falta testar). Respostas do LM:
+1. **Pancadas com os dois braços: FEITO na 0.3.2** (testado com 2 clientes + servidor: toque rápido, segurar 3 s, segurar até matar e deitar no monte). Respostas do LM:
    - Segurar o atacar = martela sem parar, 4 por segundo (soltou, para).
    - A 1ª pancada derruba o bicho de costas, olhando pra cima pro jogador, e ele fica em cima martelando.
    - Só em pé (de 4 continua o bote e o agarrar). Dano: 1 coração por pancada (igual a queda do céu).
@@ -146,7 +146,7 @@ Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender
 
 ## Outras pendências
 
-- **Halo na cabeça: CONSERTADO (26/10, o LM pediu nos dois mods)**, entrega junto com a 0.3.2:
+- **Halo na cabeça: CONSERTADO e entregue (26/10, BecomeLM 0.3.2 + Froggydude 0.7.13)**:
   - Causa: o sangue ia na camada de fora da skin (meio pixel pra fora do corpo), e onde a skin não tem nada ali ele ficava boiando.
   - Agora o sangue fica na camada de fora só onde a skin tem pixel. No resto vai colado na pele.
   - A skin é lida do PNG (`SkinAlpha` no mod da IA, `LmSkinAlpha` no BecomeLM), nunca da placa de vídeo, porque no celular é arriscado.

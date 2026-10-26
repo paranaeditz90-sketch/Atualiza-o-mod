@@ -4,6 +4,7 @@ import com.becomelm.BecomeLM;
 import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
 import com.becomelm.LmKnock;
+import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
 import com.becomelm.client.pieces.BodyPieces;
@@ -21,6 +22,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
@@ -52,6 +54,8 @@ public final class LmAttackClient {
     private static final int COOLDOWN = 10;
 
     private static int lastAttack = -100;
+    /** Martelando: o "soltou" já foi pro servidor. */
+    private static boolean hammerStopped;
     /** O bicho que o pulo alto está mirando (gruda nele até pousar). */
     private static int skyTarget = -1;
     /** Até onde (na horizontal) o pulo alto procura alguém embaixo. */
@@ -69,6 +73,7 @@ public final class LmAttackClient {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (p == null || mc.level == null || mc.isPaused()) return;
+        hammerTick(mc, p);
         if (LmMoves.airborne(p) != LmMove.SKY || p.onGround()) {
             if (LmMoves.airborne(p) != LmMove.SKY) skyTarget = -1;
             return;
@@ -167,6 +172,21 @@ public final class LmAttackClient {
         if (p == null || mc.screen != null || !LmClientEvents.serverHasMod()) return;
         if (!LmModes.get(p).froggy() || LmKnockClient.lying(p) || LmTransformClient.busy(p) || LmActsClient.busy(p)
                 || p.isSpectator()) return;
+        if (LmModes.get(p) == LmMode.STAND) {
+            // em pé: o bicho na mira = derruba de costas e martela com os dois braços enquanto segurar
+            LivingEntity t = hammerTarget(mc, p);
+            if (t != null) {
+                event.setCanceled(true);
+                event.setSwingHand(false);
+                int now = LmClientEvents.ticks();
+                if (now - lastAttack < COOLDOWN) return;
+                lastAttack = now;
+                hammerStopped = false;
+                LmActsClient.startLocal(p, LmAttack.HAMMER, t.getId());
+                LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.HAMMER, t.getId()));
+                return;
+            }
+        }
         LivingEntity target = LmModes.get(p).fast() ? pickTarget(mc, p, LmAttacks.POUNCE_RANGE) : null;
         if (target == null) {
             // ninguém na mira e um monte de pedaços na frente: deita em cima
@@ -186,6 +206,27 @@ public final class LmAttackClient {
             grab(p, target);
         } else {
             pounce(p, target);
+        }
+    }
+
+    /** Em pé: o bicho na mira, no alcance do soco, que dá pra derrubar. */
+    @Nullable
+    private static LivingEntity hammerTarget(Minecraft mc, LocalPlayer p) {
+        if (!(mc.hitResult instanceof EntityHitResult hit) || !(hit.getEntity() instanceof LivingEntity t)) return null;
+        if (!t.isAlive() || !LmAttacks.canTarget(p, t) || !LmKnock.canKnock(t)) return null;
+        return p.distanceTo(t) <= LmAttacks.HAMMER_REACH + t.getBbWidth() * 0.5D ? t : null;
+    }
+
+    /** Martelando: soltou o atacar (ou abriu um menu) = avisa o servidor, uma vez. */
+    private static void hammerTick(Minecraft mc, LocalPlayer p) {
+        LmActsClient.Act a = LmActsClient.get(p);
+        if (a == null || a.kind != LmAttack.HAMMER) {
+            hammerStopped = false;
+            return;
+        }
+        if (!hammerStopped && (mc.screen != null || !mc.options.keyAttack.isDown())) {
+            hammerStopped = true;
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.HAMMER_STOP, -1));
         }
     }
 

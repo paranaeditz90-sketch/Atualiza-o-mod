@@ -23,7 +23,14 @@ public enum LmAttack {
     /** (só no cliente) levantando do monte. */
     RISE,
     /** Golpe de finalização: a cena da barriga (LmFinish). Raríssimo. */
-    FINISH;
+    FINISH,
+    /**
+     * Em pé, segurando o atacar com o bicho na mira: derruba de costas, monta e martela com os
+     * dois braços juntos enquanto segurar (o esmagamento do Froggydude).
+     */
+    HAMMER,
+    /** (pedido) soltou o atacar: para de martelar e levanta. */
+    HAMMER_STOP;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

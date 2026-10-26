@@ -57,6 +57,20 @@ public final class LmAttacks {
     /** As mordidas começam com um respiro depois do último soco. */
     public static final int BITE_FROM = SMASH_FIRST + PUNCHES * SMASH_EVERY + 2;
     public static final int SMASH_TICKS = BITE_FROM + BITES * SMASH_EVERY + 2;
+    /**
+     * Martelar em pé (pedido do LM): segurando o atacar, a primeira pancada derruba de costas e
+     * ele fica em cima martelando no ritmo do esmagamento (4 por segundo, 1 coração cada).
+     */
+    public static final double HAMMER_REACH = 3.2D;
+    /** Escorregando de pé até em cima dela. */
+    public static final int HAMMER_MOUNT = 4;
+    /** Mesmo um toque rápido dá a pancada que derruba e mais uma. */
+    private static final int HAMMER_MIN = SMASH_FIRST + SMASH_EVERY;
+    /** Segurando sem soltar nunca: no máximo 20 s. */
+    public static final int HAMMER_MAX = 400;
+    /** Cada pancada segura ela no chão mais um pouco; soltou, fica mais esse tanto e levanta rolando. */
+    private static final int HAMMER_KEEP = SMASH_EVERY + 10;
+    private static final int HAMMER_LET_GO = 12;
     /** Até quanto tempo depois do pulo alto ainda vale cair em cima. */
     private static final int SKY_WINDOW = 120;
 
@@ -123,6 +137,8 @@ public final class LmAttacks {
         int data;
         /** No monte: quanto já comeu (pontos de fome). */
         int fed;
+        /** Martelando: soltou o atacar. */
+        boolean stop;
 
         Act(LmAttack kind, @Nullable LivingEntity target) {
             this.kind = kind;
@@ -159,6 +175,11 @@ public final class LmAttacks {
             case GET_UP -> {
                 Act a = ACTS.get(p.getUUID());
                 if (a != null && a.kind == LmAttack.PILE) end(p, a);
+            }
+            case HAMMER -> startHammer(p, targetId);
+            case HAMMER_STOP -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.HAMMER) a.stop = true;
             }
             default -> {
             }
@@ -200,6 +221,24 @@ public final class LmAttacks {
         boolean hurt = hurtInPlace(p, t, SMASH_IMPACT);
         LmNetwork.sendAct(p, LmAttack.SMASH, t.getId(), 0);
         LmNetwork.sendHit(p, t, LmAttack.SMASH, hurt, 0);
+    }
+
+    private static void startHammer(ServerPlayer p, int targetId) {
+        if (LmModes.get(p) != LmMode.STAND || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, HAMMER_REACH + SLACK) || !LmKnock.canKnock(t)
+                || holder(t) != null) return;
+        if (tryFinish(p, t)) return;
+        Act a = new Act(LmAttack.HAMMER, t);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        // de costas, a cara pra cima olhando pra ele (bicho de quatro cai de lado)
+        if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HAMMER_KEEP + HAMMER_MIN);
+        else LmKnock.knock(t, p, HAMMER_KEEP + HAMMER_MIN);
+        boolean hurt = hurtInPlace(p, t, PUNCH_DAMAGE);
+        if (DEBUG) System.out.printf("[LMATK] martelar %s acertou=%s%n", t.getName().getString(), hurt);
+        LmNetwork.sendAct(p, LmAttack.HAMMER, t.getId(), 0);
+        LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, 0);
     }
 
     private static void startGrab(ServerPlayer p, int targetId) {
@@ -314,7 +353,7 @@ public final class LmAttacks {
         Act a = ACTS.get(killer.getUUID());
         if (a == null) return 1.0F;
         return switch (a.kind) {
-            case SMASH -> 0.35F;
+            case SMASH, HAMMER -> 0.35F;
             case GRAB -> 0.6F;
             case FINISH -> 0.15F;
             default -> 1.0F;
@@ -389,6 +428,7 @@ public final class LmAttacks {
                 else pileEat(p, a);
             }
             case FINISH -> tickFinish(p, a);
+            case HAMMER -> tickHammer(p, a);
             default -> end(p, a);
         }
     }
@@ -510,6 +550,36 @@ public final class LmAttacks {
             LmNetwork.sendHit(p, t, LmAttack.BITE, hurt, b / SMASH_EVERY);
         }
         if (a.age >= SMASH_TICKS) end(p, a);
+    }
+
+    private static void tickHammer(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (t != null && t.isDeadOrDying() && t.level() == p.level()) {
+            // matou martelando: deita no monte dela, igual no esmagamento
+            double dx = t.getX() - p.getX(), dz = t.getZ() - p.getZ();
+            float yaw = dx * dx + dz * dz < 1.0E-4D ? p.getYRot() : (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90F;
+            pile(p, Math.round(Mth.wrapDegrees(yaw) * 10F));
+            return;
+        }
+        boolean gone = t == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || p.distanceToSqr(t) > 25D;
+        if (gone || LmModes.get(p) != LmMode.STAND || LmTransform.active(p) || a.age > HAMMER_MAX
+                || (a.stop && a.age >= HAMMER_MIN)) {
+            if (DEBUG) System.out.printf("[LMATK] parou de martelar t=%d soltou=%s%n", a.age, a.stop);
+            if (t != null) LmKnock.letGo(t, HAMMER_LET_GO);
+            end(p, a);
+            return;
+        }
+        // ela fica embaixo dele (o empurrão entre os corpos ia tirar ela de lá)
+        Vec3 v = t.getDeltaMovement();
+        t.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
+        int k = a.age - SMASH_FIRST;
+        if (k >= 0 && k % SMASH_EVERY == 0) {
+            if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HAMMER_KEEP);
+            else LmKnock.knock(t, p, HAMMER_KEEP);
+            boolean hurt = hurtInPlace(p, t, PUNCH_DAMAGE);
+            LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, k / SMASH_EVERY + 1);
+        }
     }
 
     // ------------------------------------------------------------ comer

@@ -220,7 +220,8 @@ public final class LmCamera {
         if (mc.level == null) return null;
         // montado: a vítima é quem está embaixo
         LmActsClient.Act act = LmActsClient.get(p);
-        if (act != null && act.kind == LmAttack.SMASH && mc.level.getEntity(act.target) instanceof LivingEntity l) {
+        if (act != null && (act.kind == LmAttack.SMASH || act.kind == LmAttack.HAMMER)
+                && mc.level.getEntity(act.target) instanceof LivingEntity l) {
             victimId = l.getId();
             victimLost = 0;
             return l;

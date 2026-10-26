@@ -68,6 +68,8 @@ final class LmAnims {
         LmActsClient.Act act = LmActsClient.get(p);
         if (act != null) {
             if (act.kind == LmAttack.SMASH) return act.age < LmAttacks.BITE_FROM ? SMASH : BITES;
+            // martelando em pé: os mesmos golpes com os dois punhos, enquanto segurar
+            if (act.kind == LmAttack.HAMMER) return SMASH;
             if (act.kind == LmAttack.GRAB) {
                 if (act.shake >= 0) return GRAB_SHAKE;
                 if (act.age < GRAB_START_TICKS) return GRAB_START;
