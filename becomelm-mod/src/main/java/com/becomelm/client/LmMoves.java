@@ -28,19 +28,42 @@ public final class LmMoves {
     }
 
     private static final Map<UUID, Entry> RECENT = new HashMap<>();
+    /**
+     * O mortal (How many days 0:47, 10v1 0:26.2, medidos em 60 qps): sai do monte, dá a volta
+     * pra trás esticado em ~0,45 s e pousa de braços abertos ("tcharam"), que seguram ~0,7 s.
+     * Por jogador, o tick em que começou (vale pra quem vê também).
+     */
+    private static final Map<UUID, Integer> FLIPS = new HashMap<>();
+    static final int FLIP_TICKS = 9;
+    /** Até quando o mortal vale (a volta, o resto do pulo e os braços abertos depois de pousar). */
+    private static final int FLIP_MAX = 40;
+    /** Os braços abertos: a partir do pouso, ~0,8 s. */
+    private static final int TADA_TICKS = 16;
+    /** Quando pousou do mortal (pra contar o tcharam a partir do chão). */
+    private static final Map<UUID, Integer> LANDED = new HashMap<>();
 
     private LmMoves() {
     }
 
     static void local(LocalPlayer p, LmMove move) {
-        RECENT.put(p.getUUID(), new Entry(move, LmClientEvents.ticks()));
+        if (move == LmMove.FLIP) {
+            FLIPS.put(p.getUUID(), LmClientEvents.ticks());
+            LANDED.remove(p.getUUID());
+        } else {
+            RECENT.put(p.getUUID(), new Entry(move, LmClientEvents.ticks()));
+        }
         if (LmClientEvents.serverHasMod()) LmNetwork.CHANNEL.sendToServer(new LmNetwork.DoMove(move));
         if (move != LmMove.HOP) leapSound(p);
     }
 
     /** Chegou do servidor: outro jogador deu esse pulo. */
     public static void remote(UUID id, LmMove move) {
-        RECENT.put(id, new Entry(move, LmClientEvents.ticks()));
+        if (move == LmMove.FLIP) {
+            FLIPS.put(id, LmClientEvents.ticks());
+            LANDED.remove(id);
+        } else {
+            RECENT.put(id, new Entry(move, LmClientEvents.ticks()));
+        }
         Minecraft mc = Minecraft.getInstance();
         if (mc.level != null && move != LmMove.HOP && mc.level.getPlayerByUUID(id) instanceof AbstractClientPlayer p) {
             leapSound(p);
@@ -57,14 +80,53 @@ public final class LmMoves {
         return e.move;
     }
 
+    /** Quanto da volta do mortal já foi (0 a 1), ou -1 se não está dando mortal. */
+    static float flipTurn(Player p, float partial) {
+        Integer at = FLIPS.get(p.getUUID());
+        if (at == null) return -1F;
+        float t = (LmClientEvents.ticks() - at + partial) / FLIP_TICKS;
+        return t >= 1F ? -1F : Math.max(0F, t);
+    }
+
+    /** Esse jogador está num mortal (do pulo até os braços abertos acabarem). */
+    static boolean flipping(UUID id) {
+        return FLIPS.containsKey(id);
+    }
+
+    /** No mortal e ainda no ar (a volta já acabou, falta cair): segura a pose do mortal. */
+    static boolean flipAir(Player p) {
+        Integer at = FLIPS.get(p.getUUID());
+        return at != null && !LANDED.containsKey(p.getUUID()) && LmClientEvents.ticks() - at < FLIP_MAX;
+    }
+
+    /** Pousou do mortal: os braços abertos ("tcharam"). */
+    static boolean tada(Player p) {
+        Integer at = LANDED.get(p.getUUID());
+        return at != null && LmClientEvents.ticks() - at < TADA_TICKS;
+    }
+
     /** Todo tick: quem pousou sai da lista (o pulo super alto pousa com estrondo). */
     static void tick() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) {
             RECENT.clear();
+            FLIPS.clear();
+            LANDED.clear();
             return;
         }
         int now = LmClientEvents.ticks();
+        Iterator<Map.Entry<UUID, Integer>> flips = FLIPS.entrySet().iterator();
+        while (flips.hasNext()) {
+            Map.Entry<UUID, Integer> en = flips.next();
+            Player p = mc.level.getPlayerByUUID(en.getKey());
+            Integer landed = LANDED.get(en.getKey());
+            if (p == null || now - en.getValue() >= FLIP_MAX || (landed != null && now - landed >= TADA_TICKS)) {
+                flips.remove();
+                LANDED.remove(en.getKey());
+            } else if (landed == null && now - en.getValue() >= FLIP_TICKS && (p.onGround() || p.isInWater())) {
+                LANDED.put(en.getKey(), now);
+            }
+        }
         Iterator<Map.Entry<UUID, Entry>> it = RECENT.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, Entry> en = it.next();
@@ -84,6 +146,8 @@ public final class LmMoves {
 
     static void clear() {
         RECENT.clear();
+        FLIPS.clear();
+        LANDED.clear();
     }
 
     private static void leapSound(Player p) {

@@ -4,6 +4,15 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.1 — o mortal saindo do monte
+
+- **Mortal**: deitado no monte de pedaços comendo, **pular** = ele sai do monte num mortal
+  pra trás (esticado, ~0,45 s no giro, ~1,4 bloco de altura) e pousa de **braços abertos**
+  (o "tcharam", ~0,8 s); andar continua só levantando. Medido no How many days (0:47) e no
+  10v1 (0:26). Em primeira pessoa a câmera dá a volta junto (céu, de cabeça pra baixo, o
+  monte lá embaixo, o horizonte). Os amigos veem o mortal e os braços abertos.
+- Os amigos precisam da v0.3.1 (a v0.3.0 não conecta com a v0.3.1).
+
 ## v0.3.0 — comer de verdade, o galope com menos fome, a pausa e a finalização (parte 1)
 
 - **Comer os bichos enche a fome** (só quem sangra; esqueleto, slime e golem não):

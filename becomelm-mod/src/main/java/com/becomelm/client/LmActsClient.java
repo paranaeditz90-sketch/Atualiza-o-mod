@@ -5,6 +5,7 @@ import com.becomelm.LmAttack;
 import com.becomelm.LmAttacks;
 import com.becomelm.LmFinish;
 import com.becomelm.LmKnock;
+import com.becomelm.LmMove;
 import com.becomelm.network.LmNetwork;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -80,6 +81,9 @@ public final class LmActsClient {
     static final double PILE_CHEST = 1.0D;
     private static final double PILE_FACE = 1.55D;
     private static final int RISE_TICKS = 10;
+    /** O pulo do mortal (o normal é 0,42 pra cima): ~1,4 bloco de altura, ~0,6 s no ar. */
+    private static final double FLIP_UP = 0.5D;
+    private static final double FLIP_BACK = 0.12D;
 
     private static boolean jumpHeld;
 
@@ -90,7 +94,8 @@ public final class LmActsClient {
     public static void set(UUID player, int kind, int target, int age) {
         if (kind < 0) {
             Act old = ACTS.remove(player);
-            if (old != null && old.kind == LmAttack.PILE) rise(player, old);
+            // saiu do monte num mortal: já está no ar, não levanta (o levantar tapava o mortal pra quem vê)
+            if (old != null && old.kind == LmAttack.PILE && !LmMoves.flipping(player)) rise(player, old);
             Minecraft mc = Minecraft.getInstance();
             if (old != null && old.kind == LmAttack.FINISH) {
                 if (old.age >= LmFinish.TICKS - 5) {
@@ -140,6 +145,22 @@ public final class LmActsClient {
         Act a = new Act(LmAttack.PILE, Math.round(Mth.wrapDegrees(yaw) * 10F), 0);
         a.pileYaw = yaw;
         ACTS.put(p.getUUID(), a);
+    }
+
+    /** O mortal pra trás saindo do monte: pula de costas pro monte e dá a volta no ar. */
+    private static void flip(LocalPlayer p, Act a) {
+        ACTS.remove(p.getUUID());
+        float yaw = a.pileYaw;
+        float y = yaw * Mth.DEG_TO_RAD;
+        p.setYRot(yaw);
+        p.yRotO = yaw;
+        p.setYBodyRot(yaw);
+        p.setXRot(0F);
+        p.xRotO = 0F;
+        // um pouco pra trás (sai de cima do monte) e alto o bastante pra volta caber no ar
+        p.setDeltaMovement(Mth.sin(y) * FLIP_BACK, FLIP_UP, -Mth.cos(y) * FLIP_BACK);
+        p.hasImpulse = true;
+        LmMoves.local(p, LmMove.FLIP);
     }
 
     /** Saiu do monte: a animação de levantar (só no cliente; já anda). */
@@ -440,9 +461,10 @@ public final class LmActsClient {
             return;
         }
         if (a != null && a.kind == LmAttack.PILE && p instanceof LocalPlayer lp && a.age > PILE_DROP + 2
-                && (in.up || in.down || in.left || in.right || in.jumping)) {
-            // andar ou pular levanta do monte
-            rise(lp.getUUID(), a);
+                && (in.up || in.down || in.left || in.right || jumpPressed)) {
+            // pular comendo = sai do monte num mortal (How many days 0:47); andar só levanta
+            if (jumpPressed) flip(lp, a);
+            else rise(lp.getUUID(), a);
             LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.GET_UP, -1));
             jumpHeld = true;
             in.jumping = false;
@@ -464,9 +486,16 @@ public final class LmActsClient {
         if (p == null || LmCamera.active() || !mc.options.getCameraType().isFirstPerson()) return;
         Camera cam = event.getCamera();
         if (cam.getEntity() != p) return;
+        float partial = (float) event.getPartialTick();
+        float turn = LmMoves.flipTurn(p, partial);
+        if (turn >= 0F) {
+            // o mortal em primeira pessoa: o olhar dá a volta pra trás (o céu, as costas, o chão)
+            float k = turn * turn * (3F - 2F * turn);
+            event.setPitch(event.getPitch() - 360F * k);
+            return;
+        }
         Act a = ACTS.get(p.getUUID());
         if (a == null || (a.kind != LmAttack.PILE && a.kind != LmAttack.RISE)) return;
-        float partial = (float) event.getPartialTick();
         float t = a.age + partial;
         float k = a.kind == LmAttack.PILE ? Math.min(1F, t / PILE_DROP) : 1F - Math.min(1F, t / RISE_TICKS);
         k = k * k * (3F - 2F * k);

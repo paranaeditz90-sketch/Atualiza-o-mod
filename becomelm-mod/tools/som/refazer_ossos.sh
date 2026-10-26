@@ -7,7 +7,7 @@
 #     voicemod.mp3 o crec-crec que o LM fez no Voicemod
 #     video.mp4    o vídeo do LM com o som que ele editou no CapCut (lv_0_20261025230010)
 #   Os sons livres (CC0) são baixados aqui mesmo.
-# Precisa: ffmpeg, curl, unzip, python3 com numpy, scipy, librosa.
+# Precisa: ffmpeg (com libvorbis), curl, unzip, zip, python3 com numpy, scipy, librosa.
 set -e
 IN=$(realpath "$1"); OUT=$(realpath -m "$2"); T=$(dirname "$(realpath "$0")")
 mkdir -p "$OUT"/{dl,work,ossos,lm,lmmix,hm,hmout,hmmix}
@@ -39,4 +39,14 @@ cp "$OUT/hmout/ossos_hm_meio_estourado.wav" "$OUT/3_pente_fino_meio_estourado.wa
 cp "$OUT/hmmix/4_meio_estourado.wav" "$OUT/4_teu_4_meio_estourado.wav"
 cp "$OUT/hmmix/5_misto_mais_horror_meio_estourado.wav" "$OUT/5_misto_mais_ossos_horror_meio_estourado.wav"
 cp "$OUT/hmmix/6_estalo_costelas_meio_estourado.wav" "$OUT/6_estalo_costelas_meio_estourado.wav"
-ls "$OUT"/*.wav
+# o pacote pessoal BecomeLM-Sons com o 5 escolhido (zip pra pasta resourcepacks; não vai pro GitHub)
+python3 -I "$T/pacote_osso5.py" "$OUT/hmmix/5_misto_mais_horror_meio_estourado.wav" \
+    "$OUT/hmout/ossos_hm_limpo.wav" "$OUT/work" "$OUT/pacote_wav" > /dev/null
+P="$OUT/BecomeLM-Sons"; mkdir -p "$P/assets/becomelm/sounds/fd"
+for f in "$OUT"/pacote_wav/*.wav; do
+  ffmpeg -nostdin -v error -y -i "$f" -ac 1 -ar 44100 -c:a libvorbis -q:a 6 "$P/assets/becomelm/sounds/fd/$(basename "$f" .wav).ogg"
+done
+cp "$T/pacote_sounds.json" "$P/assets/becomelm/sounds.json"
+printf '{\n  "pack": {\n    "pack_format": 15,\n    "description": "BecomeLM - sons pessoais (ossos: o 5)"\n  }\n}\n' > "$P/pack.mcmeta"
+(cd "$P" && rm -f "$OUT/BecomeLM-Sons.zip" && zip -q -X -r "$OUT/BecomeLM-Sons.zip" pack.mcmeta assets)
+ls "$OUT"/*.wav "$OUT/BecomeLM-Sons.zip"

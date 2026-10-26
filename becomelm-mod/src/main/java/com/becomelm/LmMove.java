@@ -9,7 +9,9 @@ public enum LmMove {
     /** Pulo super alto (carregado segurando o agachar). */
     SKY,
     /** O bote de ataque: se joga no bicho (atacar galopando). */
-    POUNCE;
+    POUNCE,
+    /** Mortal pra trás saindo do monte de pedaços (pular comendo) e os braços abertos no fim. */
+    FLIP;
 
     public static LmMove byOrdinal(int i) {
         LmMove[] all = values();

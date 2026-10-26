@@ -324,6 +324,38 @@ EXTRA.update({
 })
 
 
+# o mortal saindo do monte (How many days 0:47, 10v1 0:26.2, em 60 qps): os braços sobem na
+# frente pro impulso, o corpo vai esticado (a volta pra trás é o desenho que gira, em volta da
+# cintura), as pernas encolhem um pouco no meio e no fim os braços abrem retos pros lados - o
+# "tcharam", que segura com o peito pra fora e o queixo pra cima
+_TADA = dict(waist={'rotation': [-6, 0, 0]}, head={'rotation': [-10, 0, 0]},
+             right_arm={'rotation': [0, 0, 88]}, left_arm={'rotation': [0, 0, -88]},
+             right_leg={'rotation': [0, 0, 7]}, left_leg={'rotation': [0, 0, -7]})
+
+EXTRA.update({
+    'flip': _anim(0.45, 'hold_on_last_frame', [
+        (0.0, _stand() | {'right_arm': {'rotation': [-120, 0, 10]}, 'left_arm': {'rotation': [-120, 0, -10]},
+                          'waist': {'rotation': [10, 0, 0]}, 'head': {'rotation': [-15, 0, 0]}}),
+        (0.12, _stand() | {'right_arm': {'rotation': [-170, 0, 12]}, 'left_arm': {'rotation': [-170, 0, -12]},
+                           'waist': {'rotation': [-8, 0, 0]}, 'head': {'rotation': [-25, 0, 0]},
+                           'right_leg': {'rotation': [-25, 0, 4]}, 'left_leg': {'rotation': [-25, 0, -4]},
+                           'right_shin': {'rotation': [35, 0, 0]}, 'left_shin': {'rotation': [35, 0, 0]}}),
+        (0.25, _stand() | {'right_arm': {'rotation': [-150, 0, 30]}, 'left_arm': {'rotation': [-150, 0, -30]},
+                           'waist': {'rotation': [-5, 0, 0]}, 'head': {'rotation': [-20, 0, 0]},
+                           'right_leg': {'rotation': [-15, 0, 4]}, 'left_leg': {'rotation': [-15, 0, -4]},
+                           'right_shin': {'rotation': [20, 0, 0]}, 'left_shin': {'rotation': [20, 0, 0]}}),
+        (0.45, _stand() | {'right_arm': {'rotation': [-20, 0, 70]}, 'left_arm': {'rotation': [-20, 0, -70]},
+                           'waist': {'rotation': [-4, 0, 0]}, 'head': {'rotation': [-8, 0, 0]}}),
+    ]),
+    'tada': _anim(0.7, True, [
+        (0.0, _stand() | _TADA),
+        (0.35, _stand() | _TADA | {'waist': {'rotation': [-9, 0, 0]}, 'head': {'rotation': [-13, 0, 0]},
+                                   'right_arm': {'rotation': [0, 0, 92]}, 'left_arm': {'rotation': [0, 0, -92]}}),
+        (0.7, _stand() | _TADA),
+    ]),
+})
+
+
 def value_at(frames, t):
     keys = sorted(frames, key=float)
     times = [float(k) for k in keys]

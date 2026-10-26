@@ -6,6 +6,7 @@ import com.becomelm.LmModes;
 import com.becomelm.LmMove;
 import com.becomelm.network.LmNetwork;
 import com.mojang.blaze3d.platform.InputConstants;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -30,6 +31,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import org.joml.Quaternionf;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -50,6 +52,8 @@ public final class LmClientEvents {
     /** Bote galopando: empurrão pra frente e um tiquinho mais alto. */
     private static final double LEAP_PUSH = 0.3D;
     private static final double LEAP_UP = 1.08D;
+    /** O mortal gira em volta da cintura (o meio do corpo, ~0,95 bloco do chão). */
+    private static final double FLIP_PIVOT = 0.95D;
 
     private static int ticks;
     private static int lastShiftTap = -100;
@@ -194,14 +198,30 @@ public final class LmClientEvents {
         event.setCanceled(true);
         LmActsClient.faceBody(p);
         boolean knocked = LmKnockClient.apply(event.getPoseStack(), p, event.getPartialTick());
+        boolean flipping = flip(event.getPoseStack(), p, event.getPartialTick());
         LmRenderer.get().render(p, p.getYRot(), event.getPartialTick(), event.getPoseStack(),
                 event.getMultiBufferSource(), event.getPackedLight());
+        if (flipping) event.getPoseStack().popPose();
         if (knocked) event.getPoseStack().popPose();
     }
 
     @SubscribeEvent
     public static void onRenderLiving(RenderLivingEvent.Pre<?, ?> event) {
         if (LmCamera.hides(event.getEntity())) event.setCanceled(true);
+    }
+
+    /** O mortal: o corpo inteiro dá a volta pra trás em torno do meio dele (a cintura). */
+    private static boolean flip(PoseStack pose, AbstractClientPlayer p, float partial) {
+        float turn = LmMoves.flipTurn(p, partial);
+        if (turn < 0F) return false;
+        float k = turn * turn * (3F - 2F * turn);
+        float yaw = Mth.rotLerp(partial, p.yBodyRotO, p.yBodyRot) * Mth.DEG_TO_RAD;
+        pose.pushPose();
+        pose.translate(0D, FLIP_PIVOT, 0D);
+        // em volta da direita do corpo: o ângulo positivo tomba pra trás (igual cair de costas)
+        pose.mulPose(new Quaternionf().rotationAxis(Mth.TWO_PI * k, -Mth.cos(yaw), 0F, -Mth.sin(yaw)));
+        pose.translate(0D, -FLIP_PIVOT, 0D);
+        return true;
     }
 
     /** Dormindo, de élitro, nadando, montado ou espectador: o corpo de jogador normal. */

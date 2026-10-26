@@ -49,12 +49,17 @@ final class LmAnims {
     static final RawAnimation FIN_OPEN = RawAnimation.begin().thenPlayAndHold("fin_open");
     static final RawAnimation FIN_FEED = RawAnimation.begin().thenLoop("fin_feed");
     static final RawAnimation FIN_STARE = RawAnimation.begin().thenLoop("fin_stare");
+    /** O mortal saindo do monte e os braços abertos quando pousa. */
+    static final RawAnimation FLIP = RawAnimation.begin().thenPlayAndHold("flip");
+    static final RawAnimation TADA = RawAnimation.begin().thenLoop("tada");
     /** Fase 2: correndo em pé curvado, desesperado. */
     static final RawAnimation FRENZY_RUN = RawAnimation.begin().thenLoop("run_frenzy");
     static final RawAnimation FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
 
     /** Abaixo disso (blocos por tick) ele está parado. */
     private static final double MOVING = 0.02D;
+    /** O resto do embalo do mortal no pouso não conta como andar (andar de verdade passa disso). */
+    private static final double TADA_MOVING = 0.06D;
 
     private LmAnims() {
     }
@@ -81,6 +86,9 @@ final class LmAnims {
                 };
             }
         }
+        if (LmMoves.flipTurn(p, 0F) >= 0F || LmMoves.flipAir(p)) return FLIP;
+        // pousou: braços abertos, até sair andando
+        if (LmMoves.tada(p) && groundSpeed(p) <= TADA_MOVING) return TADA;
         LmTransform.Phase tp = LmTransformClient.phase(p);
         if (tp != null) {
             return switch (tp) {

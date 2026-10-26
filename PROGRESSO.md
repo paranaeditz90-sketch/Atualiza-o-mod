@@ -1,6 +1,6 @@
 # Onde paramos (pra retomar numa conversa nova)
 
-Atualizado em 26/10/2026 (tarde). Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
+Atualizado em 26/10/2026 (fim da tarde). Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
 neste repositório, na branch `claude/froggydude-mod-research-pxrwch`, e escreve:
 **"lê o PROGRESSO.md e continua de onde parou"**.
 
@@ -14,7 +14,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 | mod | pasta | versão | estado |
 |---|---|---|---|
 | Froggydude (a IA) | `froggydude-mod/` | 0.7.12 | CI verde, entregue |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.0 (rede "5") | entregue em 26/10 |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.1 (rede "6") | entregue em 26/10 |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -35,12 +35,17 @@ Em 26/10 o LM ouviu os 6 candidatos e escolheu o **5**: o meu misto (CC0) + os o
 - Dentro do mod vai só a parte livre (o misto CC0, meio estourado).
 - A versão completa (com o horror mod, que é do FroggyDude) vai no pacote pessoal BecomeLM-Sons.
 - Usar na transformação (`crack_seq`/`crack`) e nas costelas da finalização (o estalo 6 é o modelo).
-- Ainda não foi colocado no mod (entra junto com a parte 2 da finalização).
+- **No pacote pessoal desde 26/10** (`BecomeLM-Sons.zip`, mandado pro LM):
+  - `contort` = o 5 inteiro com 0,1 s de silêncio na frente. O mod toca no tick 8 e o 5 foi montado pra começar no tick 10.
+  - `crack_seq` vazio.
+  - `crack` = 6 estalos de 0,28 s no estilo do 5. Compridos (0,9 s) viravam um crec-crec sem parar no "torto", porque tocam a cada 0,4 a 1 s.
+  - Testado no jogo: o som gravado bate com o 5 (correlação 0,85).
+- Dentro do mod (a versão CC0) ainda não: entra junto com a parte 2 da finalização.
 
 Descobertas:
 - O crec-crec do horror mod é a voz dele (gemido de dor rangido). O removedor de voz (Demucs) jogou tudo pra "voz", então o pente fino separa tom (gemido) de batida (estalo). O gemido cai 66 dB.
 
-Pra refazer os 6 sons do zero: `becomelm-mod/tools/som/refazer_ossos.sh pasta_entrada pasta_saida`.
+Pra refazer os 6 sons e o pacote `BecomeLM-Sons.zip` do zero: `becomelm-mod/tools/som/refazer_ossos.sh pasta_entrada pasta_saida`.
 A pasta de entrada precisa de 3 arquivos que o LM tem (estão no zip LM_SALVAR_26-10, pasta 3):
 `horror.mp4` (Screenrecorder-2026-09-30-16-01-56, 5,6 s), `voicemod.mp3`, `video.mp4` (lv_0_20261025230010).
 Os sons CC0 o script baixa sozinho:
@@ -97,6 +102,20 @@ Como montar (em cima do que já existe):
 Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender`.
 
 ---
+
+## Feito na 0.3.1 (26/10, pedido do LM)
+
+- **Mortal**: deitado no monte comendo, pular = mortal pra trás e pousa de braços abertos ("tcharam").
+  O LM escolheu: só deitado no monte comendo, só com o pular.
+- Código:
+  - `LmMove.FLIP`, `LmMoves` (`FLIPS`/`LANDED`, `flipTurn`, `flipAir`, `tada`).
+  - `LmActsClient.flip`: pulo 0,5 pra cima e 0,12 pra trás.
+  - `LmClientEvents.flip`: o corpo gira em volta da cintura, 0,95.
+  - Animações `flip`/`tada` no `make_anims.py`.
+  - Câmera em primeira pessoa dando a volta.
+- Bug achado no teste com amigo: o "levantar" (RISE) que o cliente cria quando o servidor acaba o
+  monte tapava o mortal pra quem vê. Agora não cria se o jogador está num mortal.
+- Testado com 2 clientes + servidor dedicado.
 
 ## Feito na 0.3.0 (26/10, pedidos do LM)
 
