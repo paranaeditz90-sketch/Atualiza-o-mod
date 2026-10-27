@@ -1,6 +1,6 @@
 # Onde paramos (pra retomar numa conversa nova)
 
-Atualizado em 26/10/2026 (fim da tarde). Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
+Atualizado em 27/10/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
 neste repositório, na branch `claude/froggydude-mod-research-pxrwch`, e escreve:
 **"lê o PROGRESSO.md e continua de onde parou"**.
 
@@ -13,7 +13,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.13 | entregue em 26/10 (o halo) |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.15 | 27/10: animações (0.7.14) + IA "viu, vai", porta e parede na hora (0.7.15) |
 | BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.3 (rede "7") | 26/10: a flexão no monte |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
@@ -27,6 +27,16 @@ O plano grande da IA: `PLANO.md`.
 - **O repositório é público.** A voz e os sons originais do FroggyDude e os sons do LM (Voicemod, o do vídeo que ele editou no CapCut) **nunca** entram aqui. Vão só no pacote de sons pessoal dele. Som livre (CC0) pode ir dentro do mod.
 
 ---
+
+## Próximo passo (27/10): "in your world" - tudo decidido em `TAREFA.md`
+
+O LM respondeu as caixinhas em 27/10 e o plano está em **`TAREFA.md`** (chegada entre o dia 4 e o 10,
+sinais 1-2 dias antes fora da vista, LAN falsa, caça direto, some e volta quando mata, o "EU QUERO SEU
+CORPO! Sniff sniff sniff..." no chat quando o jogador se esconde, e o "NAO! MERDA! Ah... Vá se ferrar"
+quando o dragão morre). Junto: transformação do nada rara e na hora certa, menos língua e mais bote.
+Depois: BecomeLM. O LM volta no domingo (limite de uso). Pra continuar: `/implementar continua`.
+
+A 0.7.15 (no GitHub, commit b9f47b5) foi medida no jogo antes x depois - números no `froggydude-mod/NOTES.md`.
 
 ## Som dos ossos (#160): o LM escolheu o 5
 
