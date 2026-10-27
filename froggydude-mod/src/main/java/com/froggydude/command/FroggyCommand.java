@@ -52,6 +52,7 @@ public final class FroggyCommand {
                 .then(Commands.literal("invocar").requires(FroggyCommand::admin).executes(c -> summon(c.getSource())))
                 .then(Commands.literal("info").executes(c -> info(c.getSource())))
                 .then(ai())
+                .then(invasion())
                 .then(Commands.literal("manhunt")
                         .then(Commands.literal("speedrun")
                                 .executes(c -> manhunt(c.getSource(), ManhuntMode.SPEEDRUN, 0)))
@@ -106,6 +107,33 @@ public final class FroggyCommand {
      * "tocaia" manda ele esperar lá agora,
      * "massacre" manda ele já pra tua vila (a cama/baú marcados perto de aldeões).
      */
+    /** /froggydude invasao [ligar|desligar|agora|reiniciar]: o "Froggy's in your world" (sem nada: como está). */
+    private static LiteralArgumentBuilder<CommandSourceStack> invasion() {
+        return Commands.literal("invasao").requires(FroggyCommand::admin)
+                .executes(c -> {
+                    c.getSource().sendSuccess(() -> com.froggydude.world.Invasion.status(c.getSource().getServer()), false);
+                    return 1;
+                })
+                .then(Commands.literal("ligar").executes(c -> toggleInvasion(c.getSource(), true)))
+                .then(Commands.literal("desligar").executes(c -> toggleInvasion(c.getSource(), false)))
+                .then(Commands.literal("agora").executes(c -> {
+                    com.froggydude.world.Invasion.arriveNow(c.getSource().getServer());
+                    c.getSource().sendSuccess(() -> Component.literal("Ele chega agora (teste)."), true);
+                    return 1;
+                }))
+                .then(Commands.literal("reiniciar").executes(c -> {
+                    com.froggydude.world.Invasion.reset(c.getSource().getServer());
+                    c.getSource().sendSuccess(() -> Component.literal("Dia sorteado de novo (escondido)."), true);
+                    return 1;
+                }));
+    }
+
+    private static int toggleInvasion(CommandSourceStack src, boolean on) {
+        com.froggydude.config.FroggyConfig.setInvasion(on);
+        src.sendSuccess(() -> com.froggydude.world.Invasion.status(src.getServer()), true);
+        return 1;
+    }
+
     private static LiteralArgumentBuilder<CommandSourceStack> study() {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("estudo")
                 .executes(c -> showStudy(c.getSource()));

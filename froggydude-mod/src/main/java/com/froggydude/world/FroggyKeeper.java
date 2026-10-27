@@ -89,7 +89,7 @@ public final class FroggyKeeper {
         FroggyWorldData data = FroggyWorldData.get(server);
         if (!froggy.getUUID().equals(data.froggyId)) return;
         data.froggyAlive = false;
-        data.respawnAt = data.manhuntActive ? server.overworld().getGameTime() + 20L * com.froggydude.config.FroggyConfig
+        data.respawnAt = data.manhuntActive || Invasion.hunting(data) ? server.overworld().getGameTime() + 20L * com.froggydude.config.FroggyConfig
                 .get(com.froggydude.config.FroggyConfig.VOLTA_SEGUNDOS) : -1;
         data.setDirty();
     }

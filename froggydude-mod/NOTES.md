@@ -1,4 +1,4 @@
-# Froggydude - v0.7.15: IA "viu, vai", porta na hora, parede na hora (sobre a v0.7.14)
+# Froggydude - v0.7.16: "Froggy's in your world", a chegada (sobre a v0.7.15)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,21 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.15) - a IA (LM: "às vezes ele não sabe abrir uma porta (ficando preso) ou
+O que testar agora (v0.7.16) - "Froggy's in your world" (decidido pelo LM em 27/10, ver TAREFA.md):
+A) LIGAR: Mods > Froggydude > Configurar > "Froggy's in your world" (ou /froggydude invasao ligar). Cada mundo
+   sorteia escondido o dia em que ele chega: entre o dia 4 e o 10 (mundo que já passou do dia 10: em 1 a 3 dias).
+B) A CHEGADA: no dia, uns minutos depois de amanhecer, aparece no chat "Jogo local hospedado na porta ..." (é
+   mentira: nenhuma rede abre), 5 s depois "FroggyDude entrou no jogo" em amarelo e, uns 20 s depois (o tempo
+   dele vir de longe), ele aparece fora da tua vista e caça direto, com a IA do config. Ele sabe onde tu está.
+C) TE PEGOU: ele some uns 4 minutos e volta. O "zomba e vai embora" depois de 3 mortes no dia continua.
+D) DRAGÃO MORTO: no chat "<FroggyDude> NAO! MERDA! Ah... Vá se ferrar" e "FroggyDude saiu do jogo" - acabou
+   naquele mundo. (Testado no jogo: tudo isso saiu certo.)
+E) PRA TESTAR SEM ESPERAR DIAS: /froggydude invasao (mostra o dia sorteado), /froggydude invasao agora (ele chega
+   já), /froggydude invasao reiniciar (sorteia de novo).
+AINDA NÃO: os sinais 1-2 dias antes (ribbit longe, passos, sangue, bicho comido), as falas no chat pelo lugar
+onde tu está (o "EU QUERO SEU CORPO! Sniff sniff sniff..."), a transformação rara e menos língua. Vêm na próxima.
+
+Da v0.7.15 - a IA (LM: "às vezes ele não sabe abrir uma porta (ficando preso) ou
 simplesmente fica encarando o jogador, demorando agir" / "ou ele demora subir uma simples parede").
 Medido no jogo, IA Real, antes x depois (segundos até chegar nela, contando de quando a porta fecha):
 campo aberto com a brincadeira ativa 40+ (não atacou) x 2; campo aberto sem ela 14,5 x 4,5; porta de

@@ -49,6 +49,14 @@ public class FroggyWorldData extends SavedData {
     public boolean released;
     public int lastDayShown;
 
+    // ----- Froggy's in your world (Invasion)
+    /** Dia do mundo em que ele chega (sorteado, escondido); 0 = ainda não sorteou. */
+    public int invasionDay;
+    /** 0 esperando, 1 a LAN falsa saiu, 2 "entrou no jogo" (vindo), 3 aqui caçando, 4 foi embora (dragão). */
+    public int invasionStage;
+    /** Hora do jogo do próximo passo da chegada (0 = ainda não marcou). */
+    public long invasionAt;
+
     public static FroggyWorldData get(ServerLevel level) {
         return get(level.getServer());
     }
@@ -91,6 +99,10 @@ public class FroggyWorldData extends SavedData {
         d.releaseAt = mh.getLong("ReleaseAt");
         d.released = mh.getBoolean("Released");
         d.lastDayShown = mh.getInt("LastDay");
+        CompoundTag inv = tag.getCompound("Invasion");
+        d.invasionDay = inv.getInt("Day");
+        d.invasionStage = inv.getInt("Stage");
+        d.invasionAt = inv.getLong("At");
         return d;
     }
 
@@ -113,6 +125,11 @@ public class FroggyWorldData extends SavedData {
         mh.putBoolean("Released", released);
         mh.putInt("LastDay", lastDayShown);
         tag.put("Manhunt", mh);
+        CompoundTag inv = new CompoundTag();
+        inv.putInt("Day", invasionDay);
+        inv.putInt("Stage", invasionStage);
+        inv.putLong("At", invasionAt);
+        tag.put("Invasion", inv);
         return tag;
     }
 }

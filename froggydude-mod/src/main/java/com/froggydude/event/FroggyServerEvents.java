@@ -44,6 +44,7 @@ public class FroggyServerEvents {
     public static void onServerTick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Manhunt.tick(event.getServer());
+        com.froggydude.world.Invasion.tick(event.getServer());
         long now = event.getServer().overworld().getGameTime();
         if (now % 20 == 0) FroggyKeeper.keepAwake(event.getServer());
         if (now % 10 == 0) {
@@ -76,6 +77,7 @@ public class FroggyServerEvents {
         MinecraftServer server = event.getEntity().getServer();
         if (server == null || event.getEntity().level().isClientSide()) return;
         FroggyWorldData data = FroggyWorldData.get(server);
+        com.froggydude.world.Invasion.onDeath(server, event);
         if (!data.manhuntActive) return;
         if (event.getEntity() instanceof EnderDragon && data.manhuntMode == ManhuntMode.SPEEDRUN) {
             Manhunt.win(server, Component.translatable("froggydude.manhunt.win.dragon"));

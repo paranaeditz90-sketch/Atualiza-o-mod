@@ -25,6 +25,7 @@ public class FroggySettingsScreen extends Screen {
     private GoreLevel chosen;
     private CycleButton<GoreLevel> button;
     private CycleButton<AiLevel> aiButton;
+    private CycleButton<Boolean> invasionButton;
 
     public FroggySettingsScreen(Screen parent) {
         super(Component.translatable("froggydude.settings.title"));
@@ -51,6 +52,10 @@ public class FroggySettingsScreen extends Screen {
                 .create(this.width / 2 - 110, 160, 220, 20, Component.translatable("froggydude.settings.ai"),
                         (b, level) -> FroggyConfig.setAi(level));
         this.addRenderableWidget(aiButton);
+        invasionButton = CycleButton.onOffBuilder(FroggyConfig.invasion())
+                .create(this.width / 2 - 110, 190, 220, 20, Component.translatable("froggydude.settings.invasion"),
+                        (b, on) -> FroggyConfig.setInvasion(on));
+        this.addRenderableWidget(invasionButton);
         this.addRenderableWidget(Button.builder(Component.translatable("gui.done"), b -> onClose())
                 .bounds(this.width / 2 - 100, this.height - 28, 200, 20).build());
     }
@@ -116,6 +121,8 @@ public class FroggySettingsScreen extends Screen {
                 y += 11;
             }
         }
+        // o "in your world" logo depois da IA (sem passar por cima do Concluído)
+        if (invasionButton != null) invasionButton.setY(Math.min(y + 4, this.height - 54));
         super.render(g, mouseX, mouseY, partial);
     }
 }

@@ -15,6 +15,7 @@ public final class FroggyConfig {
     public static final ForgeConfigSpec.IntValue MANHUNT_DIAS;
     public static final ForgeConfigSpec.IntValue VANTAGEM_SEGUNDOS;
     public static final ForgeConfigSpec.IntValue VOLTA_SEGUNDOS;
+    public static final ForgeConfigSpec.BooleanValue INVASAO;
     public static final ForgeConfigSpec.DoubleValue CACA_BLOCOS_POR_SEGUNDO;
     public static final ForgeConfigSpec.IntValue IRRITADO_CHANCE;
     public static final ForgeConfigSpec.EnumValue<AiLevel> IA;
@@ -31,6 +32,11 @@ public final class FroggyConfig {
                 .defineInRange("vantagem_segundos", 30, 0, 300);
         VOLTA_SEGUNDOS = b.comment("Se ele morrer no meio do manhunt, volta depois desse tempo (segundos).")
                 .defineInRange("volta_segundos", 60, 10, 1200);
+        b.pop();
+
+        b.comment("Froggy's in your world: ele entra no teu mundo num dia sorteado (4 a 10) e te caça até o dragão morrer.").push("invasao");
+        INVASAO = b.comment("Liga o modo. Cada mundo sorteia o dia dele (escondido) na primeira vez.")
+                .define("ligado", false);
         b.pop();
 
         b.push("froggydude");
@@ -64,6 +70,17 @@ public final class FroggyConfig {
     public static void setAi(AiLevel level) {
         if (!SPEC.isLoaded()) return;
         IA.set(level);
+        SPEC.save();
+    }
+
+    /** Froggy's in your world ligado. */
+    public static boolean invasion() {
+        return get(INVASAO);
+    }
+
+    public static void setInvasion(boolean on) {
+        if (!SPEC.isLoaded()) return;
+        INVASAO.set(on);
         SPEC.save();
     }
 

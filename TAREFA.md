@@ -1,7 +1,7 @@
 # Tarefa: "Froggy's in your world" - a chegada (e 3 ajustes pequenos da IA)
 
-Estado: planejado
-Mod(s): froggydude-mod (versão atual: 0.7.15)
+Estado: em andamento
+Mod(s): froggydude-mod (versão atual: 0.7.16)
 
 ## Pedido do LM
 "In your world? Tipo, ele aparece entre 4 a 10 dias no mundo?" (escolha: só a chegada, por agora).
@@ -36,6 +36,10 @@ Em 27/10, na ordem de prioridade, o LM pôs o "In your world" primeiro.
   - BecomeLM → **depois** do in your world.
   - Bug da skin sumindo no celular (#134): o LM diz que **parou**. Travadinha no celular: **não trava**.
 
+- Respostas de 27/10 (2ª rodada): some **4 minutos** depois de te matar; as falas ficam **em português**
+  mesmo com o jogo em inglês; as falas do chat vêm de **um sistema dinâmico que sabe onde o jogador está**
+  (Nether, fortaleza, caverna, casa, vila...) - "daí não precisa inventar" (LM). Pode começar hoje.
+
 ## Contexto técnico essencial
 - Um FroggyDude por mundo: `froggydude-mod/src/main/java/com/froggydude/world/FroggyKeeper.java`
   (`spawnNear(player, minD, maxD, Sight, health)` linha 114, `findSpot` 159, `visible` 207 - já sabe
@@ -60,20 +64,20 @@ Em 27/10, na ordem de prioridade, o LM pôs o "In your world" primeiro.
   nada de commit/push sem OK do LM, só no ramo da sessão.
 
 ## Passos (uma coisa por vez)
-- [ ] 1. Config + dados do mundo: liga/desliga, dia sorteado (4-10) ao criar/primeira entrada, estado
+- [x] 1. Config + dados do mundo: liga/desliga, dia sorteado (4-10) ao criar/primeira entrada, estado
       (esperando / chegou / saiu). Comando de teste `/froggydude invasao <status|dia N|agora>`.
       Provar: `./gradlew build`, e no jogo o status mostra o dia (só pra teste).
-- [ ] 2. Antes da chegada: nenhum FroggyDude (o keeper não cria, o `/summon` normal continua valendo).
+- [x] 2. Antes da chegada: nenhum FroggyDude (o keeper não cria, o `/summon` normal continua valendo).
 - [ ] 3. Sinais 1-2 dias antes, raros e sempre fora da vista: ribbit longe, passos atrás (param quando
       vira), rastro de sangue, bicho comido (morre longe da vista, sobra o corpo/sangue). Provar no jogo
       com o comando forçando o dia.
-- [ ] 4. A chegada: LAN falsa uns segundos antes, "FroggyDude entrou no jogo", nasce a 200-400 blocos
+- [x] 4. A chegada: LAN falsa uns segundos antes, "FroggyDude entrou no jogo", nasce a 200-400 blocos
       fora da vista e vem caçando (IA escolhida). Chunk longe descarregado: andar "no papel" até perto.
-- [ ] 5. Morreu: some uns minutos (padrão 3 min, LM pode mudar) e volta; o zombar de 3 mortes continua.
+- [x] 5. Morreu: some 4 min (LM) e volta; o zombar de 3 mortes continua.
 - [ ] 6. O cheiro: jogador sumido/escondido por um tempo (Nether, caverna, longe) → no chat "EU QUERO SEU
       CORPO! Sniff sniff sniff... Ah.. eu consigo sentir o cheiro daquele corpo..." e ele volta a saber
       onde está. No máximo de vez em quando.
-- [ ] 7. Dragão morto: "NAO! MERDA! Ah... Vá se ferrar" no chat, "saiu do jogo", some de vez.
+- [x] 7. Dragão morto: "NAO! MERDA! Ah... Vá se ferrar" no chat, "saiu do jogo", some de vez.
 - [ ] 8. (pequeno) Transformação do nada rara e na hora certa.
 - [ ] 9. (pequeno) Menos língua de perto, mais bote.
 - [ ] 10. NOTES.md (0.7.16), versão, build, teste no jogo com o comando, jar pro LM.
@@ -98,9 +102,15 @@ Em 27/10, na ordem de prioridade, o LM pôs o "In your world" primeiro.
 - BecomeLM (depois).
 
 ## Perguntas em aberto
-- Quanto tempo ele some depois de te matar? (padrão 3 min)
-- Em inglês (`en_us`), as falas do chat ficam em português ou traduzo?
-- Outros "momentos certos" pro chat, além do cheiro e do fim? (o LM pode mandar mais frases)
+(nenhuma: as 3 de 27/10 foram respondidas - 4 min, português, falas pelo lugar onde o jogador está)
 
 ## Registro da implementação
-(preenchido pelo /implementar)
+- 27/10, v0.7.16: passos 1, 2, 4, 5 e 7. `world/Invasion.java` (novo: sorteio, LAN falsa, "entrou no jogo",
+  chegada, some 4 min, fim no dragão), `FroggyWorldData` (Invasion: Day/Stage/At no NBT), `FroggyConfig`
+  (`invasao.ligado`), `Manhunt.keepOnTrail` reaproveitado (sempre no rastro), `FroggyKeeper.onDeath` (volta
+  também na invasão), `FroggyServerEvents` (tick e morte), `/froggydude invasao [ligar|desligar|agora|reiniciar]`,
+  botão na tela de config (+ lang). Build ok. No jogo (Xvfb): LAN falsa → "entrou no jogo" 5 s depois →
+  chegou e caçou; dragão com /damage → "<FroggyDude> NAO! MERDA! Ah... Vá se ferrar" + "saiu do jogo".
+  Obs.: `/kill` no dragão não dispara a morte (ele só some) - no jogo de verdade ele morre de dano e funciona.
+  Não testado no jogo: o "some 4 min e volta" (a lógica é a do manhunt).
+- Falta: 3 (sinais), 6 (falas pelo lugar + cheiro), 8, 9, e o 10 da próxima versão.

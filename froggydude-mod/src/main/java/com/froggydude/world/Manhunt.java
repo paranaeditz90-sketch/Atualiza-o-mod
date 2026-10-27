@@ -135,7 +135,8 @@ public final class Manhunt {
         keepOnTrail(server, data, now);
     }
 
-    private static void keepOnTrail(MinecraftServer server, FroggyWorldData data, long now) {
+    /** Ele sempre no teu rastro: volta depois de morrer, reaparece perto se ficou longe/descarregado. Também usado pela Invasion. */
+    static void keepOnTrail(MinecraftServer server, FroggyWorldData data, long now) {
         List<ServerPlayer> runners = server.getPlayerList().getPlayers().stream()
                 .filter(p -> p.isAlive() && !p.isSpectator() && !p.isCreative()).toList();
         if (runners.isEmpty()) return;
