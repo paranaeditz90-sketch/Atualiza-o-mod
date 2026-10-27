@@ -107,26 +107,27 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
 
     /**
      * Jeito de jogador (ai.PlayerMoves), por cima da animação em pé: agachado como
-     * o shift (tronco pra frente, cabeça olhando reto, corpo mais baixo) e o soco no
-     * ar / pôr bloco (o braço direito vai pra frente e volta, como o do jogador).
+     * o shift (tronco 0,5 rad pra frente, cabeça olhando reto, tronco descendo um
+     * pouco por cima das pernas - os pés ficam no chão) e o soco no ar / pôr bloco
+     * (o braço direito vai pra frente e volta, como o do jogador).
+     * Sinal: o GeckoLib lê o X do .animation.json invertido (BakedAnimationsAdapter),
+     * então X+ no json (cintura pra frente) é rotX NEGATIVO aqui. Até a v0.7.13 estava
+     * +0,5: o tronco ia pra TRÁS e o root descia 3,5 px, enterrando os pés (LM: "as
+     * costas encurvadas, ficou muito estranho").
      */
     private void playerMoves(FroggydudeEntity animatable, AnimationState<FroggydudeEntity> animationState) {
         if (!animatable.getDebugAnim().isEmpty()) return;
         boolean crouch = animatable.isCrouchingPose();
         float swing = animatable.getAttackAnim(animationState.getPartialTick());
         if (!crouch && swing <= 0F) return;
-        CoreGeoBone root = getAnimationProcessor().getBone("root");
         CoreGeoBone waist = getAnimationProcessor().getBone("waist");
         CoreGeoBone head = getAnimationProcessor().getBone("head");
         CoreGeoBone right = getAnimationProcessor().getBone("right_arm");
-        CoreGeoBone left = getAnimationProcessor().getBone("left_arm");
-        if (root == null || waist == null || head == null || right == null || left == null) return;
+        if (waist == null || head == null || right == null) return;
         if (crouch) {
-            waist.setRotX(waist.getRotX() + 0.5F);
-            head.setRotX(head.getRotX() - 0.5F);
-            root.setPosY(root.getPosY() - 3.5F);
-            right.setRotX(right.getRotX() + 0.4F);
-            left.setRotX(left.getRotX() + 0.4F);
+            waist.setRotX(waist.getRotX() - 0.5F);
+            head.setRotX(head.getRotX() + 0.5F);
+            waist.setPosY(waist.getPosY() - 2.0F);
         }
         if (swing > 0F) {
             float s = Mth.sin(swing * Mth.PI);
@@ -134,11 +135,9 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
             right.setRotY(right.getRotY() + Mth.sin(Mth.sqrt(swing) * Mth.TWO_PI) * 0.2F);
         }
         // mesmo motivo da cabeça: sem isso o ajuste se acumula nos quadros seguintes
-        root.resetStateChanges();
         waist.resetStateChanges();
         head.resetStateChanges();
         right.resetStateChanges();
-        left.resetStateChanges();
     }
 
     private static ResourceLocation resolve(String variant, int stage) {

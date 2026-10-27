@@ -27,7 +27,7 @@ import net.minecraftforge.fml.common.Mod;
  * O estudo da presa (IA Real): anota a rotina de cada jogador - onde ele guarda
  * coisa (bau, barril), onde dorme, onde trabalha (bancada, fornalha), onde
  * minera - e mede a paranoia dele (Paranoia). Anota sempre (é barato); quem usa
- * é a IA Real (FroggyStakeoutGoal, RealTease).
+ * é a IA Real (FroggyStakeoutGoal).
  */
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class PreyStudyEvents {

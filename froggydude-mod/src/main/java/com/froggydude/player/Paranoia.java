@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * - quanto tempo ela passa olhando pra cima (procurando ele no teto).
  *
  * É a "reação" que a IA Real usa pra saber qual susto funciona com cada pessoa
- * (RealTease) - o "tempero" (PreyStudy#fear).
+ * (a tocaia, FroggyStakeoutGoal) - o medo dela (PreyStudy#fear).
  */
 public final class Paranoia {
 

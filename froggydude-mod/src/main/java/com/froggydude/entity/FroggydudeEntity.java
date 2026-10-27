@@ -424,8 +424,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 // (comendo o telhado, a parede na frente) ele largava a vítima. Arrombando
                 // ou colado nela, ele sabe onde está; longe e sem ver, quem cuida é o faro.
                 LivingEntity t = this.mob.getTarget();
-                // IA Real indo pra um ponto de onde vê ela lá em cima (o pulo calculado), ou brincando com
-                // ela (RealTease, escondido longe de propósito): sabe onde ela está
+                // IA Real indo pra um ponto de onde vê ela lá em cima (o pulo calculado): sabe onde ela está
                 if (t != null && t.isAlive() && (combatGoal.isBreaking() || combatGoal.holdsTarget()
                         || this.mob.distanceTo(t) < 6.0F)) {
                     return true;
@@ -572,8 +571,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /**
      * O sorteio de quando ele te vê de longe: true = primeiro o barulho sem aparecer (aí
      * ele não grita "Hey, humans!" - não pode se denunciar). Sorteia uma vez por caçada.
+     * Na IA Real nunca: "viu, vai" (v0.7.15).
      */
     private boolean farScareRoll(LivingEntity target) {
+        if (FroggyConfig.ai().real) return false;
         if (farRoll == null) {
             farRoll = this.distanceTo(target) > com.froggydude.entity.ai.FroggyCombatGoal.FAR_SPOT
                     && (debugFar == 1 || debugFar != 2 && this.getRandom().nextBoolean());
@@ -600,7 +601,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 : ai.brain ? data.brain.choose(m, bias, this.getRandom(), ai.explore)
                 : Strategy.values()[this.getRandom().nextInt(Strategy.values().length)];
         boolean up = target.getY() - this.getY() > 2.5D;
-        if (s == Strategy.STALK && !debugStalk && (up || debugAttack != null || this.getLastHurtByMob() == target)) {
+        // IA Real é "viu, vai" (v0.7.15, LM: "fica encarando o jogador, demorando agir"): sem o
+        // "apavorar" (seguir de longe encarando); o barulho de longe também não (farScareRoll)
+        if (s == Strategy.STALK && !debugStalk && (up || ai.real || debugAttack != null || this.getLastHurtByMob() == target)) {
             s = Strategy.RUSH;
         }
         // te viu lá de longe (v0.7.5): sorteia - ataca direto ou primeiro o barulho sem aparecer (LM)
@@ -967,6 +970,35 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (t == null || t.getY() - this.getY() <= 1.5D) return false;
         double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
         return dx * dx + dz * dz < 36.0D;
+    }
+
+    /**
+     * Dá pra ir pela parede até ela agora: tem parede de verdade (uma coluna inteira do
+     * chão dele até o pé dela, embaixo dela ou do lado - muro, pilar, casa), ela não está
+     * longe demais e ele não travou num teto/beirada há pouco (climbBlockedUntil). A IA
+     * Real sobe na hora em vez de procurar de onde pular (v0.7.15, LM: "ele demora subir
+     * uma simples parede"). Plataforma no ar (sem parede até o chão) continua com o pulo.
+     */
+    public boolean canClimbTo(LivingEntity t) {
+        if (this.tickCount < climbBlockedUntil) return false;
+        double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+        if (dx * dx + dz * dz >= 144.0D) return false;
+        BlockPos feet = t.blockPosition();
+        int top = feet.getY() - 1, bottom = Mth.floor(this.getY());
+        if (top <= bottom) return false;
+        for (BlockPos c : new BlockPos[]{feet, feet.north(), feet.south(), feet.east(), feet.west()}) {
+            if (solidColumn(c.getX(), c.getZ(), top, bottom)) return true;
+        }
+        return false;
+    }
+
+    private boolean solidColumn(int x, int z, int top, int bottom) {
+        Level level = this.level();
+        for (int y = top; y >= bottom; y--) {
+            BlockPos p = new BlockPos(x, y, z);
+            if (level.getBlockState(p).getCollisionShape(level, p).isEmpty()) return false;
+        }
+        return true;
     }
 
     private boolean touchingWall() {
@@ -2287,7 +2319,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // banquete: a flexão (6 ticks por mordida) no ritmo do nhum nhum (5 ticks na velocidade 1)
         if (s == FroggyState.FEAST && getDebugAnim().isEmpty()) return getFeastRate() * 1.2D;
         if (isClimbing() && !this.onGround() && getDebugAnim().isEmpty()) {
-            return isFrenzyActive() ? 2.2D : 1.6D;
+            // na parede é o galope (0,25 s por passada), na cadência do chão
+            return isFrenzyActive() ? 1.3D : 1.0D;
         }
         if ((s != FroggyState.CHASE && s != FroggyState.IDLE) || !isMovingSynced()
                 || isFrenzyTired() || !getDebugAnim().isEmpty()) {

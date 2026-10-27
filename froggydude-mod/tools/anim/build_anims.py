@@ -159,16 +159,6 @@ def crouch(**over):
 
 ANIMS = {}
 
-# Parado de quatro (crouch_idle) e helpers do galope antigo: com a cintura a 90
-# graus, braço a -90 e perna a 0, as mãos e os pés tocam o chão sozinhos.
-def quad(waist, arm_r, arm_l, leg_r, leg_l, y, look=24, wz=0.0):
-    return pose(root_y=y, waist=waist, head=-waist + look, arms=arm_r, arm_l=arm_l,
-                legs=leg_r, leg_l=leg_l, arm_spread=4, leg_spread=4, waist_z=wz)
-
-
-QUAD_STAND = dict(waist=90, arm_r=-90, arm_l=-88, leg_r=0, leg_l=4, y=-1.5)
-
-
 # Galope de 4 (v0.3.4) - RACING A CHEETAH, close de 5,25-6,6 s a 60 quadros por
 # segundo (scratchpad/REFS_v034.md). Uma passada a cada 15 quadros (0,25 s), sem
 # variar. NÃO é o trote de cachorro de antes: é um "cavalinho de pau" -
@@ -275,32 +265,42 @@ ANIMS["frenzy_idle"] = animation(0.8, [
 ], True)
 
 
-# Escalando (igual aranha - "ele consegue escalar", vs Grox 1:10): grudado na
-# parede de quatro, braços e pernas bem abertos, um braço alcança lá em cima
-# enquanto o outro puxa, as pernas empurram alternando, a cabeça olhando pra
-# cima (pra vítima). 0,5 s por passada.
-def climb_p(side, y):
-    # sapo grudado no vidro: braços e pernas bem abertos pros lados
-    up, down = (1, 0) if side > 0 else (0, 1)
-    arm = (-168, -96)
-    spread = (38, 58)
-    leg = (-74, 8)
-    lspread = (42, 30)
-    return pose(root_y=y, waist=20, head=-46, arms=arm[1 - up], arm_l=arm[1 - down],
-                arm_spread=spread[1 - up], spread_l=spread[1 - down],
-                legs=leg[up], leg_l=leg[down], leg_spread=36)
-ANIMS["climb"] = animation(0.5, [
-    (0.00, climb_p(1, 0.0)),
-    (0.25, climb_p(-1, -1.0)),
-    (0.50, climb_p(1, 0.0)),
-], True, ground=False)
+# Correndo de 4 na parede (v0.7.14) - Grox (RABIES) 3:29,5-3:31, quadro a quadro: a
+# câmera fica no alto do pilar olhando pra baixo e ele vem galopando pela parede acima
+# como se ela fosse o chão - o MESMO galope (empina, estica, mãos, chuta, reúne), com as
+# patas na parede, as costas pra fora e a cabeça pra cima; na empinada o tronco sai da
+# parede. Antes ele subia em pé, feito gente na escada (o LM: "animação bugada").
+# É o galope girado 90 graus (root X -90: a frente vira cima e o "chão" vira a parede).
+# O root se mexe no espaço do bicho (o GeckoLib move antes de girar): a altura do galope
+# (quem está no ar sobe) vira distância da parede, e o plano das patas fica na parede,
+# a meia caixa (0,3 bloco) na frente dele. Z negativo = pra frente (a cara do modelo).
+WALL_PX = 0.3 * 16 / 1.05   # meia largura da caixa, em px do modelo (escala 1,05)
+WALL_UP = 4.0               # sobe um pouco: as patas de trás não passam do pé da caixa
 
-# Parado um instante no meio da caçada: continua de quatro, em pé nos braços e
-# nas pernas (igual ao galope), respirando - não levanta e abaixa de novo.
+
+def wall_gallop(table, length):
+    keys = []
+    for f, *row in table:
+        p = gallop_pose(*row)
+        lift_px = p["root"]["position"][1]
+        p["root"]["rotation"] = [p["root"]["rotation"][0] - 90.0, 0, 0]
+        p["root"]["position"] = [0, WALL_UP, -round(WALL_PX - lift_px, 2)]
+        keys.append((round(f * length, 4), p))
+    keys.append((length, keys[0][1]))
+    return animation(length, keys, True, ground=False)
+
+
+ANIMS["climb"] = wall_gallop(GALLOP, 0.25)
+
+# Parado um instante no meio da caçada (v0.7.14): agachado pronto pra disparar, na pose
+# de onde o galope sai (14/15: pernas por baixo da barriga, mãos no chão na frente, olhando
+# pra frente), respirando. Antes era a "mesa" (cintura a 90 graus com braços e pernas
+# retos e em pé - o mesmo "de quatro feito mesa" que o LM barrou no comer).
+STALK = GALLOP[14][1:]
 ANIMS["crouch_idle"] = animation(1.2, [
-    (0.00, quad(**QUAD_STAND)),
-    (0.60, quad(**{**QUAD_STAND, "waist": 92, "y": -1.8})),
-    (1.20, quad(**QUAD_STAND)),
+    (0.00, gallop_pose(*STALK)),
+    (0.60, gallop_pose(STALK[0] + 4, *STALK[1:5], STALK[5] + 2, *STALK[6:])),
+    (1.20, gallop_pose(*STALK)),
 ], True)
 
 # Bote baixo que derruba: salta rente ao chão com os braços pra frente pra
@@ -922,7 +922,7 @@ def main():
             "roar": [0.1, 0.25, 0.38],
             "tongue_capture": [0.2, 0.6, 1.05],
             "feed": [0.22, 0.52],
-            "climb": [0.0, 0.25],
+            "climb": [round(i * 0.25 / 15, 4) for i in range(15)],
             "jump_pin": [0.2, 0.45, 0.68, 0.76, 1.0],
             "high_jump": [0.2, 0.3, 0.55, 0.75, 0.95, 1.1],
             "pin_hold": [0.0, 0.06, 0.12, 0.15, 0.3, 0.42],

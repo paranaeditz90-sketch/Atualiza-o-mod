@@ -103,7 +103,7 @@ public final class FroggyCommand {
     /**
      * /froggydude estudo: o que ele sabe da tua rotina (IA Real, v0.6). Pra testar:
      * "lugar <tipo>" marca onde tu está como um lugar que tu usa (já na hora de voltar),
-     * "tocaia" manda ele esperar lá agora, "brincar <s>" começa o tempero agora,
+     * "tocaia" manda ele esperar lá agora,
      * "massacre" manda ele já pra tua vila (a cama/baú marcados perto de aldeões).
      */
     private static LiteralArgumentBuilder<CommandSourceStack> study() {
@@ -140,20 +140,6 @@ public final class FroggyCommand {
             c.getSource().sendSuccess(() -> Component.literal("Ele vai na tua vila comer os aldeões (se tu mora numa)."), true);
             return 1;
         }));
-        root.then(Commands.literal("brincar").requires(FroggyCommand::admin)
-                .then(Commands.argument("segundos", IntegerArgumentType.integer(0, 3600)).executes(c -> {
-                    ServerPlayer p = c.getSource().getPlayerOrException();
-                    int secs = IntegerArgumentType.getInteger(c, "segundos");
-                    FroggyWorldData data = FroggyWorldData.get(c.getSource().getServer());
-                    var st = data.brain.memory(p.getUUID(), p.getScoreboardName()).study;
-                    long now = p.serverLevel().getGameTime();
-                    st.teaseStarted = now;
-                    st.teaseUntil = now + secs * 20L;
-                    data.setDirty();
-                    c.getSource().sendSuccess(() -> Component.literal(secs > 0 ? "Ele vai brincar contigo " + secs + " s antes de comer."
-                            : "Sem brincadeira: direto pra caçada."), true);
-                    return 1;
-                })));
         return root;
     }
 
@@ -164,7 +150,6 @@ public final class FroggyCommand {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format(Locale.ROOT, "Medo: %.0f/100, paranoia agora: %.0f", st.fear(now),
                 com.froggydude.player.Paranoia.score(p)));
-        if (st.teasing(now)) sb.append(String.format(Locale.ROOT, ", brincando contigo mais %d s", (st.teaseUntil - now) / 20));
         if (st.places.isEmpty()) sb.append("\nAinda não sabe onde tu passa o tempo.");
         for (var q : st.places) {
             sb.append(String.format(Locale.ROOT, "\n%s em %d %d %d: %d volta(s), %s, peso %.1f%s", q.kind.name().toLowerCase(Locale.ROOT),

@@ -6,34 +6,20 @@ import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.voice.VoiceSituation;
 import com.froggydude.player.PlayerSight;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.animal.IronGolem;
-import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.entity.npc.AbstractVillager;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.Tags;
 
 import javax.annotation.Nullable;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -43,26 +29,24 @@ import java.util.UUID;
  * Manhunt but I have RABIES" (ver PLANO.md, "IA Real"):
  *
  * - Sabe o que está na tua tela (PlayerSight, pelo cliente). Chegando sem ser
- *   visto, sorteia como chegar (Approach) pesando o lugar e o que já deu certo
- *   contra ti: o "I see you!... you can't hide from me!" e o bote de lado que
- *   esmaga (Grox, caverna 1:53-1:59), de mansinho calado pelas costas, parado no
- *   breu esperando tu chegar perto (10v1, 4:20-5:05) ou direto. Se tu virar e ver
- *   ele antes, parte pra cima na hora.
- * - Às vezes, no começo da caçada, encara parado de longe ("I can smell the fear
- *   in you! Time to eat!") e só então vai (How many days, 4:36-4:45).
+ *   visto, sorteia como chegar (Approach) pesando o que já deu certo contra ti: por
+ *   trás, o "I see you!... you can't hide from me!" e o bote de lado que esmaga
+ *   (Grox, caverna 1:53-1:59), de mansinho calado pelas costas ou direto. Se tu virar
+ *   e ver ele antes, parte pra cima na hora.
+ * - "Viu, vai" (v0.7.15, escolha do LM: "fica encarando o jogador, demorando agir"):
+ *   no máximo uma vez por dia do jogo, no começo da caçada, encara 2 s de longe ("I
+ *   can smell the fear in you! Time to eat!") e vai (How many days, 4:36-4:45). Sem
+ *   a brincadeira de minutos (RealTease), sem esperar no breu, sem a janela.
  * - Quem foge em campo aberto: corre atrás e dá o bote colado, sem pulo de
  *   longe; na fase 2, só corre (nem o bote).
- * - Trancada em casa: primeiro come o que tem em volta (aldeões, golem, bicho),
- *   aparece na janela olhando e só depois arromba - na hora, se ela se distrair
- *   (tela aberta, comendo). Casinha 1x1 e buraco ele arromba direto (Grox 0:44-1:35,
- *   How many days).
+ * - Trancada em casa: porta ele abre ou arromba na hora (FroggyDoorGoal); sem porta,
+ *   come a parede (FroggyCombatGoal).
  * - Lava: só quando não tem outro caminho, anda por ela sem queimar (10v1 6:13).
  * - O pulo altíssimo só quando não dá pra chegar de jeito nenhum (ela lá em
  *   cima, do outro lado da lava), com a conta de verdade da física do jogo pra
  *   cair do lado dela - e raro (um a cada 2 min no máximo).
  * - Fugir pra se curar e voltar com um plano: FroggyRetreatGoal.
- * - (v0.6) Antes de comer, brinca com ela uns minutos - o "tempero" (RealTease) - e
- *   espera ela onde ela sempre volta (FroggyStakeoutGoal).
+ * - (v0.6) Espera ela onde ela sempre volta (FroggyStakeoutGoal).
  */
 final class RealTactics {
 
@@ -77,20 +61,16 @@ final class RealTactics {
     private static final double SEE_YOU_FAR = 22.0D;
     /** Chegando de mansinho de mais longe que isso, até a distância da fala. */
     private static final double SNEAK_FROM = 48.0D;
-    /** Encarar: "I can smell the fear in you! Time to eat!" acaba aos 3,8 s - e ele vai. */
-    private static final int STARE_TICKS = 78;
-    private static final int STARE_COOLDOWN = 2400;
+    /** Encarar: 2 s parado (a fala "I can smell the fear in you! Time to eat!" segue com ele já indo). */
+    private static final int STARE_TICKS = 40;
+    /** Encarar é raro: no máximo uma vez por dia do jogo. */
+    private static final long STARE_EVERY = 24000L;
     private static final int ARC_COOLDOWN = 2400;
     /** Ela lá em cima (árvore, pilar): se o pulo errar, tenta de novo bem antes. */
     private static final int ARC_COOLDOWN_HIGH = 300;
-    /** Na janela, olhando, antes de arrombar (se ela não se distrair antes). */
-    private static final int WINDOW_STARE = 160;
-    /** Até onde a vítima trancada é "casinha" (1x1 de terra, buraco): arromba direto. */
-    private static final int TINY_HUT = 12;
 
     private final FroggydudeEntity froggy;
     private final FroggyCombatGoal combat;
-    private final RealTease tease;
 
     @Nullable
     private UUID who;
@@ -99,34 +79,18 @@ final class RealTactics {
     private int engagedAt;
     private int seeYouAt = -1;
     private int seeYouReadyAt;
-    private int lurkIdle;
     private int stare;
-    private int stareReadyAt;
+    /** Dia do jogo da última encarada (uma por dia). */
+    private long staredDay = Long.MIN_VALUE;
+    /** Já sorteou se encara nessa caçada (o engagedAt dela). */
+    private int stareRolledFor = -1;
     private int lavaCheckAt;
     private int arcReadyAt;
     private int arcCheckAt;
-    // cerco
-    @Nullable
-    private UUID siegeOf;
-    private int siegeSince;
-    private int siegeMeals;
-    private int siegeStage;
-    @Nullable
-    private BlockPos window;
-    private int windowTicks;
-    private int windowArrived;
-    private int enclosedCheckAt;
-    private int enclosed;
 
     RealTactics(FroggydudeEntity froggy, FroggyCombatGoal combat) {
         this.froggy = froggy;
         this.combat = combat;
-        this.tease = new RealTease(froggy, this, combat);
-    }
-
-    /** Brincando com a presa (o "tempero"): não larga o alvo mesmo sumido de propósito. */
-    boolean teasing() {
-        return tease.active();
     }
 
     boolean active() {
@@ -136,7 +100,6 @@ final class RealTactics {
     /** O combate parou (sem alvo): larga o que estava fazendo. */
     void reset() {
         endSequences();
-        tease.reset();
         who = null;
     }
 
@@ -154,8 +117,6 @@ final class RealTactics {
             unseen = Math.max(0, PlayerSight.unseenFor(player, froggy));
             engagedAt = froggy.tickCount;
             endSequences();
-            // de longe ele já sorteou (atacar direto ou o barulho sem aparecer): sem brincadeira agora
-            if (!combat.farDecided(player)) tease.begin(player);
         }
         boolean was = seen;
         seen = PlayerSight.sees(player, froggy);
@@ -170,8 +131,6 @@ final class RealTactics {
             endSequences();
             return false;
         }
-        // antes de comer, o tempero: susto, some, outro susto (RealTease)
-        if (tease.tick(player, dist, seen)) return true;
         judgeEarly(player);
         // trancada/inalcançável: quem cuida é o cerco (stuck); a chegada de mansinho brigava com ele
         if (combat.stuckTicks() >= 20 && approach != Approach.ANNOUNCE) approach = null;
@@ -183,7 +142,6 @@ final class RealTactics {
     private void endSequences() {
         seeYouAt = -1;
         approach = null;
-        lurkIdle = 0;
         stare = 0;
     }
 
@@ -213,8 +171,6 @@ final class RealTactics {
         ANNOUNCE,
         /** De mansinho pelo lado que ela não olha, calado, e o bote. */
         SILENT,
-        /** Parado e quieto no breu esperando ela chegar perto (10v1, caverna 4:20). */
-        LURK,
         /** Vai direto. */
         RUSH
     }
@@ -229,7 +185,7 @@ final class RealTactics {
     private int judgingSince;
     private int decideReadyAt;
 
-    /** Sorteia a tática se é hora (ela não viu ele faz 3 s e está ao alcance). */
+    /** Sorteia a tática se é hora (ela não viu ele faz 3 s e está ao alcance). O "I see you", só chegando por trás. */
     @Nullable
     private Approach decide(ServerPlayer p, double dist, boolean elevated) {
         if (froggy.tickCount < decideReadyAt || unseen < SEE_YOU_UNSEEN || elevated || froggy.isClimbing()) return null;
@@ -238,9 +194,8 @@ final class RealTactics {
         if (toward < -0.15D) return null; // fugindo: ela já sabe que ele está ali
         boolean dark = PlayerSight.dark(froggy);
         float[] w = new float[Approach.values().length];
-        w[Approach.ANNOUNCE.ordinal()] = froggy.tickCount >= seeYouReadyAt && dist >= SEE_YOU_NEAR ? 1.0F : 0F;
+        w[Approach.ANNOUNCE.ordinal()] = froggy.tickCount >= seeYouReadyAt && dist >= SEE_YOU_NEAR && behind(p) ? 1.0F : 0F;
         w[Approach.SILENT.ordinal()] = 1.0F;
-        w[Approach.LURK.ordinal()] = !dark ? 0F : toward >= 0.03D ? 3.0F : 0.8F;
         w[Approach.RUSH.ordinal()] = dist < 10.0D ? 0.8F : 0.4F;
         float total = 0F;
         for (Approach a : Approach.values()) {
@@ -265,10 +220,17 @@ final class RealTactics {
                 dark ? ", no escuro" : "", switch (pick) {
                     case ANNOUNCE -> "chega e solta o \"I see you\"";
                     case SILENT -> "chega calado pelas costas";
-                    case LURK -> "espera quieto no breu";
                     case RUSH -> "vai direto";
                 }));
         return pick == Approach.RUSH ? null : pick;
+    }
+
+    /** Ele está nas costas dela (fora do que ela vê, com folga). */
+    private boolean behind(ServerPlayer p) {
+        Vec3 look = p.getViewVector(1.0F).multiply(1, 0, 1);
+        Vec3 to = froggy.position().subtract(p.position()).multiply(1, 0, 1);
+        if (look.lengthSqr() < 1.0E-4D || to.lengthSqr() < 1.0E-4D) return false;
+        return look.normalize().dot(to.normalize()) < -0.3D;
     }
 
     private static String key(Approach a) {
@@ -299,7 +261,6 @@ final class RealTactics {
 
     private boolean runApproach(ServerPlayer p, double dist) {
         if (approach == Approach.ANNOUNCE) return announce(p, dist);
-        if (approach == Approach.LURK) return lurk(p, dist);
         return silent(p, dist);
     }
 
@@ -398,32 +359,6 @@ final class RealTactics {
         froggy.getNavigation().moveTo(at.x, at.y, at.z, speed);
     }
 
-    /**
-     * Parado e quieto no breu enquanto ela vem; perto (ou se ela ver ele), pega e
-     * devora. Ela parou de vir (ou acendeu a luz): vai de mansinho.
-     */
-    private boolean lurk(ServerPlayer p, double dist) {
-        double toward = combat.approachSpeed(p);
-        lurkIdle = toward < 0.01D ? lurkIdle + 1 : 0;
-        if (seen || dist <= 4.5D) {
-            // chegou (ou achou ele): pega UM e come rápido (10v1, 4:55)
-            froggy.brainLog(seen ? "me viu no escuro: pra cima" : "chegou perto no escuro: pega");
-            if (pounce(p, dist, FroggyState.PIN_HOLD)) return true;
-            approach = null;
-            return false;
-        }
-        if (lurkIdle > 80 || !PlayerSight.dark(froggy) || froggy.tickCount - approachAt > 900) {
-            froggy.brainLog(p.getScoreboardName() + " não vem: vai de mansinho");
-            approach = Approach.SILENT;
-            approachAt = froggy.tickCount;
-            return silent(p, dist);
-        }
-        froggy.getNavigation().stop();
-        froggy.getLookControl().setLookAt(p, 30.0F, 30.0F);
-        froggy.mute(10); // nem um pio
-        return true;
-    }
-
     // ---------------------------------------------------------------- encarar
 
     private boolean stare(ServerPlayer p, double dist, boolean elevated) {
@@ -440,32 +375,25 @@ final class RealTactics {
             froggy.faceTarget(p);
             return true;
         }
-        // só no começo da caçada, com ela olhando pra ele de longe
-        if (froggy.tickCount - engagedAt > 40 || froggy.tickCount < stareReadyAt) return false;
+        // só no começo da caçada, com ela olhando pra ele de longe, e no máximo uma vez por dia
+        long day = froggy.level().getDayTime() / STARE_EVERY;
+        if (froggy.tickCount - engagedAt > 40 || day == staredDay || stareRolledFor == engagedAt) return false;
         if (!seen || elevated || dist < 10.0D || dist > 32.0D || !froggy.onGround() || approach < -0.12D) return false;
-        stareReadyAt = froggy.tickCount + STARE_COOLDOWN;
+        stareRolledFor = engagedAt;
         if (froggy.getRandom().nextFloat() > 0.45F) return false;
+        staredDay = day;
         stare = STARE_TICKS;
         froggy.speak(VoiceSituation.STANDOFF, true);
         froggy.brainLog("encarando " + p.getScoreboardName() + " de longe antes de ir");
         return true;
     }
 
-    /** Fim da brincadeira: "I can smell the fear in you! Time to eat!", encara e vai. */
-    void standoff(ServerPlayer p) {
-        endSequences();
-        stare = STARE_TICKS;
-        stareReadyAt = froggy.tickCount + STARE_COOLDOWN;
-        froggy.speak(VoiceSituation.STANDOFF, true);
-        froggy.brainLog("encarando " + p.getScoreboardName() + ": hora de comer");
-    }
-
     // ---------------------------------------------------------------- sem caminho
 
     /**
-     * Ele não chega nela andando. Trancada em casa: o cerco. Do outro lado da
-     * lava: atravessa. Lá em cima sem jeito de subir: o pulo altíssimo calculado.
-     * Devolve true se cuidou do tick (o resto - ponte, torre, arrombar - fica pro depois).
+     * Ele não chega nela andando. Do outro lado da lava: atravessa. Lá em cima sem
+     * jeito de subir: o pulo altíssimo calculado. Devolve true se cuidou do tick (o
+     * resto - porta, comer a parede - fica pro combate).
      */
     boolean stuck(LivingEntity target, double dist, int stuckTicks) {
         if (!(target instanceof ServerPlayer p) || froggy.isFrenzyActive()) return false;
@@ -475,8 +403,14 @@ final class RealTactics {
             return false;
         }
         boolean partial = froggy.tickCount % 10 == 0 && !reachable();
-        if (siege(p, dist, stuckTicks)) return true;
         if ((stuckTicks >= 10 || partial) && froggy.tickCount >= lavaCheckAt && dist <= 40.0D && tryLava(p)) return true;
+        // ela lá em cima de uma parede: sobe na hora, de quatro (v0.7.15, LM: "ele demora subir
+        // uma simples parede" - ele ia procurar de onde pular). O pulo calculado fica pra quando
+        // a parede não deixa (teto, beirada pra fora: a escalada trava e espera 5 s)
+        if (high(p) && froggy.canClimbTo(p)) {
+            vantage = null;
+            return false;
+        }
         // ela lá em cima: o pulo vem primeiro e cedo (LM, 23/10: "quebrou o bloco que eu tava, mas não
         // tentou outro jeito melhor, ex: pular alto pra me pegar"). Antes a conta só rodava com 2 s
         // preso e a língua no bloco embaixo dela (3 s) quase sempre chegava antes
@@ -783,176 +717,7 @@ final class RealTactics {
         return d * d;
     }
 
-    // ---------------------------------------------------------------- cerco
-
-    private boolean siege(ServerPlayer p, double dist, int stuckTicks) {
-        if (!FroggyConfig.ai().breakIn || stuckTicks < 20 && siegeStage != 1) return false;
-        if (!p.getUUID().equals(siegeOf) || froggy.tickCount - siegeSince > 6000) {
-            siegeOf = p.getUUID();
-            siegeSince = froggy.tickCount;
-            siegeMeals = 0;
-            siegeStage = 0;
-            window = null;
-            enclosedCheckAt = 0;
-        }
-        if (froggy.tickCount >= enclosedCheckAt) {
-            enclosed = enclosure(p);
-            enclosedCheckAt = froggy.tickCount + 60;
-        }
-        // não está trancada (o resto resolve: ponte, torre, lava) ou é casinha: arromba direto
-        if (enclosed <= TINY_HUT) return false;
-        switch (siegeStage) {
-            case 0 -> {
-                // o que tem em volta primeiro: aldeão, golem, bicho (Grox 0:44-1:35)
-                if (siegeMeals < 3) {
-                    LivingEntity meal = findMeal(p);
-                    if (meal != null) {
-                        siegeMeals++;
-                        froggy.setSiegeMeal(meal);
-                        froggy.brainLog(p.getScoreboardName() + " trancada: come " + meal.getName().getString() + " lá fora primeiro");
-                        return true;
-                    }
-                }
-                window = findWindow(p);
-                windowTicks = 0;
-                windowArrived = -1;
-                siegeStage = window == null ? 2 : 1;
-                if (window != null) froggy.brainLog("vai aparecer na janela de " + p.getScoreboardName());
-                return window != null;
-            }
-            case 1 -> {
-                return atWindow(p);
-            }
-            default -> {
-                return false;
-            }
-        }
-    }
-
-    /** Vai até a janela e fica olhando pra dentro; arromba quando ela se distrai ou depois de um tempo. */
-    private boolean atWindow(ServerPlayer p) {
-        BlockPos w = window;
-        if (w == null) {
-            siegeStage = 2;
-            return false;
-        }
-        windowTicks++;
-        Vec3 spot = Vec3.atBottomCenterOf(w);
-        if (windowArrived < 0) {
-            if (froggy.position().distanceTo(spot) > 1.2D) {
-                if (windowTicks % 10 == 1) froggy.getNavigation().moveTo(spot.x, spot.y, spot.z, FroggyCombatGoal.huntSpeed() * 0.7D);
-                if (windowTicks > 300) siegeStage = 2;
-                return true;
-            }
-            windowArrived = windowTicks;
-            froggy.speak(VoiceSituation.FOUND); // a risadinha na janela
-        }
-        froggy.getNavigation().stop();
-        froggy.faceTarget(p);
-        froggy.getLookControl().setLookAt(p.getX(), p.getEyeY(), p.getZ(), 30.0F, 30.0F);
-        int there = windowTicks - windowArrived;
-        if (there > WINDOW_STARE || there > 30 && PlayerSight.distracted(p)) {
-            froggy.brainLog(there > WINDOW_STARE ? "cansou de olhar: arromba" : p.getScoreboardName() + " se distraiu: arromba");
-            siegeStage = 2;
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Quantos blocos de ar tem o lugar fechado onde ela está (6 vizinhos, sem
-     * passar por bloco com colisão); -1 se não é fechado (escapa pro céu ou pra
-     * longe, 12 de raio, 8 pra cima).
-     */
-    int enclosure(ServerPlayer p) {
-        Level level = froggy.level();
-        BlockPos start = p.blockPosition();
-        Set<BlockPos> seenCells = new HashSet<>();
-        ArrayDeque<BlockPos> queue = new ArrayDeque<>();
-        queue.add(start);
-        seenCells.add(start);
-        while (!queue.isEmpty()) {
-            BlockPos c = queue.poll();
-            if (Math.abs(c.getX() - start.getX()) > 12 || Math.abs(c.getZ() - start.getZ()) > 12
-                    || c.getY() - start.getY() > 8 || seenCells.size() > 600) return -1;
-            for (Direction d : Direction.values()) {
-                BlockPos n = c.relative(d);
-                if (seenCells.contains(n) || n.getY() < start.getY() - 6) continue;
-                BlockState st = level.getBlockState(n);
-                if (!st.getCollisionShape(level, n).isEmpty() || level.getFluidState(n).is(FluidTags.LAVA)) continue;
-                seenCells.add(n);
-                queue.add(n);
-            }
-        }
-        return seenCells.size();
-    }
-
-    @Nullable
-    LivingEntity findMeal(ServerPlayer p) {
-        AABB area = froggy.getBoundingBox().inflate(32.0D, 8.0D, 32.0D);
-        List<LivingEntity> food = froggy.level().getEntitiesOfClass(LivingEntity.class, area,
-                e -> e.isAlive() && e instanceof Mob && !(e instanceof Monster) && !(e instanceof Player)
-                        && !(e instanceof AbstractVillager v && v.isBaby()));
-        // aldeão e golem primeiro (o que ela ia usar), depois o mais perto
-        return food.stream().min(Comparator
-                .comparingInt((LivingEntity e) -> e instanceof AbstractVillager || e instanceof IronGolem ? 0 : 1)
-                .thenComparingDouble(froggy::distanceTo)).orElse(null);
-    }
-
-    /**
-     * Uma janela (vidro ou vidraça) a até 6 blocos dela, com chão do lado de fora
-     * onde ele cabe em pé, que ele alcança andando e de onde se vê ela lá dentro.
-     * Devolve onde ele fica (os pés).
-     */
-    @Nullable
-    BlockPos findWindow(ServerPlayer p) {
-        Level level = froggy.level();
-        BlockPos c = p.blockPosition();
-        List<BlockPos> spots = new ArrayList<>();
-        for (BlockPos g : BlockPos.betweenClosed(c.offset(-6, -1, -6), c.offset(6, 3, 6))) {
-            BlockState st = level.getBlockState(g);
-            if (!st.is(Tags.Blocks.GLASS) && !st.is(Tags.Blocks.GLASS_PANES)) continue;
-            for (Direction d : Direction.Plane.HORIZONTAL) {
-                BlockPos out = g.relative(d);
-                if (out.distSqr(c) <= g.distSqr(c)) continue; // o lado de fora é o mais longe dela
-                // os pés no chão de fora: na altura do vidro ou um abaixo (janela na altura do peito)
-                for (int down = 0; down <= 1; down++) {
-                    BlockPos feet = out.below(down);
-                    if (free(level, feet) && free(level, feet.above()) && !free(level, feet.below())) {
-                        spots.add(feet.immutable());
-                        break;
-                    }
-                }
-            }
-        }
-        spots.sort(Comparator.comparingDouble(s -> s.distSqr(froggy.blockPosition())));
-        int tried = 0;
-        for (BlockPos s : spots) {
-            if (tried++ >= 6) break;
-            if (!seesThroughGlass(s, p)) continue;
-            Path path = froggy.getNavigation().createPath(s, 0);
-            if (path != null && path.canReach()) return s;
-        }
-        return null;
-    }
-
     static boolean free(Level level, BlockPos pos) {
         return level.getBlockState(pos).getCollisionShape(level, pos).isEmpty() && level.getFluidState(pos).isEmpty();
-    }
-
-    /** Da cabeça dele em pé ali até os olhos dela: só vidro no meio. */
-    private boolean seesThroughGlass(BlockPos feet, ServerPlayer p) {
-        Level level = froggy.level();
-        Vec3 from = Vec3.atBottomCenterOf(feet).add(0, froggy.getEyeHeight(), 0);
-        Vec3 to = p.getEyePosition();
-        for (int i = 0; i < 4; i++) {
-            BlockHitResult hit = level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, froggy));
-            if (hit.getType() == HitResult.Type.MISS) return true;
-            BlockState st = level.getBlockState(hit.getBlockPos());
-            if (!st.is(Tags.Blocks.GLASS) && !st.is(Tags.Blocks.GLASS_PANES)) return false;
-            // passa pelo vidro e continua
-            from = hit.getLocation().add(to.subtract(hit.getLocation()).normalize().scale(0.6D));
-        }
-        return false;
     }
 }

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.13: o sangue na skin colado no corpo, sem a casca em volta da cabeça (sobre a v0.7.12)
+# Froggydude - v0.7.15: IA "viu, vai", porta na hora, parede na hora (sobre a v0.7.14)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,45 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.13):
+O que testar agora (v0.7.15) - a IA (LM: "às vezes ele não sabe abrir uma porta (ficando preso) ou
+simplesmente fica encarando o jogador, demorando agir" / "ou ele demora subir uma simples parede").
+Medido no jogo, IA Real, antes x depois (segundos até chegar nela, contando de quando a porta fecha):
+campo aberto com a brincadeira ativa 40+ (não atacou) x 2; campo aberto sem ela 14,5 x 4,5; porta de
+madeira do lado dele: não entrou em 40 x 3; porta de ferro 11 x 4,5; portão de cerca 10 x 4.
+A) "VIU, VAI" (escolha do LM, só na IA Real): saiu a brincadeira de 2-4 min antes de comer (o
+   "tempero"), o "apavorar" (seguir de longe encarando e dançando), o barulho de longe antes da
+   caçada, a espera parada no escuro e a espera na janela da casa. Ficou: encarar de longe no máximo
+   uma vez por dia do jogo, só 2 s (a fala segue com ele já vindo), e o "I see you" só quando ele chega
+   pelas COSTAS sem ser visto. A tocaia (esperar no lugar onde tu sempre volta) continua. O comando
+   de teste "/froggydude estudo brincar" saiu junto.
+B) PORTA NA HORA: porta, portão de cerca e alçapão fechados ele abre (ou arromba no tranco, como antes:
+   4 em 10 caçando, quase sempre com raiva) sem parar - correndo reto atrás de ti também (antes só via
+   porta seguindo caminho calculado e ficava empurrando). Porta e alçapão de FERRO: três socos e voa
+   (~0,6 s). Tu escondida num buraco com alçapão: ele abre em cima e cai. Ele colado do lado de fora
+   com tu logo atrás da porta: abre (antes ficava parado ali). Sem "arrombar" na config ou sem
+   mobGriefing, ferro continua parede (ele come a parede com a língua). Teste: tranca a porta (de
+   madeira e de ferro) e deixa ele te ver entrando.
+C) PAREDE NA HORA: tu em cima de muro, pilar ou casa (com parede até o chão), ele sobe de quatro na
+   hora - antes, às vezes, ia procurar de onde dar o pulo altíssimo ou fazia TORRE de blocos. Torre ele
+   não faz mais (a ponte sobre buraco/lava ainda faz; sai quando ele aprender a nadar). Plataforma no
+   ar sem parede até o chão: continua o pulo calculado. Teste: sobe num muro de 5 e num pilar.
+D) De olho: ele ainda pode se irritar do nada e fazer a transformação da fase 2 (uns 8 s parado, num
+   dos testes caiu no meio da volta na casa) - é a transformação "do nada quando irritado" que o LM
+   pediu antes, não pausa nova. Se incomodar, dá pra encurtar ou deixar mais rara.
+
+Da v0.7.14 - as animações que o LM achou estranhas:
+A) AGACHAR (a dancinha, e na beira de bloco): o tronco ia pra TRÁS (o código usava o sinal ao
+   contrário do GeckoLib) e as pernas afundavam 3,5 px no chão - parecia corcunda. Agora inclina
+   pra FRENTE como o shift de jogador, cabeça reta, pés no chão. Teste: /froggydude dancar perto dele.
+B) CORRENDO DE 4 NA PAREDE (Grox, RABIES 3:29-3:31): antes ele subia em pé, feito gente na escada.
+   Agora é o MESMO galope do chão com a parede servindo de chão - patas na parede, costas pra fora,
+   cabeça pra cima, e a empinada do galope descola o tronco da parede, como no vídeo. Na cadência do
+   galope (antes a escalada ia 1,6x mais rápida). Teste: suba numa torre e deixe ele vir.
+C) PARADO DE 4 CAÇANDO: era a "mesa" (cintura a 90 graus, braços e pernas retos). Agora fica agachado
+   pronto pra disparar, na pose de onde o galope sai (pernas por baixo da barriga, mãos no chão na
+   frente, olhando pra frente).
+
+Da v0.7.13 - o sangue na skin:
 A) SEM A CASCA (o "halo" que o LM viu): o sangue grudado na skin ia sempre na camada de fora (chapéu,
    jaqueta, mangas, calça), que fica meio pixel pra fora do corpo. Onde a skin não tem nada nessa camada,
    o sangue ficava boiando, uma casca meio transparente em volta da cabeça. Agora ele lê a skin (o PNG,

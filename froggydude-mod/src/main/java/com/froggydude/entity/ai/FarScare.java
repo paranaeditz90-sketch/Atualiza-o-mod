@@ -1,10 +1,16 @@
 package com.froggydude.entity.ai;
 
 import com.froggydude.entity.FroggydudeEntity;
+import com.froggydude.entity.voice.VoiceSituation;
+import com.froggydude.init.ModSounds;
 import com.froggydude.player.PlayerSight;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.util.DefaultRandomPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
@@ -16,7 +22,7 @@ import java.util.UUID;
  * sorteio e o jeito do medo foram escolha do LM). O medo é o barulho sem aparecer:
  * chega por trás sem ser visto, a uns 10 blocos faz barulho (passos, ribbit, passos,
  * a risadinha) e, se ela virar e ver, some. Depois fica sumido um tempo e vem a caçada.
- * Vale em qualquer nível de IA (na REAL, no lugar da brincadeira dessa caçada).
+ * Vale do Mín ao Máx. Na REAL não: lá é "viu, vai" (v0.7.15, escolha do LM).
  */
 final class FarScare {
 
@@ -109,7 +115,7 @@ final class FarScare {
                 if (froggy.tickCount % 12 == 0) tactics.moveTo(tactics.blindSpot(p, 10.0D), FroggyCombatGoal.huntSpeed() * 0.4D);
                 froggy.getLookControl().setLookAt(p, 30.0F, 30.0F);
                 if (froggy.tickCount >= nextNoise) {
-                    RealTease.makeNoise(froggy, noises++);
+                    makeNoise(froggy, noises++);
                     nextNoise = froggy.tickCount + 35 + froggy.getRandom().nextInt(30);
                 }
                 if (noises >= 4) vanish(p);
@@ -146,5 +152,25 @@ final class FarScare {
         }
         tactics.moveTo(hide, FroggyCombatGoal.huntSpeed() * 1.05D);
         froggy.brainLog("susto de longe em " + p.getScoreboardName() + ": sumiu (" + noises + " barulhos)");
+    }
+
+    /** Um barulho sem aparecer: passos, ribbit, passos e, no 4º, a risadinha. */
+    private static void makeNoise(FroggydudeEntity froggy, int n) {
+        Level level = froggy.level();
+        if (n >= 3) {
+            froggy.speak(VoiceSituation.FOUND, true);
+            return;
+        }
+        if (n == 1) {
+            froggy.playSound(ModSounds.AMBIENT.get(), 1.2F, 0.75F + froggy.getRandom().nextFloat() * 0.2F);
+            return;
+        }
+        // passos: três, rápidos, no chão em que ele está
+        BlockPos below = froggy.blockPosition().below();
+        SoundType st = level.getBlockState(below).getSoundType(level, below, froggy);
+        for (int i = 0; i < 3; i++) {
+            level.playSound(null, froggy.getX(), froggy.getY(), froggy.getZ(), st.getStepSound(), SoundSource.HOSTILE,
+                    st.getVolume() * 0.9F, st.getPitch() * (0.9F + 0.1F * i));
+        }
     }
 }

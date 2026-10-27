@@ -670,7 +670,12 @@ public class FroggyCombatGoal extends Goal {
     private int stuckFor(LivingEntity target, double dist) {
         net.minecraft.world.level.pathfinder.Path path = froggy.getNavigation().getPath();
         boolean cantReach = path == null || !path.canReach() || froggy.getNavigation().isDone();
-        boolean blocked = cantReach || !froggy.hasLineOfSight(target);
+        // sem ver ela mas correndo por um caminho que chega (dando a volta na casa até a
+        // porta do outro lado): não é estar preso. Antes contava, e no meio da volta ele
+        // largava o caminho pro cerco e pra língua na parede
+        Vec3 v = froggy.getDeltaMovement();
+        boolean running = !cantReach && v.x * v.x + v.z * v.z > 0.0025D;
+        boolean blocked = cantReach || !froggy.hasLineOfSight(target) && !running;
         if (dist <= 2.5D || dist > 24.0D || !blocked || froggy.isFrenzyActive()) {
             bestDist = dist;
             stuckTicks = 0;
@@ -810,16 +815,7 @@ public class FroggyCombatGoal extends Goal {
      * derrubava a outra como item (a vítima ganhava a porta de volta).
      */
     private void destroyNoDrops(Level level, BlockPos pos) {
-        var st = level.getBlockState(pos);
-        if (st.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
-            BlockPos other = st.getValue(net.minecraft.world.level.block.DoorBlock.HALF)
-                    == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? pos.above() : pos.below();
-            if (level.getBlockState(other).is(st.getBlock())) {
-                level.setBlock(other, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(),
-                        net.minecraft.world.level.block.Block.UPDATE_ALL | net.minecraft.world.level.block.Block.UPDATE_SUPPRESS_DROPS);
-            }
-        }
-        level.destroyBlock(pos, false, froggy);
+        FroggyDoorGoal.destroyNoDrops(level, pos, froggy);
     }
 
     private static boolean isDoorLike(Level level, BlockPos pos) {
@@ -1109,9 +1105,9 @@ public class FroggyCombatGoal extends Goal {
         else farScare.stop();
     }
 
-    /** Assustando de outro jeito agora (o barulho de longe, a brincadeira da REAL): sem jumpscare. */
+    /** Assustando de outro jeito agora (o barulho de longe): sem jumpscare. */
     boolean scaring() {
-        return farScare.active() || real.teasing();
+        return farScare.active();
     }
 
     /** O jumpscare caiu em cima dela: o esmagamento curto (a cutscene) e depois solta. */
@@ -1129,7 +1125,7 @@ public class FroggyCombatGoal extends Goal {
         // no susto de longe e no jumpscare ele some de propósito: sabe onde ela está
         if (farScare.active() || jumpScare.active()) return true;
         if (!real.active()) return false;
-        if (real.planningReach() || real.teasing()) return true;
+        if (real.planningReach()) return true;
         // ela subiu num lugar logo acima dele (plataforma, torre): ele sabe onde ela está,
         // mesmo sem ver lá debaixo (antes largava o alvo antes de procurar de onde pular)
         LivingEntity t = froggy.getTarget();

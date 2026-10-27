@@ -26,10 +26,10 @@ import javax.annotation.Nullable;
 
 /**
  * O jeito de jogador (a "IA melhorada" do LM, PLANO.md seção 10):
- * - sempre dá um jeito de chegar: sem caminho até a vítima (buraco, lava, água
- *   funda, plataforma no ar que ele não escala), põe bloco como gente - torre
- *   embaixo de si (olha pro pé, pula e põe o bloco no lugar de onde saiu) e
- *   ponte agachado (olha pro lugar, põe o bloco e anda pra cima dele);
+ * - sem caminho até a vítima por um vão (buraco, lava, água funda), põe bloco como
+ *   gente: ponte agachado (olha pro lugar, põe o bloco e anda pra cima dele). Torre
+ *   ele não faz mais (v0.7.15, LM: "ele demora subir uma simples parede"): parede ele
+ *   sobe de quatro na hora (FroggydudeEntity#wantsToClimb);
  * - a "dancinha": agacha e levanta rápido (o shift spam), pulando e socando o ar;
  * - zombar e ir embora: matou o mesmo jogador 3 vezes num dia, ele chega perto,
  *   ri, dança na frente dele, diz "Não mexe comigo" e vai embora (um dia de trégua).
@@ -38,7 +38,7 @@ import javax.annotation.Nullable;
  */
 public class PlayerMoves {
 
-    private enum Build { NONE, PILLAR, BRIDGE }
+    private enum Build { NONE, BRIDGE }
 
     /** Um pack: depois disso ele "acabou os blocos" e volta pros outros jeitos. */
     private static final int MAX_BLOCKS = 64;
@@ -55,11 +55,6 @@ public class PlayerMoves {
     private int buildTicks;
     private int placed;
     private int stall;
-    @Nullable
-    private BlockPos pillarSpot;
-    @Nullable
-    private BlockPos pillarBase;
-    private int pillarTopY;
     @Nullable
     private BlockPos bridgeCell;
     private int aim;
@@ -85,8 +80,6 @@ public class PlayerMoves {
         danceTicks = 0;
         mockPhase = 0;
         bridgeCell = null;
-        pillarBase = null;
-        pillarSpot = null;
         froggy.setCrouchingPose(false);
     }
 
@@ -97,9 +90,8 @@ public class PlayerMoves {
     }
 
     /**
-     * Preso sem caminho até a vítima: dá pra chegar pondo bloco? Torre quando ela
-     * está lá em cima (numa plataforma que ele alcança de uma coluna livre ao lado),
-     * ponte quando tem um vão entre os dois.
+     * Preso sem caminho até a vítima: dá pra chegar pondo bloco? Ponte, quando tem um
+     * vão entre os dois.
      */
     public boolean startBuilding(LivingEntity target) {
         Level level = froggy.level();
@@ -107,16 +99,6 @@ public class PlayerMoves {
         if (build != Build.NONE || !froggy.onGround() || froggy.isInWater() || froggy.isInLava()) return false;
         if (!ForgeEventFactory.getMobGriefingEvent(level, froggy)) return false;
         double dy = target.getY() - froggy.getY();
-        if (dy >= 1.5D && target.onGround()) {
-            BlockPos spot = pillarSpot(target);
-            if (spot != null) {
-                build = Build.PILLAR;
-                pillarSpot = spot;
-                pillarTopY = target.blockPosition().getY();
-                begin("torre de " + (pillarTopY - spot.getY()) + " bloco(s) em " + spot.toShortString());
-                return true;
-            }
-        }
         if (Math.abs(dy) < 2.5D && gapAhead(target, 4)) {
             build = Build.BRIDGE;
             begin("ponte na direção da vítima");
@@ -131,7 +113,6 @@ public class PlayerMoves {
         stall = 0;
         aim = 0;
         bridgeCell = null;
-        pillarBase = null;
         froggy.getNavigation().stop();
         hold();
         froggy.setFroggyState(FroggyState.BUILD);
@@ -142,8 +123,6 @@ public class PlayerMoves {
         froggy.brainLog("parou de pôr bloco (" + placed + "): " + why);
         build = Build.NONE;
         bridgeCell = null;
-        pillarBase = null;
-        pillarSpot = null;
         froggy.setCrouchingPose(false);
         froggy.setFroggyState(FroggyState.CHASE);
     }
@@ -156,51 +135,8 @@ public class PlayerMoves {
             finishBuilding(placed >= MAX_BLOCKS ? "acabaram os blocos" : "demorou demais");
             return false;
         }
-        if (build == Build.PILLAR) tickPillar(target);
-        else tickBridge(target);
+        tickBridge(target);
         return build != Build.NONE;
-    }
-
-    private void tickPillar(LivingEntity target) {
-        Level level = froggy.level();
-        BlockPos spot = pillarSpot;
-        if (spot == null) {
-            finishBuilding("sem lugar");
-            return;
-        }
-        // 1) anda até a coluna livre do lado da plataforma
-        double hx = spot.getX() + 0.5D - froggy.getX(), hz = spot.getZ() + 0.5D - froggy.getZ();
-        if (froggy.getY() < spot.getY() + 0.5D && hx * hx + hz * hz > 0.2D * 0.2D && pillarBase == null) {
-            froggy.faceDirection(hx, hz);
-            froggy.getMoveControl().setWantedPosition(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D, 1.0D);
-            froggy.getLookControl().setLookAt(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
-            if (buildTicks > 120) finishBuilding("não chegou na coluna");
-            return;
-        }
-        // 2) olha pro pé (a "câmera" vira pra baixo) e sobe: pula e põe o bloco onde estava
-        froggy.getLookControl().setLookAt(froggy.getX(), froggy.getY() - 1.0D, froggy.getZ(), 30.0F, 90.0F);
-        Vec3 v = froggy.getDeltaMovement();
-        froggy.setDeltaMovement(0.0D, v.y, 0.0D); // em cima da coluna, sem escorregar pro lado
-        if (froggy.onGround()) {
-            if (froggy.getBlockY() >= pillarTopY) {
-                finishBuilding("chegou na altura dela");
-                return;
-            }
-            if (!free(level, froggy.blockPosition().above(2))) {
-                finishBuilding("teto em cima");
-                return;
-            }
-            if (pillarBase == null || froggy.getBlockY() > pillarBase.getY()) {
-                pillarBase = froggy.blockPosition();
-                froggy.setDeltaMovement(0.0D, 0.42D, 0.0D);
-                froggy.hasImpulse = true;
-                stall = 0;
-            } else if (++stall > 40) {
-                finishBuilding("não subiu");
-            }
-        } else if (pillarBase != null && froggy.getY() >= pillarBase.getY() + 1.02D && canPlace(level, pillarBase)) {
-            place(level, pillarBase);
-        }
     }
 
     private void tickBridge(LivingEntity target) {
@@ -255,41 +191,6 @@ public class PlayerMoves {
     private boolean reachable(LivingEntity target) {
         Path p = froggy.getNavigation().createPath(target, 0);
         return p != null && p.canReach();
-    }
-
-    /**
-     * Coluna livre do lado da plataforma da vítima, no chão onde ele está, sem
-     * nada até a altura dela (mais o espaço da cabeça). A mais perto dele.
-     */
-    @Nullable
-    private BlockPos pillarSpot(LivingEntity target) {
-        Level level = froggy.level();
-        BlockPos t = target.blockPosition();
-        int fy = froggy.getBlockY();
-        BlockPos best = null;
-        double bestD = Double.MAX_VALUE;
-        for (int dx = -5; dx <= 5; dx++) {
-            for (int dz = -5; dz <= 5; dz++) {
-                BlockPos col = new BlockPos(t.getX() + dx, fy, t.getZ() + dz);
-                if (!solid(level, col.below())) continue;
-                boolean clear = true;
-                for (int y = fy; y <= t.getY() + 1 && clear; y++) {
-                    clear = free(level, new BlockPos(col.getX(), y, col.getZ()));
-                }
-                if (!clear) continue;
-                boolean touches = false;
-                for (Direction d : Direction.Plane.HORIZONTAL) {
-                    if (solid(level, new BlockPos(col.getX(), t.getY() - 1, col.getZ()).relative(d))) touches = true;
-                }
-                if (!touches) continue;
-                double d = froggy.position().distanceToSqr(col.getX() + 0.5D, fy, col.getZ() + 0.5D);
-                if (d < bestD && d < 10.0D * 10.0D) {
-                    bestD = d;
-                    best = col;
-                }
-            }
-        }
-        return best;
     }
 
     /** Tem vão (ar, água, lava) no caminho reto até a vítima, nos próximos blocos? */

@@ -4,7 +4,6 @@ import com.froggydude.brain.PreyStudy;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
-import com.froggydude.entity.voice.VoiceSituation;
 import com.froggydude.player.PlayerSight;
 import com.froggydude.world.FroggyWorldData;
 import net.minecraft.core.BlockPos;
@@ -13,7 +12,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.goal.Goal;
-import net.minecraft.world.entity.ai.util.DefaultRandomPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -30,12 +28,9 @@ import java.util.UUID;
  * parado no breu (caverna). O Grox ("Minecraft but I have RABIES", 0:58-1:23)
  * passa o tempo fora, volta pra guardar as coisas e ele já estava lá.
  *
- * Quando ela chega:
- * - brincando com ela (RealTease, o "tempero"): ri baixinho, espera ela olhar pra
- *   cima, encara um instante, cai e some - o susto conta pro medo dela;
- * - caçando: espera ela abrir o baú (tela aberta) ou chegar bem embaixo sem ver,
- *   e cai em cima dela (o bote termina devorando).
- * Se ela ver ele antes, é na hora.
+ * Quando ela chega, espera ela abrir o baú (tela aberta) ou chegar bem embaixo sem
+ * ver e cai em cima dela (o bote termina devorando). Se ela ver ele antes, é na hora.
+ * (Até a v0.7.14, brincando com ela, ele ria e sumia: saiu com o "viu, vai".)
  */
 public class FroggyStakeoutGoal extends Goal {
 
@@ -47,10 +42,9 @@ public class FroggyStakeoutGoal extends Goal {
     /** O teto a 1,95 bloco dos pés (o topo da caixa dele encosta no teto; ver ceiling_hang). */
     private static final double HANG_DROP = 1.95D;
 
-    private enum Stage { GO, CLIMB, WAIT, REVEAL, FLEE, DONE }
+    private enum Stage { GO, CLIMB, WAIT, REVEAL, DONE }
 
     private final FroggydudeEntity froggy;
-    private final ScareJudge judge;
     @Nullable
     private UUID prey;
     private String preyName = "?";
@@ -71,16 +65,12 @@ public class FroggyStakeoutGoal extends Goal {
     private float hangYaw;
     @Nullable
     private Vec3 climbFrom;
-    private boolean teasing;
-    private boolean laughed;
-    private int seenTicks;
     private int unseenNear;
     /** Comando de teste (/froggydude estudo tocaia): vai agora, mesmo fora de hora. */
     private boolean forced;
 
     public FroggyStakeoutGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
-        this.judge = new ScareJudge(froggy);
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP));
     }
 
@@ -119,7 +109,6 @@ public class FroggyStakeoutGoal extends Goal {
         prey = p.getUUID();
         preyName = p.getScoreboardName();
         place = best;
-        teasing = study.teasing(now);
         return true;
     }
 
@@ -170,7 +159,7 @@ public class FroggyStakeoutGoal extends Goal {
     public boolean canContinueToUse() {
         if (stage == Stage.DONE || player() == null || FroggyRetreatGoal.mustFlee(froggy) || froggy.isFrenzyActive()) return false;
         // bateram nele (o alvo vem do HurtByTarget) ou já caiu em cima dela: o combate assume
-        return froggy.getTarget() == null || stage == Stage.FLEE;
+        return froggy.getTarget() == null;
     }
 
     @Override
@@ -180,14 +169,12 @@ public class FroggyStakeoutGoal extends Goal {
         startedAt = froggy.tickCount;
         stand = null;
         hang = null;
-        laughed = false;
-        seenTicks = 0;
         unseenNear = 0;
         froggy.setStakingOut(true);
         PreyStudy.Place pl = place;
         if (pl != null) {
-            froggy.brainLog(String.format(java.util.Locale.ROOT, "vai esperar %s %s em %d, %d, %d%s", preyName, label(pl.kind),
-                    pl.pos.getX(), pl.pos.getY(), pl.pos.getZ(), teasing ? " (pra assustar)" : ""));
+            froggy.brainLog(String.format(java.util.Locale.ROOT, "vai esperar %s %s em %d, %d, %d", preyName, label(pl.kind),
+                    pl.pos.getX(), pl.pos.getY(), pl.pos.getZ()));
             go(pl.pos);
         }
     }
@@ -206,10 +193,7 @@ public class FroggyStakeoutGoal extends Goal {
         unhang();
         froggy.setStakingOut(false);
         froggy.getNavigation().stop();
-        if (judge.judging()) judge.closeIn(0);
-        judge.tick(player());
-        judge.cancel();
-        if (stage != Stage.DONE && stage != Stage.FLEE && froggy.getTarget() == null) {
+        if (stage != Stage.DONE && froggy.getTarget() == null) {
             froggy.brainLog("largou a tocaia de " + preyName);
         }
         stage = Stage.DONE;
@@ -226,18 +210,13 @@ public class FroggyStakeoutGoal extends Goal {
             stage = Stage.DONE;
             return;
         }
-        judge.tick(p);
         double dist = froggy.distanceTo(p);
         boolean seen = PlayerSight.sees(p, froggy);
-        seenTicks = seen ? seenTicks + 1 : 0;
         switch (stage) {
             case GO -> tickGo(p, pl, dist, seen);
             case CLIMB -> tickClimb();
             case WAIT -> tickWait(p, dist, seen);
-            case REVEAL -> tickReveal(p, dist);
-            case FLEE -> {
-                if (froggy.tickCount - stageAt > 140) stage = Stage.DONE;
-            }
+            case REVEAL -> drop(p);
             default -> {
             }
         }
@@ -314,40 +293,12 @@ public class FroggyStakeoutGoal extends Goal {
         boolean go = seen && dist < 16.0D
                 || dist < 5.0D && distracted
                 || hang == null && dist < 4.5D
-                || unseenNear > (teasing ? 10 : 30);
+                || unseenNear > 30;
         if (!go) return;
         stage = Stage.REVEAL;
         stageAt = froggy.tickCount;
-        if (teasing) {
-            judge.start(p, hang != null ? "teto" : "breu");
-            froggy.brainLog(seen ? preyName + " me achou" + (hang != null ? " no teto" : " no escuro")
-                    : preyName + " chegou: ri baixinho" + (hang != null ? " lá do teto" : ""));
-        } else {
-            froggy.brainLog(distracted ? preyName + " abriu o baú: cai em cima" : seen ? preyName + " me viu: pra cima"
-                    : preyName + " bem embaixo: cai em cima");
-        }
-    }
-
-    private void tickReveal(ServerPlayer p, double dist) {
-        int t = froggy.tickCount - stageAt;
-        if (hang != null) holdAt(hang);
-        froggy.mute(10);
-        if (!teasing) {
-            drop(p);
-            return;
-        }
-        // brincando: a risadinha; espera ela olhar (até 4 s), encara 1 s e some
-        if (!laughed && seenTicks == 0) {
-            laughed = froggy.speak(VoiceSituation.FOUND, true);
-        }
-        if (seenTicks >= 20 || t > 80 && seenTicks == 0 || t > 160 || dist < 1.6D) {
-            unhang();
-            Vec3 away = DefaultRandomPos.getPosAway(froggy, 24, 7, p.position());
-            if (away != null) froggy.getNavigation().moveTo(away.x, away.y, away.z, FroggyCombatGoal.huntSpeed() * 1.05D);
-            judge.closeIn(120);
-            stage = Stage.FLEE;
-            stageAt = froggy.tickCount;
-        }
+        froggy.brainLog(distracted ? preyName + " abriu o baú: cai em cima" : seen ? preyName + " me viu: pra cima"
+                : preyName + " bem embaixo: cai em cima");
     }
 
     /**
