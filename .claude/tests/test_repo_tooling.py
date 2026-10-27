@@ -32,7 +32,8 @@ def frontmatter(path: Path) -> dict:
 
 class SkillsTest(unittest.TestCase):
     EXPECTED = {'forge-expert', 'zalith-compat', 'video-motion-analysis', 'frontend-design', 'quality-review',
-                'systematic-debugging', 'verification-before-completion', 'receiving-code-review'}
+                'systematic-debugging', 'verification-before-completion', 'receiving-code-review',
+                'planejar', 'implementar'}
     VENDORED = {'systematic-debugging', 'verification-before-completion', 'receiving-code-review'}
 
     def test_every_skill_has_valid_frontmatter(self):
@@ -55,6 +56,18 @@ class SkillsTest(unittest.TestCase):
                 self.assertIn('MIT License', lic)
                 self.assertIn('Jesse Vincent', lic)
                 self.assertIn('obra/superpowers', (CLAUDE / 'skills' / name / 'SKILL.md').read_text())
+
+    def test_plan_and_implement_skills_are_manual_with_their_models(self):
+        # o LM troca de etapa pelo /planejar e /implementar; o modelo da sessão não muda
+        for name, model, effort in (('planejar', 'sonnet', 'high'), ('implementar', 'opus', 'max')):
+            with self.subTest(skill=name):
+                fm = frontmatter(CLAUDE / 'skills' / name / 'SKILL.md')
+                self.assertEqual((fm.get('model'), fm.get('effort')), (model, effort))
+                self.assertEqual(fm.get('disable-model-invocation'), 'true')
+                self.assertNotIn('context', fm)  # roda no contexto da sessão, sem subagente
+                self.assertIn('TAREFA.md', (CLAUDE / 'skills' / name / 'SKILL.md').read_text())
+        settings = json.loads((CLAUDE / 'settings.json').read_text())
+        self.assertNotIn('model', settings)  # as skills não mexem no modelo padrão
 
     def test_skill_scripts_referenced_exist(self):
         for skill in (CLAUDE / 'skills').glob('*/SKILL.md'):

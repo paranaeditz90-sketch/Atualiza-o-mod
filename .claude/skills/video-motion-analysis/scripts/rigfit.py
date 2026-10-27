@@ -81,8 +81,33 @@ def angle(a, b) -> float:
     return math.degrees(math.atan2(-(b[1] - a[1]), b[0] - a[0]))
 
 
+class CalibratedCamera(preview.Camera):
+    """Câmera em perspectiva calibrada contra o vídeo (como a do ajuste antigo da contorção):
+    projeta no quadro inteiro do vídeo (size), com rolagem. Campos em blocos, no espaço dele:
+    az, dist, height (altura da câmera), ty/tx (alvo), fov (vertical), roll (graus)."""
+
+    def __init__(self, az=0.0, dist=5.0, height=1.0, tx=0.0, ty=1.0, fov=47.0, roll=0.0, size=(720, 1280)):
+        a = math.radians(az)
+        self.pos = np.array([dist * math.cos(a), height, dist * math.sin(a)])
+        tgt = np.array([0.0, ty, 0.0]) + tx * np.array([-math.sin(a), 0, math.cos(a)])
+        f = tgt - self.pos
+        f /= np.linalg.norm(f)
+        r = np.cross(f, [0, 1, 0])
+        r /= np.linalg.norm(r)
+        u = np.cross(r, f)
+        cr, sr = math.cos(math.radians(roll)), math.sin(math.radians(roll))
+        self.fwd, self.right, self.up = f, r * cr + u * sr, -r * sr + u * cr
+        self.size = tuple(size)
+        self.fpx = (self.size[1] / 2) / math.tan(math.radians(fov) / 2)
+
+
 def make_camera(cam: dict, size=(360, 360)):
-    """Câmera quase ortográfica (longe e fechada): o ângulo 2D não depende da distância."""
+    """Com 'dist' na anotação: câmera calibrada no quadro do vídeo (pontos no mesmo espaço de pixel).
+    Sem: câmera quase ortográfica (longe e fechada), onde o ângulo 2D não depende da distância."""
+    if 'dist' in cam:
+        keys = ('az', 'dist', 'height', 'tx', 'ty', 'fov', 'roll')
+        return CalibratedCamera(**{k: float(cam[k]) for k in keys if k in cam},
+                                size=tuple(cam.get('size', (720, 1280))))
     az = float(cam.get('az') or 0.0)
     elev = float(cam.get('elev') or 0.0)
     dist, look_y = 60.0, float(cam.get('look_y', 0.9))

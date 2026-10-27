@@ -29,6 +29,8 @@ Onde paramos: `PROGRESSO.md`. Plano: `PLANO.md`. Notas de cada versão (o LM tes
 | `frontend-design` | páginas web/visualizadores, celular primeiro, validadas no Chromium |
 | `quality-review` | revisão antes de dizer "pronto"; usa `/code-review` e `repo_guard.py` |
 | `systematic-debugging`, `verification-before-completion`, `receiving-code-review` | 3 skills do Superpowers (MIT, só elas; o plugin não está instalado) |
+| `/planejar` (Sonnet, esforço alto) | só o LM chama: investiga, pergunta e grava o plano em `TAREFA.md`, sem mexer em código |
+| `/implementar` (Opus, esforço máximo) | só o LM chama: segue o `TAREFA.md` passo a passo, compila, depura, verifica e registra |
 
 ## Comandos
 
