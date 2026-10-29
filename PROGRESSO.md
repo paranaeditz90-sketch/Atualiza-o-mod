@@ -28,6 +28,17 @@ O plano grande da IA: `PLANO.md`.
 
 ---
 
+## Pedido grande do LM (29/10): animações bem mais próximas da original
+
+O LM quer que o FroggyDude do mod tenha animações **bem mais próximas das do FroggyDude original**.
+Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
+
+- É complexo, então **o LM vai ajudar** (vídeos, tempos, tela do celular) e quer que eu **pergunte, peça e
+  tire todas as dúvidas** antes de mexer. Uma coisa por vez, com OK dele.
+- **Espera até domingo** (limite de uso dele). Só voltar nisso quando ele chamar.
+- Quando voltar: começar perguntando qual animação primeiro (comer os restos), qual vídeo/tempo é a
+  referência, o que está diferente hoje. Usar a skill `video-motion-analysis` e o `/planejar`.
+
 ## Próximo passo (27/10): "in your world" - tudo decidido em `TAREFA.md`
 
 O LM respondeu as caixinhas em 27/10 e o plano está em **`TAREFA.md`** (chegada entre o dia 4 e o 10,
