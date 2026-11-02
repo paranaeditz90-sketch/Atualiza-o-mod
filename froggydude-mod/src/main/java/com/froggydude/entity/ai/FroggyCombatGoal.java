@@ -107,18 +107,20 @@ public class FroggyCombatGoal extends Goal {
     // Em cima da vítima: distância dos pés dele até ela. Medidas com
     // tools/anim/check_poses.py junto com as poses (v0.3.4): a 1,5 bloco as mãos
     // seguram/socam a vítima, a cabeça nunca entra na câmera dela (fica a 0,2-0,5
-    // bloco no ponto mais perto) e os pés dele ficam no chão.
-    private static final double PIN_DISTANCE = 1.5D;
+    // bloco no ponto mais perto) e os pés dele ficam no chão. (v0.7.17) A flexão nova é
+    // uma prancha comprida (boca a 1,73 bloco dos pés): a 1,9 a cara dele chega a 0,16
+    // bloco da câmera na mordida, como antes, sem o peito atravessar.
+    private static final double PIN_DISTANCE = 1.9D;
     private static final double SMASH_DISTANCE = 1.1D;
     private static final double RIP_DISTANCE = 1.5D;
 
-    // Devorar: 5 s comendo em "flexão" (pin_hold): a cabeça desce mordendo a cada 0,3 s.
-    // O jogador fica 10 ticks invencível depois de cada dano, então a mordida que
-    // tira vida é uma sim, uma não (a cada 12 ticks, 0,9) - dá o mesmo dano de antes
+    // Devorar: 5 s comendo em "flexão" (pin_hold): a cabeça desce mordendo a cada 0,35 s (mais rápido com
+    // fome/raiva). O jogador fica 10 ticks invencível depois de cada dano, então a mordida que
+    // tira vida é uma sim, uma não (a cada 14 ticks na velocidade 1, 1,05) - dá o mesmo dano de antes
     // (1,5 por segundo); as outras só sangram e sacodem.
     private static final int PIN_TICKS = 100;
     private static final int PIN_FIRST_BITE = 9;
-    private static final float PIN_BITE_DAMAGE = 0.9F;
+    private static final float PIN_BITE_DAMAGE = 1.05F;
 
     // Esmagar: 8 socos, dois por segundo (soco aos 0,25 s de cada volta de 0,5 s da
     // animação; o primeiro conta os 3 ticks de transição da pose anterior). O
@@ -1802,12 +1804,14 @@ public class FroggyCombatGoal extends Goal {
             beginArmRip(victim);
             return;
         }
-        // a cabeça bate embaixo a cada 0,3 s (a primeira logo depois de cair em cima)
-        if (t >= PIN_FIRST_BITE && FroggydudeEntity.pushupBite(t)) {
-            boolean hurts = (t / FroggydudeEntity.PUSHUP_TICKS) % 2 == 0;
+        // a cabeça bate embaixo uma vez por ciclo da flexão, no ritmo da fome/raiva (a fase anda todo
+        // tick, junto com a animação; a primeira mordida que conta vem logo depois de cair em cima)
+        boolean bite = froggy.pushupStep();
+        if (t >= PIN_FIRST_BITE && bite) {
+            boolean hurts = froggy.getPushupBites() % 2 == 1;
             if (hurts) hurtNoKnockback(victim, PIN_BITE_DAMAGE);
             froggy.spawnBlood(victim, hurts ? 3 : 1);
-            froggy.onPushupBite(t);
+            froggy.onPushupBite();
             shake(victim, hurts ? 0.6F : 0.35F, 4);
         }
     }

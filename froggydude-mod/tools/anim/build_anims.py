@@ -25,6 +25,8 @@ import json
 import os
 import sys
 
+import numpy as np
+
 import rig
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -337,39 +339,66 @@ ANIMS["high_jump"] = animation(1.6, [
     (1.60, pose(**PIN_POSE)),
 ], "hold_on_last_frame")
 
-# Comendo em "flexão" (LM: "never kill my dog" 0:00-1:47 comendo o jogador, e o
-# "Taste testing Minecraft mobs" 6,2-8,8 s em cima do warden): deitado de bruços em
-# cima da vítima, mãos plantadas no chão dos lados dela, pés no chão lá atrás, e
-# a cabeça (com o peito) DESCE rápido e mordendo, sobe devagar e segura um tico.
-# Medido no warden (coroa quadro a quadro, 30 fps): um ciclo a cada 0,33 s - desce
-# em ~0,07 s, fica embaixo ~0,03, sobe em ~0,17 e segura ~0,07. Aqui 0,3 s por
-# mordida (6 ticks, o servidor morde junto) e duas mordidas por volta, uma
-# puxando pra cada lado.
-# Conferido no rig (pushup.py/check_poses.py): as mãos ficam no mesmo lugar (~0,4
-# bloco na frente, embaixo do peito) em cima e embaixo; a boca vai de 0,69 a 0,42 de
-# altura; com a vítima a 1,5 bloco a câmera dela fica a 0,19 bloco da cabeça dele.
-# (LM) A cabeça fica RETA: alinhada com o corpo, sem virar pros lados e sem levantar -
-# quem sobe e desce é o peito (e um tico o quadril, que vai pro outro lado).
-PUSH_UP = dict(root_y=-6, waist=60, legs=70, head=-15, arms=-44, arm_spread=18, leg_spread=10)
-PUSH_DOWN = dict(root_y=-3.5, waist=84, legs=58, head=-15, arms=-58, arm_spread=18, leg_spread=10)
+# Comendo em "flexão" (v0.7.17; estudo de 02/11, viking 08-flexao-estudo rodada 6). Medido quadro a quadro nas
+# duas referências que o LM aprovou (Taste Testing perto da lava, 30 qps; o monte do golem no Grox, 60 qps) e
+# conferido por cima do vídeo com a câmera encaixada ("TA PERFEITO", só os braços retos "||"):
+#  - a PRANCHA inteira (pernas + tronco) gira nos PÉS: em cima ~75° de bruços, na mordida +9,5° (o ombro desce
+#    quase o mesmo que a cabeça); o pé fica, sem levantar a bunda (o "\" mais deitado);
+#  - os braços são PILARES parados no mundo, retos "||" (em pé, sem abrir): a mão fica plantada e quem desliza é
+#    o tronco - embaixo o topo do braço sobra acima das costas e a cabeça desce entre eles ("|-|");
+#  - a cabeça vai junto com o ombro, fica quase de pé no mundo e mergulha um tico;
+#  - ritmo: em cima 13% do ciclo, desce 29% (rápido), embaixo 17%, sobe 41% (devagar).
+# Um ciclo = uma mordida = PUSHUP_TICKS (7 ticks, 0,35 s; lava 0,364, warden 0,33). O Java acelera pela
+# fome/raiva (feastRate 0,8-1,4: ~0,44 a 0,25 s; o golem foi 0,246) e a mordida do servidor anda na mesma fase.
+# SEM lift() no ciclo: era ele que subia o corpo quando a mão descia junto e apagava a descida da prancha.
+FLEX = dict(root=74.66, plank=9.46, waist=-13.43, head_top=-59.21, head_bot=-58.17, dive_f=-1.13, dive_y=-0.54,
+            hold_top=0.13, down=0.29, hold_bot=0.17, lift=2.26)
+PUSHUP_LEN = 0.35  # = FroggydudeEntity.PUSHUP_TICKS / 20
 
 
-def pushup_loop():
-    """Duas mordidas (0,6 s): desce rápido, fica embaixo um tico, sobe devagar, segura."""
-    keys = []
-    for k in (0, 1):
-        o = k * 0.3
-        keys += [
-            (o + 0.00, pose(**PUSH_UP)),
-            (o + 0.06, pose(**PUSH_UP)),                                                  # segura em cima
-            (o + 0.12, pose(**PUSH_DOWN)),                                                # MORDE
-            (o + 0.15, pose(**{**PUSH_DOWN, "waist": PUSH_DOWN["waist"] + 2})),           # crava
-        ]
-    keys.append((0.60, pose(**PUSH_UP)))
-    return keys
+def _ease(a, b, k):
+    k = max(0.0, min(1.0, k))
+    k = k * k * (3 - 2 * k)
+    return a + (b - a) * k
 
 
-ANIMS["pin_hold"] = animation(0.6, pushup_loop(), True)
+def flexao_k(ph):
+    """Fase 0..1 do ciclo -> 0 (em cima) .. 1 (embaixo, mordendo)."""
+    a, d, b = FLEX["hold_top"], FLEX["down"], FLEX["hold_bot"]
+    if ph < a:
+        return 0.0
+    if ph < a + d:
+        return _ease(0, 1, (ph - a) / d)
+    if ph < a + d + b:
+        return 1.0
+    return _ease(1, 0, (ph - a - d - b) / (1 - a - d - b))
+
+
+def flexao_pose(k):
+    """Pose da flexão em k (0 = em cima, 1 = embaixo), com os braços parados no mundo."""
+    def base(kk):
+        rx = FLEX["root"] + FLEX["plank"] * kk
+        return dict(root_y=FLEX["lift"], root_x=rx, waist=FLEX["waist"], legs=0, leg_spread=3,
+                    head=_ease(FLEX["head_top"], FLEX["head_bot"], kk),
+                    arms=-(rx + FLEX["waist"]), arm_spread=0)          # braço reto: em pé no mundo, sem abrir
+    top = rig.frames(pose(**base(0.0)))
+    p = pose(**base(k))
+    Rw, ow = rig.frames(p)["body"]
+    for arm, sx in (("right_arm", 5.0), ("left_arm", -5.0)):
+        loc = Rw.T @ (top[arm][1] - ow) - np.array([0, 10.0, sx])     # ombro no lugar da pose de cima (f, y, s)
+        p[arm]["position"] = [round(-loc[2], 3), round(loc[1], 3), round(-loc[0], 3)]   # json: x = −lado, z = −frente
+    if k > 0:
+        p["head"]["position"] = [0.0, round(FLEX["dive_y"] * k, 3), round(-FLEX["dive_f"] * k, 3)]
+    return p
+
+
+def flexao_loop(n=14):
+    """Um ciclo (uma mordida) em n quadros + o fecho do loop."""
+    keys = [(round(PUSHUP_LEN * i / n, 4), flexao_pose(flexao_k(i / n))) for i in range(n)]
+    return keys + [(PUSHUP_LEN, flexao_pose(0.0))]
+
+
+ANIMS["pin_hold"] = animation(PUSHUP_LEN, flexao_loop(), True, ground=False)
 
 # Esmagamento (vs AJ, 0:57-1:01, visto de quem está no chão): na frente da
 # vítima, os dois braços juntos lá no alto, e desce tudo de uma vez - tronco
@@ -664,7 +693,7 @@ ANIMS["feed"] = animation(1.0, [
 
 # Comendo um mob caído (o "Taste testing": warden, golem, dragão...): a mesma
 # flexão de quando come o jogador.
-ANIMS["feed_mob"] = animation(0.6, pushup_loop(), True)
+ANIMS["feed_mob"] = animation(PUSHUP_LEN, flexao_loop(), True, ground=False)
 
 def sample(anim, t):
     out = {}

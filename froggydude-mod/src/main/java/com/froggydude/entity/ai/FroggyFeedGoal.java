@@ -42,11 +42,11 @@ public class FroggyFeedGoal extends Goal {
 
     private static final double SEARCH_RADIUS = 16.0D;
     /**
-     * Comendo, de bruços em cima do bicho caído: a boca dele fica 1 bloco na frente
-     * dos pés (rig da flexão) - em cima do meio do corpo deitado.
+     * Comendo, de bruços em cima do bicho caído: a boca dele fica 1,73 bloco na frente
+     * dos pés (rig da flexão de 0.7.17, a prancha comprida) - em cima do meio do corpo deitado.
      */
-    private static final double FEED_DISTANCE = 1.0D;
-    /** Aldeão: 3 s de flexão (10 mordidas) antes de arrancar os braços e a cabeça. */
+    private static final double FEED_DISTANCE = 1.8D;
+    /** Aldeão: 3 s de flexão (~9 mordidas) antes de arrancar os braços e a cabeça. */
     private static final int VILLAGER_PUSHUPS = 60;
     /**
      * Bicho: 2,5 s de flexão nele vivo e ele morre - o corpo se desmonta em pedaços e
@@ -277,8 +277,8 @@ public class FroggyFeedGoal extends Goal {
             froggy.requestFinisher(victim);
             return;
         }
-        if (FroggydudeEntity.pushupBite(t)) {
-            froggy.onPushupBite(t);
+        if (froggy.pushupStep()) {
+            froggy.onPushupBite();
             if (victim instanceof net.minecraft.world.entity.monster.warden.Warden w) {
                 // a mordida vem a cada 0,3 s e o "invulnerável" depois de apanhar dura 0,5: sem
                 // isso metade das mordidas não contava
@@ -295,8 +295,8 @@ public class FroggyFeedGoal extends Goal {
                 // golem, esqueleto, blaze...: lascas do que ele é feito voando da boca
                 BloodFx.spray(froggy.level(), at, new Vec3(0, 1, 0), 5, 0.22F, BloodType.residue(victim));
             }
-            if ((t / FroggydudeEntity.PUSHUP_TICKS) % 2 == 0) froggy.stainMouth(victim, 0.08F);
-            if ((t / FroggydudeEntity.PUSHUP_TICKS) % 3 == 1) {
+            if (froggy.getPushupBites() % 2 == 1) froggy.stainMouth(victim, 0.08F);
+            if (froggy.getPushupBites() % 3 == 2) {
                 froggy.spawnMouthBlood(2, BloodType.residue(victim), type.bleeds());
             }
         }

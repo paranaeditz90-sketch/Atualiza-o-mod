@@ -1,4 +1,4 @@
-# Froggydude - v0.7.16: "Froggy's in your world", a chegada (sobre a v0.7.15)
+# Froggydude - v0.7.17: comer em "flexão" igual ao vídeo (sobre a v0.7.16)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.16) - "Froggy's in your world" (decidido pelo LM em 27/10, ver TAREFA.md):
+O que testar agora (v0.7.17) - a flexão de comer (medida quadro a quadro no Taste Testing perto da lava e no monte
+do golem do Grox, réplica aprovada pelo LM em 02/11: "TA PERFEITO", com os braços retos "||"):
+A) COMENDO O JOGADOR (pin_hold) E BICHO/ALDEÃO CAÍDO (feed_mob), e no banquete dos pedaços: o corpo inteiro é uma
+   prancha deitada ("\" bem deitado, sem levantar a bunda) que GIRA NOS PÉS: na mordida o ombro desce quase o mesmo
+   que a cabeça. Os braços ficam PARADOS e RETOS feito pilares "||" com a mão plantada; quem desce é o corpo entre
+   eles - embaixo o topo do braço sobra acima das costas e a cabeça afunda no meio ("|-|").
+B) RITMO: desce rápido, segura embaixo um tico, sobe devagar. Uma mordida a cada 0,35 s calmo; com fome/raiva
+   (ferido, fase 2, irritado, apanhou agora) até ~0,25 s. O som e o dano da mordida vêm junto com a cabeça embaixo.
+C) DISTÂNCIA: a prancha nova é mais comprida, então ele fica um pouco mais pra trás da vítima (1,9 bloco do jogador,
+   1,8 do bicho) pra boca cair em cima dela - no jogador, a cara dele chega perto da tua câmera sem atravessar.
+D) PRA VER: /froggydude debug pin_hold (ou deixa ele te pegar), ou mata um bicho perto dele.
+
+Da v0.7.16 - "Froggy's in your world" (decidido pelo LM em 27/10, ver TAREFA.md):
 A) LIGAR: Mods > Froggydude > Configurar > "Froggy's in your world" (ou /froggydude invasao ligar). Cada mundo
    sorteia escondido o dia em que ele chega: entre o dia 4 e o 10 (mundo que já passou do dia 10: em 1 a 3 dias).
 B) A CHEGADA: no dia, uns minutos depois de amanhecer, aparece no chat "Jogo local hospedado na porta ..." (é

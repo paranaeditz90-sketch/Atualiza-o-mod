@@ -77,8 +77,11 @@ def frames(p):
     # aqui NÃO espelha de novo (conferido no jogo: arm_spread abre os dois braços pra fora)
     for arm, sx in (("right_arm", 5.0), ("left_arm", -5.0)):
         ar = g(arm, "rotation")
-        ap = g(arm, "position")  # deslocamento do ombro (só Y é usado: ombro subindo)
-        out[arm] = (R_w @ rot(*ar), o_w + R_w @ np.array([0, 10.0 + ap[1], sx]))
+        # deslocamento do ombro no referencial do tronco, eixos do json como a cabeça (medido no jogo):
+        # x+ = pro lado ESQUERDO dele, y+ = cima, z+ = pra trás. (v0.7.17) x/z também: na flexão o braço
+        # fica parado no mundo ("||") e quem desliza é o tronco
+        ap = g(arm, "position")
+        out[arm] = (R_w @ rot(*ar), o_w + R_w @ np.array([-ap[2], 10.0 + ap[1], sx - ap[0]]))
     for leg, sx in (("right_leg", 1.9), ("left_leg", -1.9)):
         lr = g(leg, "rotation")
         R_l = R_root @ rot(*lr)

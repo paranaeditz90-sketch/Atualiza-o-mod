@@ -160,12 +160,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
 
     /**
-     * Comendo em "flexão" (pin_hold, feed_mob): uma mordida a cada 0,3 s (6 ticks).
-     * A cabeça bate embaixo aos 0,12 s de cada mordida; o servidor morde no tick 3
-     * (a animação do cliente começa um tico depois do estado).
+     * Comendo em "flexão" (pin_hold, feed_mob; v0.7.17, medido no Taste Testing e no monte do golem): uma
+     * mordida por ciclo de 7 ticks (0,35 s) na velocidade 1. A cabeça chega embaixo aos 42% do ciclo, então o
+     * servidor morde no tick 3. O ritmo muda com a fome/raiva ({@link #getFeastRate()}, 0,8-1,4): a animação
+     * roda nessa velocidade e o servidor anda a mesma fase ({@link #pushupStep()}).
      */
-    public static final int PUSHUP_TICKS = 6;
+    public static final int PUSHUP_TICKS = 7;
     public static final int PUSHUP_BITE_AT = 3;
+    /** Fase da flexão em ticks "da velocidade 1" e quantas mordidas já deu (servidor; zera a cada estado). */
+    private float pushupPhase = 0F;
+    private int pushupBites = 0;
 
 
     /**
@@ -1019,6 +1023,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void setFroggyState(FroggyState state) {
         this.entityData.set(DATA_STATE, (byte) state.ordinal());
         this.stateTicks = 0;
+        this.pushupPhase = 0F;
+        this.pushupBites = 0;
+        if (!this.level().isClientSide && (state == FroggyState.PIN_HOLD || state == FroggyState.FEEDING)) {
+            // a flexão anda no ritmo da fome/raiva (o mesmo do banquete); o cliente lê pra velocidade da animação
+            this.entityData.set(DATA_FEAST_RATE, feastRate());
+        }
         if (state == FroggyState.IDLE || state == FroggyState.CHASE) {
             this.entityData.set(DATA_FACE_YAW, Float.NaN);
         }
@@ -1525,14 +1535,28 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return this.entityData.get(DATA_FEED_ID);
     }
 
-    /** Este tick é a cabeça batendo embaixo na flexão? */
-    public static boolean pushupBite(int stateTicks) {
-        return stateTicks % PUSHUP_TICKS == PUSHUP_BITE_AT;
+    /**
+     * Anda a flexão um tick no ritmo da fome/raiva (chame UMA vez por tick no PIN_HOLD/FEEDING).
+     * @return true no tick em que a cabeça bate embaixo (a mordida)
+     */
+    public boolean pushupStep() {
+        float before = pushupPhase;
+        pushupPhase += getFeastRate();
+        if (Mth.floor((pushupPhase - PUSHUP_BITE_AT) / PUSHUP_TICKS) > Mth.floor((before - PUSHUP_BITE_AT) / PUSHUP_TICKS)) {
+            pushupBites++;
+            return true;
+        }
+        return false;
+    }
+
+    /** Quantas mordidas da flexão já foram neste estado (a 1ª é 1). */
+    public int getPushupBites() {
+        return pushupBites;
     }
 
     /** Cada mordida da flexão: uma estala os dentes, a outra mastiga (não vira metralhadora de som). */
-    public void onPushupBite(int stateTicks) {
-        if ((stateTicks / PUSHUP_TICKS) % 2 == 0) {
+    public void onPushupBite() {
+        if (pushupBites % 2 == 1) {
             this.playSound(ModSounds.BITE.get(), 0.85F, 0.9F + this.getRandom().nextFloat() * 0.25F);
         } else {
             this.playSound(ModSounds.CHEW.get(), 0.7F, 0.95F + this.getRandom().nextFloat() * 0.3F);
@@ -2316,8 +2340,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         FroggyState s = getFroggyState();
         // esmagamento: um soco a cada 6 ticks (o ciclo "smash" tem 0,5 s = 10 ticks)
         if (s == FroggyState.SMASH && getDebugAnim().isEmpty()) return 10.0D / FroggyCombatGoal.SMASH_EVERY;
-        // banquete: a flexão (6 ticks por mordida) no ritmo do nhum nhum (5 ticks na velocidade 1)
-        if (s == FroggyState.FEAST && getDebugAnim().isEmpty()) return getFeastRate() * 1.2D;
+        // banquete: a flexão (PUSHUP_TICKS por mordida) no ritmo do nhum nhum (5 ticks na velocidade 1)
+        if (s == FroggyState.FEAST && getDebugAnim().isEmpty()) return getFeastRate() * PUSHUP_TICKS * FEAST_BITES_PER_TICK;
+        // comendo em flexão (jogador ou bicho caído): o ritmo da fome/raiva, na mesma fase do servidor
+        if ((s == FroggyState.PIN_HOLD || s == FroggyState.FEEDING && getFeedVictimId() >= 0) && getDebugAnim().isEmpty()) {
+            return getFeastRate();
+        }
         if (isClimbing() && !this.onGround() && getDebugAnim().isEmpty()) {
             // na parede é o galope (0,25 s por passada), na cadência do chão
             return isFrenzyActive() ? 1.3D : 1.0D;
