@@ -1,6 +1,6 @@
 # Onde paramos (pra retomar numa conversa nova)
 
-Atualizado em 27/10/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
+Atualizado em 02/11/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
 neste repositório, na branch `claude/froggydude-mod-research-pxrwch`, e escreve:
 **"lê o PROGRESSO.md e continua de onde parou"**.
 
@@ -13,8 +13,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.16 | 27/10: animações (0.7.14) + IA "viu, vai", porta e parede na hora (0.7.15) |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.3 (rede "7") | 26/10: a flexão no monte |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.17 | 02/11: comer em "flexão" igual ao vídeo (medido quadro a quadro, aprovado pelo LM) |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.4 (rede "7") | 02/11: o monte usa a mesma flexão nova |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -35,9 +35,14 @@ Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
 
 - É complexo, então **o LM vai ajudar** (vídeos, tempos, tela do celular) e quer que eu **pergunte, peça e
   tire todas as dúvidas** antes de mexer. Uma coisa por vez, com OK dele.
-- **Espera até domingo** (limite de uso dele). Só voltar nisso quando ele chamar.
-- Quando voltar: começar perguntando qual animação primeiro (comer os restos), qual vídeo/tempo é a
-  referência, o que está diferente hoje. Usar a skill `video-motion-analysis` e o `/planejar`.
+- **02/11: a 1ª ficou pronta, o comer em "flexão"** (0.7.17 e BecomeLM 0.3.4). O jeito que funcionou:
+  1. medir o vídeo quadro a quadro (cabeça, costas, braços e pés separados, com grade);
+  2. ajustar o esqueleto até a réplica bater com o vídeo sobreposto;
+  3. o LM aprova a réplica em vídeo **antes** de ir pro jogo;
+  4. testar no jogo e comparar de novo.
+  Os números ficam em `FLEX` no `froggydude-mod/tools/anim/build_anims.py`. Pra medir vídeo: skill `process-video`.
+- **Próximas (pedido do LM, 02/11):** corrigir a animação de **pulo** e a de **uso da língua** com o mesmo jeito.
+- Ainda no BecomeLM: o ritmo do monte pela fome e a escalada/agachado iguais ao mod da IA (pedido do LM, 02/11).
 
 ## Próximo passo (27/10): "in your world" - tudo decidido em `TAREFA.md`
 
