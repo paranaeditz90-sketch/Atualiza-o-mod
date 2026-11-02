@@ -79,18 +79,18 @@ public final class LmActsClient {
     private static final int PILE_CYCLE = LmAttacks.PILE_CYCLE;
     private static final int[] PILE_DIPS = LmAttacks.PILE_DIPS;
     private static final int[] PILE_BITES = LmAttacks.PILE_BITES;
-    /** Um mergulho da flexão: 6 ticks (0,3 s). */
-    private static final int PILE_BOB = 6;
+    /** Um mergulho da flexão: 7 ticks (0,35 s), o feed_mob do mod da IA. */
+    private static final int PILE_BOB = 7;
     /**
-     * Deitado em esfinge: o meio do monte fica a ~1,4 bloco dos pés, embaixo dos ombros (a cara e
-     * os braços caem em cima dos cacos); a cara, lá embaixo no mergulho, fica a ~1,7.
+     * (v0.3.4) Na flexão nova (prancha deitada, braços retos "||"): a mão fica a 1,33 bloco dos pés e a
+     * cara, lá embaixo no mergulho, a ~1,75 - o meio do monte fica entre as duas (1,5).
      */
-    static final double PILE_CENTER = 1.4D;
-    private static final double PILE_FACE = 1.7D;
-    /** Primeira pessoa no monte: o olho em cima do peito empinado, que desce um tanto em cada mergulho. */
+    static final double PILE_CENTER = 1.5D;
+    private static final double PILE_FACE = 1.75D;
+    /** Primeira pessoa no monte: o olho (1,0 de altura em cima, 1,72 na frente dos pés) desce 0,24 em cada mergulho. */
     private static final double PILE_EYE = 1.85D;
-    private static final double PILE_EYE_Y = 0.8D;
-    private static final double PILE_EYE_DIP = 0.15D;
+    private static final double PILE_EYE_Y = 1.0D;
+    private static final double PILE_EYE_DIP = 0.24D;
     private static final int RISE_TICKS = 10;
     /** O pulo do mortal (o normal é 0,42 pra cima): ~1,4 bloco de altura, ~0,6 s no ar. */
     private static final double FLIP_UP = 0.5D;
@@ -219,14 +219,22 @@ public final class LmActsClient {
         return false;
     }
 
-    /** O quanto a cara está afundada (0 em cima, 1 lá embaixo), no mesmo desenho do pile_lie. */
+    /**
+     * O quanto a cara está afundada (0 em cima, 1 lá embaixo), no mesmo desenho do pile_lie (o feed_mob do mod
+     * da IA): em cima 13% do ciclo, desce 29%, fica embaixo 17%, sobe 41%, com a mesma suavização.
+     */
     private static float pileDipAmount(Act a, float partial) {
         if (a.age < PILE_LIE_START) return 0F;
         float ph = ((a.age - PILE_LIE_START) % PILE_BOB + partial) / PILE_BOB;
-        if (ph < 1F / 6F) return ph * 6F * 0.12F;
-        if (ph < 0.5F) return 0.12F + (ph - 1F / 6F) * 3F * 0.88F;
-        if (ph < 2F / 3F) return 1F - (ph - 0.5F) * 6F * 0.08F;
-        return 0.92F * (1F - ph) * 3F;
+        if (ph < 0.13F) return 0F;
+        if (ph < 0.42F) return smooth((ph - 0.13F) / 0.29F);
+        if (ph < 0.59F) return 1F;
+        return 1F - smooth((ph - 0.59F) / 0.41F);
+    }
+
+    private static float smooth(float k) {
+        k = Mth.clamp(k, 0F, 1F);
+        return k * k * (3F - 2F * k);
     }
 
     private static Vec3 pileFace(Player p, float yawDeg) {

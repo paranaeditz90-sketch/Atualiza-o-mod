@@ -94,16 +94,17 @@ public final class LmAttacks {
     /** Deitado no monte: levanta sozinho depois de 1 min. */
     public static final int PILE_MAX = 1200;
     /**
-     * No monte: o tempo de deitar, o ciclo da flexão (pile_lie, 2,4 s: a cara mergulha nos cacos
-     * a cada 0,3 s) e os ticks do ciclo em que ela está lá embaixo (o cliente anima com os
-     * mesmos). Ele come de verdade em 3 deles (PILE_BITES), o mesmo ritmo de antes da flexão.
+     * No monte: o tempo de deitar, o ciclo da flexão e os ticks do ciclo em que a cara está lá
+     * embaixo (o cliente anima com os mesmos). (v0.3.4) A flexão é a do mod da IA (pile_lie =
+     * feed_mob: uma mordida a cada 7 ticks, a cara embaixo no tick 3); o ciclo aqui junta 8 delas
+     * (56 ticks) e ele come de verdade em 3 (PILE_BITES), quase o ritmo de antes (1 a cada ~1 s).
      */
     public static final int PILE_DROP = 8;
     /** O pile_lie começa depois do deitar e dos 3 ticks de mistura do controlador do corpo. */
     public static final int PILE_LIE_START = PILE_DROP + 3;
-    public static final int PILE_CYCLE = 48;
-    public static final int[] PILE_DIPS = {3, 9, 15, 21, 27, 33, 39, 45};
-    public static final int[] PILE_BITES = {9, 27, 45};
+    public static final int PILE_CYCLE = 56;
+    public static final int[] PILE_DIPS = {3, 10, 17, 24, 31, 38, 45, 52};
+    public static final int[] PILE_BITES = {10, 31, 52};
 
     // Comer (LM: "eu como os mobs e não regenero a fome"): só bicho que sangra. O LM escolheu
     // o "médio": meia coxinha por mordida, até 4 coxinhas no monte, 6 na finalização.

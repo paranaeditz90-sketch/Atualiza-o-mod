@@ -181,40 +181,19 @@ def _stand():
     }
 
 
-# comendo no monte em "flexão" (LM: "fica com o ombro pra cima enquanto come e o tronco sobe e
-# desce, parecido com flexão mesmo", "sem levantar a bunda"). Medido a 60 qps no How many days
-# (0:44, de frente) e no 10v1 (0:22 no deserto, 1:55 de pertinho): o quadril e as pernas ficam
-# deitados nos cacos, o peito empinado e os braços retos pra frente por cima do monte, tipo esfinge
-# (o LM escolheu; ele não abre os braços pro lado), o que sobe os ombros pro lado da cabeça (de
-# frente ficam na altura do meio dela). A cada 0,3 s o tronco desce e a cara mergulha nos cacos
-# entre os braços (de olhar pra frente a olhar pra baixo: o topo da cabeça desce ~6 px) e volta; a
-# cabeça vai tombando devagar pra um lado e pro outro (~20 graus).
-# (cintura X, cabeça X, braço X, braço Z) em cima e afundado; os braços vêm do esqueleto (rig.py):
-# a mão fica parada em cima dos cacos (~2 blocos na frente dos pés, 0,4 pro lado) enquanto o tronco desce
-_PUSH_UP = (-24, -46, -114.5, -19.0)
-_PUSH_DOWN = (-12, -6, -134.5, -14.0)
-_SHRUG = 2.0
-# 8 mergulhadas no ciclo (2,4 s): o tombo (Y da cabeça, que de frente é tombar pro ombro) e o virar (Z)
-_TILTS = (0, 12, 22, 16, 0, -14, -22, -12)
-_TURNS = (0, 5, 9, 5, 0, -5, -9, -4)
+# comendo no monte em "flexão" (v0.3.4): a MESMA flexão do mod da IA (feed_mob, medida quadro a quadro no Taste
+# Testing e no monte do golem; réplica aprovada pelo LM em 02/11 com os braços retos "||"): a prancha inteira gira
+# nos pés, os braços são pilares parados com a mão plantada nos cacos e o corpo desce entre eles ("|-|"), uma
+# mordida a cada 0,35 s. Antes era a esfinge com a cabeça tombando; o LM pediu mão plantada nos dois mods.
+# O pile_lie é copiado do feed_mob em main(); aqui só a pose de cima, pro deitar e o levantar emendarem nela.
+def _flex_top():
+    with open(SRC) as f:
+        fm = json.load(f)['animations']['feed_mob']['bones']
+    return {bone: {ch: list(kf.get('0.0', next(iter(kf.values())))) for ch, kf in chans.items()}
+            for bone, chans in fm.items()}
 
 
-def _push(dip, tilt=0, turn=0):
-    """dip 0 = em cima (ombros altos, olhando pra frente), 1 = a cara afundada nos cacos."""
-    w, h, ax, az = (a + (b - a) * dip for a, b in zip(_PUSH_UP, _PUSH_DOWN))
-    return _prone(waist={'rotation': [round(w, 2), round(tilt * 0.15, 2), 0]},
-                  head={'rotation': [round(h, 2), tilt, turn]},
-                  right_arm={'rotation': [round(ax, 2), 0, round(az, 2)], 'position': [0, _SHRUG, 0]},
-                  left_arm={'rotation': [round(ax, 2), 0, round(-az, 2)], 'position': [0, _SHRUG, 0]})
-
-
-def _push_keys():
-    keys = []
-    for i, (tilt, turn) in enumerate(zip(_TILTS, _TURNS)):
-        t = round(i * 0.3, 2)
-        keys += [(t, _push(0, tilt, turn)), (round(t + 0.05, 2), _push(0.12, tilt, turn)),
-                 (round(t + 0.15, 2), _push(1, tilt, turn)), (round(t + 0.2, 2), _push(0.92, tilt, turn))]
-    return keys + [(2.4, _push(0, _TILTS[0], _TURNS[0]))]
+_FLEX_TOP = _flex_top()
 
 
 EXTRA.update({
@@ -228,11 +207,10 @@ EXTRA.update({
         (0.13, _prone(root={'rotation': [92, 0, 0], 'position': [0, 5, 0]}, waist={'rotation': [-20, 0, 0]},
                       head={'rotation': [-30, 0, 0]},
                       right_arm={'rotation': [-50, 0, 62]}, left_arm={'rotation': [-50, 0, -62]})),
-        (0.28, _push(0)),
+        (0.28, _FLEX_TOP),
     ]),
-    'pile_lie': _anim(2.4, True, _push_keys()),
     'pile_rise': _anim(0.5, 'hold_on_last_frame', [
-        (0.0, _push(0)),
+        (0.0, _FLEX_TOP),
         (0.15, _prone(root={'rotation': [70, 0, 0], 'position': [0, 5, 0]}, head={'rotation': [-30, 0, 0]},
                       right_arm={'rotation': [-90, 0, 12]}, left_arm={'rotation': [-90, 0, -12]})),
         (0.3, _prone(root={'rotation': [30, 0, 0], 'position': [0, 3, 0]}, waist={'rotation': [30, 0, 0]},
@@ -415,6 +393,8 @@ def main():
     for name, (orig, start) in CUTS.items():
         anims[name] = cut(anims[orig], start)
     anims.update(json.loads(json.dumps(EXTRA)))
+    # no monte: a flexão nova do mod da IA (o ciclo de 0,35 s; LmAttacks.PILE_CYCLE = 8 deles)
+    anims['pile_lie'] = json.loads(json.dumps(anims['feed_mob']))
     with open(DST, 'w') as f:
         json.dump(data, f, separators=(',', ':'))
     print('ok:', DST, len(anims), 'animações')

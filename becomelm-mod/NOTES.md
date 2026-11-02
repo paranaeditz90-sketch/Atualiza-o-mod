@@ -4,6 +4,19 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.4 — a flexão nova, igual à do mod da IA (mão plantada, braços retos "||")
+
+O que testar (no monte de pedaços, como antes):
+- **A pose**: o corpo inteiro é uma prancha deitada que **gira nos pés** — na mordida o ombro desce quase o mesmo
+  que a cabeça, sem levantar a bunda. Os **braços ficam retos e parados feito pilares "||"**, com a mão plantada nos
+  cacos; quem desce é o corpo entre eles (embaixo o topo do braço sobra acima das costas: o "|-|"). Acabou a esfinge.
+- **O ritmo**: uma mordida a cada 0,35 s (desce rápido, segura um tico embaixo, sobe devagar). Ele come de verdade
+  em 3 de cada 8 mergulhos, quase o mesmo tanto de antes.
+- **Primeira pessoa**: o olho desce junto com a cara em cada mergulho (0,24 bloco).
+- Ainda **não** muda de velocidade com a fome aqui (no mod da IA muda com a fome/raiva) — se quiser, é o próximo.
+- O deitar e o levantar emendam na pose nova. A escalada e o agachado ficaram como estavam (o gerador queria trazer
+  as do mod da IA 0.7.14, mas isso não foi testado aqui: fica pra quando tu quiser).
+
 ## v0.3.3 — comer no monte em flexão
 
 - **Deitado no monte comendo**: agora é a "flexão" dos vídeos (medido a 60 qps no How many days
