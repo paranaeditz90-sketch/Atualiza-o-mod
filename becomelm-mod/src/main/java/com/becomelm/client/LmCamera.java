@@ -4,9 +4,11 @@ import com.becomelm.BecomeLM;
 import com.becomelm.LmAttack;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
+import com.becomelm.LmWallClimb;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -68,6 +70,15 @@ public final class LmCamera {
 
     private static int victimId = -1;
     private static int victimLost;
+
+    /** (v0.3.5) Entrando/saindo da parede o ponto de mira muda de lugar: a mira gira em ~0,2 s em vez de pular. */
+    private static final float AIM_BLEND_S = 0.2F;
+    private static boolean aimOnWall;
+    private static float aimBlend = 1F;
+    private static float aimFromYaw;
+    private static float aimFromPitch;
+    private static float lastYaw;
+    private static float lastPitch;
 
     private LmCamera() {
     }
@@ -138,7 +149,39 @@ public final class LmCamera {
         Vec3 look;
         float rate;
         Vec3 anchor = feet;
-        switch (shot) {
+        // (v0.3.5) correndo pela parede: o "pra frente" das câmeras é pra cima e nenhuma mira dentro dos blocos
+        // (com a mira dentro da parede a câmera ia parar na cara dele)
+        Direction wall = LmWallClimb.climbingWall(p);
+        LivingEntity victim = shot == Shot.VICTIM ? victim(p) : null;
+        if (wall != null && victim == null) {
+            Vec3 out = new Vec3(-wall.getStepX(), 0D, -wall.getStepZ());
+            Vec3 side = new Vec3(-wall.getStepZ(), 0D, wall.getStepX());
+            Vec3 body = feet.add(0D, 0.9D, 0D).add(out.scale(0.15D));
+            // o rumo segue valendo (na saída do topo ele vai pra dentro da parede): sem isso a câmera voltava girando
+            // do rumo de antes da subida
+            heading = shot == Shot.BEHIND_LOW ? turn(heading, viewYaw, dt, 10F) : wall.toYRot();
+            switch (shot) {
+                case BEHIND_LOW -> {
+                    // embaixo dele, um pouco pra fora, olhando parede acima
+                    want = body.add(0D, -3.2D, 0D).add(out.scale(1.4D));
+                    look = body.add(0D, 1.6D, 0D);
+                    rate = 12F;
+                }
+                case SIDE -> {
+                    want = body.add(side.scale(4.2D)).add(out.scale(1.5D)).add(0D, 0.8D, 0D);
+                    look = body.add(0D, 0.6D, 0D);
+                    rate = 6F;
+                }
+                default -> {
+                    // na cara (e a da vítima sem vítima): quase em cima da cabeça olhando parede abaixo, ele vindo
+                    // pela parede pra câmera (o plano do Grox 3:29, do alto do pilar)
+                    Vec3 face = head.add(out.scale(0.15D));
+                    want = face.add(0D, 1.8D, 0D).add(out.scale(0.35D));
+                    look = face;
+                    rate = 10F;
+                }
+            }
+        } else switch (shot) {
             case BEHIND_LOW -> {
                 heading = turn(heading, viewYaw, dt, 10F);
                 Vec3 f = forward(heading);
@@ -163,7 +206,6 @@ public final class LmCamera {
                 rate = 10F;
             }
             default -> {
-                LivingEntity victim = victim(p);
                 if (victim != null) {
                     Vec3 eye = LmKnockClient.eye(victim, partial);
                     // um tiquinho pra fora da cabeça dela, na direção dele
@@ -178,9 +220,19 @@ public final class LmCamera {
                 look = head.add(0, 0.1D, 0);
             }
         }
+        look = lookOutside(p, feet.add(0D, 0.9D, 0D), look);
         want = clip(p, look, want);
         Vec3 rel = want.subtract(anchor);
-        if (snap || offset == null) {
+        boolean onWallShot = wall != null && victim == null;
+        boolean snapNow = snap || offset == null;
+        if (onWallShot != aimOnWall) {
+            aimOnWall = onWallShot;
+            aimBlend = 0F;
+            aimFromYaw = lastYaw;
+            aimFromPitch = lastPitch;
+        }
+        if (snapNow) {
+            aimBlend = 1F;
             offset = rel;
             snap = false;
             if (shot == Shot.BEHIND_LOW || shot == Shot.VICTIM) heading = viewYaw;
@@ -200,8 +252,18 @@ public final class LmCamera {
         double flat = Math.sqrt(d.x * d.x + d.z * d.z);
         cam.setPosition(pos);
         cam.detached = true;
-        event.setYaw((float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F);
-        event.setPitch((float) -(Mth.atan2(d.y, flat) * Mth.RAD_TO_DEG));
+        float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float pitch = (float) -(Mth.atan2(d.y, flat) * Mth.RAD_TO_DEG);
+        if (aimBlend < 1F) {
+            aimBlend = Math.min(1F, aimBlend + dt / AIM_BLEND_S);
+            float k = aimBlend * aimBlend * (3F - 2F * aimBlend);
+            yaw = aimFromYaw + Mth.wrapDegrees(yaw - aimFromYaw) * k;
+            pitch = Mth.lerp(k, aimFromPitch, pitch);
+        }
+        lastYaw = yaw;
+        lastPitch = pitch;
+        event.setYaw(yaw);
+        event.setPitch(pitch);
         event.setRoll(0F);
     }
 
@@ -258,6 +320,20 @@ public final class LmCamera {
             snap = true;
         }
         return best;
+    }
+
+    /**
+     * (v0.3.5) O ponto de mira não fica dentro de bloco: de cara pra parede (subindo ou no pé dela) a mira "na frente
+     * dele" caía dentro dos blocos e a câmera grudava nele. Encolhe aos poucos conforme chega na parede (sem pulo).
+     */
+    private static Vec3 lookOutside(LocalPlayer p, Vec3 center, Vec3 look) {
+        BlockHitResult hit = p.level().clip(new ClipContext(center, look, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p));
+        if (hit.getType() == HitResult.Type.MISS) return look;
+        Vec3 d = look.subtract(center);
+        double len = d.length();
+        if (len < 1.0E-3D) return look;
+        double keep = Math.max(0D, hit.getLocation().distanceTo(center) - 0.2D);
+        return center.add(d.scale(keep / len));
     }
 
     /** A câmera não entra na parede: encosta no que estiver entre ele e ela. */

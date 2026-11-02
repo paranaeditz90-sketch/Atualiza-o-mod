@@ -6,6 +6,7 @@ import com.becomelm.LmAttacks;
 import com.becomelm.LmFinish;
 import com.becomelm.LmKnock;
 import com.becomelm.LmMove;
+import com.becomelm.LmPileRhythm;
 import com.becomelm.network.LmNetwork;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -51,6 +52,9 @@ public final class LmActsClient {
         int shake = -1;
         /** No monte: o rumo do corpo deitado. */
         float pileYaw;
+        /** No monte: o ritmo da flexão pela fome (a mesma conta do servidor). */
+        @Nullable
+        LmPileRhythm pile;
         /** Montando (finalização e martelar): de onde ele saiu, escorrega até em cima dela. */
         @Nullable
         Vec3 from;
@@ -63,6 +67,7 @@ public final class LmActsClient {
     }
 
     private static final Map<UUID, Act> ACTS = new HashMap<>();
+    private static final boolean DEBUG = Boolean.getBoolean("becomelm.debug");
     /** De costas: senta em cima do quadril dela, virado pra cabeça (os socos descem na cara). */
     private static final double SEAT = 0.5D;
     /** Na finalização senta um pouco mais pra trás (nas coxas): a barriga fica livre na frente dele. */
@@ -73,14 +78,9 @@ public final class LmActsClient {
     private static final int CONFIRM = 20;
     /** O quanto quem está na boca balança pra cada lado na sacudida (graus). */
     private static final float SWING = 28F;
-    /** No monte: o tempo de deitar e o ciclo da flexão, com os mergulhos e as mordidas (os mesmos do servidor, que come nelas). */
+    /** No monte: o tempo de deitar e quando a flexão começa (os mesmos do servidor; o ritmo vem do LmPileRhythm). */
     static final int PILE_DROP = LmAttacks.PILE_DROP;
     private static final int PILE_LIE_START = LmAttacks.PILE_LIE_START;
-    private static final int PILE_CYCLE = LmAttacks.PILE_CYCLE;
-    private static final int[] PILE_DIPS = LmAttacks.PILE_DIPS;
-    private static final int[] PILE_BITES = LmAttacks.PILE_BITES;
-    /** Um mergulho da flexão: 7 ticks (0,35 s), o feed_mob do mod da IA. */
-    private static final int PILE_BOB = 7;
     /**
      * (v0.3.4) Na flexão nova (prancha deitada, braços retos "||"): a mão fica a 1,33 bloco dos pés e a
      * cara, lá embaixo no mergulho, a ~1,75 - o meio do monte fica entre as duas (1,5).
@@ -141,8 +141,11 @@ public final class LmActsClient {
         }
         Act a = new Act(k, target, age);
         a.confirmed = true;
-        // no monte o "alvo" é o rumo do corpo deitado (graus x10)
-        if (k == LmAttack.PILE) a.pileYaw = target / 10F;
+        // no monte o "alvo" é o rumo do corpo deitado (graus x10) junto com a fome de quando deitou
+        if (k == LmAttack.PILE) {
+            a.pileYaw = LmPileRhythm.yawX10(target) / 10F;
+            a.pile = new LmPileRhythm(LmPileRhythm.food(target));
+        }
         ACTS.put(player, a);
     }
 
@@ -153,8 +156,11 @@ public final class LmActsClient {
 
     /** Deita no monte (o próprio jogador já começa; o servidor confirma). */
     static void startPile(LocalPlayer p, float yaw) {
-        Act a = new Act(LmAttack.PILE, Math.round(Mth.wrapDegrees(yaw) * 10F), 0);
+        // o mesmo "alvo" que o servidor vai mandar (rumo + fome), senão a confirmação recomeçava tudo
+        int food = LmPileRhythm.foodCode(p);
+        Act a = new Act(LmAttack.PILE, LmPileRhythm.pack(Math.round(Mth.wrapDegrees(yaw) * 10F), food), 0);
         a.pileYaw = yaw;
+        a.pile = new LmPileRhythm(food);
         ACTS.put(p.getUUID(), a);
     }
 
@@ -200,23 +206,71 @@ public final class LmActsClient {
     @Nullable
     public static Vec3 pileDip(Player p) {
         Act a = ACTS.get(p.getUUID());
-        if (a == null || a.kind != LmAttack.PILE || a.age < PILE_LIE_START) return null;
-        int c = (a.age - PILE_LIE_START) % PILE_CYCLE;
-        for (int d : PILE_DIPS) {
-            if (c == d) return pileFace(p, a.pileYaw);
-        }
-        return null;
+        LmPileRhythm r = pileNow(a);
+        return r != null && r.dipNow() ? pileFace(p, a.pileYaw) : null;
     }
 
     /** Este mergulho é uma das mordidas de verdade (as que enchem a fome no servidor). */
     public static boolean pileBite(Player p) {
+        LmPileRhythm r = pileNow(ACTS.get(p.getUUID()));
+        return r != null && r.biteNow();
+    }
+
+    /** O ritmo do monte levado até este tick, ou null se não está na flexão. */
+    @Nullable
+    private static LmPileRhythm pileNow(@Nullable Act a) {
+        if (a == null || a.kind != LmAttack.PILE || a.pile == null || a.age < PILE_LIE_START) return null;
+        a.pile.advanceTo(a.age - PILE_LIE_START);
+        return a.pile;
+    }
+
+    /**
+     * O tempo do pile_lie (em ticks, 0 a 7) no relógio da mordida, pro corpo não escorregar dela (o
+     * GeckoLib perde um pedacinho a cada volta do loop); negativo se não está na flexão.
+     */
+    static float pileAnimTicks(Player p, float partial) {
+        LmPileRhythm r = pileNow(ACTS.get(p.getUUID()));
+        return r == null ? -1F : r.animTicks(partial);
+    }
+
+    /** O impacto do sky_smash: aos 0,10 s de cada golpe de 0,25 s (make_anims.py). */
+    private static final float SMASH_IMPACT_TICKS = 2F;
+    /** O sky_smash tem 2 golpes (0,5 s = 10 ticks). */
+    private static final float SMASH_LOOP_TICKS = 10F;
+    /** Logo depois da pancada, ainda embaixo em cima da vítima (o quadro de 0,12 s do golpe). */
+    private static final float SMASH_STAY_TICKS = 2.4F;
+    /** O último soco montado (o servidor dá PUNCHES, um a cada SMASH_EVERY a partir do SMASH_FIRST). */
+    private static final int LAST_SMASH_PUNCH = LmAttacks.SMASH_FIRST + (LmAttacks.PUNCHES - 1) * LmAttacks.SMASH_EVERY;
+
+    /**
+     * (v0.3.5) O tempo do sky_smash (em ticks, 0 a 10) no relógio dos golpes: o punho bate (o impacto da animação)
+     * no mesmo tick da pancada do servidor (o 1º soco em SMASH_FIRST, depois um a cada SMASH_EVERY), na marreta em
+     * pé e nos socos montado do pulo do céu. Negativo fora dos socos (nas mordidas, por exemplo).
+     */
+    static float smashAnimTicks(Player p, float partial) {
         Act a = ACTS.get(p.getUUID());
-        if (a == null || a.kind != LmAttack.PILE || a.age < PILE_LIE_START) return false;
-        int c = (a.age - PILE_LIE_START) % PILE_CYCLE;
-        for (int d : PILE_BITES) {
-            if (c == d) return true;
+        if (a == null) return -1F;
+        boolean punching = a.kind == LmAttack.HAMMER || a.kind == LmAttack.SMASH && a.age < LmAttacks.BITE_FROM;
+        if (!punching) return -1F;
+        float perTick = SMASH_LOOP_TICKS * 0.5F / LmAttacks.SMASH_EVERY;
+        float k = (a.age - LmAttacks.SMASH_FIRST + partial) * perTick;
+        // montado são PUNCHES socos: depois do último ele fica embaixo, em cima da vítima, até as mordidas (antes o
+        // loop seguia e o punho descia mais uma vez, mudo, sem pancada nem crítico)
+        if (a.kind == LmAttack.SMASH) {
+            k = Math.min(k, (LAST_SMASH_PUNCH - LmAttacks.SMASH_FIRST) * perTick + SMASH_STAY_TICKS - SMASH_IMPACT_TICKS);
         }
-        return false;
+        return Mth.positiveModulo(k + SMASH_IMPACT_TICKS, SMASH_LOOP_TICKS);
+    }
+
+    /**
+     * (v0.3.5) Este acerto de soco (o n-ésimo) é o empurrão que derruba, o começo da marreta em pé: não é punho
+     * descendo, então fica sem o crítico e sem a tremidinha. Na marreta em pé o servidor numera o empurrão como 0 e
+     * as pancadas a partir de 1 (nos socos montado o 1º já é 0, mas lá o golpe é o SMASH). Pela idade não dá: o
+     * acerto da 1ª pancada chega aqui 1 tick antes da idade dela.
+     */
+    static boolean knockdownHit(Player p, int n) {
+        Act a = ACTS.get(p.getUUID());
+        return n == 0 && a != null && a.kind == LmAttack.HAMMER;
     }
 
     /**
@@ -224,8 +278,9 @@ public final class LmActsClient {
      * da IA): em cima 13% do ciclo, desce 29%, fica embaixo 17%, sobe 41%, com a mesma suavização.
      */
     private static float pileDipAmount(Act a, float partial) {
-        if (a.age < PILE_LIE_START) return 0F;
-        float ph = ((a.age - PILE_LIE_START) % PILE_BOB + partial) / PILE_BOB;
+        LmPileRhythm r = pileNow(a);
+        if (r == null) return 0F;
+        float ph = r.cycle(partial);
         if (ph < 0.13F) return 0F;
         if (ph < 0.42F) return smooth((ph - 0.13F) / 0.29F);
         if (ph < 0.59F) return 1F;
@@ -295,6 +350,10 @@ public final class LmActsClient {
         if (mc.isPaused()) return;
         ACTS.values().removeIf(a -> {
             a.age++;
+            if (DEBUG && (a.kind == LmAttack.HAMMER || a.kind == LmAttack.SMASH && a.age <= LAST_SMASH_PUNCH)
+                    && a.age >= LmAttacks.SMASH_FIRST && (a.age - LmAttacks.SMASH_FIRST) % LmAttacks.SMASH_EVERY == 0) {
+                System.out.printf("[LMATK] cliente punho embaixo idade=%d jogo=%d%n", a.age, mc.level.getGameTime());
+            }
             if (a.shake >= 0 && ++a.shake >= LmAttacks.SHAKE_TICKS) a.shake = -1;
             // sem notícia do servidor (ele não tem o mod, recusou, ou o pacote se perdeu): solta sozinho
             return (!a.confirmed && a.age > CONFIRM) || a.age > limit(a.kind);

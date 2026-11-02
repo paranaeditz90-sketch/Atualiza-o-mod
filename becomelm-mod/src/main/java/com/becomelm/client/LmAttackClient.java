@@ -15,6 +15,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -52,6 +53,7 @@ public final class LmAttackClient {
     /** Pulinho do bote (o FroggyDude sai baixo, quase rente). */
     private static final double POUNCE_UP = 0.34D;
     private static final int COOLDOWN = 10;
+    private static final boolean DEBUG = Boolean.getBoolean("becomelm.debug");
 
     private static int lastAttack = -100;
     /** Martelando: o "soltou" já foi pro servidor. */
@@ -323,6 +325,18 @@ public final class LmAttackClient {
         Entity t = level.getEntity(targetId);
         if (kind == LmAttack.PUNCH || kind == LmAttack.BITE || kind == LmAttack.GRAB || kind == LmAttack.SHAKE) {
             if (t instanceof LivingEntity le) blow(level, le, kind, n);
+            // (v0.3.5, LM) a marreta (em pé e montado): o som de crítico a cada pancada, colado no punho (a animação
+            // anda no mesmo relógio da pancada), e a tremidinha em quem bate e em quem apanha. O empurrão que derruba
+            // (o começo da marreta em pé) não é punho descendo: fica só o soco normal
+            boolean fist = kind == LmAttack.PUNCH && !(a instanceof Player hitter && LmActsClient.knockdownHit(hitter, n));
+            if (fist && t instanceof LivingEntity le) {
+                Vec3 head = LmKnockClient.eye(le, 1F);
+                level.playLocalSound(head.x, head.y, head.z, SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.PLAYERS,
+                        1.0F, 0.95F + level.getRandom().nextFloat() * 0.1F, false);
+                if (DEBUG) System.out.printf("[LMATK] cliente som critico n=%d jogo=%d%n", n, level.getGameTime());
+                if (t == mc.player) LmShake.kick(LmShake.VICTIM);
+                else if (a == mc.player) LmShake.kick(LmShake.HITTER);
+            }
             // as mordidas sujam a boca dele
             if (kind != LmAttack.PUNCH && a instanceof Player pa) LmBloodFace.bite(pa);
             return;

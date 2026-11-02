@@ -14,6 +14,9 @@ import software.bernie.geckolib.core.object.PlayState;
  */
 final class LmAnimController extends AnimationController<LmAnimatable> {
 
+    private static final String PILE_LIE = "pile_lie";
+    private static final String SKY_SMASH = "sky_smash";
+
     private double lastTick = -1D;
     private double elapsed = 0D;
 
@@ -42,8 +45,21 @@ final class LmAnimController extends AnimationController<LmAnimatable> {
         }
         AbstractClientPlayer p = LmRenderer.rendering;
         double speed = p == null ? 1D : LmAnims.speed(p);
+        // (v0.3.5) a mistura de 3 ticks pra próxima animação anda no tempo de verdade: com velocidade 0 (agarrado
+        // na parede) ela nunca acabava e o corpo ficava na pose de antes
+        if (getAnimationState() == State.TRANSITIONING) speed = Math.max(speed, 1D);
         this.elapsed += (tick - this.lastTick) * speed;
         this.lastTick = tick;
+        // (v0.3.5) no monte o corpo anda no relógio da mordida (o ritmo da fome): sem isso cada volta do
+        // loop perdia um pedacinho e a cara descia fora da hora do som e da comida
+        if (p != null && getAnimationState() == State.RUNNING && this.currentAnimation != null) {
+            String name = this.currentAnimation.animation().name();
+            float ph = -1F;
+            if (PILE_LIE.equals(name)) ph = LmActsClient.pileAnimTicks(p, Minecraft.getInstance().getFrameTime());
+            // (v0.3.5) a marreta e os socos montado: o punho bate na hora da pancada (e do som de crítico)
+            else if (SKY_SMASH.equals(name)) ph = LmActsClient.smashAnimTicks(p, Minecraft.getInstance().getFrameTime());
+            if (ph >= 0F) this.elapsed = ph;
+        }
         return this.elapsed;
     }
 }

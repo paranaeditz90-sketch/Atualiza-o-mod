@@ -13,8 +13,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.17 | 02/11: comer em "flexão" igual ao vídeo (medido quadro a quadro, aprovado pelo LM) |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.4 (rede "7") | 02/11: o monte usa a mesma flexão nova |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.18 | 02/11: flexão igual ao vídeo (0.7.17) + mordida no mesmo relógio da cabeça e "tai" no relógio dos socos (0.7.18) |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.5 (rede "8") | 02/11: monte no ritmo da fome, escalada e agachado do mod da IA, mordida montado de volta, subir parede de 4 sem escada, marreta do Grox (crítico, 1 em 5 mais forte, tremidinha) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -42,7 +42,26 @@ Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
   4. testar no jogo e comparar de novo.
   Os números ficam em `FLEX` no `froggydude-mod/tools/anim/build_anims.py`. Pra medir vídeo: skill `process-video`.
 - **Próximas (pedido do LM, 02/11):** corrigir a animação de **pulo** e a de **uso da língua** com o mesmo jeito.
-- Ainda no BecomeLM: o ritmo do monte pela fome e a escalada/agachado iguais ao mod da IA (pedido do LM, 02/11).
+  Também: **nadar** na água, **correr de 4 por cima da lava** e a **marreta com os dois braços** (VS Grox 2:27-2:33).
+  Uma de cada vez, na ordem que o LM escolher.
+- **Marreta: FEITA 02/11** (BecomeLM 0.3.5 + IA 0.7.18). Medida no VS Grox MANHUNT 2:27-2:33, réplica aprovada pelo LM,
+  pose nova no `sky_smash` (`becomelm-mod/tools/make_anims.py`). No BecomeLM: som de crítico em cada pancada (em pé e
+  montado; o empurrão que derruba não), 1 em 5 pancadas 1,5x, tremidinha em 1ª pessoa em quem bate e em quem apanha.
+  Na IA: o "tai" de cada soco no mesmo tick do punho (24 de 24 no teste). Testado no jogo: crítico no mesmo quadro do
+  punho ou até 1 tick depois; a tremidinha de quem apanha precisa de 2 jogadores (o LM confere).
+  **Em aberto:** o LM marcou a pose em "V invertido" (braços pra cima com as mãos juntas, no pulo do céu, quadro 27,6
+  do teste mar3) e não disse o que quer com ela: perguntar antes de mexer.
+- 02/11: o LM liberou o commit "na próxima atualização" - a 0.7.18 e a 0.3.5 (parede + marreta) foram juntas pro GitHub.
+- **Subir parede de 4 no BecomeLM (02/11, pedido do LM):** galopando reto pra parede ele sobe a 10 b/s (Grox 3:29) e
+  passa por cima da beirada (`LmWallClimb` + o mixin do `onClimbable`/`travel`). Testado no jogo: pousa no meio de um
+  pilar 1x1 e fica; soltou no meio, para e escorrega; agachado, segura; as câmeras de cinema não entram mais na parede.
+  Lição: o `zza` lido no evento do tick do jogador é o do tick anterior (o jogo lê os botões depois, no `aiStep`);
+  pra reagir ao botão no mesmo tick, entrar no começo do `travel`.
+- Lição do 02/11 (vale pra qualquer animação em loop com som/dano marcado): o GeckoLib perde um pedacinho a cada
+  volta do loop e começa a contar depois da mistura (3 ticks). Pra som e animação andarem juntos, o servidor e o
+  cliente contam o MESMO relógio pela idade do estado e o cliente prende a animação nele (relógio de fora do
+  controlador: `FroggydudeEntity.pushupAnimTicks`, `LmPileRhythm` no BecomeLM). Goal sem `requiresUpdateEveryTick`
+  só roda de 2 em 2 ticks.
 
 ## Próximo passo (27/10): "in your world" - tudo decidido em `TAREFA.md`
 

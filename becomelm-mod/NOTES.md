@@ -4,6 +4,59 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.5 — o monte no ritmo da fome, subir parede de 4, a marreta do Grox e a mordida montado de volta
+
+Rede "8": quem joga junto precisa estar na 0.3.5 também.
+
+O que testar:
+- **Monte de pedaços pela fome**: com a barra **vazia** ele come desesperado (uma mordida a cada ~0,25 s, igual ao monte
+  do golem do Grox); conforme enche, **vai acalmando**; com a barra **cheia**, ~0,39 s (o Taste Testing perto da lava é
+  0,36 s). Testado no jogo: barra em 5 → começou a 0,27 s e foi pra 0,32 s quando chegou em 13.
+  - O corpo, a cara afundando na primeira pessoa, os cacos pulando e a comida da barra andam **no mesmo relógio**: antes
+    a animação escorregava um tico a cada volta e a cara descia fora da hora da mordida.
+  - **No criativo** (a barra não desce lá): o ritmo **extremo o tempo todo**, uma mordida a cada 0,25 s (o máximo; o
+    LM: "velocidade extrema, não a ponto de virar o flash"). No sobrevivência vale a fome (no pacífico a barra não desce).
+- **Escalada** (na escada ou trepadeira): agora é o **galope na parede** do mod da IA (o do Grox 3:29), de 4, as costas
+  pra fora e a cara pra cima. A passada acompanha a subida (na escada, que é devagar, ele não fica correndo no lugar).
+  **Parado na escada, ele fica parado agarrado.**
+- **Subir parede sem escada (de 4)**: galopando reto pra qualquer parede (de frente, até uns 35° de lado), ele sobe
+  correndo por ela no mesmo galope, a **10 blocos/s** (o Grox 3:29, medido com o pilar de pedra de régua; no jogo deu
+  7,5 blocos em 15 ticks).
+  - Segurando o **pra frente**, sobe; **soltou, para na hora** agarrado e escorrega devagar; **agachado**, fica parado
+    na parede. Caindo de frente pra uma parede, ele agarra nela e escorrega (sem dano, como sempre).
+  - No **topo** ele passa da beirada galopando e **fica em cima**, até num **pilar 1x1** (testado: pousa no meio do
+    bloco e fica). Soltar o pra frente no último bloco e meio também serve: ele termina de subir em vez de escorregar.
+  - Se continuar segurando o pra frente depois de chegar, ele **segue galopando** lá em cima (num pilar 1x1 isso é cair
+    do outro lado: pra ficar no pilar, solta quando chegar).
+  - As **patas ficam nos blocos** (não flutua): o corpo vira reto de frente pra parede mesmo chegando meio torto (chegando
+    torto ele sobe meio de lado, então o melhor é correr reto, como tu falou).
+  - Só de 4 (galope). Em pé, nadando, na lava, voando, de élitro ou montado não sobe. No meio de um golpe também não
+    (arrastando alguém na boca, montado socando, no monte, transformando): arrastando, a vítima ia junto pra dentro da
+    parede. Sem dano de queda, como sempre.
+  - **Câmeras de cinema na parede**: "atrás e baixa" fica embaixo dele olhando parede acima; "de lado" acompanha do
+    lado; "na cara" fica em cima da cabeça olhando parede abaixo, ele vindo pra câmera (o plano do Grox, do alto do
+    pilar). Entrando e saindo da parede a câmera vira suave. Antes ela entrava na parede e grudava na cara dele (e
+    também quando ele ficava parado de cara pra uma parede no chão).
+- **Marreta** (em pé segurando o atacar, e os socos montado depois do pulo do céu): medida quadro a quadro no VS Grox
+  MANHUNT 2:27-2:33 (a réplica que tu aprovou):
+  - Os dois braços sobem juntos retos acima da cabeça (a cabeça um tico pra trás), e descem abertos com o tronco
+    tombando bem mais que antes (~76°, era ~62°), a cabeça mergulhando até a da vítima. Ele sobe logo depois da
+    pancada, segura um tico lá em cima e desce mais rápido.
+  - 4 pancadas por segundo, igual ao vídeo. **O punho bate na hora da pancada** do começo ao fim (antes a animação
+    escorregava e o golpe vinha fora do punho).
+  - **Som de crítico** do Minecraft em cada pancada (só o som), colado no punho: no teste, no mesmo quadro do punho
+    embaixo ou até 1 tick depois. O empurrão que derruba (o começo da marreta em pé) não é punho descendo: fica só o
+    soco normal, sem crítico e sem tremer; o 1º crítico é a 1ª pancada, 0,2 s depois.
+  - **Dano normal, mas 1 em cada 5 pancadas sai 1,5x** (por sorte).
+  - **Tremidinha na tela** em primeira pessoa a cada pancada: em quem apanha (mais forte) e em quem bate (mais
+    fraca). As câmeras de cinema não tremem (são pra gravar). Testado em quem bate (a tela balança ~0,8° a cada
+    pancada); em quem apanha precisa de 2 jogadores, então confere tu com um amigo.
+  - Montado (depois do pulo do céu) são 8 socos: depois do último ele fica embaixo, em cima da vítima, até começar a
+    morder (antes o braço descia mais uma vez, mudo, sem pancada).
+- **Agachado de 4 parado** (galope sem andar): o mesmo "pronto pra disparar" do mod da IA (antes era a "mesa").
+- **Mordida montado** (depois dos socos da queda do céu): voltou a ser a da 0.3.3. Na 0.3.4 ela tinha virado a flexão
+  comprida nova sem querer: mordia o ar depois da cabeça da vítima e 2x mais rápido.
+
 ## v0.3.4 — a flexão nova, igual à do mod da IA (mão plantada, braços retos "||")
 
 O que testar (no monte de pedaços, como antes):

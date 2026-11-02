@@ -7,6 +7,7 @@ import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
 import com.becomelm.LmTransform;
+import com.becomelm.LmWallClimb;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.util.Mth;
 import software.bernie.geckolib.core.animation.RawAnimation;
@@ -29,7 +30,8 @@ final class LmAnims {
     static final RawAnimation ROAR = RawAnimation.begin().thenPlayAndHold("roar");
     /** Montado socando (0,5 s = 2 socos: 1 a cada 0,25 s, como no vídeo) e as mordidas. */
     static final RawAnimation SMASH = RawAnimation.begin().thenLoop("sky_smash");
-    static final RawAnimation BITES = RawAnimation.begin().thenLoop("feed_mob");
+    /** (v0.3.5) a mordida montado é a velha (o feed_mob até a 0.7.16 do Froggydude): a flexão nova mordia o ar. */
+    static final RawAnimation BITES = RawAnimation.begin().thenLoop("smash_bite");
     /** Na boca: o bote curto da mordida, segurando (parado / andando), a sacudida e o arremesso. */
     static final RawAnimation GRAB_START = RawAnimation.begin().thenPlayAndHold("grab_start");
     static final RawAnimation GRAB_HOLD = RawAnimation.begin().thenLoop("grab_hold");
@@ -41,7 +43,7 @@ final class LmAnims {
     static final RawAnimation PILE_DROP = RawAnimation.begin().thenPlayAndHold("pile_drop");
     static final RawAnimation PILE_LIE = RawAnimation.begin().thenLoop("pile_lie");
     static final RawAnimation PILE_RISE = RawAnimation.begin().thenPlayAndHold("pile_rise");
-    /** As mordidas do vídeo: a cabeça mergulha a cada 0,24 s (o feed_mob tem 0,6 s). */
+    /** As mordidas do vídeo: a cabeça mergulha a cada 0,24 s (o smash_bite tem 0,6 s). */
     private static final double BITE_SPEED = 0.6D / 0.24D;
     /** Finalização (LmFinish): monta, cava, abre, come e encara. */
     static final RawAnimation FIN_MOUNT = RawAnimation.begin().thenPlayAndHold("fin_mount");
@@ -58,6 +60,8 @@ final class LmAnims {
 
     /** Abaixo disso (blocos por tick) ele está parado. */
     private static final double MOVING = 0.02D;
+    /** Na parede/escada, subindo menos que isso por tick = parado ou escorregando (a animação congela, agarrado). */
+    private static final double CLIMB_STILL = 0.01D;
     /** O resto do embalo do mortal no pouso não conta como andar (andar de verdade passa disso). */
     private static final double TADA_MOVING = 0.06D;
 
@@ -128,6 +132,13 @@ final class LmAnims {
             // arrastando: o passo acompanha a velocidade
             if (act.kind == LmAttack.GRAB && act.shake < 0) return Mth.clamp(groundSpeed(p) * 8.0D, 0.5D, 1.6D);
             return 1D;
+        }
+        // (v0.3.5) na parede (e na escada) é o galope da parede do Froggydude: a passada acompanha a subida (a 10 b/s,
+        // uma passada de ~2,5 blocos a cada 0,25 s, como no vídeo; na escada, mais devagar, sem correr no lugar);
+        // parado ou escorregando, fica agarrado
+        if (pick(p) == CLIMB) {
+            double up = p.getY() - p.yo;
+            return up > CLIMB_STILL ? Mth.clamp(up / LmWallClimb.CLIMB_VY, 0.4D, 1D) : 0D;
         }
         LmMode mode = LmModes.get(p);
         double v = groundSpeed(p);

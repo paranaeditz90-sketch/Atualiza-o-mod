@@ -125,4 +125,10 @@ public final class LmTransform {
         if (on) speed.addTransientModifier(new AttributeModifier(LOCK_ID, "BecomeLM transformação", -1D,
                 AttributeModifier.Operation.MULTIPLY_TOTAL));
     }
+
+    /** (v0.3.5) Travado na transformação: os dois lados sabem pelo modificador de velocidade, que chega no cliente. */
+    public static boolean locked(Player p) {
+        AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
+        return speed != null && speed.getModifier(LOCK_ID) != null;
+    }
 }

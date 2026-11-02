@@ -15,6 +15,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, '..', 'froggydude-mod', 'src', 'main', 'resources', 'assets', 'froggydude',
                    'animations', 'froggydude.animation.json')
 DST = os.path.join(ROOT, 'src', 'main', 'resources', 'assets', 'becomelm', 'animations', 'lm.animation.json')
+# Guardadas daqui (o mod da IA mudou a dele e aqui a velha continua servindo):
+# - smash_bite: as mordidas montado em cima da vítima (LmAnims.BITES) = o feed_mob do Froggydude até a 0.7.16
+#   (0,6 s, tocado a 2,5x). O feed_mob novo (a flexão de 0,35 s) deita comprido a partir dos pés e mordia
+#   o ar depois da cabeça da vítima.
+FROZEN = {
+    'smash_bite': os.path.join(ROOT, 'tools', 'frozen', 'smash_bite.json'),
+}
 
 # nova animação: (original, segundo em que começa)
 CUTS = {
@@ -32,25 +39,21 @@ def _k(pairs):
 EXTRA = {
     # a queda do céu (10v1 0:13.4-16.1): ajoelhado em cima da vítima de costas, um golpe a cada
     # 0,25 s com os DOIS punhos juntos (LM: "no original ele bate com as duas mãos ao mesmo
-    # tempo"), e o tronco inteiro mergulha até a cara dela a cada golpe
+    # tempo"), e o tronco inteiro mergulha até a cara dela a cada golpe. É também a marreta em pé.
+    # (v0.3.5) a marreta medida no VS Grox MANHUNT 2:27-2:33 (60 qps, de lado e da vítima; LM aprovou a réplica):
+    # 4 pancadas por segundo; os dois braços sobem juntos retos acima da cabeça (cabeça um tico pra trás), descem
+    # abertos com o tronco tombando ~76 graus e a cabeça mergulhando até a da vítima; sobe logo depois do impacto,
+    # segura um tico lá em cima e desce rápido (~0,07 s). Impacto aos 0,10 s de cada golpe de 0,25 s: é onde o
+    # relógio do golpe (LmActsClient.smashAnimTicks) prende a animação, junto com a pancada do servidor.
     'sky_smash': {
         'loop': True,
         'animation_length': 0.5,
         'bones': {
-            'root': {'position': _k([(0.0, [0, -4, 0]), (0.1, [0, -4.6, 0]), (0.25, [0, -4, 0]),
-                                     (0.35, [0, -4.6, 0]), (0.5, [0, -4, 0])])},
-            'waist': {'rotation': _k([(0.0, [-10, 0, 0]), (0.06, [30, 0, 0]), (0.1, [62, 0, 0]),
-                                      (0.16, [45, 0, 0]), (0.25, [-10, 0, 0]), (0.31, [30, 0, 0]),
-                                      (0.35, [62, 0, 0]), (0.41, [45, 0, 0]), (0.5, [-10, 0, 0])])},
-            'head': {'rotation': _k([(0.0, [22, 0, 0]), (0.1, [2, 0, 0]), (0.16, [8, 0, 0]),
-                                     (0.25, [22, 0, 0]), (0.35, [2, 0, 0]), (0.41, [8, 0, 0]),
-                                     (0.5, [22, 0, 0])])},
-            'right_arm': {'rotation': _k([(0.0, [-170, 0, 12]), (0.06, [-120, 0, 9]), (0.1, [-70, 0, 5]),
-                                          (0.16, [-95, 0, 7]), (0.25, [-170, 0, 12]), (0.31, [-120, 0, 9]),
-                                          (0.35, [-70, 0, 5]), (0.41, [-95, 0, 7]), (0.5, [-170, 0, 12])])},
-            'left_arm': {'rotation': _k([(0.0, [-170, 0, -12]), (0.06, [-120, 0, -9]), (0.1, [-70, 0, -5]),
-                                         (0.16, [-95, 0, -7]), (0.25, [-170, 0, -12]), (0.31, [-120, 0, -9]),
-                                         (0.35, [-70, 0, -5]), (0.41, [-95, 0, -7]), (0.5, [-170, 0, -12])])},
+            'root': {'position': _k([(0.0, [0, -4, 0]), (0.035, [0, -4, 0]), (0.067, [0, -4, 0]), (0.1, [0, -4.6, 0]), (0.12, [0, -4.6, 0]), (0.167, [0, -4, 0]), (0.233, [0, -4, 0]), (0.25, [0, -4, 0]), (0.285, [0, -4, 0]), (0.317, [0, -4, 0]), (0.35, [0, -4.6, 0]), (0.37, [0, -4.6, 0]), (0.417, [0, -4, 0]), (0.483, [0, -4, 0]), (0.5, [0, -4, 0])]), 'rotation': _k([(0.0, [0, 0, 0])])},
+            'waist': {'rotation': _k([(0.0, [-8, 0, 0]), (0.035, [-6, 0, 0]), (0.067, [32, 0, 0]), (0.1, [76, 0, 0]), (0.12, [70, 0, 0]), (0.167, [45, 0, 0]), (0.233, [-2, 0, 0]), (0.25, [-8, 0, 0]), (0.285, [-6, 0, 0]), (0.317, [32, 0, 0]), (0.35, [76, 0, 0]), (0.37, [70, 0, 0]), (0.417, [45, 0, 0]), (0.483, [-2, 0, 0]), (0.5, [-8, 0, 0])])},
+            'head': {'rotation': _k([(0.0, [-10, 0, 0]), (0.035, [-9, 0, 0]), (0.067, [-2, 0, 0]), (0.1, [8, 0, 0]), (0.12, [8, 0, 0]), (0.167, [0, 0, 0]), (0.233, [-6, 0, 0]), (0.25, [-10, 0, 0]), (0.285, [-9, 0, 0]), (0.317, [-2, 0, 0]), (0.35, [8, 0, 0]), (0.37, [8, 0, 0]), (0.417, [0, 0, 0]), (0.483, [-6, 0, 0]), (0.5, [-10, 0, 0])])},
+            'right_arm': {'rotation': _k([(0.0, [-174, 0, 8]), (0.035, [-176, 0, 8]), (0.067, [-150, 0, 14]), (0.1, [-96, 0, 16]), (0.12, [-100, 0, 16]), (0.167, [-125, 0, 14]), (0.233, [-165, 0, 10]), (0.25, [-174, 0, 8]), (0.285, [-176, 0, 8]), (0.317, [-150, 0, 14]), (0.35, [-96, 0, 16]), (0.37, [-100, 0, 16]), (0.417, [-125, 0, 14]), (0.483, [-165, 0, 10]), (0.5, [-174, 0, 8])])},
+            'left_arm': {'rotation': _k([(0.0, [-174, 0, -8]), (0.035, [-176, 0, -8]), (0.067, [-150, 0, -14]), (0.1, [-96, 0, -16]), (0.12, [-100, 0, -16]), (0.167, [-125, 0, -14]), (0.233, [-165, 0, -10]), (0.25, [-174, 0, -8]), (0.285, [-176, 0, -8]), (0.317, [-150, 0, -14]), (0.35, [-96, 0, -16]), (0.37, [-100, 0, -16]), (0.417, [-125, 0, -14]), (0.483, [-165, 0, -10]), (0.5, [-174, 0, -8])])},
             'right_leg': {'rotation': _k([(0.0, [-5, 0, 18])])},
             'left_leg': {'rotation': _k([(0.0, [-5, 0, -18])])},
             'right_shin': {'rotation': _k([(0.0, [95, 0, 0])])},
@@ -393,7 +396,10 @@ def main():
     for name, (orig, start) in CUTS.items():
         anims[name] = cut(anims[orig], start)
     anims.update(json.loads(json.dumps(EXTRA)))
-    # no monte: a flexão nova do mod da IA (o ciclo de 0,35 s; LmAttacks.PILE_CYCLE = 8 deles)
+    for name, path in FROZEN.items():
+        with open(path) as f:
+            anims[name] = json.load(f)
+    # no monte: a flexão nova do mod da IA (0,35 s por mergulho; o ritmo pela fome é o LmPileRhythm)
     anims['pile_lie'] = json.loads(json.dumps(anims['feed_mob']))
     with open(DST, 'w') as f:
         json.dump(data, f, separators=(',', ':'))

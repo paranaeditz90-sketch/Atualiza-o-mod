@@ -29,7 +29,8 @@ import java.util.function.Supplier;
  */
 public final class LmNetwork {
 
-    private static final String VERSION = "7";
+    /** "8" (v0.3.5): o "alvo" do monte no ActSync leva o rumo e a fome juntos (LmPileRhythm.pack). */
+    private static final String VERSION = "8";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeLM.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 
@@ -87,8 +88,9 @@ public final class LmNetwork {
     /** O golpe pegou (ou bateu sem dano): quem vê a vítima ou o atacante faz o barulho e a poeira. */
     public static void sendHit(ServerPlayer attacker, LivingEntity target, LmAttack kind, boolean hurt, int n) {
         HitFx fx = new HitFx(attacker.getId(), target.getId(), kind, hurt, n);
-        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> target), fx);
-        if (target != attacker) CHANNEL.send(PacketDistributor.PLAYER.with(() -> attacker), fx);
+        // (v0.3.5) uma vez pra cada um: quem bate e quem está perto dele (a vítima incluída). Antes ia pra quem via a
+        // vítima E de novo pra quem bate, e quem batia ouvia o golpe dobrado (o soco, a poeira e o crítico 2x)
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> attacker), fx);
     }
 
     /** O golpe longo que o jogador está dando (montado socando, segurando na boca, no monte...); kind null = acabou. */

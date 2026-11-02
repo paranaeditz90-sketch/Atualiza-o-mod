@@ -4,6 +4,7 @@ import com.becomelm.BecomeLM;
 import com.becomelm.LmMode;
 import com.becomelm.LmModes;
 import com.becomelm.LmMove;
+import com.becomelm.LmWallClimb;
 import com.becomelm.network.LmNetwork;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -11,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
@@ -99,6 +101,23 @@ public final class LmClientEvents {
         chargeTick(p);
         LmMoves.tick();
         strides(mc);
+        wallBodies(mc);
+    }
+
+    /** Graus por tick que o corpo vira pra ficar de frente pra parede (até 35 graus: 2 ticks). */
+    private static final float WALL_TURN = 20F;
+
+    /**
+     * (v0.3.5) Subindo a parede: o corpo vira reto de frente pra ela, com as patas no plano dos blocos (sem
+     * flutuar), mesmo chegando meio torto. No fim do tick, depois do vanilla virar o corpo (o desenho mistura do
+     * tick anterior pra esse, sem tranco), e não no desenho (que também desenha o boneco do inventário).
+     */
+    private static void wallBodies(Minecraft mc) {
+        if (mc.level == null) return;
+        for (AbstractClientPlayer pl : mc.level.players()) {
+            Direction wall = LmWallClimb.climbingWall(pl);
+            if (wall != null) pl.yBodyRot = Mth.approachDegrees(pl.yBodyRot, wall.toYRot(), WALL_TURN);
+        }
     }
 
     private static void input(Minecraft mc, LocalPlayer p) {

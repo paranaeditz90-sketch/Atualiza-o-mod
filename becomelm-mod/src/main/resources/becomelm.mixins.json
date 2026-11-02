@@ -6,7 +6,8 @@
   "refmap": "becomelm.refmap.json",
   "mixins": [
     "EntitySprintDirtMixin",
-    "PlayerGallopHungerMixin"
+    "PlayerGallopHungerMixin",
+    "LivingEntityWallClimbMixin"
   ],
   "injectors": {
     "defaultRequire": 1

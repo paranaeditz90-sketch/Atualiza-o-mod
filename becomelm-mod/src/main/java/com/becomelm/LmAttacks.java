@@ -49,6 +49,9 @@ public final class LmAttacks {
     public static final double SMASH_REACH = 2.5D;
     public static final float SMASH_IMPACT = 4F;
     public static final float PUNCH_DAMAGE = 2F;
+    /** (v0.3.5, LM) A pancada de marreta às vezes sai mais forte: 1 em cada 5, 1,5x (o som é sempre o de crítico). */
+    private static final float STRONG_CHANCE = 0.2F;
+    private static final float STRONG_MULT = 1.5F;
     public static final float BITE_DAMAGE = 2F;
     public static final int SMASH_EVERY = 5;
     public static final int SMASH_FIRST = 4;
@@ -94,26 +97,20 @@ public final class LmAttacks {
     /** Deitado no monte: levanta sozinho depois de 1 min. */
     public static final int PILE_MAX = 1200;
     /**
-     * No monte: o tempo de deitar, o ciclo da flexão e os ticks do ciclo em que a cara está lá
-     * embaixo (o cliente anima com os mesmos). (v0.3.4) A flexão é a do mod da IA (pile_lie =
-     * feed_mob: uma mordida a cada 7 ticks, a cara embaixo no tick 3); o ciclo aqui junta 8 delas
-     * (56 ticks) e ele come de verdade em 3 (PILE_BITES), quase o ritmo de antes (1 a cada ~1 s).
+     * No monte: o tempo de deitar e quando a flexão começa (o cliente anima com os mesmos). A flexão é
+     * a do mod da IA (pile_lie = feed_mob, a cara embaixo no tick 3 de 7); o ritmo e as mordidas de
+     * verdade (3 de cada 8 mergulhos) vêm do LmPileRhythm, pela fome (v0.3.5).
      */
     public static final int PILE_DROP = 8;
     /** O pile_lie começa depois do deitar e dos 3 ticks de mistura do controlador do corpo. */
     public static final int PILE_LIE_START = PILE_DROP + 3;
-    public static final int PILE_CYCLE = 56;
-    public static final int[] PILE_DIPS = {3, 10, 17, 24, 31, 38, 45, 52};
-    public static final int[] PILE_BITES = {10, 31, 52};
 
     // Comer (LM: "eu como os mobs e não regenero a fome"): só bicho que sangra. O LM escolheu
     // o "médio": meia coxinha por mordida, até 4 coxinhas no monte, 6 na finalização.
     /** Uma mordida que tira sangue: meia coxinha (1 ponto da barra de 20). */
     private static final int BITE_FOOD = 1;
     private static final float BITE_SATURATION = 0.3F;
-    /** Cada afundada da cara no monte: meia coxinha; no máximo 4 coxinhas por monte. */
-    private static final int PILE_FOOD = 1;
-    private static final int PILE_FOOD_MAX = 8;
+    /** Cada mordida de verdade no monte: meia coxinha (LmPileRhythm.FOOD); no máximo 4 coxinhas por monte. */
     private static final float PILE_SATURATION = 0.4F;
     /** Cada uma das 3 mastigadas da finalização: 2 coxinhas. */
     private static final int FINISH_FOOD = 4;
@@ -138,10 +135,11 @@ public final class LmAttacks {
         /** Agarrado: quando começou a última sacudida, e há quantos ticks a vítima não acompanha. */
         int shakeAt = -1000;
         int stuck;
-        /** No monte: o rumo do corpo deitado (graus x10, quem vê desenha com ele). */
+        /** No monte: o rumo do corpo deitado (graus x10) e a fome na hora de deitar, juntos (LmPileRhythm.pack). */
         int data;
-        /** No monte: quanto já comeu (pontos de fome). */
-        int fed;
+        /** No monte: o ritmo da flexão e quanto já comeu (a mesma conta do cliente). */
+        @Nullable
+        LmPileRhythm pile;
         /** Martelando: soltou o atacar. */
         boolean stop;
 
@@ -240,7 +238,7 @@ public final class LmAttacks {
         // de costas, a cara pra cima olhando pra ele (bicho de quatro cai de lado)
         if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HAMMER_KEEP + HAMMER_MIN);
         else LmKnock.knock(t, p, HAMMER_KEEP + HAMMER_MIN);
-        boolean hurt = hurtInPlace(p, t, PUNCH_DAMAGE);
+        boolean hurt = hurtInPlace(p, t, punchDamage(p));
         if (DEBUG) System.out.printf("[LMATK] martelar %s acertou=%s%n", t.getName().getString(), hurt);
         LmNetwork.sendAct(p, LmAttack.HAMMER, t.getId(), 0);
         LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, 0);
@@ -281,10 +279,13 @@ public final class LmAttacks {
 
     private static void pile(ServerPlayer p, int yawX10) {
         Act a = new Act(LmAttack.PILE, null);
-        a.data = yawX10;
+        // a fome de agora decide o ritmo (quem vê faz a mesma conta com ela); no criativo, o extremo
+        int food = LmPileRhythm.foodCode(p);
+        a.data = LmPileRhythm.pack(yawX10, food);
+        a.pile = new LmPileRhythm(food);
         ACTS.put(p.getUUID(), a);
         lock(p, true);
-        LmNetwork.sendAct(p, LmAttack.PILE, yawX10, 0);
+        LmNetwork.sendAct(p, LmAttack.PILE, a.data, 0);
     }
 
     // ------------------------------------------------------------ finalização
@@ -545,7 +546,8 @@ public final class LmAttacks {
         if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
         int k = a.age - SMASH_FIRST;
         if (k >= 0 && k % SMASH_EVERY == 0 && k / SMASH_EVERY < PUNCHES) {
-            boolean hurt = hurtInPlace(p, t, PUNCH_DAMAGE);
+            if (DEBUG) System.out.printf("[LMATK] pancada montado idade=%d jogo=%d%n", a.age, p.level().getGameTime());
+            boolean hurt = hurtInPlace(p, t, punchDamage(p));
             LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, k / SMASH_EVERY);
         }
         int b = a.age - BITE_FROM;
@@ -582,9 +584,17 @@ public final class LmAttacks {
         if (k >= 0 && k % SMASH_EVERY == 0) {
             if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HAMMER_KEEP);
             else LmKnock.knock(t, p, HAMMER_KEEP);
-            boolean hurt = hurtInPlace(p, t, PUNCH_DAMAGE);
+            if (DEBUG) System.out.printf("[LMATK] pancada marreta idade=%d jogo=%d%n", a.age, p.level().getGameTime());
+            boolean hurt = hurtInPlace(p, t, punchDamage(p));
             LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, k / SMASH_EVERY + 1);
         }
+    }
+
+    /** Uma pancada de marreta (em pé ou montado): o dano normal, ou de vez em quando a mais forte. */
+    private static float punchDamage(ServerPlayer p) {
+        boolean strong = p.getRandom().nextFloat() < STRONG_CHANCE;
+        if (DEBUG && strong) System.out.println("[LMATK] pancada forte");
+        return strong ? PUNCH_DAMAGE * STRONG_MULT : PUNCH_DAMAGE;
     }
 
     // ------------------------------------------------------------ comer
@@ -596,15 +606,13 @@ public final class LmAttacks {
 
     /** Deitado no monte: nas mordidas de verdade da flexão ele come um pedaço (até o monte acabar). */
     private static void pileEat(ServerPlayer p, Act a) {
-        if (a.age < PILE_LIE_START || a.fed >= PILE_FOOD_MAX) return;
-        int c = (a.age - PILE_LIE_START) % PILE_CYCLE;
-        for (int d : PILE_BITES) {
-            if (c == d) {
-                eat(p, PILE_FOOD, PILE_SATURATION);
-                a.fed += PILE_FOOD;
-                return;
-            }
+        if (a.age < PILE_LIE_START || a.pile == null) return;
+        a.pile.advanceTo(a.age - PILE_LIE_START);
+        if (DEBUG && a.pile.dipNow()) {
+            System.out.printf("[LMATK] monte mergulho t=%d ritmo=%.2f mordida=%b comeu=%b fome=%d%n", a.age,
+                    a.pile.rate(), a.pile.biteNow(), a.pile.ateNow(), p.getFoodData().getFoodLevel());
         }
+        if (a.pile.ateNow()) eat(p, LmPileRhythm.FOOD, PILE_SATURATION);
     }
 
     /** Enche a fome e a saturação (como comer um item); arrota quando a barra completa. */
@@ -670,6 +678,16 @@ public final class LmAttacks {
         if (speed.getModifier(LOCK_ID) != null) speed.removeModifier(LOCK_ID);
         if (on) speed.addTransientModifier(new AttributeModifier(LOCK_ID, "BecomeLM golpe", -1D,
                 AttributeModifier.Operation.MULTIPLY_TOTAL));
+    }
+
+    /**
+     * (v0.3.5) No meio de um golpe: travado (montado, martelando, no monte, finalizando) ou arrastando alguém na
+     * boca. Os dois lados sabem: o modificador de velocidade do servidor chega no cliente junto com os atributos.
+     * Quem usa: o LmWallClimb (no meio de um golpe ele não sobe parede).
+     */
+    public static boolean busy(Player p) {
+        AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
+        return speed != null && (speed.getModifier(LOCK_ID) != null || speed.getModifier(DRAG_ID) != null);
     }
 
     public static void forget(Player p) {
