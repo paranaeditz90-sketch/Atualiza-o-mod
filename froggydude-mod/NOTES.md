@@ -1,4 +1,4 @@
-# Froggydude - v0.7.17: comer em "flexão" igual ao vídeo (sobre a v0.7.16)
+# Froggydude - v0.7.18: a mordida da flexão junto com a cabeça embaixo (sobre a v0.7.17)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.17) - a flexão de comer (medida quadro a quadro no Taste Testing perto da lava e no monte
+O que testar agora (v0.7.18) - a flexão é a mesma da 0.7.17; mudou o TEMPO da mordida:
+- O som, o sangue e o dano da mordida caem junto com a cabeça lá embaixo, do começo ao fim (comendo o jogador, bicho
+  caído e os pedaços). Na 0.7.17 a animação começava 3 ticks depois da mordida e escorregava um tico a cada volta
+  (o som vinha com a cabeça subindo).
+- Comendo BICHO caído: agora é uma mordida por mergulho, com a cabeça embaixo (na 0.7.17 vinha uma a cada 2
+  mergulhos).
+- **Esmagamento ("tai tai tai")**: o punho dele bate na hora do soco, do "tai" e da tremida da tua tela, a cada
+  0,25 s do começo ao fim (a animação agora anda no mesmo relógio dos socos; antes escorregava a cada volta e o "tai"
+  vinha fora do golpe). O jeito do golpe é o mesmo de antes. Testado: 24 socos, os 24 no mesmo tick do punho.
+- Um caso raro: se tu chegar de longe com ele JÁ no meio do esmagamento ou comendo, o teu jogo começa a contar dali e
+  o punho/cabeça pode ficar fora do som até acabar aquele golpe. De perto desde o começo (o normal) fica certo.
+
+Da v0.7.17 - a flexão de comer (medida quadro a quadro no Taste Testing perto da lava e no monte
 do golem do Grox, réplica aprovada pelo LM em 02/11: "TA PERFEITO", com os braços retos "||"):
 A) COMENDO O JOGADOR (pin_hold) E BICHO/ALDEÃO CAÍDO (feed_mob), e no banquete dos pedaços: o corpo inteiro é uma
    prancha deitada ("\" bem deitado, sem levantar a bunda) que GIRA NOS PÉS: na mordida o ombro desce quase o mesmo

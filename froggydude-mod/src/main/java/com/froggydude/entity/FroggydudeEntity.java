@@ -161,14 +161,19 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     /**
      * Comendo em "flexão" (pin_hold, feed_mob; v0.7.17, medido no Taste Testing e no monte do golem): uma
-     * mordida por ciclo de 7 ticks (0,35 s) na velocidade 1. A cabeça chega embaixo aos 42% do ciclo, então o
-     * servidor morde no tick 3. O ritmo muda com a fome/raiva ({@link #getFeastRate()}, 0,8-1,4): a animação
-     * roda nessa velocidade e o servidor anda a mesma fase ({@link #pushupStep()}).
+     * mordida por ciclo de 7 ticks (0,35 s) na velocidade 1. A cabeça chega embaixo aos 42% do ciclo, então a
+     * mordida é no tick 3. O ritmo muda com a fome/raiva ({@link #getFeastRate()}, 0,8-1,4).
+     * (v0.7.18) Servidor e cliente usam o MESMO relógio, contado pela idade do estado ({@link #pushupClock}), que
+     * só anda depois da mistura do controlador; o cliente prende o pin_hold/feed_mob nele (FroggydudeRenderer).
+     * Antes a animação começava 3 ticks depois da mordida e cada volta do loop do GeckoLib perdia um pedacinho:
+     * o som e o sangue caíam fora da cabeça embaixo.
      */
     public static final int PUSHUP_TICKS = 7;
     public static final int PUSHUP_BITE_AT = 3;
-    /** Fase da flexão em ticks "da velocidade 1" e quantas mordidas já deu (servidor; zera a cada estado). */
-    private float pushupPhase = 0F;
+    /** Os ticks de mistura do controlador "main": a animação nova só começa a contar depois deles. */
+    public static final int MAIN_BLEND = 3;
+    /** Onde o relógio da flexão estava na última conta (servidor; NaN = o estado acabou de começar) e as mordidas. */
+    private float pushupPhase = Float.NaN;
     private int pushupBites = 0;
 
 
@@ -1023,7 +1028,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void setFroggyState(FroggyState state) {
         this.entityData.set(DATA_STATE, (byte) state.ordinal());
         this.stateTicks = 0;
-        this.pushupPhase = 0F;
+        this.pushupPhase = Float.NaN;
         this.pushupBites = 0;
         if (!this.level().isClientSide && (state == FroggyState.PIN_HOLD || state == FroggyState.FEEDING)) {
             // a flexão anda no ritmo da fome/raiva (o mesmo do banquete); o cliente lê pra velocidade da animação
@@ -1535,18 +1540,64 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return this.entityData.get(DATA_FEED_ID);
     }
 
+    /** A velocidade da flexão no estado de agora (a mesma da animação), ou 0 se não está comendo em flexão. */
+    private float pushupSpeed() {
+        FroggyState s = getFroggyState();
+        if (s == FroggyState.FEAST) return getFeastRate() * PUSHUP_TICKS * (float) FEAST_BITES_PER_TICK;
+        if (s == FroggyState.PIN_HOLD || s == FroggyState.FEEDING) return getFeastRate();
+        return 0F;
+    }
+
+    /** O relógio da flexão (em ticks da animação) com o estado nessa idade; anda só depois da mistura. */
+    private float pushupClock(float age) {
+        return pushupSpeed() * (age - MAIN_BLEND);
+    }
+
     /**
-     * Anda a flexão um tick no ritmo da fome/raiva (chame UMA vez por tick no PIN_HOLD/FEEDING).
-     * @return true no tick em que a cabeça bate embaixo (a mordida)
+     * A flexão até agora, no ritmo da fome/raiva (PIN_HOLD, FEEDING e FEAST). Pode chamar todo tick ou de 2 em
+     * 2 (a Goal de comer bicho): conta pela idade do estado, então não escorrega.
+     * @return true quando a cabeça bateu embaixo desde a última chamada (a mordida)
      */
     public boolean pushupStep() {
         float before = pushupPhase;
-        pushupPhase += getFeastRate();
-        if (Mth.floor((pushupPhase - PUSHUP_BITE_AT) / PUSHUP_TICKS) > Mth.floor((before - PUSHUP_BITE_AT) / PUSHUP_TICKS)) {
+        float now = pushupClock(stateTicks);
+        pushupPhase = now;
+        if (Float.isNaN(before) || pushupSpeed() <= 0F) return false;
+        if (Mth.floor((now - PUSHUP_BITE_AT) / PUSHUP_TICKS) > Mth.floor((before - PUSHUP_BITE_AT) / PUSHUP_TICKS)) {
             pushupBites++;
+            if (FLEX_DEBUG) System.out.printf("[FLEX] servidor mordida %s t=%d jogo=%d%n", getFroggyState(), stateTicks,
+                    this.level().getGameTime());
             return true;
         }
         return false;
+    }
+
+    private static final boolean FLEX_DEBUG = Boolean.getBoolean("froggydude.debug");
+
+    /**
+     * No cliente: o tempo do pin_hold/feed_mob (em ticks, 0 a 7) no relógio da mordida, ou negativo se não está
+     * comendo em flexão (ou ainda misturando com a animação de antes). Quem usa é o relógio de fora do controlador.
+     */
+    public double pushupAnimTicks(float partial) {
+        if (!getDebugAnim().isEmpty() || clientStateAge < MAIN_BLEND) return -1D;
+        if (pushupSpeed() <= 0F || getFroggyState() == FroggyState.FEEDING && getFeedVictimId() < 0) return -1D;
+        return Mth.positiveModulo(pushupClock(clientStateAge + partial), (float) PUSHUP_TICKS);
+    }
+
+    /** O "smash" tem 0,5 s (10 ticks) com o impacto aos 0,25 s (build_anims.py). */
+    private static final float SMASH_LOOP_TICKS = 10F;
+    private static final float SMASH_IMPACT_TICKS = 5F;
+
+    /**
+     * (v0.7.18) No cliente: o tempo do "smash" (em ticks, 0 a 10) no relógio dos socos do servidor (FroggyCombatGoal:
+     * o 1º no tick SMASH_FIRST do estado, depois um a cada SMASH_EVERY): o punho bate na hora do soco e do "tai", sem
+     * escorregar a cada volta do loop. Negativo fora do esmagamento (ou ainda misturando com a animação de antes).
+     */
+    public double smashAnimTicks(float partial) {
+        if (!getDebugAnim().isEmpty() || getFroggyState() != FroggyState.SMASH || clientStateAge < MAIN_BLEND) return -1D;
+        float perTick = SMASH_LOOP_TICKS / FroggyCombatGoal.SMASH_EVERY;
+        float k = (clientStateAge + partial - FroggyCombatGoal.SMASH_FIRST) * perTick;
+        return Mth.positiveModulo(k + SMASH_IMPACT_TICKS, SMASH_LOOP_TICKS);
     }
 
     /** Quantas mordidas da flexão já foram neste estado (a 1ª é 1). */
@@ -2237,13 +2288,20 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             clientStateAge++;
         }
         // banquete: a mordida deste tick (os pedaços embaixo pulam - client.pieces.BodyPieces)
-        if (st == FroggyState.FEAST.ordinal()) {
-            clientFeastPhase += getFeastRate() * FEAST_BITES_PER_TICK;
-            clientFeastBite = clientFeastPhase >= 1.0D;
-            if (clientFeastBite) clientFeastPhase -= 1.0D;
-        } else {
-            clientFeastPhase = 0.6D;
-            clientFeastBite = false;
+        // (v0.7.18) no mesmo relógio da animação e da mordida do servidor
+        boolean bottom = false;
+        if (clientStateAge > 0 && pushupSpeed() > 0F) {
+            float before = pushupClock(clientStateAge - 1), now = pushupClock(clientStateAge);
+            bottom = Mth.floor((now - PUSHUP_BITE_AT) / PUSHUP_TICKS) > Mth.floor((before - PUSHUP_BITE_AT) / PUSHUP_TICKS);
+            if (bottom && FLEX_DEBUG) {
+                System.out.printf("[FLEX] cliente cabeça embaixo %s idade=%d jogo=%d%n", getFroggyState(), clientStateAge,
+                        this.level().getGameTime());
+            }
+        }
+        clientFeastBite = bottom && st == FroggyState.FEAST.ordinal();
+        if (FLEX_DEBUG && st == FroggyState.SMASH.ordinal() && clientStateAge >= FroggyCombatGoal.SMASH_FIRST
+                && (clientStateAge - FroggyCombatGoal.SMASH_FIRST) % FroggyCombatGoal.SMASH_EVERY == 0) {
+            System.out.printf("[SMASH] cliente punho embaixo idade=%d jogo=%d%n", clientStateAge, this.level().getGameTime());
         }
 
         double dx = this.getX() - this.xo;
@@ -2651,7 +2709,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new PacedAnimationController<>(this, "main", 3, this::mainPredicate)
+        controllers.add(new PacedAnimationController<>(this, "main", MAIN_BLEND, this::mainPredicate)
                 .setAnimationSpeedHandler(e -> e.mainAnimSpeed() * DEBUG_ANIM_SLOW));
         controllers.add(new AnimationController<>(this, "tongue", 0, this::tonguePredicate));
     }
@@ -2844,7 +2902,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Nullable
     private VoiceSituation feastSpeech;
     private int feastColor = BloodType.RED.color;
-    private double clientFeastPhase;
     private boolean clientFeastBite;
 
     /** O golpe final avisa onde o corpo está deitado (a vítima de pé fica em outro lugar). */

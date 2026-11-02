@@ -77,9 +77,16 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         this.shadowRadius = 0.5F;
         this.withScale(FroggydudeEntity.MODEL_SCALE);
         addRenderLayer(new MouthStainLayer(this));
-        // o corpo dele na cutscene anda no relógio da tabela, junto com o áudio e o pedaço na boca
+        // o corpo dele na cutscene anda no relógio da tabela, junto com o áudio e o pedaço na boca; e a flexão
+        // (v0.7.18) no relógio da mordida, sem escorregar a cada volta do loop
         PacedAnimationController.externalClock = (animatable, animation, tick) -> {
-            if (!(animatable instanceof FroggydudeEntity f) || !animation.startsWith("finisher")) return -1D;
+            if (!(animatable instanceof FroggydudeEntity f)) return -1D;
+            if ("pin_hold".equals(animation) || "feed_mob".equals(animation)) {
+                return f.pushupAnimTicks(Minecraft.getInstance().getFrameTime());
+            }
+            // (v0.7.18) o esmagamento: o punho bate na hora do soco e do "tai" do servidor
+            if ("smash".equals(animation)) return f.smashAnimTicks(Minecraft.getInstance().getFrameTime());
+            if (!animation.startsWith("finisher")) return -1D;
             ClientFinisher.Entry e = ClientFinisher.forFroggy(f.getId());
             if (e == null) return -1D;
             float partial = (float) (tick - Math.floor(tick));

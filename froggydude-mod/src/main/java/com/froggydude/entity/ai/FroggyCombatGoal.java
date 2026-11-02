@@ -131,7 +131,8 @@ public class FroggyCombatGoal extends Goal {
     // 24 socos de 0,4 (antes 8 de 1,0), um a cada 5 ticks (~6 s); a animação
     // acelera pra bater junto (FroggydudeEntity#mainAnimSpeed: ciclo de 0,5 s em 5 ticks).
     public static final int SMASH_EVERY = 5;
-    private static final int SMASH_FIRST = 5;
+    /** O 1º soco do esmagamento (tick do estado); o relógio do "smash" no cliente usa o mesmo (FroggydudeEntity). */
+    public static final int SMASH_FIRST = 5;
     private static final int SMASH_HITS = 24;
     private static final float SMASH_DAMAGE = 0.4F;
     /** Língua: só meio coração (LM), mesmo na fase 2. */
@@ -1868,7 +1869,7 @@ public class FroggyCombatGoal extends Goal {
 
         if (hits < SMASH_HITS && t >= SMASH_FIRST && (t - SMASH_FIRST) % SMASH_EVERY == 0) {
             hits++;
-            debug("soco " + hits + " t=" + t + " dist=" + dist);
+            debug("soco " + hits + " t=" + t + " dist=" + dist + " jogo=" + froggy.level().getGameTime());
             hurtNoKnockback(victim, SMASH_DAMAGE);
             froggy.spawnBlood(victim, 5);
             froggy.onSmashHit();

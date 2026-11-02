@@ -28,7 +28,6 @@ public class FroggyFeastGoal extends Goal {
     private final FroggydudeEntity froggy;
     private int walked;
     private boolean lying;
-    private double phase;
     private boolean finished;
     private int bites;
 
@@ -69,7 +68,6 @@ public class FroggyFeastGoal extends Goal {
         debug("começou, ritmo " + String.format("%.2f", froggy.getFeastRate()) + " em " + froggy.getFeastSpot());
         walked = 0;
         lying = false;
-        phase = 0.6D;
         finished = false;
         bites = 0;
     }
@@ -100,11 +98,8 @@ public class FroggyFeastGoal extends Goal {
         }
         if (froggy.getStateTicks() % 10 == 0) froggy.faceDirection(at.x - froggy.getX(), at.z - froggy.getZ());
 
-        phase += froggy.getFeastRate() * FroggydudeEntity.FEAST_BITES_PER_TICK;
-        if (phase >= 1.0D) {
-            phase -= 1.0D;
-            bite(at);
-        }
+        // (v0.7.18) a mordida no relógio da animação: a cara lá embaixo nos pedaços
+        if (froggy.pushupStep()) bite(at);
         if (!froggy.tickFeast()) finished = true;
     }
 
