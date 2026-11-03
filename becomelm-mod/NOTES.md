@@ -4,6 +4,18 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.7 — parado no galope com as pernas retas "||"
+
+Rede "8" (a mesma: nada mudou no que vai pela rede).
+
+O que testar:
+- **Parado no galope** (de 4 sem andar, e também segurando o agachar pra carregar o pulo super alto): as pernas agora
+  ficam **retas e em pé, "||"**, embaixo do quadril (o LM: "repara na perna, tá tipo /" e "o meu pode ser reto ||"),
+  o tronco quase deitado e os braços quase em pé com as **mãos no chão** na frente, respirando. O corpo desce um tico
+  por cima das pernas pra mão alcançar o chão (igual à agachada do pulo do céu). Antes a perna ficava reta e inclinada
+  (o "/") e as mãos ~0,2 bloco no ar. (O FroggyDude do mod da IA, na 0.7.20, ficou diferente: agachado de sapo.)
+- O resto da 0.3.6 (o voo e a queda do pulo super alto, a tremida da marreta) continua pra testar, abaixo.
+
 ## v0.3.6 — o pulo super alto do vídeo do AJ e a tremida da marreta do jeito do vídeo
 
 Rede "8" (a mesma da 0.3.5: nada mudou no que vai pela rede).

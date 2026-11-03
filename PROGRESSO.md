@@ -13,8 +13,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.19 | 03/11: pulo do céu igual ao vídeo do AJ (réplica por sobreposição, aprovada) + todo soco do esmagamento tirando vida (0.7.19) |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.6 (rede "8") | 03/11: voo e queda do pulo super alto novos (os do mod da IA) + tremida da marreta: quem apanha em 1ª pessoa, quem bate em 3ª, do jeito do vídeo (0.3.6) |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.20 | 03/11: pulo do céu igual ao vídeo do AJ + todo soco do esmagamento tirando vida (0.7.19); parado de 4 agachado de sapo, mãos no chão (0.7.20) |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.7 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||", mãos no chão (0.3.7) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.

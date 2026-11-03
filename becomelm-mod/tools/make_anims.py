@@ -361,6 +361,33 @@ EXTRA.update({
 })
 
 
+# (v0.3.7, LM 03/11) parado no galope (e segurando o agachar pra carregar o pulo): no mod da IA virou agachado de sapo
+# (0.7.20), mas o LM quer o DELE "reto ||": as pernas retas e em pé embaixo do quadril, o tronco quase deitado (80°) e
+# os braços quase em pé (12° pra frente) com as mãos no chão. Perna reta em pé deixa o quadril alto demais pra mão
+# alcançar o chão, então o corpo desce ~3,6 px por cima das pernas (elas sobem pra dentro e o pé fica no chão), o mesmo
+# jeito da agachada do pulo do céu. Respira: no meio o tronco vai a 83°. Valores tirados do pose()/rig do mod da IA
+# (froggydude-mod/tools/anim/build_anims.py), com a mão e o pé a 0,5 px do chão.
+_RETO_80 = {
+    'root': {'position': [0.0, -2.72, 0.0], 'rotation': [0.0, 0.0, 0.0]},
+    'waist': {'rotation': [80.0, 0.0, 0.0]},
+    'head': {'rotation': [-70.0, 0.0, 0.0]},
+    'right_arm': {'rotation': [-92.0, 0.0, 4.0]},
+    'left_arm': {'rotation': [-92.0, 0.0, -4.0]},
+    'right_leg': {'rotation': [0.0, 0.0, 5.0], 'position': [0.0, 3.62, 0.0]},
+    'left_leg': {'rotation': [0.0, 0.0, -5.0], 'position': [0.0, 3.62, 0.0]},
+}
+_RETO_83 = {
+    'root': {'position': [0.0, -2.21, 0.0], 'rotation': [0.0, 0.0, 0.0]},
+    'waist': {'rotation': [83.0, 0.0, 0.0]},
+    'head': {'rotation': [-73.0, 0.0, 0.0]},
+    'right_arm': {'rotation': [-95.0, 0.0, 4.0]},
+    'left_arm': {'rotation': [-95.0, 0.0, -4.0]},
+    'right_leg': {'rotation': [0.0, 0.0, 5.0], 'position': [0.0, 3.11, 0.0]},
+    'left_leg': {'rotation': [0.0, 0.0, -5.0], 'position': [0.0, 3.11, 0.0]},
+}
+EXTRA['crouch_idle'] = _anim(1.2, True, [(0.0, _RETO_80), (0.6, _RETO_83), (1.2, _RETO_80)])
+
+
 def value_at(frames, t):
     keys = sorted(frames, key=float)
     times = [float(k) for k in keys]
