@@ -301,15 +301,34 @@ def wall_gallop(table, length):
 
 ANIMS["climb"] = wall_gallop(GALLOP, 0.25)
 
-# Parado um instante no meio da caçada (v0.7.14): agachado pronto pra disparar, na pose
-# de onde o galope sai (14/15: pernas por baixo da barriga, mãos no chão na frente, olhando
-# pra frente), respirando. Antes era a "mesa" (cintura a 90 graus com braços e pernas
-# retos e em pé - o mesmo "de quatro feito mesa" que o LM barrou no comer).
-STALK = GALLOP[14][1:]
+# Parado de 4 (no meio da caçada; no BecomeLM, parado no galope). v0.7.20 (LM 03/11: "repara na perna, tá tipo /"
+# -> "joelho dobrado, como um sapo"): agachado de SAPO - a coxa pra frente e o joelho dobrado (a canela volta), o
+# quadril baixo, o tronco a ~60° com a cabeça olhando pra frente e os braços quase em pé com as MÃOS NO CHÃO na frente,
+# respirando. Antes (v0.7.14) era a pose de onde o galope sai, com as pernas RETAS inclinadas embaixo da barriga (o "/"
+# que o LM marcou) e as mãos ~3 px no ar. E antes disso a "mesa", que o LM barrou no comer.
+
+
+def frog_idle(w, leg=-82, knee=150, look=10):
+    """Sapo parado: acha o braço (quase em pé, 0-40° pra frente no mundo) que põe a mão no chão junto com o pé."""
+    best = None
+    for phi in range(0, 41):
+        a = -(w + phi)
+        p = pose(waist=w, head=-w + look, arms=a, arm_l=a, legs=leg, leg_l=leg + 3, knee=knee, knee_l=knee - 3,
+                 arm_spread=4, leg_spread=8)
+        low = rig.lowest(rig.frames(p))
+        feet = min(low["right_leg"], low["left_leg"])
+        hands = min(low["right_arm"], low["left_arm"])
+        if best is None or abs(hands - feet) < best[0]:
+            best = (abs(hands - feet), p, min(feet, hands))
+    _, p, lowest = best
+    p["root"]["position"][1] = round(p["root"]["position"][1] + 0.5 - lowest, 2)
+    return p
+
+
 ANIMS["crouch_idle"] = animation(1.2, [
-    (0.00, gallop_pose(*STALK)),
-    (0.60, gallop_pose(STALK[0] + 4, *STALK[1:5], STALK[5] + 2, *STALK[6:])),
-    (1.20, gallop_pose(*STALK)),
+    (0.00, frog_idle(60)),
+    (0.60, frog_idle(63, look=12)),
+    (1.20, frog_idle(60)),
 ], True)
 
 # Bote baixo que derruba: salta rente ao chão com os braços pra frente pra

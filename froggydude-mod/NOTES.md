@@ -1,4 +1,4 @@
-# Froggydude - v0.7.19: o pulo do céu igual ao vídeo do AJ e todo soco do esmagamento tirando vida (sobre a v0.7.18)
+# Froggydude - v0.7.20: parado de 4 agachado de sapo (sobre a v0.7.19)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,14 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.19):
+O que testar agora (v0.7.20):
+- **Parado de 4** (quando ele para um instante no meio da caçada): agora fica agachado de **SAPO** (LM, 03/11: "repara
+  na perna, tá tipo /" -> "joelho dobrado, como um sapo"): a coxa pra frente e o joelho dobrado, o quadril baixo, o
+  tronco meio erguido olhando pra frente e os braços quase em pé com as **mãos no chão** na frente, respirando. Antes as
+  pernas ficavam retas e inclinadas embaixo da barriga (o "/") e as mãos ~0,2 bloco no ar.
+  PRA VER: /data merge entity @e[type=froggydude:froggydude,limit=1] {DebugAnim:"crouch_idle"}   (pra voltar: DebugAnim:"")
+
+Da v0.7.19:
 - **Pulo do céu** (ele te vendo de 7 a 20 blocos, os dois no chão e com céu em cima): agora é a réplica do VS
   AJTHEBOLD (Every Opponent 29:48 e 29:51), medida pondo o boneco por cima do vídeo quadro a quadro; aprovada pelo LM
   em 02/11 ("tá ótimo já"):
