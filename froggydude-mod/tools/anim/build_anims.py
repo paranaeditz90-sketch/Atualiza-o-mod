@@ -40,14 +40,17 @@ BONES = ("root", "waist", "head", "right_arm", "left_arm", "right_leg", "left_le
 def pose(root_y=0.0, root_x=0.0, waist=0.0, head=0.0, arms=0.0, legs=0.0,
          arm_l=None, leg_l=None, head_z=0.0, waist_z=0.0, arm_spread=0.0, leg_spread=0.0,
          root_px=0.0, head_y=0.0, waist_y=0.0, arm_ry=0.0, arm_ly=None, spread_l=None,
-         arm_py=0.0, arm_lpy=0.0, leg_spread_l=None, head_pos=None, knee=None, knee_l=None):
+         arm_py=0.0, arm_lpy=0.0, leg_spread_l=None, head_pos=None, knee=None, knee_l=None,
+         leg_pos=None):
     """Uma pose completa. arms/legs valem pros dois lados, a não ser que
     arm_l/leg_l digam outra coisa pro esquerdo. spread abre os membros pros lados
     (spread_l pro braço esquerdo, se for diferente). arm_ry gira o braço no
     próprio eixo (Y). arm_py/arm_lpy sobem o OMBRO (px; o braço inteiro sobe,
     como um ombro deslocado - a pose torta da fase 2). knee/knee_l dobram o
     joelho (X+ joga a canela pra trás); sem eles a canela fica reta e o
-    osso nem entra na animação."""
+    osso nem entra na animação. leg_pos (x, y, z) ANDA as duas pernas, sem girar
+    (px, eixos do json: x+ = pro lado esquerdo dele, espelhado na esquerda;
+    y+ = sobe, entra no corpo; z+ = pra trás) - a agachada "||" do pulo do céu."""
     al = arms if arm_l is None else arm_l
     ll = legs if leg_l is None else leg_l
     aly = arm_ry if arm_ly is None else arm_ly
@@ -71,6 +74,10 @@ def pose(root_y=0.0, root_x=0.0, waist=0.0, head=0.0, arms=0.0, legs=0.0,
         k = knee or 0.0
         p["right_shin"] = {"rotation": [k, 0, 0]}
         p["left_shin"] = {"rotation": [k if knee_l is None else knee_l, 0, 0]}
+    if leg_pos:
+        x, y, z = leg_pos
+        p["right_leg"]["position"] = [x, y, z]
+        p["left_leg"]["position"] = [-x, y, z]
     return p
 
 
@@ -427,25 +434,67 @@ ANIMS["smash"] = animation(0.5, [
     (0.50, pose(**SMASH_UP)),
 ], True)
 
-# Pulo altíssimo (vs AJ, 0:56): agacha fundo, explode pra cima com os braços pro
-# céu, abre em Y lá em cima (some no céu, ~12 blocos) e despenca olhando pra
-# vítima com os braços prontos pro primeiro soco. Impulso no tick 8 (0,4 s),
-# topo no ~25 (1,25 s), chão no ~44 (2,2 s). Ao pousar vira o esmagamento.
-ANIMS["sky_drop"] = animation(2.2, [
-    # (v0.4.0, vídeo do LM 48,8-50,1 s e 55,3-56,4 s) em pé de braços em V uns 0,3 s,
-    # agacha num piscar (1-2 quadros) e sai como foguete: some do quadro em ~0,1 s
-    (0.00, pose(root_y=0, waist=6, head=-8, arms=-40, arm_spread=12, legs=0, leg_spread=8)),
-    (0.10, pose(root_y=0, waist=-4, head=-14, arms=-158, arm_spread=30, legs=0, leg_spread=10)),   # braços em V
-    (0.31, pose(root_y=0, waist=-6, head=-16, arms=-162, arm_spread=32, legs=0, leg_spread=10)),
-    (0.36, pose(root_y=-6, waist=34, head=-30, arms=-150, arm_spread=24, legs=leg_back(-6), leg_spread=14)),  # agacha (estalo)
-    (0.40, pose(root_y=0, waist=-5, head=-10, arms=-176, arm_spread=8, legs=5)),                    # FOGUETE
-    (0.70, pose(root_y=0, waist=0, head=-5, arms=-178, arm_spread=10, legs=0)),                     # subindo esticado
-    (1.10, pose(root_y=0, waist=5, head=10, arms=-158, arm_spread=36, legs=0, leg_spread=22)),      # abre em Y
-    (1.30, pose(root_y=0, waist=8, head=24, arms=-158, arm_spread=38, legs=0, leg_spread=24)),      # topo, olhando pra baixo
-    (1.70, pose(root_y=0, waist=15, head=32, arms=-172, arm_spread=14, legs=-32, leg_spread=15)),   # despencando de braços erguidos
-    (2.10, pose(root_y=0, waist=20, head=36, arms=-176, arm_spread=10, legs=-52, leg_spread=14)),
-    (2.20, pose(root_y=-2, waist=22, head=36, arms=-176, arm_spread=8, legs=-40, leg_spread=12)),
-], "hold_on_last_frame")
+# Pulo altíssimo (v0.7.19, LM 02/11): réplica do VS AJTHEBOLD (FroggyDude VS Every Opponent 29:48,20-48,67 de frente e
+# 29:51,40-51,74 visto de baixo) medida por SOBREPOSIÇÃO: o rig desenhado por cima do quadro do original e os ângulos
+# ajustados até a silhueta cobrir a dele (ameaça 77-79%, queda 77-89%, agachada e decolagem 51-73%).
+#   ameaça (0,05-0,26 s): ergue os braços PELOS LADOS até um V em cima da cabeça, cabeça pra trás no grito;
+#   agachada (0,29-0,39 s): os braços caem, o direito vai pra frente antes do esquerdo; o corpo desce com as pernas
+#     RETAS e em pé ("||", não "\"), um pouco pra frente (sobem pra dentro do corpo, o pé fica no chão); em 0,357 os
+#     dois braços retos na altura do ombro, abertos ~54°;
+#   decola no 0,40 (impulso do servidor no tick 8) e voa de braço de ZUMBI levemente pra cima, aberto em "\ /"
+#     (giro Y: com o braço pra frente o Z só torceria ele no próprio eixo); caindo, a perna direita vai pra frente (a
+#     esquerda fica reta) e a cabeça balança de leve pros lados. Vai até 3,2 s (o arco muda com a distância) e segura.
+# O BecomeLM corta daqui a partir de 0,38 s (sky_air, becomelm-mod/tools/make_anims.py).
+SKY_V = 150          # o V da ameaça
+SKY_GRITO = -25      # cabeça pra trás no grito
+SKY_ZUMBI = -113     # braço de zumbi na queda: 23° acima do horizontal
+SKY_ABRE = 19        # abertura do V do zumbi (giro Y)
+SKY_PERNA = -50      # perna direita pra frente na queda; a esquerda fica reta (+4)
+SKY_BALANCO = 10     # a cabeça balança de leve pros lados só caindo
+SKY_CICLO = 0.6      # uma ida e volta da cabeça (s)
+SKY_FIM = 3.2
+
+
+def _sky_zumbi(arms=SKY_ZUMBI, ry=SKY_ABRE, perna=0.0, perna_l=0.0, **kw):
+    return pose(arms=arms, arm_ry=ry, legs=perna, leg_l=perna_l, leg_spread=3, **kw)
+
+
+def _sky_agacha(fwd, desce, **kw):
+    """Pernas retas e em pé, fwd px pra frente; o corpo desce `desce` px e as pernas sobem o mesmo tanto."""
+    return pose(root_y=-desce, leg_pos=(0, desce, -fwd), **kw)
+
+
+_SKY = [
+    (0.000, pose(arm_spread=8, leg_spread=3)),
+    (0.050, pose(arm_spread=33, leg_spread=3, head=-9)),
+    (0.082, pose(arm_spread=76, leg_spread=3, head=-17, waist=6)),
+    (0.124, pose(arm_spread=129, leg_spread=3, head=SKY_GRITO, waist=8)),
+    (0.167, pose(arm_spread=145, leg_spread=3, head=SKY_GRITO, waist=8)),
+    (0.209, pose(arm_spread=SKY_V, leg_spread=3, head=SKY_GRITO, waist=8)),
+    (0.262, pose(arm_spread=SKY_V - 2, leg_spread=3, head=-20, waist=8)),
+    (0.294, _sky_agacha(1.5, 1.5, arm_spread=80, leg_spread=3, head=-5)),                          # os braços caem
+    (0.315, _sky_agacha(3.0, 2.2, arm_spread=65, spread_l=40, arms=-5, arm_l=-20, leg_spread=3, head=-10, waist=8)),
+    (0.336, _sky_agacha(3.0, 4.5, arm_spread=65, spread_l=42, arms=-40, arm_l=-15, arm_ry=15, arm_ly=0,
+                        leg_spread=4, head=-10, waist=16)),
+    (0.347, _sky_agacha(3.0, 4.5, arm_spread=70, spread_l=45, arms=-75, arm_l=-15, arm_ry=25, arm_ly=0,
+                        leg_spread=4, head=-9, waist=19)),
+    (0.357, _sky_agacha(3.0, 5.0, arms=-142, arm_ry=54, leg_spread=4, head=25, waist=44)),        # braços no ombro
+    (0.368, _sky_agacha(3.0, 5.0, arms=-142, arm_ry=54, leg_spread=4, head=25, waist=44)),
+    (0.379, _sky_agacha(3.0, 5.0, arm_spread=8, arms=-118, arm_ry=39, leg_spread=3, head=25, waist=21)),
+    (0.389, _sky_agacha(1.5, 2.5, arm_spread=8, arms=-118, arm_ry=39, leg_spread=3, head=20, waist=21)),
+    (0.400, _sky_zumbi(arms=-105, ry=37, waist=15, head=12)),                                      # DECOLA
+    (0.700, _sky_zumbi(arms=-111, ry=24, waist=4, head=-2)),
+    (1.100, _sky_zumbi(arms=-112, ry=20, waist=4, head=0, perna=-30, perna_l=2)),
+    (1.300, _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0)),                               # caindo
+]
+_t, _k = 1.30 + SKY_CICLO / 4, 0
+while _t < SKY_FIM - 1e-6:   # a cabeça balança de leve pros lados até o fim
+    _SKY.append((round(_t, 3), _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0,
+                                          head_z=SKY_BALANCO if _k % 2 == 0 else -SKY_BALANCO)))
+    _t += SKY_CICLO / 2
+    _k += 1
+_SKY.append((SKY_FIM, _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0)))
+ANIMS["sky_drop"] = animation(SKY_FIM, _SKY, "hold_on_last_frame")
 
 # Arrancar o braço (vs AJ, 2:21, e o jeito de comer da "Eating a Zebra"):
 # agachado por cima, agarra o ombro esquerdo da vítima com as duas mãos, CRAVA
@@ -943,7 +992,7 @@ def main():
             "frenzy_idle": [0.0],
             "crouch_idle": [0.0],
             "smash": [0.0, 0.14, 0.25, 0.4],
-            "sky_drop": [0.3, 0.4, 1.1, 1.3, 1.7, 2.2],
+            "sky_drop": [0.209, 0.315, 0.347, 0.357, 0.4, 1.1, 1.45, 1.75, 3.2],
             "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
             "arm_eat": [0.5, 0.64, 4.0],
             "contort": [0.46, 0.7, 0.95, 1.2, 1.45, 1.7, 1.95, 2.2, 2.45, 2.7, 2.95],

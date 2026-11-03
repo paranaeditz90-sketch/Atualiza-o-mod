@@ -1,4 +1,4 @@
-# Froggydude - v0.7.18: a mordida da flexão junto com a cabeça embaixo (sobre a v0.7.17)
+# Froggydude - v0.7.19: o pulo do céu igual ao vídeo do AJ e todo soco do esmagamento tirando vida (sobre a v0.7.18)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,24 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.18) - a flexão é a mesma da 0.7.17; mudou o TEMPO da mordida:
+O que testar agora (v0.7.19):
+- **Pulo do céu** (ele te vendo de 7 a 20 blocos, os dois no chão e com céu em cima): agora é a réplica do VS
+  AJTHEBOLD (Every Opponent 29:48 e 29:51), medida pondo o boneco por cima do vídeo quadro a quadro; aprovada pelo LM
+  em 02/11 ("tá ótimo já"):
+  A) AMEAÇA: ergue os dois braços PELOS LADOS até um V em cima da cabeça, a cabeça pra trás no grito.
+  B) AGACHADA: os braços caem, o direito dele vai pra frente antes do esquerdo; o corpo abaixa com as pernas RETAS e
+     em pé ("||", nem dobradas nem jogadas pra trás), um pouco pra frente; no fim, os dois braços retos no ombro.
+  C) VOO: decola de braço de ZUMBI levemente pra cima, aberto em "\ /" (antes os braços iam retos pro céu).
+  D) QUEDA: a perna direita vai pra frente, a esquerda fica reta, e a cabeça balança de leve pros lados até cair em
+     ti. Olhando pra cima (do jeito da vítima), é o desenho do vídeo. Testado no jogo, de frente e de baixo (ele parado,
+     só a animação em câmera lenta); o pulo inteiro com a IA de verdade, confere tu.
+  E) PRA VER sem esperar ele escolher o pulo (fica repetindo no lugar):
+     /data merge entity @e[type=froggydude:froggydude,limit=1] {DebugAnim:"sky_drop"}   (pra voltar ao normal: DebugAnim:"")
+- **Esmagamento ("tai tai tai")**: agora CADA soco tira vida na hora dele (se o punho bate, tu toma dano). Antes a
+  invencibilidade do jogo depois de um dano (10 ticks, maior que os 5 entre socos) engolia 1 soco a cada 2. O total do
+  golpe é o mesmo de antes (24 socos de 0,2; antes só 12 dos de 0,4 contavam). Compilado, mas ainda não testado no jogo: confere tu.
+
+Da v0.7.18 - a flexão é a mesma da 0.7.17; mudou o TEMPO da mordida:
 - O som, o sangue e o dano da mordida caem junto com a cabeça lá embaixo, do começo ao fim (comendo o jogador, bicho
   caído e os pedaços). Na 0.7.17 a animação começava 3 ticks depois da mordida e escorregava um tico a cada volta
   (o som vinha com a cabeça subindo).
@@ -35,7 +52,8 @@ B) RITMO: desce rápido, segura embaixo um tico, sobe devagar. Uma mordida a cad
    (ferido, fase 2, irritado, apanhou agora) até ~0,25 s. O som e o dano da mordida vêm junto com a cabeça embaixo.
 C) DISTÂNCIA: a prancha nova é mais comprida, então ele fica um pouco mais pra trás da vítima (1,9 bloco do jogador,
    1,8 do bicho) pra boca cair em cima dela - no jogador, a cara dele chega perto da tua câmera sem atravessar.
-D) PRA VER: /froggydude debug pin_hold (ou deixa ele te pegar), ou mata um bicho perto dele.
+D) PRA VER: /data merge entity @e[type=froggydude:froggydude,limit=1] {DebugAnim:"pin_hold"} (o comando
+   "/froggydude debug" que estava aqui não existe; corrigido na 0.7.19), ou deixa ele te pegar, ou mata um bicho perto dele.
 
 Da v0.7.16 - "Froggy's in your world" (decidido pelo LM em 27/10, ver TAREFA.md):
 A) LIGAR: Mods > Froggydude > Configurar > "Froggy's in your world" (ou /froggydude invasao ligar). Cada mundo

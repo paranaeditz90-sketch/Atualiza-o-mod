@@ -128,13 +128,16 @@ public class FroggyCombatGoal extends Goal {
     // Esmagamento (v0.3.6, LM): bem mais socos, mais fracos e por mais tempo - nos
     // vídeos ele desce os punhos sem parar, ~4 por segundo, com um "tai!" a cada
     // soco (vs AJTHEBOLD: "tai tai tai tai tai tai", sílabas a cada ~0,25 s).
-    // 24 socos de 0,4 (antes 8 de 1,0), um a cada 5 ticks (~6 s); a animação
-    // acelera pra bater junto (FroggydudeEntity#mainAnimSpeed: ciclo de 0,5 s em 5 ticks).
+    // 24 socos, um a cada 5 ticks (~6 s); a animação acelera pra bater junto
+    // (FroggydudeEntity#mainAnimSpeed: ciclo de 0,5 s em 5 ticks).
+    // (v0.7.19, LM: "se eu acerto, tu recebe dano") Cada soco tira vida na hora dele. Antes a invencibilidade do
+    // vanilla depois de um dano (10 ticks) recusava 1 soco a cada 2 (eram de 0,4, mas só 12 contavam): agora ela
+    // é zerada a cada soco, e o soco ficou de 0,2 pra o total do esmagamento ser o mesmo que o LM já sentia.
     public static final int SMASH_EVERY = 5;
     /** O 1º soco do esmagamento (tick do estado); o relógio do "smash" no cliente usa o mesmo (FroggydudeEntity). */
     public static final int SMASH_FIRST = 5;
     private static final int SMASH_HITS = 24;
-    private static final float SMASH_DAMAGE = 0.4F;
+    private static final float SMASH_DAMAGE = 0.2F;
     /** Língua: só meio coração (LM), mesmo na fase 2. */
     private static final float TONGUE_DAMAGE = 1.0F;
 
@@ -1869,8 +1872,12 @@ public class FroggyCombatGoal extends Goal {
 
         if (hits < SMASH_HITS && t >= SMASH_FIRST && (t - SMASH_FIRST) % SMASH_EVERY == 0) {
             hits++;
-            debug("soco " + hits + " t=" + t + " dist=" + dist + " jogo=" + froggy.level().getGameTime());
-            hurtNoKnockback(victim, SMASH_DAMAGE);
+            // cada soco é um dano novo (sem a invencibilidade de 10 ticks do vanilla, que é maior que os 5 do soco)
+            int invul = victim.invulnerableTime;
+            victim.invulnerableTime = 0;
+            boolean hurt = hurtNoKnockback(victim, SMASH_DAMAGE);
+            debug("soco " + hits + " t=" + t + " dist=" + dist + " jogo=" + froggy.level().getGameTime()
+                    + " invencivel_antes=" + invul + " dano=" + hurt);
             froggy.spawnBlood(victim, 5);
             froggy.onSmashHit();
             shake(victim, 1.1F, 10);
@@ -2051,8 +2058,8 @@ public class FroggyCombatGoal extends Goal {
         froggy.onDealtDamage(target, Math.max(0F, healthBefore - target.getHealth()));
     }
 
-    /** Dano sem o empurrão normal (vítima no chão fica no chão). */
-    private void hurtNoKnockback(LivingEntity target, float base) {
+    /** Dano sem o empurrão normal (vítima no chão fica no chão). @return se o dano entrou */
+    private boolean hurtNoKnockback(LivingEntity target, float base) {
         double kb = 0;
         AttributeInstance res = target.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
         if (res != null) {
@@ -2060,12 +2067,14 @@ public class FroggyCombatGoal extends Goal {
             res.setBaseValue(1.0D);
         }
         float before = target.getHealth();
-        if (target.hurt(froggy.damageSources().mobAttack(froggy), dmg(base))) dealt(target, before);
+        boolean hurt = target.hurt(froggy.damageSources().mobAttack(froggy), dmg(base));
+        if (hurt) dealt(target, before);
         if (res != null) res.setBaseValue(kb);
         if (target instanceof ServerPlayer player) {
             player.setDeltaMovement(0.0D, Math.min(player.getDeltaMovement().y, 0.0D), 0.0D);
             player.hurtMarked = true;
         }
+        return hurt;
     }
 
     /**

@@ -85,7 +85,10 @@ def frames(p):
     for leg, sx in (("right_leg", 1.9), ("left_leg", -1.9)):
         lr = g(leg, "rotation")
         R_l = R_root @ rot(*lr)
-        o_l = o_root + R_root @ np.array([0, 12.0, sx])
+        # (v0.7.19) a perna também ANDA (posição, eixos do json como o braço: x+ = lado esquerdo dele, y+ = cima,
+        # z+ = pra trás): na agachada "||" do pulo do céu ela fica em pé e vai pra frente/sobe pra dentro do corpo
+        lp = g(leg, "position")
+        o_l = o_root + R_root @ np.array([-lp[2], 12.0 + lp[1], sx - lp[0]])
         out[leg] = (R_l, o_l)
         # canela: mesmo espelhamento do resto (o json já traz o lado esquerdo pronto)
         out[leg.replace("leg", "shin")] = (R_l @ rot(*g(leg.replace("leg", "shin"), "rotation")), o_l + R_l @ np.array([0, -6.0, 0]))
