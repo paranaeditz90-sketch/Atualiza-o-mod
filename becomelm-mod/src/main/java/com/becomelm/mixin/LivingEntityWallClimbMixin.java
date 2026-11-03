@@ -1,8 +1,10 @@
 package com.becomelm.mixin;
 
 import com.becomelm.LmWallClimb;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -23,6 +25,12 @@ public abstract class LivingEntityWallClimbMixin {
     @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
     private void becomelm$wallClimb(CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof Player p && LmWallClimb.onWall(p)) cir.setReturnValue(true);
+    }
+
+    /** (v0.3.9) Em cima da lava: o pé fica na superfície (como o strider), pra galopar por cima dela (LmLava). */
+    @Inject(method = "canStandOnFluid", at = @At("HEAD"), cancellable = true)
+    private void becomelm$lavaWalk(FluidState fluid, CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this instanceof Player p && !p.isSpectator() && fluid.is(FluidTags.LAVA)) cir.setReturnValue(true);
     }
 
     /** Quem move o jogador é o cliente dele: a subida e a beirada só no próprio jogador. */

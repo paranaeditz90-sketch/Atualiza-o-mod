@@ -11,6 +11,7 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
@@ -62,6 +63,7 @@ public final class LmServerEvents {
             if (event.player instanceof ServerPlayer sp) {
                 LmAttacks.tick(sp);
                 LmTransform.tick(sp);
+                LmLava.tick(sp);
             }
             return;
         }
@@ -117,6 +119,11 @@ public final class LmServerEvents {
     /** Deitado ninguém bate (o zumbi no chão não morde o pé de quem passa). */
     @SubscribeEvent
     public static void onAttack(LivingAttackEvent event) {
+        // (v0.3.9) em cima da lava não queima (LmLava)
+        if (event.getEntity() instanceof Player p && event.getSource().is(DamageTypeTags.IS_FIRE) && LmLava.onLava(p)) {
+            event.setCanceled(true);
+            return;
+        }
         if (event.getSource().getEntity() instanceof LivingEntity attacker && LmKnock.lying(attacker)
                 && event.getSource().getDirectEntity() == attacker) {
             event.setCanceled(true);

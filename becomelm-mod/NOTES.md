@@ -4,6 +4,24 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.9 — o nado do vídeo, a lava sem queimar e a tremida em primeira pessoa
+
+Rede "8" (a mesma: nada mudou no que vai pela rede).
+
+O que testar:
+- **Tremida da marreta em quem bate (tu), em PRIMEIRA pessoa** (LM, 03/11: "1ª treme, F5 igual"): agora a tela
+  chacoalha miúdo e sem parar enquanto tu martela também em primeira pessoa, o mesmo chacoalhão da 3ª pessoa (~0,8° em
+  média, até ~1,5°, umas 10 vezes por segundo, e some uns 0,5 s depois da última pancada). Antes (0.3.6 a 0.3.8) em
+  primeira pessoa quem bate não tremia. Atrás de ti e de frente pra tua cara (F5) e as câmeras de cinema: igual antes.
+- Quem apanha continua com o tranco curto de sempre a cada pancada.
+- **Nadando** (correr dentro d'água): o boneco deita como o jogador do jogo, inclina pra onde tu olha e faz o nado do
+  FroggyDude do vídeo (How many days 1:48-1:59), a mesma animação do mod da IA 0.7.22: pernas juntas e retas batendo
+  pra cima e pra baixo, o corpo gangorrando junto, braços esticados à frente na altura da cabeça.
+  (Antes, nadando, o BecomeLM voltava pro corpo de jogador normal com o nado padrão do jogo, as pernas em tesoura:
+  agora fica o boneco do FroggyDude. E o "tada" do pouso não ganha mais do nado.)
+- **Lava** (LM: "a mesma de correr, levemente mais lento, sem queimar"): tu pisa e galopa POR CIMA da lava (o pé fica
+  na superfície, como o strider), não pega fogo e anda ~15% mais devagar em cima dela. A animação é a de sempre.
+
 ## v0.3.8 — a câmera "Da vítima" na marreta igual ao vídeo
 
 Rede "8" (a mesma: nada mudou no que vai pela rede).

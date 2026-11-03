@@ -19,6 +19,8 @@ final class LmAnims {
     static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
     static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
     static final RawAnimation CROUCH_IDLE = RawAnimation.begin().thenLoop("crouch_idle");
+    /** (v0.3.9) Nadando: o dardo do vídeo (a mesma animação do mod da IA). */
+    static final RawAnimation SWIM = RawAnimation.begin().thenLoop("swim");
     static final RawAnimation CLIMB = RawAnimation.begin().thenLoop("climb");
     static final RawAnimation HOP = RawAnimation.begin().thenLoop("pad_hop");
     /** Cópias dos pulos do Froggydude que já começam no ar (tools/make_anims.py). */
@@ -92,6 +94,9 @@ final class LmAnims {
                 };
             }
         }
+        // (v0.3.9) nadando vem antes do mortal e do "tada" do pouso: cair na água conta como pouso e o tada (braços
+        // abertos, até andar rápido no chão) ficava no lugar do nado
+        if (p.isVisuallySwimming()) return SWIM;
         if (LmMoves.flipTurn(p, 0F) >= 0F || LmMoves.flipAir(p)) return FLIP;
         // pousou: braços abertos, até sair andando
         if (LmMoves.tada(p) && groundSpeed(p) <= TADA_MOVING) return TADA;

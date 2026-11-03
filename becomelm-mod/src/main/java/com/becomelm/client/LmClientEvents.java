@@ -243,10 +243,12 @@ public final class LmClientEvents {
         return true;
     }
 
-    /** Dormindo, de élitro, nadando, montado ou espectador: o corpo de jogador normal. */
+    /**
+     * Dormindo, de élitro, montado ou espectador: o corpo de jogador normal. (v0.3.9) Nadando agora é o boneco do
+     * FroggyDude com o nado do vídeo (antes, nadando, voltava o jogador normal com o nado padrão do jogo).
+     */
     private static boolean replaceable(AbstractClientPlayer p) {
-        return !p.isSpectator() && !p.isSleeping() && !p.isFallFlying() && !p.isAutoSpinAttack()
-                && !p.isVisuallySwimming() && !p.isPassenger();
+        return !p.isSpectator() && !p.isSleeping() && !p.isFallFlying() && !p.isAutoSpinAttack() && !p.isPassenger();
     }
 
     // ------------------------------------------------------------- galope: patadas
@@ -258,7 +260,8 @@ public final class LmClientEvents {
     private static void strides(Minecraft mc) {
         for (AbstractClientPlayer p : mc.level.players()) {
             LmMode mode = LmModes.get(p);
-            if (!mode.fast() || p.isSpectator() || p.isInvisible() || !replaceable(p) || LmTransformClient.busy(p)) {
+            if (!mode.fast() || p.isSpectator() || p.isInvisible() || !replaceable(p) || p.isVisuallySwimming()
+                    || LmTransformClient.busy(p)) {
                 STRIDES.remove(p.getId());
                 continue;
             }

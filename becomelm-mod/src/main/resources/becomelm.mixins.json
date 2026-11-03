@@ -7,7 +7,8 @@
   "mixins": [
     "EntitySprintDirtMixin",
     "PlayerGallopHungerMixin",
-    "LivingEntityWallClimbMixin"
+    "LivingEntityWallClimbMixin",
+    "EntityLavaFireMixin"
   ],
   "injectors": {
     "defaultRequire": 1

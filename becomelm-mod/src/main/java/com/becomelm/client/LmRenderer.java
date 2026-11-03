@@ -1,6 +1,8 @@
 package com.becomelm.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import net.minecraft.util.Mth;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -54,6 +56,25 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
     @Override
     public ResourceLocation getTextureLocation(LmAnimatable animatable) {
         return this.currentEntity != null ? this.currentEntity.getSkinTextureLocation() : DefaultPlayerSkin.getDefaultSkin();
+    }
+
+    /**
+     * (v0.3.9, LM 03/11: o nado "nos dois mods") Nadando (correndo dentro d'água): o boneco deita como o jogador do
+     * jogo e inclina pra onde tu olha, com o meio do corpo no meio da caixa de nado (0,3 bloco do chão). A batida das
+     * pernas e a gangorra são da animação "swim", a mesma do mod da IA (o dardo do vídeo).
+     */
+    @Override
+    protected void applyRotations(LmAnimatable animatable, PoseStack poseStack, float ageInTicks, float rotationYaw,
+                                  float partialTick) {
+        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
+        AbstractClientPlayer p = this.currentEntity;
+        if (p == null) return;
+        float swim = p.getSwimAmount(partialTick);
+        if (swim <= 0F) return;
+        float tilt = (p.isInWater() ? 90F + p.getXRot() : 90F) * swim;
+        poseStack.translate(0.0D, Mth.lerp(swim, 1.0D, 0.3D), 0.0D);
+        poseStack.mulPose(Axis.XP.rotationDegrees(-tilt));
+        poseStack.translate(0.0D, -1.0D, 0.0D);
     }
 
     @Override

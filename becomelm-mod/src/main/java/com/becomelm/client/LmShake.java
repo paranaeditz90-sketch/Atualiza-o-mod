@@ -15,7 +15,9 @@ import net.minecraftforge.fml.common.Mod;
  * - quem APANHA, em primeira pessoa: um tranco curto a cada pancada (o mesmo da 0.3.5);
  * - quem BATE, em terceira pessoa (F5 e as câmeras de cinema): o chacoalhão do vídeo (VS Grox MANHUNT, a câmera de
  *   fora enquanto ele martela: miúdo e contínuo, ~0,8° rms e ~±1,5° no pico, umas 10 vezes por segundo, e some uns
- *   0,5 s depois da última pancada). Em primeira pessoa quem bate não treme mais. Só na tela de quem bate.
+ *   0,5 s depois da última pancada). Só na tela de quem bate.
+ * - (v0.3.9, LM: "1ª treme, F5 igual") quem BATE treme também em PRIMEIRA pessoa, o mesmo chacoalhão da 3ª pessoa
+ *   (antes, na 0.3.6 a 0.3.8, em primeira pessoa quem bate não tremia). O F5 e as câmeras de cinema ficam iguais.
  */
 @Mod.EventBusSubscriber(modid = BecomeLM.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LmShake {
@@ -70,7 +72,7 @@ public final class LmShake {
             float since = (now - lastHammer) / 1.0E9F;
             if (since >= JITTER_HOLD_S + JITTER_FADE_S) {
                 lastHammer = -1L;
-            } else if (!firstPerson) {
+            } else {
                 float k = since <= JITTER_HOLD_S ? 1F : 1F - (since - JITTER_HOLD_S) / JITTER_FADE_S;
                 float a = JITTER_DEG * k * k;
                 // duas ondas fora de compasso em cada eixo: parece aleatório, sem virar um balanço só
