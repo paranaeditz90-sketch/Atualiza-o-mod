@@ -31,6 +31,10 @@ import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.vehicle.Boat;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -352,6 +356,8 @@ public class FroggyCombatGoal extends Goal {
 
         froggy.getLookControl().setLookAt(target, 40.0F, 40.0F);
 
+        // (v0.7.22) dentro d'água: nada de verdade atrás dela (e o barco)
+        if (swimChase(target, dist)) return;
         // te viu de longe e sorteou o medo: o barulho sem aparecer antes da caçada (FarScare)
         if (farScare.tick(target, dist)) return;
 
@@ -1152,6 +1158,103 @@ public class FroggyCombatGoal extends Goal {
     // ---------------------------------------------------------------- decisão
 
     /** Velocidade do alvo por tick (suavizada), pra prever onde ele vai estar. */
+    // ----- Nado (v0.7.22, LM 03/11) -----
+    /** Há quanto tempo ele nada atrás dela ("cada vez mais rápido") e o plano contra quem está de barco. */
+    private int swimTicks;
+    private int boatPlan = -1, boatTicks, boatCooldown;
+
+    /**
+     * (v0.7.22, LM: "fazer nadar de verdade, em velocidade levemente superior; se o jogador tá no barco, ele chega perto,
+     * usa a língua, quebra o barco ou pula em cima do barco e afunda; e o jogador nadando, ele vai cada vez mais rápido,
+     * se o jogador tá muito longe ele aumenta a velocidade") Dentro d'água ele nada em 3D direto pra ela (antes afundava
+     * e andava no fundo): um pouco mais rápido que ela, acelerando com a distância e com o tempo.
+     */
+    private boolean swimChase(LivingEntity target, double dist) {
+        Boat boat = target.getVehicle() instanceof Boat b ? b : null;
+        // no meio do salto pro barco (já fora d'água): continua o plano até afundar
+        if (boatPlan == 2 && boatTicks > 0) {
+            if (boat != null) return boatAction(target, boat);
+            boatPlan = -1;
+        }
+        if (!froggy.isInWater() || froggy.getFluidHeight(FluidTags.WATER) < 0.4D) {
+            swimTicks = 0;
+            boatPlan = -1;
+            return false;
+        }
+        swimTicks++;
+        if (boatCooldown > 0) boatCooldown--;
+        if (boat != null && boatAction(target, boat)) return true;
+        // colado nela, nadando: a mordida de sempre
+        if (boat == null && dist <= 2.4D && froggy.getAttackCooldown() <= 0 && froggy.isReady(FroggyState.BITE)) {
+            beginAttack(FroggyState.BITE, target, dist);
+            return true;
+        }
+        Vec3 aim = boat != null ? boat.position().add(0, 0.3D, 0) : target.position().add(0, target.getBbHeight() * 0.4D, 0);
+        Vec3 to = aim.subtract(froggy.position().add(0, froggy.getBbHeight() * 0.4D, 0));
+        double len = to.length();
+        if (len < 1.0E-3D) return true;
+        double her = Math.min(0.6D, targetVel.length());
+        double far = 1.0D + Mth.clamp((dist - 5.0D) / 15.0D, 0.0D, 1.0D) * 0.8D;
+        double ramp = 1.0D + Math.min(swimTicks / 200.0D, 1.0D) * 0.25D;
+        double speed = Math.min(0.5D, Math.max(0.16D, her * 1.12D) * far * ramp);
+        Vec3 want = to.scale(speed / len);
+        if (froggy.horizontalCollision) want = want.add(0, 0.25D, 0);   // bateu na beirada: sobe pra sair da água
+        froggy.driveSwim(froggy.getDeltaMovement().scale(0.7D).add(want.scale(0.3D)));
+        froggy.getNavigation().stop();
+        float yaw = (float) (Mth.atan2(to.z, to.x) * Mth.RAD_TO_DEG) - 90.0F;
+        froggy.setYRot(yaw);
+        froggy.setYBodyRot(yaw);
+        froggy.setYHeadRot(yaw);
+        if (froggy.tickCount % 20 == 0) {
+            debug("nadando: dist=" + String.format("%.2f", dist) + " ela=" + String.format("%.3f", her) + " ele="
+                    + String.format("%.3f", speed) + (boat != null ? " (barco)" : ""));
+        }
+        return true;
+    }
+
+    /** De barco: chega perto e sorteia a língua (tira do barco e puxa), quebrar o barco ou pular em cima e afundar. */
+    private boolean boatAction(LivingEntity target, Boat boat) {
+        if (boatPlan < 0) {
+            if (froggy.distanceTo(boat) > 3.0D || boatCooldown > 0) return false;   // ainda nadando até lá
+            boatPlan = froggy.getRandom().nextInt(3);
+            boatTicks = 0;
+            debug("barco: plano " + (boatPlan == 0 ? "língua" : boatPlan == 1 ? "quebrar" : "pular em cima e afundar"));
+        }
+        boatTicks++;
+        if (boatPlan == 0) {
+            target.stopRiding();
+            boatPlan = -1;
+            boatCooldown = 60;
+            beginAttack(FroggyState.TONGUE_GRAB, target, froggy.distanceTo(target));
+            return true;
+        }
+        if (boatPlan == 1) {
+            froggy.swing(InteractionHand.MAIN_HAND);
+            froggy.playSound(SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, 1.2F, 0.9F);
+            boat.hurt(froggy.damageSources().mobAttack(froggy), 1000.0F);   // passa de 40: quebra e solta o item
+            boatPlan = -1;
+            boatCooldown = 40;
+            return true;
+        }
+        // pula em cima: sai d'água num salto até o barco, e no pouso o barco afunda com ela
+        Vec3 to = boat.position().subtract(froggy.position());
+        if (boatTicks <= 3 && froggy.isInWater()) {
+            froggy.driveSwim(new Vec3(to.x * 0.22D, 0.55D, to.z * 0.22D));
+            return true;
+        }
+        if (boatTicks >= 14 || (boatTicks > 4 && froggy.distanceTo(boat) < 1.6D)) {
+            froggy.playSound(SoundEvents.PLAYER_SPLASH_HIGH_SPEED, 1.4F, 0.8F);
+            target.stopRiding();
+            boat.kill();
+            target.setDeltaMovement(0.0D, -0.8D, 0.0D);
+            target.hurtMarked = true;
+            hurtNoKnockback(target, 3.0F);
+            boatPlan = -1;
+            boatCooldown = 60;
+        }
+        return true;
+    }
+
     private void trackTarget(LivingEntity target) {
         Vec3 pos = target.position();
         if (target != trackedTarget) {

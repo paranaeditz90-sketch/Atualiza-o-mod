@@ -72,6 +72,23 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     private static final float MOUTH_Y = 26.0F;
     private static final float MOUTH_Z = -4.5F;
 
+    /**
+     * (v0.7.22) Nadando: o corpo deita (como o jogador nadando no jogo) e inclina pra onde ele vai (de cabeça pra baixo
+     * mergulhando, de cabeça pra cima subindo), girando no meio do corpo. As batidas de perna e a gangorra são da
+     * animação "swim" (build_anims.py).
+     */
+    @Override
+    protected void applyRotations(FroggydudeEntity animatable, PoseStack poseStack, float ageInTicks, float rotationYaw,
+                                  float partialTick) {
+        super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
+        float swim = animatable.getSwimAmount(partialTick);
+        if (swim <= 0F) return;
+        float tilt = (90F + animatable.getSwimPitch(partialTick)) * swim;
+        poseStack.translate(0.0D, 0.9D, 0.0D);
+        poseStack.mulPose(Axis.XP.rotationDegrees(-tilt));
+        poseStack.translate(0.0D, -0.9D, 0.0D);
+    }
+
     public FroggydudeRenderer(EntityRendererProvider.Context context) {
         super(context, new FroggydudeModel());
         this.shadowRadius = 0.5F;

@@ -13,8 +13,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.21 | 03/11: pulo do céu igual ao vídeo do AJ + todo soco do esmagamento tirando vida (0.7.19); parado de 4 agachado de sapo (0.7.20); o esmagamento visto por quem apanha igual ao vídeo do LM, câmera parada 31° pra cima e martelo encaixado no vídeo (0.7.21) |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.8 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8) |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.22 | 03/11: pulo do céu igual ao vídeo do AJ + todo soco do esmagamento tirando vida (0.7.19); parado de 4 agachado de sapo (0.7.20); o esmagamento visto por quem apanha igual ao vídeo do LM, câmera parada 31° pra cima e martelo encaixado no vídeo (0.7.21); NADA de verdade com o nado do vídeo (o dardo), barco (língua / quebra / afunda) e a lava ~15% mais lenta (0.7.22) |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.9 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8); nado do vídeo, galope por cima da lava sem fogo e a tremida de quem bate em 1ª pessoa (0.3.9) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -43,12 +43,17 @@ Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
   Os números ficam em `FLEX` no `froggydude-mod/tools/anim/build_anims.py`. Pra medir vídeo: skill `process-video`.
 - **Próximas (pedido do LM, 02/11):** ~~corrigir a animação de **pulo**~~ (feito 03/11, abaixo) e a de **uso da língua** com o mesmo jeito.
   Também: **nadar** na água, **correr de 4 por cima da lava** e a **marreta com os dois braços** (VS Grox 2:27-2:33).
-  Uma de cada vez, na ordem que o LM escolher. (03/11: pulo, parado de 4 e martelo visto pela vítima feitos; faltam a
-  língua, nadar e a lava.)
-- **Em aberto (03/11): tremida de quem bate no BecomeLM em 1ª pessoa.** O LM: "Sim, na 3 visão continua a mesma coisa.
-  Só em 2 visão que não muda". Perguntei qual: (1) 1ª pessoa treme igual à 3ª e a de frente pra cara (F5 duas vezes)
-  para de tremer; (2) 1ª treme e o F5 segue tremendo nas duas; (3) a de frente já não treme hoje (defeito). Hoje o
-  `LmShake` treme quem bate quando não é 1ª pessoa (as duas do F5 e as câmeras de cinema).
+  Uma de cada vez, na ordem que o LM escolher. (03/11: pulo, parado de 4, martelo visto pela vítima, NADAR e LAVA
+  feitos; falta a língua.)
+- **Nadar + lava: FEITO 03/11** (IA 0.7.22 + BecomeLM 0.3.9). Nado medido a 60 qps com grade no How many days
+  1:52,95-1:53,57 (só o FroggyDude): o "dardo" do LM, pernas juntas batendo pra cima e pra baixo, o corpo gangorrando
+  no quadril, braços retos à frente na altura da cabeça, 0,62 s; o outro jogador nada no ritmo do jogo (1,2 s), então o
+  vídeo não é acelerado. IA: nada em 3D atrás da vítima (~12% mais rápido, acelera com a distância e com o tempo),
+  barco (língua / quebra / pula em cima e afunda). Lava: a IA já ia pela lava (IA Real); agora ~15% mais lenta. No
+  BecomeLM: deita nadando; pisa e galopa por cima da lava, imune a fogo só ali (o pé do "em pé na lava" fica dentro
+  dela e o jogo põe fogo no servidor e no cliente), ~15% mais lento.
+- **Tremida de quem bate no BecomeLM em 1ª pessoa: FEITO 03/11** (0.3.9, o LM escolheu "1ª treme, F5 igual"): o
+  mesmo chacoalhão da 3ª pessoa; medido no jogo (parado ~0 px/quadro, martelando 10,6, some depois).
 - **Marreta: FEITA 02/11** (BecomeLM 0.3.5 + IA 0.7.18). Medida no VS Grox MANHUNT 2:27-2:33, réplica aprovada pelo LM,
   pose nova no `sky_smash` (`becomelm-mod/tools/make_anims.py`). No BecomeLM: som de crítico em cada pancada (em pé e
   montado; o empurrão que derruba não), 1 em 5 pancadas 1,5x, tremidinha em 1ª pessoa em quem bate e em quem apanha.

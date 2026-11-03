@@ -462,6 +462,26 @@ ANIMS["smash"] = animation(0.5, [
     (0.50, pose(**SMASH_UP)),
 ], True)
 
+# Nado (v0.7.22, LM 03/11; How many days 1:52,95-1:53,57 medido a 60 qps com grade; "as pernas vão pra cima e pra
+# baixo ao mesmo tempo, como se fosse um dardo", "ele impulsiona mais", "as mãos ficam retas na altura da cabeça"):
+# pernas JUNTAS e retas batendo (golfinho) e o corpo gangorrando no quadril junto (alfa: cintura e pernas giram juntas;
+# beta: as pernas batem a mais). Desliza reto de cabeça pra cima, as pernas sobem rápido (0,08 s) enquanto ele deita,
+# seguram e descem de uma vez (o impulso). Braços esticados à frente, na altura da cabeça. Ciclo 0,62 s.
+# Pose do corpo EM PÉ: o deitar e a inclinação pra onde ele nada vêm do FroggydudeRenderer.
+def _swim(alfa, beta, knee=0):
+    return pose(waist=alfa, head=-65 - 0.8 * alfa, arms=-172, arm_spread=8, legs=alfa + beta, knee=knee, leg_spread=2)
+
+
+ANIMS["swim"] = animation(0.62, [
+    (0.00, _swim(-20, 6)),            # fim do deslize, as pernas começam a subir (1:52,95)
+    (0.08, _swim(6, 40, 14)),         # pernas sobem rápido, ele deitando (1:53,03)
+    (0.14, _swim(18, 24, 12)),        # deitado, pernas em cima (1:53,10)
+    (0.26, _swim(16, 20, 10)),        # segura (1:53,21)
+    (0.36, _swim(-18, -2)),           # a batida pra baixo: a cabeça sobe, o impulso (1:53,31)
+    (0.48, _swim(-22, 0)),            # deslizando reto (1:53,43)
+    (0.62, _swim(-20, 6)),
+], True)
+
 # Pulo altíssimo (v0.7.19, LM 02/11): réplica do VS AJTHEBOLD (FroggyDude VS Every Opponent 29:48,20-48,67 de frente e
 # 29:51,40-51,74 visto de baixo) medida por SOBREPOSIÇÃO: o rig desenhado por cima do quadro do original e os ângulos
 # ajustados até a silhueta cobrir a dele (ameaça 77-79%, queda 77-89%, agachada e decolagem 51-73%).

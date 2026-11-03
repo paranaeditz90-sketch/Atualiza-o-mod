@@ -1956,9 +1956,27 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return m != null && m.isAlive() ? m : null;
     }
 
+    private static final java.util.UUID LAVA_SLOW_ID = java.util.UUID.fromString("5b0e7f3c-9a21-4d6e-8f47-2c1a9b3d6e05");
+
+    /** (v0.7.22, LM: "a da lava, que é a mesma de correr, levemente mais lento, sem queimar") ~15% mais lento em cima dela. */
+    private void tickLavaPace() {
+        boolean onLava = lavaWalking && (this.isInLava()
+                || this.level().getFluidState(BlockPos.containing(this.getX(), this.getY() - 0.05D, this.getZ())).is(FluidTags.LAVA));
+        var speed = this.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        boolean has = speed.getModifier(LAVA_SLOW_ID) != null;
+        if (onLava && !has) {
+            speed.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(LAVA_SLOW_ID,
+                    "froggydude lava", -0.15D, net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL));
+        } else if (!onLava && has) {
+            speed.removeModifier(LAVA_SLOW_ID);
+        }
+    }
+
     private void tickReal() {
         if (fireShieldTicks > 0) fireShieldTicks--;
         if (lavaWalking || fireShieldTicks > 0) this.clearFire();
+        tickLavaPace();
         // atravessou (ou desistiu): fora da lava, volta ao normal
         if (lavaWalking && !this.isInLava() && (this.tickCount > lavaWalkUntil || this.getTarget() == null)) {
             setLavaWalking(false);
@@ -2116,10 +2134,64 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     // ---------------- tick ----------------
 
+    // ----- Nado (v0.7.22, LM 03/11: "fazer nadar de verdade, em velocidade levemente superior") -----
+    /** Quantos ticks o nado ainda manda no movimento (o FroggyCombatGoal renova a cada tick em que nada atrás dela). */
+    private int swimDriveTicks;
+    /** Cliente: 0 = em pé, 1 = deitado nadando; e a inclinação pra onde ele nada (graus, + = de cabeça pra baixo). */
+    private float swimAmount, swimAmountO, swimPitch, swimPitchO;
+
+    /** Dentro d'água funda e fora do chão: nadando (a animação e o deitar). */
+    public boolean isSwimmingVisual() {
+        return this.isInWater() && !this.onGround() && this.getFluidHeight(FluidTags.WATER) > 0.5D;
+    }
+
+    /** Servidor: nada com essa velocidade (blocos/tick) neste tick; sem isso ele afunda e anda no fundo, como antes. */
+    public void driveSwim(Vec3 velocity) {
+        this.setDeltaMovement(velocity);
+        this.swimDriveTicks = 2;
+    }
+
+    public boolean isSwimDriven() {
+        return this.swimDriveTicks > 0 && this.isInWater();
+    }
+
+    @Override
+    public void travel(Vec3 input) {
+        if (this.isEffectiveAi() && isSwimDriven()) {
+            // nadando atrás dela: a velocidade vem do FroggyCombatGoal (sem a gravidade e o arrasto da água do jogo)
+            this.swimDriveTicks--;
+            this.move(net.minecraft.world.entity.MoverType.SELF, this.getDeltaMovement());
+            this.setDeltaMovement(this.getDeltaMovement().scale(0.92D));
+            return;
+        }
+        super.travel(input);
+    }
+
+    public float getSwimAmount(float partial) {
+        return Mth.lerp(partial, swimAmountO, swimAmount);
+    }
+
+    public float getSwimPitch(float partial) {
+        return Mth.lerp(partial, swimPitchO, swimPitch);
+    }
+
+    private void swimClientTick() {
+        swimAmountO = swimAmount;
+        swimPitchO = swimPitch;
+        // mordendo (ou outro golpe) ele fica em pé na água; nadando, deita
+        boolean swim = isSwimmingVisual() && !getFroggyState().isAttack();
+        swimAmount = Mth.approach(swimAmount, swim ? 1F : 0F, 0.15F);
+        double dy = this.getY() - this.yo, h = Math.sqrt(Mth.square(this.getX() - this.xo) + Mth.square(this.getZ() - this.zo));
+        // inclina pra onde vai (até 50°, como no vídeo); quase sem andar pra frente, volta a nadar reto
+        float want = swim && h > 0.03D ? (float) (Mth.atan2(-dy, h) * Mth.RAD_TO_DEG) : 0F;
+        swimPitch += (Mth.clamp(want, -50F, 50F) - swimPitch) * 0.2F;
+    }
+
     @Override
     public void tick() {
         super.tick();
         if (this.level().isClientSide) {
+            swimClientTick();
             clientTick();
             return;
         }
@@ -2653,6 +2725,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_TIRED = RawAnimation.begin().thenLoop("tired");
     private static final RawAnimation ANIM_CLIMB = RawAnimation.begin().thenLoop("climb");
     private static final RawAnimation ANIM_CROUCH_IDLE = RawAnimation.begin().thenLoop("crouch_idle");
+    private static final RawAnimation ANIM_SWIM = RawAnimation.begin().thenLoop("swim");
     private static final RawAnimation ANIM_FEED = RawAnimation.begin().thenLoop("feed");
     private static final RawAnimation ANIM_FEED_MOB = RawAnimation.begin().thenLoop("feed_mob");
     private static final RawAnimation ANIM_BITE =
@@ -2768,6 +2841,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(isMovingSynced() ? ANIM_WALK : ANIM_IDLE);
             default:
                 break;
+        }
+        if (isSwimmingVisual()) {
+            // (v0.7.22) nadando: o dardo do vídeo (o deitar e a inclinação vêm do FroggydudeRenderer)
+            return state.setAndContinue(ANIM_SWIM);
         }
         if (isClimbing() && !this.onGround()) {
             return state.setAndContinue(ANIM_CLIMB);
