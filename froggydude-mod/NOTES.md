@@ -1,4 +1,4 @@
-# Froggydude - v0.7.20: parado de 4 agachado de sapo (sobre a v0.7.19)
+# Froggydude - v0.7.21: o esmagamento visto por quem apanha, igual ao vídeo (sobre a v0.7.20)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,22 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.20):
+O que testar agora (v0.7.21):
+- **Esmagamento visto por quem apanha** (LM, 03/11: "deixa com a mesma perspectiva que esse do vídeo", "as mãos
+  deveriam bater no chão, que no caso é o jogador", "os braços ainda tão levemente abertos pra fora"; aprovado vendo a
+  gravação no jogo: "Perfeito!"):
+  - Deitado e preso, a câmera fica PARADA olhando 31° pra cima na direção dele (antes ia atrás do rosto dele a cada
+    soco e o golpe nunca "vinha"). Ele fica de joelhos a 1,5 bloco (antes 1,1): dá pra ver ele inteiro.
+  - O martelo foi encaixado no vídeo do LM (8,25 s em cima e 10,1 s na pancada) pelos pontos e tamanhos medidos na
+    grade (mãos, punhos, cabeça, ombros). EM CIMA: os braços pra cima, um de cada lado da cabeça. NA PANCADA: o tronco
+    inclina ~50°, a cabeça dobra (o topo dela enche o alto da tela) e os braços FECHADOS descem reto, com os punhos
+    nos cantos de baixo da tela, batendo em ti. O ritmo é o mesmo (2 socos por segundo) e a tremida de quem apanha também.
+  - Testado no jogo (gravação em 1ª pessoa, a câmera cravada nos 31° o golpe inteiro).
+  - Sobra uma diferença do boneco: a nossa cabeça é maior que a do vídeo, então em cima ela chega quase na altura das mãos.
+  PRA VER: /data merge entity @e[type=froggydude:froggydude,limit=1] {DebugAttack:"SMASH"} e ficar a uns 5 blocos na
+  frente dele (o bote sai de 3,5 a 7 blocos e termina sempre martelando; pra voltar ao normal: DebugAttack:"").
+
+Da v0.7.20:
 - **Parado de 4** (quando ele para um instante no meio da caçada): agora fica agachado de **SAPO** (LM, 03/11: "repara
   na perna, tá tipo /" -> "joelho dobrado, como um sapo"): a coxa pra frente e o joelho dobrado, o quadril baixo, o
   tronco meio erguido olhando pra frente e os braços quase em pé com as **mãos no chão** na frente, respirando. Antes as

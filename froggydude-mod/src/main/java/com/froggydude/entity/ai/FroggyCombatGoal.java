@@ -111,7 +111,10 @@ public class FroggyCombatGoal extends Goal {
     // uma prancha comprida (boca a 1,73 bloco dos pés): a 1,9 a cara dele chega a 0,16
     // bloco da câmera na mordida, como antes, sem o peito atravessar.
     private static final double PIN_DISTANCE = 1.9D;
-    private static final double SMASH_DISTANCE = 1.1D;
+    // (v0.7.21, LM: "deixa com a mesma perspectiva que esse do vídeo") No vídeo a vítima, deitada, vê ele INTEIRO de
+    // joelhos (dos joelhos até as mãos lá em cima, a cabeça ~12% da largura da tela): com o campo de visão normal isso é
+    // a 1,5 bloco do olho dela (antes 1,1, e da vítima só se via a cara e o peito). A animação do martelo é a mesma.
+    private static final double SMASH_DISTANCE = 1.5D;
     private static final double RIP_DISTANCE = 1.5D;
 
     // Devorar: 5 s comendo em "flexão" (pin_hold): a cabeça desce mordendo a cada 0,35 s (mais rápido com

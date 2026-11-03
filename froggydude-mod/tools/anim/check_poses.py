@@ -80,7 +80,7 @@ if __name__ == "__main__":
         if cam:
             print(f"câmera mais perto: {cam[0]:+.2f} bloco ({cam[2]}) em t={cam[1]:.2f}")
     else:
-        for name, d in (("smash", 1.1), ("pin_hold", 1.5), ("arm_rip", 1.5), ("jump_pin", None),
+        for name, d in (("smash", 1.5), ("pin_hold", 1.5), ("arm_rip", 1.5), ("jump_pin", None),
                         ("high_jump", None), ("run", None), ("run_frenzy", None),
                         ("climb", None), ("crouch_idle", None)):
             g, gt, cam = check(name, d, show=False)

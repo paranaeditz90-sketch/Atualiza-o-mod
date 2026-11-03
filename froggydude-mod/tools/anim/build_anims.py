@@ -440,16 +440,25 @@ ANIMS["pin_hold"] = animation(PUSHUP_LEN, flexao_loop(), True, ground=False)
 # acima da cabeça e desce inclinando só uns 30 graus, braços esticados pra
 # frente e pra baixo. A cabeça fica alta (longe da câmera), então a vítima chega
 # mais perto: 1,1 bloco (SMASH_DISTANCE), e os punhos param a ~0,4 bloco do olho dela.
+# (v0.7.21, vídeo do LM de 03/11 visto pela vítima, 8,25 s em cima e 10,1 s na pancada; LM: "as mãos deveriam bater
+# no chão, que no caso é o jogador", "os braços ainda tão levemente abertos pra fora", "usa grade pra medir")
+# Encaixado no vídeo pelos pontos e tamanhos medidos na grade (mãos, punhos, cabeça, ombros) mais a silhueta, com a
+# câmera da vítima parada (olho a 0,4, 31° pra cima, ele a 1,5 bloco = SMASH_DISTANCE):
+# - EM CIMA: os braços pra cima e um pouco pra frente, um de cada lado da cabeça, as mãos no alto da tela;
+# - PANCADA: tronco ~50°, a cabeça dobrada (o topo dela enche o alto da tela) e os braços FECHADOS descendo reto: os
+#   punhos param a ~0,4 bloco do olho, nos cantos de baixo da tela (só pela perspectiva, sem abrir o braço).
+# O ritmo é o mesmo (0,5 s, impacto aos 0,25 s); a nossa cabeça é maior que a do vídeo, então em cima ela chega
+# quase na altura das mãos.
 KNEEL = dict(root_y=-4, legs=0, knee=90, leg_spread=8, arm_spread=4)
-SMASH_UP = dict(**KNEEL, waist=-8, head=35, arms=-170)
-SMASH_HIT = dict(**KNEEL, waist=30, head=15, arms=-70)
+SMASH_UP = {**KNEEL, "waist": 14, "head": -15, "arms": -154, "arm_spread": 9, "arm_ry": 10}
+SMASH_HIT = {**KNEEL, "waist": 50, "head": 49, "arms": -79, "arm_spread": 3, "arm_ry": 4}
 ANIMS["smash"] = animation(0.5, [
     (0.00, pose(**SMASH_UP)),
-    (0.14, pose(**{**SMASH_UP, "waist": -14, "head": 30, "arms": -186})),      # arma o golpe
-    (0.20, pose(**{**KNEEL, "waist": 10, "head": 24, "arms": -125})),          # descendo
+    (0.14, pose(**{**SMASH_UP, "waist": 8, "head": -20, "arms": -170})),       # arma o golpe
+    (0.20, pose(**{**KNEEL, "waist": 32, "head": 20, "arms": -115, "arm_spread": 6, "arm_ry": 7})),   # descendo
     (0.25, pose(**SMASH_HIT)),                                                 # IMPACTO
-    (0.31, pose(**{**SMASH_HIT, "waist": 33, "head": 13, "arms": -66})),
-    (0.40, pose(**{**KNEEL, "waist": 10, "head": 26, "arms": -140})),          # sobe de novo
+    (0.31, pose(**{**SMASH_HIT, "waist": 52, "head": 50, "arms": -76})),
+    (0.40, pose(**{**KNEEL, "waist": 30, "head": 15, "arms": -120, "arm_spread": 6, "arm_ry": 7})),   # sobe de novo
     (0.50, pose(**SMASH_UP)),
 ], True)
 

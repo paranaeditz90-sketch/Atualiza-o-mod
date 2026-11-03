@@ -1,5 +1,6 @@
 package com.froggydude.client;
 
+import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.init.ModEntityTypes;
 import com.froggydude.network.ClientShakeHandler;
@@ -22,13 +23,21 @@ import net.minecraftforge.fml.common.Mod;
  * Efeitos de tela quando o Froggy acerta o jogador:
  * - tremor de câmera de verdade (sacode em vários eixos e some suave);
  * - derrubado e preso: deitado no chão, controles travados e a câmera presa
- *   no rosto do Froggy que está em cima. Não dá pra olhar pra outro lado.
+ *   no rosto do Froggy que está em cima. Não dá pra olhar pra outro lado. No esmagamento (v0.7.21) a câmera fica
+ *   parada olhando pra cima na direção dele, como no vídeo, e é a cabeça dele que desce até a tela.
  */
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class ClientForgeEvents {
 
     /** Quanto a câmera anda em direção ao rosto dele a cada quadro (0 a 1). */
     private static final float LOOK_SNAP = 0.35F;
+    /**
+     * (v0.7.21, LM: "deixa com a mesma perspectiva que esse do vídeo") Esmagado, a câmera NÃO segue o rosto dele: fica
+     * parada olhando 31° pra cima na direção dele (no vídeo o chão aparece no pé da tela e ele inteiro de joelhos; os
+     * 31° saem do horizonte do vídeo, medido com o boneco encaixado por cima), e a cada pancada o topo da cabeça dele
+     * enche o alto da tela e os punhos descem nos cantos de baixo. Antes ela ia atrás do rosto e o golpe nunca "vinha".
+     */
+    private static final float SMASH_VIEW_PITCH = -31F;
 
     private static boolean forcedPoseByUs = false;
 
@@ -96,13 +105,15 @@ public class ClientForgeEvents {
         if (pinner == null) return;
 
         Vec3 eye = player.getEyePosition(event.renderTickTime);
-        Vec3 face = pinner instanceof FroggydudeEntity froggy
+        boolean smash = pinner instanceof FroggydudeEntity f && f.getFroggyState() == FroggyState.SMASH;
+        Vec3 face = smash ? pinner.getPosition(event.renderTickTime)
+                : pinner instanceof FroggydudeEntity froggy
                 ? froggy.getFacePosition(event.renderTickTime)
                 : pinner.getEyePosition(event.renderTickTime);
         Vec3 d = face.subtract(eye);
         double flat = Math.sqrt(d.x * d.x + d.z * d.z);
         float wantYaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
-        float wantPitch = (float) (-(Mth.atan2(d.y, flat) * Mth.RAD_TO_DEG));
+        float wantPitch = smash ? SMASH_VIEW_PITCH : (float) (-(Mth.atan2(d.y, flat) * Mth.RAD_TO_DEG));
 
         float yaw = player.getYRot() + Mth.wrapDegrees(wantYaw - player.getYRot()) * LOOK_SNAP;
         float pitch = Mth.clamp(player.getXRot() + (wantPitch - player.getXRot()) * LOOK_SNAP, -90F, 90F);

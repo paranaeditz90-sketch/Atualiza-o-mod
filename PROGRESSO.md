@@ -13,8 +13,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.20 | 03/11: pulo do céu igual ao vídeo do AJ + todo soco do esmagamento tirando vida (0.7.19); parado de 4 agachado de sapo, mãos no chão (0.7.20) |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.7 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||", mãos no chão (0.3.7) |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.21 | 03/11: pulo do céu igual ao vídeo do AJ + todo soco do esmagamento tirando vida (0.7.19); parado de 4 agachado de sapo (0.7.20); o esmagamento visto por quem apanha igual ao vídeo do LM, câmera parada 31° pra cima e martelo encaixado no vídeo (0.7.21) |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.8 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -43,7 +43,12 @@ Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
   Os números ficam em `FLEX` no `froggydude-mod/tools/anim/build_anims.py`. Pra medir vídeo: skill `process-video`.
 - **Próximas (pedido do LM, 02/11):** ~~corrigir a animação de **pulo**~~ (feito 03/11, abaixo) e a de **uso da língua** com o mesmo jeito.
   Também: **nadar** na água, **correr de 4 por cima da lava** e a **marreta com os dois braços** (VS Grox 2:27-2:33).
-  Uma de cada vez, na ordem que o LM escolher.
+  Uma de cada vez, na ordem que o LM escolher. (03/11: pulo, parado de 4 e martelo visto pela vítima feitos; faltam a
+  língua, nadar e a lava.)
+- **Em aberto (03/11): tremida de quem bate no BecomeLM em 1ª pessoa.** O LM: "Sim, na 3 visão continua a mesma coisa.
+  Só em 2 visão que não muda". Perguntei qual: (1) 1ª pessoa treme igual à 3ª e a de frente pra cara (F5 duas vezes)
+  para de tremer; (2) 1ª treme e o F5 segue tremendo nas duas; (3) a de frente já não treme hoje (defeito). Hoje o
+  `LmShake` treme quem bate quando não é 1ª pessoa (as duas do F5 e as câmeras de cinema).
 - **Marreta: FEITA 02/11** (BecomeLM 0.3.5 + IA 0.7.18). Medida no VS Grox MANHUNT 2:27-2:33, réplica aprovada pelo LM,
   pose nova no `sky_smash` (`becomelm-mod/tools/make_anims.py`). No BecomeLM: som de crítico em cada pancada (em pé e
   montado; o empurrão que derruba não), 1 em 5 pancadas 1,5x, tremidinha em 1ª pessoa em quem bate e em quem apanha.
@@ -61,6 +66,16 @@ Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
   numa vista só, braço de zumbi e braço meio levantado (e perna pra frente ou pra trás) dão o mesmo contorno, então
   perguntar ao LM. **Falta testar no jogo:** o pulo no BecomeLM, o dano de cada soco do esmagamento da IA e a tremida
   da marreta (quem bate, em 3ª pessoa).
+- **Martelo visto pela vítima: FEITO 03/11** (IA 0.7.21 + BecomeLM 0.3.8; o LM viu a gravação no jogo: "Perfeito!").
+  Vídeo do LM (Screenrecorder de 03/11, 7,9-10,6 s): ele de joelhos na frente, a câmera parada olhando pra cima.
+  - IA: preso, a câmera fica parada 31° pra cima (o horizonte do vídeo) e ele a 1,5 bloco. O martelo foi encaixado pelos
+    PONTOS e TAMANHOS medidos na grade (mãos, punhos, cabeça, ombros) + silhueta, câmera única pros 2 quadros: em cima,
+    braços pra cima um de cada lado da cabeça; na pancada, tronco ~50°, a cabeça dobrada e os braços FECHADOS, o punho
+    no canto da tela só pela perspectiva. Lição: só a silhueta dava pose sem sentido (cobre a mancha com as partes erradas).
+  - BecomeLM: a câmera "Da vítima" martelando fica parada no chão a 1,7 bloco, olhando 33° pra cima. O martelo é o de sempre.
+  - Teste: `DebugAttack:"SMASH"`, `doMobSpawning false`, `irritado_chance = 0` só no `run/config` durante o teste e o
+    jogador a 5 blocos na frente dele (`/execute at @e[...] rotated ~ 0 run tp @s ^ ^ ^5`). Começar com o jogador EM
+    CIMA do chão: 0,1 bloco dentro dele, preso, ele afunda pela terra e a tela vira a textura da terra por dentro.
 - 02/11: o LM liberou o commit "na próxima atualização" - a 0.7.18 e a 0.3.5 (parede + marreta) foram juntas pro GitHub.
 - **Subir parede de 4 no BecomeLM (02/11, pedido do LM):** galopando reto pra parede ele sobe a 10 b/s (Grox 3:29) e
   passa por cima da beirada (`LmWallClimb` + o mixin do `onClimbable`/`travel`). Testado no jogo: pousa no meio de um
