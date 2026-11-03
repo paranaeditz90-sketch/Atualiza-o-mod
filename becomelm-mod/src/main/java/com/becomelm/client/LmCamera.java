@@ -36,7 +36,8 @@ import javax.annotation.Nullable;
  * - De lado acompanhando: do lado, correndo junto (como o carro de câmera do filme).
  * - Na cara dele: de frente pro rosto, a "câmera de selfie" dos vídeos.
  * - Da vítima: do olho de quem ele está caçando (o bicho/jogador na frente dele),
- *   olhando pra ele; sem vítima, do chão na frente dele, olhando pra cima.
+ *   olhando pra ele; sem vítima, do chão na frente dele, olhando pra cima. Martelando (v0.3.8), parada no chão na
+ *   frente dele olhando pra cima, igual ao vídeo: ele inteiro de joelhos e a cabeça descendo até a tela.
  */
 @Mod.EventBusSubscriber(modid = BecomeLM.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class LmCamera {
@@ -55,6 +56,13 @@ public final class LmCamera {
         }
     }
 
+    /**
+     * "Da vítima" martelando (v0.3.8): o olho da vítima do vídeo, deitada na frente dele. A 1,7 bloco, no mergulho mais
+     * fundo da marreta a cabeça dele para a ~0,35 bloco da câmera (medido com o rig do mod da IA), sem entrar.
+     */
+    private static final double HAMMER_VIEW_DIST = 1.7D;
+    private static final double HAMMER_VIEW_EYE = 0.4D;
+    private static final double HAMMER_VIEW_PITCH = 33D;
     private static Shot shot = Shot.OFF;
     private static boolean snap = true;
     /** Onde a câmera está, relativa a quem ela acompanha (suavizar isso não deixa ela ficar pra trás no galope). */
@@ -206,18 +214,30 @@ public final class LmCamera {
                 rate = 10F;
             }
             default -> {
-                if (victim != null) {
-                    Vec3 eye = LmKnockClient.eye(victim, partial);
-                    // um tiquinho pra fora da cabeça dela, na direção dele
-                    want = eye.add(head.subtract(eye).normalize().scale(0.3D));
-                    anchor = eye;
-                    rate = 14F;
+                LmActsClient.Act act = LmActsClient.get(p);
+                if (act != null && (act.kind == LmAttack.HAMMER || act.kind == LmAttack.SMASH)) {
+                    // (v0.3.8, LM: "a mesma perspectiva que esse do vídeo") martelando: a câmera fica onde estaria o
+                    // olho da vítima deitada na frente dele (rente ao chão) e PARADA, olhando uns 33° pra cima: ele
+                    // aparece inteiro de joelhos e a cabeça desce pra dentro da tela a cada pancada. Antes ela ficava
+                    // no olho da vítima, que está embaixo dele, e ia atrás da cabeça (de perto, e entrava no corpo)
+                    Vec3 fwd = forward(bodyYaw);
+                    want = feet.add(fwd.scale(HAMMER_VIEW_DIST)).add(0, HAMMER_VIEW_EYE, 0);
+                    look = want.subtract(fwd).add(0, Math.tan(Math.toRadians(HAMMER_VIEW_PITCH)), 0);
+                    rate = 8F;
                 } else {
-                    heading = turn(heading, viewYaw, dt, 8F);
-                    want = feet.add(forward(heading).scale(2.6D)).add(0, 0.25D, 0);
-                    rate = 10F;
+                    if (victim != null) {
+                        Vec3 eye = LmKnockClient.eye(victim, partial);
+                        // um tiquinho pra fora da cabeça dela, na direção dele
+                        want = eye.add(head.subtract(eye).normalize().scale(0.3D));
+                        anchor = eye;
+                        rate = 14F;
+                    } else {
+                        heading = turn(heading, viewYaw, dt, 8F);
+                        want = feet.add(forward(heading).scale(2.6D)).add(0, 0.25D, 0);
+                        rate = 10F;
+                    }
+                    look = head.add(0, 0.1D, 0);
                 }
-                look = head.add(0, 0.1D, 0);
             }
         }
         look = lookOutside(p, feet.add(0D, 0.9D, 0D), look);

@@ -4,6 +4,20 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.8 — a câmera "Da vítima" na marreta igual ao vídeo
+
+Rede "8" (a mesma: nada mudou no que vai pela rede).
+
+O que testar:
+- **Câmera "Da vítima" enquanto tu martela** (em pé ou montado; a tecla da câmera até "Vítima"): a câmera fica PARADA
+  no chão na tua frente, a 1,7 bloco e na altura do olho de quem tá deitado (0,4), olhando 33° pra cima. Tu aparece
+  inteiro de joelhos e a tua cabeça desce até a tela a cada pancada, igual ao vídeo do LM de 03/11 (LM: "deixa com a
+  mesma perspectiva que esse do vídeo"). Antes ela ficava no olho da vítima, embaixo de ti e perto demais, e ia atrás
+  da tua cabeça. Fora da marreta, a câmera da vítima é a mesma de antes. Testado no jogo (gravação).
+- O mod da IA, na 0.7.21, ganhou a mesma vista pra quem apanha dele e o martelo encaixado no vídeo. Aqui o martelo é o
+  teu de sempre: só a câmera mudou.
+- O resto da 0.3.7 e da 0.3.6 continua pra testar, abaixo.
+
 ## v0.3.7 — parado no galope com as pernas retas "||"
 
 Rede "8" (a mesma: nada mudou no que vai pela rede).
