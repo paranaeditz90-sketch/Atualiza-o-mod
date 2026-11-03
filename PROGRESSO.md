@@ -1,6 +1,6 @@
 # Onde paramos (pra retomar numa conversa nova)
 
-Atualizado em 02/11/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
+Atualizado em 03/11/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
 neste repositório, na branch `claude/froggydude-mod-research-pxrwch`, e escreve:
 **"lê o PROGRESSO.md e continua de onde parou"**.
 
@@ -13,8 +13,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.18 | 02/11: flexão igual ao vídeo (0.7.17) + mordida no mesmo relógio da cabeça e "tai" no relógio dos socos (0.7.18) |
-| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.5 (rede "8") | 02/11: monte no ritmo da fome, escalada e agachado do mod da IA, mordida montado de volta, subir parede de 4 sem escada, marreta do Grox (crítico, 1 em 5 mais forte, tremidinha) |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.19 | 03/11: pulo do céu igual ao vídeo do AJ (réplica por sobreposição, aprovada) + todo soco do esmagamento tirando vida (0.7.19) |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.6 (rede "8") | 03/11: voo e queda do pulo super alto novos (os do mod da IA) + tremida da marreta: quem apanha em 1ª pessoa, quem bate em 3ª, do jeito do vídeo (0.3.6) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
 O plano grande da IA: `PLANO.md`.
@@ -41,7 +41,7 @@ Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
   3. o LM aprova a réplica em vídeo **antes** de ir pro jogo;
   4. testar no jogo e comparar de novo.
   Os números ficam em `FLEX` no `froggydude-mod/tools/anim/build_anims.py`. Pra medir vídeo: skill `process-video`.
-- **Próximas (pedido do LM, 02/11):** corrigir a animação de **pulo** e a de **uso da língua** com o mesmo jeito.
+- **Próximas (pedido do LM, 02/11):** ~~corrigir a animação de **pulo**~~ (feito 03/11, abaixo) e a de **uso da língua** com o mesmo jeito.
   Também: **nadar** na água, **correr de 4 por cima da lava** e a **marreta com os dois braços** (VS Grox 2:27-2:33).
   Uma de cada vez, na ordem que o LM escolher.
 - **Marreta: FEITA 02/11** (BecomeLM 0.3.5 + IA 0.7.18). Medida no VS Grox MANHUNT 2:27-2:33, réplica aprovada pelo LM,
@@ -49,8 +49,18 @@ Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
   montado; o empurrão que derruba não), 1 em 5 pancadas 1,5x, tremidinha em 1ª pessoa em quem bate e em quem apanha.
   Na IA: o "tai" de cada soco no mesmo tick do punho (24 de 24 no teste). Testado no jogo: crítico no mesmo quadro do
   punho ou até 1 tick depois; a tremidinha de quem apanha precisa de 2 jogadores (o LM confere).
-  **Em aberto:** o LM marcou a pose em "V invertido" (braços pra cima com as mãos juntas, no pulo do céu, quadro 27,6
-  do teste mar3) e não disse o que quer com ela: perguntar antes de mexer.
+  ~~Em aberto: a pose em "V invertido"~~: resolvido em 03/11, era o pulo do céu (o "/\\" do LM era o "\\ /" do braço
+  de zumbi; o app dele esconde a barra invertida).
+- **Pulo do céu: FEITO 03/11** (IA 0.7.19 + BecomeLM 0.3.6, aprovado pelo LM: "tá ótimo já"). Réplica do VS AJTHEBOLD
+  (Every Opponent 29:48 de frente e 29:51 de baixo) medida por **sobreposição**: o boneco do `preview.py` desenhado por
+  cima do quadro do original e os ângulos ajustados até a silhueta cobrir a dele (queda 77-89%). Ameaça (braços pelos
+  lados até um V, grito), agachada com as pernas retas e em pé "||" (andam pra frente com `leg_pos`; o `rig.py` agora
+  lê a posição da perna), um braço antes do outro, decola de braço de zumbi "\\ /", cai com a perna direita pra frente
+  e a cabeça balançando de leve. Testado no jogo no mod da IA (ele parado, `DebugAnim` + `-PanimSlow=0.1 -Pcapture=1`,
+  de frente e de baixo). Lições: com o braço pra frente o giro Z só torce o braço, quem abre pro lado é o Y (`arm_ry`);
+  numa vista só, braço de zumbi e braço meio levantado (e perna pra frente ou pra trás) dão o mesmo contorno, então
+  perguntar ao LM. **Falta testar no jogo:** o pulo no BecomeLM, o dano de cada soco do esmagamento da IA e a tremida
+  da marreta (quem bate, em 3ª pessoa).
 - 02/11: o LM liberou o commit "na próxima atualização" - a 0.7.18 e a 0.3.5 (parede + marreta) foram juntas pro GitHub.
 - **Subir parede de 4 no BecomeLM (02/11, pedido do LM):** galopando reto pra parede ele sobe a 10 b/s (Grox 3:29) e
   passa por cima da beirada (`LmWallClimb` + o mixin do `onClimbable`/`travel`). Testado no jogo: pousa no meio de um

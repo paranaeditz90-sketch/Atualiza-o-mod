@@ -546,8 +546,8 @@ public final class LmAttacks {
         if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
         int k = a.age - SMASH_FIRST;
         if (k >= 0 && k % SMASH_EVERY == 0 && k / SMASH_EVERY < PUNCHES) {
-            if (DEBUG) System.out.printf("[LMATK] pancada montado idade=%d jogo=%d%n", a.age, p.level().getGameTime());
             boolean hurt = hurtInPlace(p, t, punchDamage(p));
+            if (DEBUG) System.out.printf("[LMATK] pancada montado idade=%d jogo=%d dano=%b%n", a.age, p.level().getGameTime(), hurt);
             LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, k / SMASH_EVERY);
         }
         int b = a.age - BITE_FROM;
@@ -584,8 +584,8 @@ public final class LmAttacks {
         if (k >= 0 && k % SMASH_EVERY == 0) {
             if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HAMMER_KEEP);
             else LmKnock.knock(t, p, HAMMER_KEEP);
-            if (DEBUG) System.out.printf("[LMATK] pancada marreta idade=%d jogo=%d%n", a.age, p.level().getGameTime());
             boolean hurt = hurtInPlace(p, t, punchDamage(p));
+            if (DEBUG) System.out.printf("[LMATK] pancada marreta idade=%d jogo=%d dano=%b%n", a.age, p.level().getGameTime(), hurt);
             LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, k / SMASH_EVERY + 1);
         }
     }

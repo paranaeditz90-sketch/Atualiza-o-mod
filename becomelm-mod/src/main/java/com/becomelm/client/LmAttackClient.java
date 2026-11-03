@@ -326,8 +326,8 @@ public final class LmAttackClient {
         if (kind == LmAttack.PUNCH || kind == LmAttack.BITE || kind == LmAttack.GRAB || kind == LmAttack.SHAKE) {
             if (t instanceof LivingEntity le) blow(level, le, kind, n);
             // (v0.3.5, LM) a marreta (em pé e montado): o som de crítico a cada pancada, colado no punho (a animação
-            // anda no mesmo relógio da pancada), e a tremidinha em quem bate e em quem apanha. O empurrão que derruba
-            // (o começo da marreta em pé) não é punho descendo: fica só o soco normal
+            // anda no mesmo relógio da pancada), e a tremidinha: quem apanha em 1ª pessoa, quem bate em 3ª (v0.3.6,
+            // LmShake). O empurrão que derruba (o começo da marreta em pé) não é punho descendo: fica só o soco normal
             boolean fist = kind == LmAttack.PUNCH && !(a instanceof Player hitter && LmActsClient.knockdownHit(hitter, n));
             if (fist && t instanceof LivingEntity le) {
                 Vec3 head = LmKnockClient.eye(le, 1F);
@@ -335,7 +335,7 @@ public final class LmAttackClient {
                         1.0F, 0.95F + level.getRandom().nextFloat() * 0.1F, false);
                 if (DEBUG) System.out.printf("[LMATK] cliente som critico n=%d jogo=%d%n", n, level.getGameTime());
                 if (t == mc.player) LmShake.kick(LmShake.VICTIM);
-                else if (a == mc.player) LmShake.kick(LmShake.HITTER);
+                else if (a == mc.player) LmShake.hammer();
             }
             // as mordidas sujam a boca dele
             if (kind != LmAttack.PUNCH && a instanceof Player pa) LmBloodFace.bite(pa);

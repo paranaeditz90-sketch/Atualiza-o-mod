@@ -4,6 +4,26 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.3.6 — o pulo super alto do vídeo do AJ e a tremida da marreta do jeito do vídeo
+
+Rede "8" (a mesma da 0.3.5: nada mudou no que vai pela rede).
+
+O que testar:
+- **Pulo super alto** (segurar o agachar até o "clique" e pular): o voo e a queda agora são os do pulo do céu novo do
+  mod da IA (a réplica do VS AJTHEBOLD, Every Opponent 29:48 e 29:51, que tu aprovou): decola de **braço de zumbi**
+  levemente pra cima, aberto em "\ /"; caindo, a **perna direita vai pra frente** (a esquerda fica reta) e a **cabeça
+  balança de leve pros lados** até cair. Aqui é só a parte do ar: o teu pulo sai na hora que tu pula, então a ameaça e a
+  agachada do mod da IA não entram. Testado no mod da IA (o mesmo movimento, no jogo); no BecomeLM, confere tu.
+- **Tremida da marreta** (em pé e montado):
+  - **Quem apanha**, em primeira pessoa: o mesmo tranco curto da 0.3.5 a cada pancada.
+  - **Quem bate (tu)**: em primeira pessoa **não treme mais**. Em **terceira pessoa** (F5 e as câmeras de cinema), a tela
+    **chacoalha miúdo e sem parar** enquanto tu martela, igual à câmera de fora do VS Grox MANHUNT (~0,8° em média, até
+    ~1,5°, umas 10 vezes por segundo), e some uns 0,5 s depois da última pancada. Agora as câmeras de cinema tremem
+    também (no vídeo a câmera de fora treme). Compilado, mas ainda não testado no jogo: confere tu.
+- **Dano da marreta**: cada pancada já tirava vida na hora dela (o BecomeLM zera a invencibilidade do jogo a cada
+  pancada); quem engolia 1 soco a cada 2 era o esmagamento do mod da IA, corrigido lá na 0.7.19. Aqui só o teste
+  ganhou uma linha a mais no log (se o dano entrou em cada pancada).
+
 ## v0.3.5 — o monte no ritmo da fome, subir parede de 4, a marreta do Grox e a mordida montado de volta
 
 Rede "8": quem joga junto precisa estar na 0.3.5 também.
