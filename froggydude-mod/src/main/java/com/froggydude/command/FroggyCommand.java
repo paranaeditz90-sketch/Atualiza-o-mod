@@ -22,6 +22,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -88,7 +89,7 @@ public final class FroggyCommand {
                                     }
                                     data.setDirty();
                                     int count = n;
-                                    c.getSource().sendSuccess(() -> Component.literal("Ele esqueceu tudo sobre " + count + " jogador(es)."), true);
+                                    c.getSource().sendSuccess(() -> t("forgot", count), true);
                                     return n;
                                 })))
                 .then(study())
@@ -96,7 +97,7 @@ public final class FroggyCommand {
                     FroggyWorldData data = FroggyWorldData.get(c.getSource().getServer());
                     data.voice.load(new net.minecraft.nbt.CompoundTag());
                     data.setDirty();
-                    c.getSource().sendSuccess(() -> Component.literal("Falas de volta pro começo (\"Hey, humans!\")."), true);
+                    c.getSource().sendSuccess(() -> t("lines_reset"), true);
                     return 1;
                 }))));
     }
@@ -118,12 +119,12 @@ public final class FroggyCommand {
                 .then(Commands.literal("desligar").executes(c -> toggleInvasion(c.getSource(), false)))
                 .then(Commands.literal("agora").executes(c -> {
                     com.froggydude.world.Invasion.arriveNow(c.getSource().getServer());
-                    c.getSource().sendSuccess(() -> Component.literal("Ele chega agora (teste)."), true);
+                    c.getSource().sendSuccess(() -> t("invasion_now"), true);
                     return 1;
                 }))
                 .then(Commands.literal("reiniciar").executes(c -> {
                     com.froggydude.world.Invasion.reset(c.getSource().getServer());
-                    c.getSource().sendSuccess(() -> Component.literal("Dia sorteado de novo (escondido)."), true);
+                    c.getSource().sendSuccess(() -> t("invasion_reroll"), true);
                     return 1;
                 }));
     }
@@ -151,24 +152,29 @@ public final class FroggyCommand {
         root.then(Commands.literal("tocaia").requires(FroggyCommand::admin).executes(c -> {
             FroggydudeEntity f = FroggyKeeper.find(c.getSource().getServer());
             if (f == null) {
-                c.getSource().sendFailure(Component.literal("O FroggyDude não está carregado."));
+                c.getSource().sendFailure(t("not_loaded"));
                 return 0;
             }
             f.forceStakeout();
-            c.getSource().sendSuccess(() -> Component.literal("Ele vai te esperar no lugar que tu mais usa."), true);
+            c.getSource().sendSuccess(() -> t("stakeout"), true);
             return 1;
         }));
         root.then(Commands.literal("massacre").requires(FroggyCommand::admin).executes(c -> {
             FroggydudeEntity f = FroggyKeeper.find(c.getSource().getServer());
             if (f == null) {
-                c.getSource().sendFailure(Component.literal("O FroggyDude não está carregado."));
+                c.getSource().sendFailure(t("not_loaded"));
                 return 0;
             }
             f.forceMassacre();
-            c.getSource().sendSuccess(() -> Component.literal("Ele vai na tua vila comer os aldeões (se tu mora numa)."), true);
+            c.getSource().sendSuccess(() -> t("massacre"), true);
             return 1;
         }));
         return root;
+    }
+
+    /** (v0.7.28) Resposta do comando no idioma de quem joga (en_us/pt_br: froggydude.cmd.*). */
+    private static MutableComponent t(String key, Object... args) {
+        return Component.translatable("froggydude.cmd." + key, args);
     }
 
     private static int showStudy(CommandSourceStack src) throws CommandSyntaxException {
@@ -207,7 +213,7 @@ public final class FroggyCommand {
             }
         }
         data.setDirty();
-        src.sendSuccess(() -> Component.literal("Ele anotou: tu usa " + kind.name().toLowerCase(Locale.ROOT) + " aqui."), true);
+        src.sendSuccess(() -> t("place_marked", kind.name().toLowerCase(Locale.ROOT)), true);
         return 1;
     }
 
@@ -215,15 +221,13 @@ public final class FroggyCommand {
     private static LiteralArgumentBuilder<CommandSourceStack> ai() {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("ia").executes(c -> {
             AiLevel now = FroggyConfig.ai();
-            c.getSource().sendSuccess(() -> Component.literal("IA do FroggyDude: ").append(Component.translatable(now.key()))
-                    .append(". Muda com /froggydude ia <min|medio|alto|extra|max|real>."), false);
+            c.getSource().sendSuccess(() -> t("ai_now", Component.translatable(now.key())), false);
             return 1;
         });
         for (AiLevel level : AiLevel.values()) {
             root.then(Commands.literal(level.id).requires(FroggyCommand::player).executes(c -> {
                 FroggyConfig.setAi(level);
-                c.getSource().sendSuccess(() -> Component.literal("IA do FroggyDude: ").append(Component.translatable(level.key()))
-                        .append(" - ").append(Component.translatable(level.key() + ".desc")), true);
+                c.getSource().sendSuccess(() -> t("ai_set", Component.translatable(level.key()), Component.translatable(level.key() + ".desc")), true);
                 return 1;
             }));
         }
@@ -234,10 +238,10 @@ public final class FroggyCommand {
         ServerPlayer p = src.getPlayerOrException();
         FroggydudeEntity f = FroggyKeeper.spawnNear(p, 4.0D, 6.0D, FroggyKeeper.Sight.IN_VIEW, -1F);
         if (f == null) {
-            src.sendFailure(Component.literal("Não achei chão livre perto de ti."));
+            src.sendFailure(t("no_ground"));
             return 0;
         }
-        src.sendSuccess(() -> Component.literal("Ele está aqui (só existe um FroggyDude por mundo: o anterior sumiu)."), true);
+        src.sendSuccess(() -> t("summoned"), true);
         return 1;
     }
 
@@ -245,14 +249,14 @@ public final class FroggyCommand {
         ServerPlayer p = src.getPlayerOrException();
         Manhunt.start(p, mode, Math.max(1, days));
         int head = FroggyConfig.get(FroggyConfig.VANTAGEM_SEGUNDOS);
-        String goal = mode == ManhuntMode.SPEEDRUN ? "matar o Ender Dragon" : "sobreviver " + days + " dia(s)";
-        src.sendSuccess(() -> Component.literal("Manhunt começou: " + goal + ". Vantagem de " + head + " s."), true);
+        Component goal = mode == ManhuntMode.SPEEDRUN ? t("manhunt_goal_dragon") : t("manhunt_goal_days", days);
+        src.sendSuccess(() -> t("manhunt_started", goal, head), true);
         return 1;
     }
 
     private static int stopManhunt(CommandSourceStack src) {
         Manhunt.stop(src.getServer());
-        src.sendSuccess(() -> Component.literal("Manhunt parado."), true);
+        src.sendSuccess(() -> t("manhunt_stopped"), true);
         return 1;
     }
 
@@ -261,11 +265,11 @@ public final class FroggyCommand {
         ServerPlayer p = src.getPlayerOrException();
         FroggydudeEntity f = FroggyKeeper.find(src.getServer());
         if (f == null) {
-            src.sendFailure(Component.literal("O FroggyDude não está carregado (use /froggydude invocar)."));
+            src.sendFailure(t("not_loaded_summon"));
             return 0;
         }
         f.mockNow(p);
-        src.sendSuccess(() -> Component.literal("Ele vem zombar de ti e ir embora."), true);
+        src.sendSuccess(() -> t("mock"), true);
         return 1;
     }
 
@@ -274,29 +278,29 @@ public final class FroggyCommand {
         ServerPlayer p = src.getPlayerOrException();
         FroggydudeEntity f = FroggyKeeper.find(src.getServer());
         if (f == null) {
-            src.sendFailure(Component.literal("O FroggyDude não está carregado (use /froggydude invocar)."));
+            src.sendFailure(t("not_loaded_summon"));
             return 0;
         }
         f.danceNow(p);
-        src.sendSuccess(() -> Component.literal("Dancinha."), true);
+        src.sendSuccess(() -> t("dance"), true);
         return 1;
     }
 
     private static int irk(CommandSourceStack src) {
         FroggydudeEntity f = FroggyKeeper.find(src.getServer());
         if (f == null) {
-            src.sendFailure(Component.literal("O FroggyDude não está carregado."));
+            src.sendFailure(t("not_loaded"));
             return 0;
         }
         if (f.getTarget() == null) {
-            src.sendFailure(Component.literal("Ele só se irrita partindo pra cima de alguém."));
+            src.sendFailure(t("irk_no_target"));
             return 0;
         }
         if (!f.irk()) {
-            src.sendFailure(Component.literal("Agora não: já transformado, cansado ou a transformação recarregando."));
+            src.sendFailure(t("irk_not_now"));
             return 0;
         }
-        src.sendSuccess(() -> Component.literal("Irritado: os ribbits e a transformação."), true);
+        src.sendSuccess(() -> t("irked"), true);
         return 1;
     }
 
@@ -304,22 +308,22 @@ public final class FroggyCommand {
     private static int jumpscare(CommandSourceStack src) {
         FroggydudeEntity f = FroggyKeeper.find(src.getServer());
         if (f == null) {
-            src.sendFailure(Component.literal("O FroggyDude não está carregado."));
+            src.sendFailure(t("not_loaded"));
             return 0;
         }
         f.forceJumpscare();
-        src.sendSuccess(() -> Component.literal("Jumpscare armado: quando ele estiver te caçando, ele some..."), true);
+        src.sendSuccess(() -> t("jumpscare"), true);
         return 1;
     }
 
     private static int phase2(CommandSourceStack src) {
         FroggydudeEntity f = FroggyKeeper.find(src.getServer());
         if (f == null) {
-            src.sendFailure(Component.literal("O FroggyDude não está carregado."));
+            src.sendFailure(t("not_loaded"));
             return 0;
         }
         f.requestPhase2();
-        src.sendSuccess(() -> Component.literal("Fase 2."), true);
+        src.sendSuccess(() -> t("phase2"), true);
         return 1;
     }
 
@@ -328,11 +332,11 @@ public final class FroggyCommand {
         ServerPlayer p = src.getPlayerOrException();
         FroggydudeEntity f = FroggyKeeper.find(src.getServer());
         if (f == null || f.level() != p.level()) {
-            src.sendFailure(Component.literal("O FroggyDude não está carregado (use /froggydude invocar)."));
+            src.sendFailure(t("not_loaded_summon"));
             return 0;
         }
         if (p.isCreative() || p.isSpectator()) {
-            src.sendFailure(Component.literal("Só em sobrevivência/aventura."));
+            src.sendFailure(t("survival_only"));
             return 0;
         }
         // de frente pra onde tu olha: a cabeça vai cair pra lá
@@ -340,7 +344,7 @@ public final class FroggyCommand {
         f.teleportTo(p.getX() - look.x * 1.4D, p.getY(), p.getZ() - look.z * 1.4D);
         com.froggydude.player.FinisherTracker.mark(p, f.getId());
         f.requestFinisher(p);
-        src.sendSuccess(() -> Component.literal("Golpe final."), true);
+        src.sendSuccess(() -> t("finisher"), true);
         return 1;
     }
 
@@ -348,31 +352,31 @@ public final class FroggyCommand {
         MinecraftServer server = src.getServer();
         FroggyWorldData data = FroggyWorldData.get(server);
         boolean dev = FroggyWorldData.isDev(server);
-        StringBuilder sb = new StringBuilder();
-        sb.append("Mundo: ").append(dev ? "-dev (o cérebro conta no chat o que aprende)" : "normal");
+        MutableComponent out = t("info.world", t(dev ? "info.world_dev" : "info.world_normal"));
         FroggydudeEntity f = FroggyKeeper.find(server);
-        sb.append("\nFroggyDude: ");
+        MutableComponent froggy;
         if (f != null) {
-            sb.append(String.format(Locale.ROOT, "%s %.0f %.0f %.0f, vida %.0f/%.0f, estado %s",
-                    f.level().dimension().location().getPath(), f.getX(), f.getY(), f.getZ(),
-                    f.getHealth(), f.getMaxHealth(), f.getFroggyState().name()));
-            if (f.getStrategy() != null) sb.append(", estratégia ").append(f.getStrategy().label);
+            froggy = t("info.froggy_here", f.level().dimension().location().getPath(),
+                    String.format(Locale.ROOT, "%.0f %.0f %.0f", f.getX(), f.getY(), f.getZ()),
+                    String.format(Locale.ROOT, "%.0f/%.0f", f.getHealth(), f.getMaxHealth()), f.getFroggyState().name());
+            if (f.getStrategy() != null) froggy.append(t("info.strategy", f.getStrategy().label));
         } else if (data.froggyAlive) {
-            sb.append("vivo, num lugar do mapa que não está carregado");
+            froggy = t("info.froggy_unloaded");
         } else {
-            sb.append(data.respawnAt >= 0 ? "morto (volta já já)" : "nenhum");
+            froggy = t(data.respawnAt >= 0 ? "info.froggy_dead_back" : "info.froggy_none");
         }
-        sb.append("\nManhunt: ");
+        out.append("\n").append(t("info.froggy", froggy));
+        MutableComponent hunt;
         if (data.manhuntActive) {
             long elapsed = server.overworld().getGameTime() - data.manhuntStart;
-            sb.append(data.manhuntMode == ManhuntMode.SPEEDRUN ? "speedrun (matar o dragão)"
-                    : "sobrevivência, dia " + (elapsed / 24000L + 1) + "/" + data.manhuntDays);
-            if (!data.released) sb.append(", ainda na vantagem");
+            hunt = data.manhuntMode == ManhuntMode.SPEEDRUN ? t("info.manhunt_speedrun")
+                    : t("info.manhunt_survival", elapsed / 24000L + 1, data.manhuntDays);
+            if (!data.released) hunt.append(t("info.manhunt_headstart"));
         } else {
-            sb.append("parado");
+            hunt = t("info.manhunt_off");
         }
-        String text = sb.toString();
-        src.sendSuccess(() -> Component.literal(text), false);
+        out.append("\n").append(t("info.manhunt", hunt));
+        src.sendSuccess(() -> out, false);
         return 1;
     }
 
@@ -380,7 +384,7 @@ public final class FroggyCommand {
         FroggyWorldData data = FroggyWorldData.get(src.getServer());
         PlayerMemory m = data.brain.find(target.getUUID());
         if (m == null) {
-            src.sendSuccess(() -> Component.literal("Ele ainda não sabe nada sobre " + target.getScoreboardName() + "."), false);
+            src.sendSuccess(() -> t("brain_unknown", target.getScoreboardName()), false);
             return 0;
         }
         String text = describe(m, target.getScoreboardName());

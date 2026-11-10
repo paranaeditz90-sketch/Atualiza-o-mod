@@ -1,4 +1,4 @@
-# Froggydude - v0.7.27: transformado, ele não fica mais parado do lado da parede (sobre a v0.7.26)
+# Froggydude - v0.7.28: inglês e português, e a configuração em abas (sobre a v0.7.27)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,27 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.27):
+O que testar agora (v0.7.28):
+- **O mod inteiro em inglês ou português, seguindo o idioma do Minecraft** (LM, 09-10/11: o FroggyDude original quer
+  jogar e não entende português; "só as coisas do mod mesmo"; escolhas: comandos com o nome em português, idioma só
+  automático, 3 abas). As falas, legendas e telas já seguiam o idioma do jogo; o que faltava eram as respostas dos
+  comandos `/froggydude` (estavam fixas em português): agora todas vêm no idioma de quem joga (inglês, ou português
+  com o jogo em "Português (Brasil)"). Os NOMES dos comandos continuam em português (invocar, zombar, fase2...).
+  Ficaram em português só o `/froggydude cerebro` e o `/froggydude estudo` (são o teu painel de depuração) e o
+  "[cérebro]" do mundo -dev.
+- **Mods > Froggydude > Configurar em abas com ícone**:
+  - IA (olho do Ender): o nível da IA com a explicação e, embaixo, o "Froggy's in your world" (agora com explicação).
+  - Gore (redstone): o aviso, a violência gráfica com a explicação e o "Ver o aviso de novo...".
+  - Idioma (a bandeirinha do idioma que vale agora): as bandeiras 🇺🇸 e 🇧🇷 desenhadas em pixel; a do idioma ativo fica
+    acesa com moldura e a outra apagada. Embaixo, o idioma do Minecraft e o botão "Mudar o idioma do Minecraft..."
+    (abre a tela de idioma do próprio jogo). Qualquer outro idioma (espanhol, português de Portugal...) mostra o mod
+    em inglês e avisa.
+  - A aba aberta continua aberta quando tu volta dos avisos ou da tela de idioma.
+- Testado aqui: as 3 abas em inglês; troquei o jogo pra "Português (Brasil)" pelo botão da aba e a tela virou
+  "Configurações", "IA / Gore / Idioma", a bandeira do Brasil acendeu (e o ícone da aba virou ela). Comandos em
+  português: invocar, zombar sem ele carregado, info, invasao, ia, fase2 - tudo no idioma certo.
+
+Da v0.7.27:
 - **Transformado (fase 2), ele não fica mais parado do lado de onde tu se trancou** (LM, 09/11: "às vezes fica preso,
   parado, porque se prendeu nos blocos"; "parado apenas"): na fase 2 o "não consigo chegar nela" era desligado de
   propósito, então se tu se trancava (casa, caixa, buraco tapado) ele chegava na parede e ficava ali parado até a

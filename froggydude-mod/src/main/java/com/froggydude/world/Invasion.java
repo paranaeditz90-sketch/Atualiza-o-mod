@@ -133,14 +133,16 @@ public final class Invasion {
     public static Component status(MinecraftServer server) {
         FroggyWorldData data = FroggyWorldData.get(server);
         String stage = switch (data.invasionStage) {
-            case 0 -> "esperando";
-            case 1, 2 -> "chegando";
-            case 3 -> "caçando";
-            default -> "foi embora (dragão)";
+            case 0 -> "waiting";
+            case 1, 2 -> "arriving";
+            case 3 -> "hunting";
+            default -> "gone";
         };
-        return Component.literal("In your world: " + (FroggyConfig.invasion() ? "ligado" : "desligado")
-                + ", hoje é o dia " + day(server) + ", ele chega no dia " + (data.invasionDay == 0 ? "?" : data.invasionDay)
-                + " (" + stage + ").");
+        // (v0.7.28) no idioma de quem joga (froggydude.cmd.invasion.*)
+        return Component.translatable("froggydude.cmd.invasion.status",
+                Component.translatable("froggydude.cmd.invasion." + (FroggyConfig.invasion() ? "on" : "off")),
+                day(server), data.invasionDay == 0 ? "?" : data.invasionDay,
+                Component.translatable("froggydude.cmd.invasion.stage." + stage));
     }
 
     /** /froggydude invasao agora: pula pra chegada (teste). */
