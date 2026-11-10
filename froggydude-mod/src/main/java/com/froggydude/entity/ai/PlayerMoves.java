@@ -355,11 +355,8 @@ public class PlayerMoves {
         return true;
     }
 
-    /** Fala no chat como se fosse um jogador: "<FroggyDude> ...". */
+    /** Fala no chat como se fosse um jogador: "<FroggyDude> ..." (FroggydudeEntity.chat). */
     private void say(LivingEntity target, String key) {
-        Component line = Component.literal("<FroggyDude> ").append(Component.translatable(key));
-        for (Player p : froggy.level().players()) {
-            if (p instanceof ServerPlayer sp && (p == target || p.distanceTo(froggy) < 64.0F)) sp.sendSystemMessage(line);
-        }
+        froggy.chat(target, key);
     }
 }

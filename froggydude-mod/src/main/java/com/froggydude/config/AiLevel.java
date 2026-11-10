@@ -101,4 +101,9 @@ public enum AiLevel {
         }
         return null;
     }
+
+    /** (v0.7.29) Rouba arma de mod com a língua (LM: "só Extra, Máx e Real"). */
+    public boolean stealsWeapons() {
+        return this.ordinal() >= EXTRA.ordinal();
+    }
 }

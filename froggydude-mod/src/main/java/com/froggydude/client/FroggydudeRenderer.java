@@ -33,6 +33,8 @@ import net.minecraft.world.entity.npc.VillagerData;
 import net.minecraft.world.entity.npc.VillagerDataHolder;
 import net.minecraft.world.entity.npc.VillagerProfession;
 import net.minecraft.world.entity.npc.WanderingTrader;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -122,6 +124,14 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                 poseStack.pushPose();
                 RenderUtils.prepMatrixForBone(poseStack, bone);
                 drawTongue(poseStack, buffer, packedLight, packedOverlay);
+                // (v0.7.29) a arma de mod roubada vem grudada na ponta da língua (Grox 1:17,9)
+                ItemStack carried = animatable.getTongueItem();
+                if (!carried.isEmpty()) {
+                    poseStack.translate(0F, tongueY(1F) / 16F, (TONGUE_Z - 1F) / 16F);
+                    poseStack.scale(1F, 1F, 1F / bone.getScaleZ()); // a língua esticada não estica a arma
+                    drawStolenItem(poseStack, animatable, carried, bufferSource, packedLight, 1.2F);
+                    buffer = bufferSource.getBuffer(renderType);
+                }
                 poseStack.popPose();
             } else if ("head".equals(name) && animatable.getFroggyState() == FroggyState.FINISHER) {
                 // golpe final: o que está na boca vem da tabela (braço esquerdo, direito, cabeça)
@@ -141,10 +151,38 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                 poseStack.popPose();
                 // o braço usa outra textura: volta pro buffer do Froggy antes de continuar
                 buffer = bufferSource.getBuffer(renderType);
+            } else if ("head".equals(name) && !animatable.getMouthItem().isEmpty()) {
+                // (v0.7.29) a arma roubada atravessada na boca enquanto ele mastiga (Grox 1:24,5)
+                poseStack.pushPose();
+                RenderUtils.prepMatrixForBone(poseStack, bone);
+                poseStack.translate(0F, (MOUTH_Y - 2.5F) / 16F, (MOUTH_Z - 1.0F) / 16F);
+                // deitada de lado a lado da boca (o ícone de arma vem na diagonal: 45° deixa ela reta)
+                poseStack.mulPose(Axis.ZP.rotationDegrees(-45F));
+                // cada mordida tira um pedaço: vai diminuindo até engolir
+                float left = 1.0F;
+                if (animatable.getFroggyState() == FroggyState.ARM_EAT) {
+                    left = 1.0F - 0.4F * Mth.clamp(animatable.getClientStateAge() / 80F, 0F, 1F);
+                }
+                drawStolenItem(poseStack, animatable, animatable.getMouthItem(), bufferSource, packedLight, 1.4F * left);
+                poseStack.popPose();
+                buffer = bufferSource.getBuffer(renderType);
             }
         }
         super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender,
                 partialTick, packedLight, packedOverlay, red, green, blue, alpha);
+    }
+
+    /**
+     * (v0.7.29) A arma de mod roubada, do jeito que o jogo desenha o item largado no chão: todo mod de arma suporta
+     * esse jeito (o modelo "na mão" de cada mod tem posição própria e quebraria aqui).
+     */
+    private static void drawStolenItem(PoseStack poseStack, FroggydudeEntity froggy, ItemStack stack,
+                                       MultiBufferSource buffers, int light, float size) {
+        poseStack.pushPose();
+        poseStack.scale(size, size, size);
+        Minecraft.getInstance().getItemRenderer().renderStatic(stack, ItemDisplayContext.GROUND, light,
+                OverlayTexture.NO_OVERLAY, poseStack, buffers, froggy.level(), froggy.getId());
+        poseStack.popPose();
     }
 
     // ---------------------------------------------------------------- língua

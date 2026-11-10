@@ -1,4 +1,4 @@
-# Froggydude - v0.7.28: inglês e português, e a configuração em abas (sobre a v0.7.27)
+# Froggydude - v0.7.29: ele rouba e come tua arma de mod com a língua (sobre a v0.7.28)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,39 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.28):
+O que testar agora (v0.7.29):
+- **Roubo de arma de mod com a língua** (ideia do LM, 09/11; referência: FroggyDude VS Grox MANHUNT 1:17,7-1:24,5 - a
+  pistola do Grox no chão, a língua vai e volta com ela em ~0,35 s, "This looks tasty!" e ele come). Só na IA **Extra,
+  Máx e Real** (escolha do LM). Só arma DE MOD: vanilla e o próprio Froggydude nunca.
+  - Ele **estuda os mods** quando abre o mundo: espada, arco, besta, tridente, item que bate forte e item com nome de
+    arma (gun, rifle, pistol, sword, katana...) contam; picareta, pá, machado de árvore, munição, peça e lingote não.
+    Com o Re:Avaritia ele achou 9 armas (as espadas, os arcos, a besta e o tridente infinitos...).
+  - **Aprende pelo que dói**: item de mod que machucou ele (mesmo não sendo "arma") vira alvo também.
+  - Se tu tiver arma de mod **na mão** (ou na outra mão) ou **na mochila**, a língua vai em ti (até 9 blocos, colado
+    também) e arranca - primeiro a da mão. Assim que ele te vê com ela, a língua vem antes do bote. Arma de mod **largada no chão** (inclusive a que cai quando tu morre) ele também
+    pega, igual a pistola do Grox.
+  - Na 1ª vez com cada pessoa ele fala no chat: "Can't wait to test your little toys" / "Não vejo a hora de testar
+    seus brinquedinhos".
+  - A arma vem na ponta da língua e fica **atravessada na boca**; ele mastiga (farelo do próprio item voando, barulho
+    de metal) e engole em ~4 s. **Se tu bater nele mastigando, ele cospe ela inteira** na frente dele, e tu tem 30 s
+    pra pegar de volta antes dele querer de novo.
+  - Engoliu: fica na barriga e **cai quando ele morre - só a arma: a munição que estava dentro ele comeu junto** (a
+    contagem de balas zera; o resto da arma fica igual); as outras balas da tua mochila continuam contigo (LM). Cai
+    mesmo com o doMobLoot desligado, e também se ele sumir sem morrer (vai embora no fim do manhunt, trocado por outro
+    FroggyDude). Mundo salvo no meio da mastigada: conta como engolida.
+  - Aprender: só conta golpe na mão mais forte que um soco, ou tiro de bala de mod (segurar uma tocha de mod e dar soco
+    não faz ele querer a tocha).
+- Testado aqui com o Re:Avaritia 1.20.1 (IA Real): tirou a Sword of the Cosmos da mão (e soltou a fala no chat), a
+  Blaze Skull Sword da mochila, pegou a Crystal Sword do chão, comeu as três; morto, as espadas caíram; batendo nele
+  mastigando, cuspiu (e 15 s depois a espada ainda estava no chão); morto com o doMobLoot desligado, a espada caiu;
+  trocado por outro FroggyDude, a espada caiu (e o novo pegou do chão); depois de apanhar com uma Pile of Neutrons
+  ("aprendi: dói") roubou ela também.
+- Pra testar no PC com mod de verdade: `./gradlew runClient -PtestMods` carrega o Re:Avaritia no Minecraft de teste
+  (só lá; o jar do mod não muda).
+- Vem a seguir (0.7.30): a fúria do Avaritia (qualquer item do Avaritia no inventário: a proteção dele some contra o
+  FroggyDude, que fica com o triplo de velocidade e força, e as armas do Avaritia quase não machucam ele).
+
+Da v0.7.28:
 - **O mod inteiro em inglês ou português, seguindo o idioma do Minecraft** (LM, 09-10/11: o FroggyDude original quer
   jogar e não entende português; "só as coisas do mod mesmo"; escolhas: comandos com o nome em português, idioma só
   automático, 3 abas). As falas, legendas e telas já seguiam o idioma do jogo; o que faltava eram as respostas dos

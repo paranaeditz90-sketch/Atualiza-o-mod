@@ -61,6 +61,7 @@ import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.pathfinder.BlockPathTypes;
@@ -122,6 +123,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** De quem é o braço que ele está segurando/comendo (pra desenhar com a skin certa). */
     private static final EntityDataAccessor<Optional<UUID>> DATA_HELD_ARM =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+    /** (v0.7.29) A arma de mod que a língua está trazendo (desenhada na ponta da língua). */
+    private static final EntityDataAccessor<ItemStack> DATA_TONGUE_ITEM =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.ITEM_STACK);
+    /** (v0.7.29) A arma de mod atravessada na boca, enquanto ele mastiga. */
+    private static final EntityDataAccessor<ItemStack> DATA_MOUTH_ITEM =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.ITEM_STACK);
     /** Subindo uma parede/torre de quatro, igual aranha. */
     private static final EntityDataAccessor<Boolean> DATA_CLIMBING =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
@@ -346,6 +353,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_MOVING, false);
         this.entityData.define(DATA_DEBUG_ANIM, "");
         this.entityData.define(DATA_HELD_ARM, Optional.empty());
+        this.entityData.define(DATA_TONGUE_ITEM, ItemStack.EMPTY);
+        this.entityData.define(DATA_MOUTH_ITEM, ItemStack.EMPTY);
         this.entityData.define(DATA_MOUTH_OPEN, false);
         this.entityData.define(DATA_MOUTH_COLOR, BloodType.RED.color);
         this.entityData.define(DATA_MOUTH_STAIN, 0F);
@@ -374,6 +383,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyPadHopGoal(this));
         // 1: speedrun - longe da vítima, come o portal do Nether que ela está fazendo
         this.goalSelector.addGoal(1, new FroggySabotageGoal(this));
+        // 1: (v0.7.29) arma de mod na mão/mochila dela ou no chão: a língua arranca e ele come (Extra, Máx, Real)
+        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyStealGoal(this));
         // 2: cérebro de combate - só ataca quando tem certeza que acerta
         this.combatGoal = new FroggyCombatGoal(this);
         this.goalSelector.addGoal(2, combatGoal);
@@ -872,6 +883,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void remove(RemovalReason reason) {
         // sumiu no meio da refeição (descarregou, /kill): o bicho que estava comendo levanta
         if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget);
+        // (v0.7.29) sumiu sem morrer (foi embora depois do manhunt, trocado por outro FroggyDude): o que ele roubou
+        // não some junto (descarregar o pedaço do mapa não conta: a barriga vai salva com ele)
+        if (reason == RemovalReason.DISCARDED) dropStolen();
         super.remove(reason);
     }
 
@@ -895,12 +909,28 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.hurt(this.damageSources().genericKill(), Float.MAX_VALUE);
     }
 
+    /**
+     * (v0.7.29) Devolve ao mundo o que ele roubou: o que comeu (só a arma; a munição ele comeu junto) e o que estava
+     * na boca/língua (inteiro). É coisa do jogador, não "loot" dele: cai mesmo com o doMobLoot desligado.
+     */
+    private void dropStolen() {
+        if (this.level().isClientSide) return;
+        for (ItemStack s : belly) this.spawnAtLocation(s.copy(), 1.0F);
+        belly.clear();
+        for (ItemStack s : new ItemStack[]{getMouthItem(), getTongueItem()}) {
+            if (!s.isEmpty()) this.spawnAtLocation(s.copy(), 1.0F);
+        }
+        setMouthItem(ItemStack.EMPTY);
+        setTongueItem(ItemStack.EMPTY);
+    }
+
     @Override
     public void die(DamageSource source) {
         if (!this.level().isClientSide && finishing) finisherGoal.stop(); // morto não roda Goal: acaba aqui
         if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget); // o bicho levanta
         super.die(source);
         if (!this.level().isClientSide) {
+            dropStolen();
             endEngagement(FroggyBrain.Outcome.FROGGY_DIED);
             FroggyKeeper.onDeath(this);
         }
@@ -1271,6 +1301,56 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** O cliente desenha o braço com a skin (e o tipo de braço, fino ou normal) desse jogador. */
     public void setHeldArm(@Nullable Player owner) {
         this.entityData.set(DATA_HELD_ARM, owner == null ? Optional.empty() : Optional.of(owner.getUUID()));
+    }
+
+    // ---------------- (v0.7.29) roubo de arma de mod (ai.FroggyStealGoal)
+
+    /** O que ele comeu de arma de mod: cai quando ele morre (sem a munição, que ele comeu junto). */
+    private final java.util.List<ItemStack> belly = new java.util.ArrayList<>();
+
+    public ItemStack getTongueItem() {
+        return this.entityData.get(DATA_TONGUE_ITEM);
+    }
+
+    public void setTongueItem(ItemStack stack) {
+        this.entityData.set(DATA_TONGUE_ITEM, stack.copy());
+    }
+
+    public ItemStack getMouthItem() {
+        return this.entityData.get(DATA_MOUTH_ITEM);
+    }
+
+    public void setMouthItem(ItemStack stack) {
+        this.entityData.set(DATA_MOUTH_ITEM, stack.copy());
+    }
+
+    /** Engoliu: vai pra barriga já sem a munição de dentro (LM: "as munições são perdidas"). */
+    public void swallow(ItemStack stack) {
+        if (!stack.isEmpty()) belly.add(com.froggydude.brain.ModWeapons.unload(stack));
+    }
+
+    /** Apanhou mastigando: cospe a arma inteira (com munição) na frente dele, pra quem quiser pegar de volta. */
+    public void spitMouthItem() {
+        ItemStack held = getMouthItem();
+        if (held.isEmpty() || this.level().isClientSide) return;
+        setMouthItem(ItemStack.EMPTY);
+        Vec3 front = this.position().add(this.getLookAngle().multiply(1, 0, 1).normalize().scale(0.8D)).add(0, 1.4D, 0);
+        net.minecraft.world.entity.item.ItemEntity drop = new net.minecraft.world.entity.item.ItemEntity(this.level(),
+                front.x, front.y, front.z, held.copy());
+        drop.setDefaultPickUpDelay();
+        drop.getPersistentData().putLong(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG, this.level().getGameTime());
+        this.level().addFreshEntity(drop);
+        this.playSound(SoundEvents.PLAYER_ATTACK_STRONG, 1.0F, 0.6F);
+        brainLog("me bateram mastigando: cuspi " + held.getHoverName().getString());
+    }
+
+    /** Fala no chat como se fosse um jogador: "<FroggyDude> ..." (pra quem está perto e pra vítima). */
+    public void chat(@Nullable LivingEntity target, String key) {
+        net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("<FroggyDude> ")
+                .append(net.minecraft.network.chat.Component.translatable(key));
+        for (Player p : this.level().players()) {
+            if (p instanceof ServerPlayer sp && (p == target || p.distanceTo(this) < 64.0F)) sp.sendSystemMessage(line);
+        }
     }
 
     public boolean isStalking() {
@@ -2637,6 +2717,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         float before = this.getHealth();
         boolean hurt = super.hurt(source, amount);
         if (hurt && !this.level().isClientSide) learnDanger(source);
+        if (hurt && this.level() instanceof ServerLevel sl && source.getEntity() instanceof Player hitter) {
+            // (v0.7.29) aprende pelo que dói: item de mod que machucou ele vira alvo da língua - só golpe na mão mais
+            // forte que um soco, ou tiro de projétil de mod (a bala de uma arma de mod)
+            ItemStack weapon = hitter.getMainHandItem();
+            float lost = before - this.getHealth();
+            net.minecraft.world.entity.Entity direct = source.getDirectEntity();
+            net.minecraft.resources.ResourceLocation shot = direct == null ? null
+                    : net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getKey(direct.getType());
+            boolean melee = direct == hitter && lost >= 3.0F;
+            boolean modShot = direct != null && direct != hitter && shot != null && !"minecraft".equals(shot.getNamespace());
+            if ((melee || modShot) && com.froggydude.brain.ModWeapons.feel(FroggyWorldData.get(sl), weapon, lost)) {
+                brainLog("aprendi: " + weapon.getHoverName().getString() + " dói - vou tirar isso de " + hitter.getScoreboardName());
+            }
+            // apanhou com a arma roubada na boca: cospe
+            if (getFroggyState() == FroggyState.ARM_EAT && !getMouthItem().isEmpty()) spitMouthItem();
+        }
         if (hurt && source.is(net.minecraft.world.damagesource.DamageTypes.SONIC_BOOM)
                 && source.getEntity() instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
             // o boom do warden jogou ele longe: levanta e vai com o dobro da velocidade (Grox, cidade antiga)
@@ -2719,6 +2815,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugStalk) tag.putBoolean("DebugStalk", true);
         if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
         if (debugFar > 0) tag.putInt("DebugFar", debugFar);
+        // a barriga, e o que estiver na boca/língua agora (salvou no meio da mastigada: conta como engolido)
+        net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+        for (ItemStack s : belly) list.add(s.save(new CompoundTag()));
+        for (ItemStack s : new ItemStack[]{getMouthItem(), getTongueItem()}) {
+            if (!s.isEmpty()) list.add(com.froggydude.brain.ModWeapons.unload(s).save(new CompoundTag()));
+        }
+        if (!list.isEmpty()) tag.put("Belly", list);
     }
 
     @Override
@@ -2751,6 +2854,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.debugStalk = tag.getBoolean("DebugStalk");
         this.debugPhase2In = tag.getInt("DebugPhase2In");
         this.debugFar = tag.getInt("DebugFar");
+        belly.clear();
+        net.minecraft.nbt.ListTag list = tag.getList("Belly", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        for (int i = 0; i < list.size(); i++) {
+            ItemStack s = ItemStack.of(list.getCompound(i));
+            if (!s.isEmpty()) belly.add(s);
+        }
         this.debugAttack = null;
         for (FroggyState st : FroggyState.values()) {
             if (st.name().equals(tag.getString("DebugAttack"))) this.debugAttack = st;

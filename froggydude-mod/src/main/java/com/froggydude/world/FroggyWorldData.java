@@ -28,6 +28,8 @@ public class FroggyWorldData extends SavedData {
     public final FroggyBrain brain = new FroggyBrain();
     /** Onde ele já se machucou (o caminho desvia). */
     public final DangerMemory dangers = new DangerMemory();
+    /** (v0.7.29) Item de mod -> quanto já doeu nele (vida somada): o que mais doeu ele quer tirar da pessoa. */
+    public final java.util.Map<String, Float> pain = new java.util.HashMap<>();
 
     // ----- o FroggyDude do mundo (só existe um)
     @Nullable
@@ -96,6 +98,8 @@ public class FroggyWorldData extends SavedData {
         if (tag.hasUUID("HuntPlayer")) d.huntPlayer = tag.getUUID("HuntPlayer");
         d.huntUntil = tag.getLong("HuntUntil");
         d.huntAmbush = tag.getBoolean("HuntAmbush");
+        CompoundTag painTag = tag.getCompound("Pain");
+        for (String k : painTag.getAllKeys()) d.pain.put(k, painTag.getFloat(k));
         CompoundTag mh = tag.getCompound("Manhunt");
         d.manhuntActive = mh.getBoolean("Active");
         try {
@@ -128,6 +132,9 @@ public class FroggyWorldData extends SavedData {
         if (huntPlayer != null) tag.putUUID("HuntPlayer", huntPlayer);
         tag.putLong("HuntUntil", huntUntil);
         tag.putBoolean("HuntAmbush", huntAmbush);
+        CompoundTag painTag = new CompoundTag();
+        pain.forEach(painTag::putFloat);
+        tag.put("Pain", painTag);
         CompoundTag mh = new CompoundTag();
         mh.putBoolean("Active", manhuntActive);
         mh.putString("Mode", manhuntMode.name());

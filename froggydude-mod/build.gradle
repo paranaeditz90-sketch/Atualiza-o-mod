@@ -79,11 +79,25 @@ repositories {
             includeGroup('software.bernie.geckolib')
         }
     }
+    // Só pros testes (-PtestMods): mods de outros autores baixados do Modrinth
+    // (repositório comum, não "exclusiveContent": o ForgeGradle serve a versão remapeada pelo repositório dele)
+    if (project.hasProperty('testMods')) {
+        maven {
+            name = 'Modrinth'
+            url = 'https://api.modrinth.com/maven'
+            content { includeGroup 'maven.modrinth' }
+        }
+    }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}")
+    // Testar o roubo de arma e a fúria do Avaritia com o Re:Avaritia de verdade:
+    // ./gradlew runClient -PtestMods (só no Minecraft de teste; não entra no jar do mod)
+    if (project.hasProperty('testMods')) {
+        runtimeOnly fg.deobf('maven.modrinth:re-avaritia:1.20.1-1.4.2-release')
+    }
 }
 
 tasks.named('processResources', ProcessResources).configure {

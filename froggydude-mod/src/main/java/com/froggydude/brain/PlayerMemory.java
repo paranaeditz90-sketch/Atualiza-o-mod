@@ -33,6 +33,8 @@ public class PlayerMemory {
     public final java.util.List<Long> killTimes = new java.util.ArrayList<>();
     /** Matou 3 vezes num dia: da próxima vez ele zomba e vai embora ("Não mexe comigo"). */
     public boolean mockDue;
+    /** (v0.7.29) Já falou "Can't wait to test your little toys" pra essa pessoa (fala rara: só a 1ª vez). */
+    public boolean toysTaunted;
     /** Até quando (gameTime) ele deixa esse jogador em paz. */
     public long truceUntil;
     public int escapes;
@@ -131,6 +133,7 @@ public class PlayerMemory {
         tag.putInt("FroggyDeaths", froggyDeaths);
         tag.putLongArray("KillTimes", killTimes.stream().mapToLong(Long::longValue).toArray());
         tag.putBoolean("MockDue", mockDue);
+        if (toysTaunted) tag.putBoolean("ToysTaunted", true);
         tag.putLong("TruceUntil", truceUntil);
         tag.put("Study", study.save());
         return tag;
@@ -163,6 +166,7 @@ public class PlayerMemory {
         m.froggyDeaths = tag.getInt("FroggyDeaths");
         for (long t : tag.getLongArray("KillTimes")) m.killTimes.add(t);
         m.mockDue = tag.getBoolean("MockDue");
+        m.toysTaunted = tag.getBoolean("ToysTaunted");
         m.truceUntil = tag.getLong("TruceUntil");
         m.study.load(tag.getCompound("Study"));
         return m;
