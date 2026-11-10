@@ -46,7 +46,10 @@ public class FroggyServerEvents {
         Manhunt.tick(event.getServer());
         com.froggydude.world.Invasion.tick(event.getServer());
         long now = event.getServer().overworld().getGameTime();
-        if (now % 20 == 0) FroggyKeeper.keepAwake(event.getServer());
+        if (now % 20 == 0) {
+            FroggyKeeper.keepAwake(event.getServer());
+            com.froggydude.world.Hunt.tick(event.getServer());
+        }
         if (now % 10 == 0) {
             // o rastro de cheiro de cada um (o faro do FroggyDude)
             for (net.minecraft.server.level.ServerPlayer p : event.getServer().getPlayerList().getPlayers()) {
@@ -70,6 +73,7 @@ public class FroggyServerEvents {
     public static void onServerStopped(ServerStoppedEvent event) {
         Sabotage.clear();
         com.froggydude.brain.Scent.clear();
+        com.froggydude.world.Hunt.reset();
     }
 
     @SubscribeEvent

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.24: encurralado, ele briga - a fuga não trava mais (sobre a v0.7.23)
+# Froggydude - v0.7.25: a caçada não acaba quando tu vai longe (sobre a v0.7.24)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,24 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.24):
+O que testar agora (v0.7.25):
+- **Ir longe não acaba mais a caçada** (LM, 09-10/11: "às vezes ele some do nada. Se eu for longe dele, simplesmente
+  acaba o manhunt/caçada porque ele não é mais carregado/não sabe mais onde tô"; "em todos" os modos): fora do manhunt e
+  da invasão, ele só te achava pela vista e pelo cheiro, e a mais de ~60 blocos, noutra dimensão, de pérola ou de elytra
+  te perdia pra sempre. Agora o mundo lembra quem ele está caçando (10 min desde a última vez que te viu, salvo no
+  mundo). Se tu ficar longe (mais de 72 blocos, outra dimensão, ou ele descarregado) de 1 a 3 min, ele reaparece
+  ESCONDIDO a 28-44 blocos de ti, fora da tua vista, e vem atrás. Na IA Real ele chega pelas costas (o "I see you").
+  - Acaba quando ele te mata, morre ou fica de trégua contigo. Espera (sem contar o tempo) enquanto ele come, se esconde
+    pra se curar, está de tocaia/no massacre da vila, briga com outro, e enquanto tu está morto, fora do jogo ou no
+    Pacífico. Volta com a vida que tinha.
+  - No manhunt e na invasão continua o de sempre (eles já traziam ele de volta). No manhunt, quando ele PEGA alguém, o
+    manhunt acaba e ele vai embora em 8 s: isso é regra, não sumiço.
+- Testado aqui: ele me viu a 20 blocos, eu fui 300 blocos pra longe; ele varreu onde o rastro acabou, perdeu, e 1,5-2
+  min depois reapareceu escondido a 29-43 blocos e veio (numa das vezes chegou pelas costas com o "I see you"). Fui pro
+  Nether: ele apareceu lá também, arrombou o bloco e me alcançou.
+- Como ver: mundo com "-dev" no nome mostra "[cérebro] ... foi longe: reapareci escondido perto dela".
+
+Da v0.7.24:
 - **Com pouca vida e sem ter pra onde fugir, ele parte pra cima** (LM, 09/11: "do nada ele para e não ataca", "não
   foge às vezes quando tá com pouca vida", "parado apenas"; IA Real): na fuga pra se curar ele sorteava um esconderijo
   sem conferir se dava pra chegar lá. Em lugar fechado (caverna, casa, sala) o ponto caía em cima da pedra ou atrás da

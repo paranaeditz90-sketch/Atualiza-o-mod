@@ -37,6 +37,11 @@ public class FroggyWorldData extends SavedData {
     /** Hora do jogo em que ele volta (manhunt, depois de morrer); -1 = não vai voltar. */
     public long respawnAt = -1;
 
+    // ----- a caçada fora do manhunt (v0.7.25, Hunt): quem ele está caçando e até quando lembra
+    @Nullable
+    public UUID huntPlayer;
+    public long huntUntil;
+
     // ----- manhunt
     public boolean manhuntActive;
     public ManhuntMode manhuntMode = ManhuntMode.SPEEDRUN;
@@ -86,6 +91,8 @@ public class FroggyWorldData extends SavedData {
         d.froggyAlive = tag.getBoolean("FroggyAlive");
         d.froggyHealth = tag.getFloat("FroggyHealth");
         d.respawnAt = tag.contains("RespawnAt") ? tag.getLong("RespawnAt") : -1;
+        if (tag.hasUUID("HuntPlayer")) d.huntPlayer = tag.getUUID("HuntPlayer");
+        d.huntUntil = tag.getLong("HuntUntil");
         CompoundTag mh = tag.getCompound("Manhunt");
         d.manhuntActive = mh.getBoolean("Active");
         try {
@@ -115,6 +122,8 @@ public class FroggyWorldData extends SavedData {
         tag.putBoolean("FroggyAlive", froggyAlive);
         tag.putFloat("FroggyHealth", froggyHealth);
         tag.putLong("RespawnAt", respawnAt);
+        if (huntPlayer != null) tag.putUUID("HuntPlayer", huntPlayer);
+        tag.putLong("HuntUntil", huntUntil);
         CompoundTag mh = new CompoundTag();
         mh.putBoolean("Active", manhuntActive);
         mh.putString("Mode", manhuntMode.name());

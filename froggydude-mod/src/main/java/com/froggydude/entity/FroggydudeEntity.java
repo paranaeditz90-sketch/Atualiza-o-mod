@@ -497,6 +497,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         super.awardKillScore(killed, score, source);
         if (this.level().isClientSide) return;
         if (engagement != null && killed.getUUID().equals(engagement.player)) endEngagement(FroggyBrain.Outcome.KILLED);
+        if (killed instanceof Player && this.level() instanceof ServerLevel kl) {
+            com.froggydude.world.Hunt.forget(kl.getServer(), killed.getUUID()); // pegou: acabou essa caçada
+        }
         if (killed instanceof Player) {
             // barriga cheia: 45 s sem caçar quem ele acabou de matar (antes ele
             // farejava quem renascia e matava de novo, sem parar)
@@ -1088,6 +1091,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 m.mockDue = false;
                 m.truceUntil = server.getGameTime() + PlayerMemory.DAY;
                 FroggyWorldData.get(server).setDirty();
+                com.froggydude.world.Hunt.forget(server.getServer(), target.getUUID());
             }
         }
         if (engagement != null && engagement.player.equals(target.getUUID())) engagement = null;
@@ -1894,6 +1898,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (engagement != null && engagement.player.equals(p.getUUID())) endEngagement(FroggyBrain.Outcome.ONGOING_SWITCH);
     }
 
+    /** Fugiu pra se curar e ainda está escondido (até 1 min). */
+    public boolean isHiding() {
+        return retreatedFrom != null && this.tickCount < hideUntil;
+    }
+
     /** Escondido se curando: ela só vira alvo de novo se chegar bem perto. */
     public boolean hidingFrom(Entity e) {
         return retreatedFrom != null && e.getUUID().equals(retreatedFrom) && this.tickCount < hideUntil
@@ -2310,6 +2319,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // a vida também muda sem dano (cura, /summon, mundo recarregado)
         if (this.tickCount % 20 == 0) {
             updateGoreStage();
+            // (v0.7.25) caçando e vendo a pessoa: o mundo lembra da caçada (Hunt), que não acaba se ela for longe
+            if (this.getTarget() instanceof ServerPlayer hp && !hp.isCreative() && !hp.isSpectator()
+                    && this.level() instanceof ServerLevel hl && this.hasLineOfSight(hp)) {
+                com.froggydude.world.Hunt.saw(hl.getServer(), hp);
+            }
         }
         updateLocomotion();
         // encostou numa parede andando atrás de alguém (ou passeando): sobe
