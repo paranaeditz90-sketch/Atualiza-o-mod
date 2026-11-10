@@ -691,7 +691,9 @@ public class FroggyCombatGoal extends Goal {
         Vec3 v = froggy.getDeltaMovement();
         boolean running = !cantReach && v.x * v.x + v.z * v.z > 0.0025D;
         boolean blocked = cantReach || !froggy.hasLineOfSight(target) && !running;
-        if (dist <= 2.5D || dist > 24.0D || !blocked || froggy.isFrenzyActive()) {
+        // (v0.7.27) transformado também conta: antes, na fase 2 o contador zerava sempre e ele ficava ~30 s parado do
+        // lado da caixa/casa onde ela se trancou, sem comer a parede nem usar a língua, até a transformação acabar
+        if (dist <= 2.5D || dist > 24.0D || !blocked) {
             bestDist = dist;
             stuckTicks = 0;
             return 0;

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.26: a trégua vira um sumiço de 1-2 min, e ele volta pelas costas (sobre a v0.7.25)
+# Froggydude - v0.7.27: transformado, ele não fica mais parado do lado da parede (sobre a v0.7.26)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,20 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.26):
+O que testar agora (v0.7.27):
+- **Transformado (fase 2), ele não fica mais parado do lado de onde tu se trancou** (LM, 09/11: "às vezes fica preso,
+  parado, porque se prendeu nos blocos"; "parado apenas"): na fase 2 o "não consigo chegar nela" era desligado de
+  propósito, então se tu se trancava (casa, caixa, buraco tapado) ele chegava na parede e ficava ali parado até a
+  transformação acabar, sem comer a parede nem usar a língua. Agora conta igual ao normal: em ~1,5 s ele come o
+  teto, dá língua na parede ou arromba a porta, transformado mesmo.
+- Testado aqui (IA Real, eu trancado numa caixa de pedra 5x5, ele a 15 blocos): transformado, ANTES ficou ~27 s parado
+  do lado da parede e só entrou 45 s depois; DEPOIS saiu da transformação, comeu o teto, deu língua na parede e entrou
+  em ~10 s. Sem transformar continua igual (entrou em 7-8 s).
+- Se tu ainda ver ele parado SEM estar transformado, me fala o lugar (que bloco, porta, cerca, escada, laje): o
+  outro caso que achei lendo o código (ele te vendo, o caminho "chega", mas o corpo enganchado) eu não consegui
+  reproduzir aqui, então não mexi.
+
+Da v0.7.26:
 - **Acabou a trégua de 20 min** (LM, 09/11: "tu tem razão, qual sua recomendação?"; "do nada ele para e não ataca, só
   volta quando eu ataco"): quando ele te matava 3 vezes no mesmo dia, ele zombava ("lol you're so bad", a dancinha,
   "Don't mess with me.") e te deixava em paz por UM DIA do jogo (20 min reais), mesmo passando do teu lado. Agora:
