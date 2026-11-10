@@ -1,4 +1,4 @@
-# Froggydude - v0.7.23: o faro não falha mais, nem transformado (sobre a v0.7.22)
+# Froggydude - v0.7.24: encurralado, ele briga - a fuga não trava mais (sobre a v0.7.23)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,25 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.23):
+O que testar agora (v0.7.24):
+- **Com pouca vida e sem ter pra onde fugir, ele parte pra cima** (LM, 09/11: "do nada ele para e não ataca", "não
+  foge às vezes quando tá com pouca vida", "parado apenas"; IA Real): na fuga pra se curar ele sorteava um esconderijo
+  sem conferir se dava pra chegar lá. Em lugar fechado (caverna, casa, sala) o ponto caía em cima da pedra ou atrás da
+  parede, e ele ficava até 20 s raspando a parede ou parado te olhando, sem fugir nem atacar. Agora:
+  - só vale esconderijo a que ele chega andando; se o sorteio não acha, ele pergunta ao mapa de caminhos até onde dá
+    pra ir pra longe de ti (acha o túnel, a curva dele, a saída de lado);
+  - sem saída e tu vendo ele: ribbit de raiva e briga na hora (só tenta fugir de novo 20 s depois; 40 e 60 s se repetir);
+  - sem saída mas fora da tua vista (o fim do túnel, atrás da quina): fica quieto escondido; se tu achar ele, briga;
+  - correndo perto de ti sem conseguir abrir distância por 3 s (dando voltas, enroscado): também briga.
+- Testado aqui antes e depois, ele com 40% de vida a 7 blocos de mim: sala fechada 11x11 - antes 20 s raspando a
+  parede, agora briga em 0,5 s; salão fechado 21x21 - corre até a parede do fundo e briga em 1 s; sala com túnel de
+  saída (reto, e com saída de lado e curvas) - escapa e some da vista em 3 s; campo aberto - foge como antes.
+- Não mudou: quando ele decide fugir (abaixo de 50% de vida, com a transformação já feita), a fala da fuga, a volta
+  "com um plano", e o resto da caçada (o sumiço com o "I SEE YOU", a perseguição, o bote colado).
+- Como ver: num mundo com "-dev" no nome o chat mostra "[cérebro] vida baixa apanhando de ...: foge pra se curar" e
+  depois "encurralado, sem pra onde fugir de ...: briga" ou "escapou de ...: vai comer e pensar num plano".
+
+Da v0.7.23:
 - **O faro só funcionava em metade das vezes** (LM, 09/11: "ele às vezes 'esquece' aonde foi o jogador"): o jogo só
   deixa ele decidir começar uma coisa nova em tick sim, tick não, e o faro só conferia o rastro em tick múltiplo de 10.
   Dependendo do tick em que ele nascia (ou o mundo carregava), os dois nunca batiam e o faro NUNCA ligava: tu sumia da
