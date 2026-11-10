@@ -23,7 +23,10 @@ public class ModEntityTypes {
     public static final RegistryObject<EntityType<FroggydudeEntity>> FROGGYDUDE =
             ENTITY_TYPES.register("froggydude", () -> EntityType.Builder
                     .of(FroggydudeEntity::new, MobCategory.MONSTER)
-                    .sized(0.7F, 1.95F) // do tamanho de um jogador, um pouco maior
+                    // da largura de um jogador (0,6) e um pouco mais alto. Era 0,7 até a v0.7.30: a porta aberta deixa
+                    // um vão de 13/16 de bloco (a folha ocupa 3/16) e, andando pelo meio do bloco, ele raspava 0,04 na
+                    // folha e ficava empurrando a porta aberta (LM, 10/11: "ele não consegue passar por portas")
+                    .sized(0.6F, 1.95F)
                     .clientTrackingRange(16)
                     .build("froggydude"));
 

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.30: a fúria do Avaritia e a engolida sacudindo a cabeça (sobre a v0.7.29)
+# Froggydude - v0.7.31: passa pela porta, a arma fica na boca e o farelo é cinza (sobre a v0.7.30)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,25 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.30):
+O que testar agora (v0.7.31):
+- **Porta** (LM, 10/11: "ele não consegue passar por portas (tem muita dificuldade) na IA real"): a causa era a
+  largura dele. A porta aberta deixa um vão de 13/16 de bloco (a folha ocupa 3/16 de um lado) e ele tinha 0,7 de
+  largura: andando pelo meio do bloco, raspava 0,04 na folha e ficava empurrando a porta aberta. Agora tem 0,6 (a
+  largura do jogador e do aldeão; o desenho dele não muda). Testado numa casinha de pedra com porta de madeira, IA
+  Real, eu dentro e ele fora: antes 32 s numa vez e não entrou em 2 min na outra; agora entrou em 3 a 6 s (abre a
+  porta e passa direto).
+- **A arma fica na boca** (LM: "a arma fica fora da boca", print dele na porta com a arma em cima da cabeça): a arma
+  do TaCZ (e de mod que desenha a arma do jeito dele) era desenhada como "item no chão", e no chão cada arma do
+  TaCZ tem uma posição própria, que vem do pacote de armas: a pistola ia pro queixo, o fuzil saía de lado e, no
+  celular do LM, uma foi parar em cima da cabeça. Agora vai a figura de inventário da arma (de lado, centrada, igual
+  pra todas), atravessada na altura da boca. Testado com a AK, a AWP e a Deagle.
+- **O farelo cinza** (LM, 10/11: "Fica com erros de textura nas partículas dele comendo, tem como colocar uma textura
+  cinza?"): quando ele morde a arma roubada, o farelo que voa da boca agora é sempre um pedacinho cinza liso, seja
+  qual for a arma. Antes o farelo era tirado do desenho do próprio item: na espada infinita saíam quadradinhos
+  coloridos soltos (pareciam erro de textura) e, em arma de mod sem desenho, o quadriculado roxo de "textura
+  faltando".
+
+Da v0.7.30:
 - **A engolida** (LM, 10/11: "Ele sacode a cabeça rapidamente e vai engolindo a arma"; vídeo do Grox, 1:24,0-1:25,1):
   a arma que a língua roubou fica **atravessada na boca**, ele **sacode a cabeça rápido** pros lados (é a cabeça, o
   corpo quase parado) e ela **vai entrando aos poucos** (o pedaço de fora encurta), com farelo e barulho de mastigar;
@@ -24,7 +42,7 @@ O que testar agora (v0.7.30):
   TaCZ no estudo dos mods (a mesa de fazer arma, a munição e os acessórios não contam), arrancou a AK da mão e comeu;
   morto, a AK caiu **sem as 30 balas** de dentro (ele comeu), e a munição da mochila ficou contigo. A arma do TaCZ é
   desenhada de outro jeito (modelo 3D sem textura): ela fica deitada atravessada na boca, saindo de lado, como a
-  pistola do Grox, e o farelo vira lasca de metal (antes saía o quadriculado roxo de "textura faltando").
+  pistola do Grox (o farelo: ver a v0.7.31).
 - **Ele come item do Avaritia** (LM: "o froggydude come itens de avaritia, como a arma do grox"): qualquer item do
   Avaritia (lingote, singularidade, ferramenta, totem, escudo...) virou alvo da língua, não só as armas, e vem antes
   das outras armas de mod. Da mão, da outra mão, da mochila e do chão. A armadura VESTIDA ele não arranca (aí a fúria

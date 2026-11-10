@@ -161,22 +161,24 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                 poseStack.pushPose();
                 RenderUtils.prepMatrixForBone(poseStack, bone);
                 poseStack.translate(0F, (MOUTH_Y - 2.5F) / 16F, (MOUTH_Z - 1.0F) / 16F);
-                // o ícone chato vem na diagonal e centrado; a arma 3D sem textura (TaCZ) vem em pé, saindo da boca
-                // pra cima (StolenItemFx)
+                // o ícone chato vem na diagonal; a arma desenhada só pelo mod (TaCZ) vem pela figura de inventário, já
+                // deitada (StolenItemFx). As duas centradas na boca.
                 ItemStack inMouth = animatable.getMouthItem();
                 boolean flat = !StolenItemFx.standingGun(inMouth, animatable.level());
+                // a figura de inventário vem centrada; o ícone no chão vem 2,5 px mais alto (o jogo sobe ele)
+                if (!flat) poseStack.translate(0F, 2.5F / 16F, 0F);
                 if (animatable.getFroggyState() == FroggyState.WEAPON_EAT) {
                     // (v0.7.30) "vai engolindo a arma": a ponta de dentro fica parada na boca e o pedaço de fora
                     // encurta enquanto a cabeça sacode, até o "glup" (FroggyStealGoal.SWALLOW)
                     float age = animatable.getClientStateAge() + partialTick;
                     float in = Mth.clamp((age - SWALLOW_FROM) / (FroggyStealGoal.SWALLOW - SWALLOW_FROM), 0F, 1F);
                     float out = 1F - 0.92F * in;
-                    if (flat) poseStack.translate(STOLEN_HALF / 16F * (0.15F - out), 0F, 0F);
+                    poseStack.translate(STOLEN_HALF / 16F * (0.15F - out), 0F, 0F);
                     poseStack.scale(out, 1F - 0.2F * in, 1F);
                 }
-                // deitada de lado a lado da boca: o ícone gira 45° (fica reto); a arma 3D gira 90° (sai de lado)
-                poseStack.mulPose(Axis.ZP.rotationDegrees(flat ? -45F : 90F));
-                drawStolenItem(poseStack, animatable, inMouth, bufferSource, packedLight, flat ? 1.4F : 1.0F);
+                // deitada de lado a lado da boca: o ícone diagonal gira 45° (fica reto); a figura da arma já vem deitada
+                if (flat) poseStack.mulPose(Axis.ZP.rotationDegrees(-45F));
+                drawStolenItem(poseStack, animatable, inMouth, bufferSource, packedLight, flat ? 1.4F : 1.15F);
                 poseStack.popPose();
                 buffer = bufferSource.getBuffer(renderType);
             }
@@ -188,13 +190,18 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     /**
      * (v0.7.29) A arma de mod roubada, do jeito que o jogo desenha o item largado no chão: todo mod de arma suporta
      * esse jeito (o modelo "na mão" de cada mod tem posição própria e quebraria aqui).
+     * (v0.7.31) Menos a arma desenhada só pelo mod (TaCZ): no chão, cada arma tem a posição dela (do pacote de armas)
+     * e a pistola ia pro queixo, o fuzil saía de lado, e no celular do LM uma foi parar em cima da cabeça. Essa vai
+     * pela figura do inventário (a arma de lado, centrada, igual pra todas), no mesmo tamanho do ícone no chão.
      */
     private static void drawStolenItem(PoseStack poseStack, FroggydudeEntity froggy, ItemStack stack,
                                        MultiBufferSource buffers, int light, float size) {
+        boolean gun = StolenItemFx.standingGun(stack, froggy.level());
+        float s = gun ? size * 0.5F : size;
         poseStack.pushPose();
-        poseStack.scale(size, size, size);
-        Minecraft.getInstance().getItemRenderer().renderStatic(stack, ItemDisplayContext.GROUND, light,
-                OverlayTexture.NO_OVERLAY, poseStack, buffers, froggy.level(), froggy.getId());
+        poseStack.scale(s, s, s);
+        Minecraft.getInstance().getItemRenderer().renderStatic(stack, gun ? ItemDisplayContext.GUI : ItemDisplayContext.GROUND,
+                light, OverlayTexture.NO_OVERLAY, poseStack, buffers, froggy.level(), froggy.getId());
         poseStack.popPose();
     }
 
