@@ -912,6 +912,19 @@ def forward(side):
     return eat_p(head=12, head_y=6 * side, head_z=12 * side, waist=4)
 
 
+# (v0.7.30) Comendo a arma roubada (FroggyDude VS Grox MANHUNT 1:24,0-1:25,1; LM: "ele sacode a cabeça
+# rapidamente e vai engolindo a arma"). No vídeo: a arma atravessada na boca, a cabeça vira pra um lado e pro
+# outro a cada ~0,1 s (é a CABEÇA que sacode, o corpo quase parado) e a arma vai encurtando até sumir em ~1,1 s;
+# depois a boca aberta, vazia. No tempo do vídeo (LM: "igual do vídeo"): a sacudida de 0,15 a 1 s com o renderer
+# encolhendo a arma junto, engole aos 1,05 s (tick 21 = FroggyStealGoal.SWALLOW) com a cabeça pra trás, 1,6 s ao todo.
+ANIMS["weapon_eat"] = animation(1.6, (
+    [(0.00, eat_p()),
+     (0.08, eat_p(head=14, waist=6))]                                    # crava os dentes
+    + shaking(0.15, 1.0, period=0.1, amount=30, body=4)                  # sacode rápido, ela entrando
+    + gulp(1.02, 1.4, 1)                                                 # joga a cabeça pra trás e engole
+    + [(1.60, eat_p())]), "hold_on_last_frame")
+
+
 T = lambda ticks: round(ticks / 20.0, 3)
 fin = [(0.00, pose(**OVER)),
        (0.35, pose(**{**OVER, "head": 36, "head_y": 10})),
@@ -1043,6 +1056,7 @@ def main():
             "sky_drop": [0.209, 0.315, 0.347, 0.357, 0.4, 1.1, 1.45, 1.75, 3.2],
             "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
             "arm_eat": [0.5, 0.64, 4.0],
+            "weapon_eat": [0.08, 0.2, 0.3, 0.8, 1.2],
             "contort": [0.46, 0.7, 0.95, 1.2, 1.45, 1.7, 1.95, 2.2, 2.45, 2.7, 2.95],
             "contort_hold": [0.0, 0.76, 1.68],
             "roar": [0.1, 0.25, 0.38],

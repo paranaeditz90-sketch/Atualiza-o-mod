@@ -93,10 +93,11 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
     implementation fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:${geckolib_version}")
-    // Testar o roubo de arma e a fúria do Avaritia com o Re:Avaritia de verdade:
-    // ./gradlew runClient -PtestMods (só no Minecraft de teste; não entra no jar do mod)
+    // Testar o roubo de arma e a fúria do Avaritia com o Re:Avaritia de verdade, e as armas de fogo com o TaCZ
+    // (LM: "armas como TaCZ"): ./gradlew runClient -PtestMods (só no Minecraft de teste; não entra no jar do mod)
     if (project.hasProperty('testMods')) {
         runtimeOnly fg.deobf('maven.modrinth:re-avaritia:1.20.1-1.4.2-release')
+        runtimeOnly fg.deobf('maven.modrinth:timeless-and-classics-zero:1.1.8-hotfix2')
     }
 }
 

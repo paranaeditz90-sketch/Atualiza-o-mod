@@ -70,7 +70,14 @@ public enum FroggyState {
      * (vídeo "WHAT HAPPENED TO ME???" 2:50; Grox, RABIES 0:57). 3 a 7 s, no ritmo da
      * raiva e da fome (FroggyFeastGoal).
      */
-    FEAST(0);
+    FEAST(0),
+    /**
+     * (v0.7.30) Comendo a arma (ou o item do Avaritia) que a língua roubou (FroggyDude VS Grox MANHUNT 1:24,0-1:25,1;
+     * LM: "ele sacode a cabeça rapidamente e vai engolindo a arma"): atravessada na boca, ele sacode a cabeça rápido
+     * e ela vai entrando aos poucos; engole olhando pra cima (FroggyStealGoal, animação "weapon_eat"), no tempo do
+     * vídeo (~1 s até o "glup"). Apanhou no meio: cospe. Fica no fim da lista: o número do estado vai pela rede.
+     */
+    WEAPON_EAT(32);
 
     public final int durationTicks;
 

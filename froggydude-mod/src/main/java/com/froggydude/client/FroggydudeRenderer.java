@@ -7,6 +7,7 @@ import com.froggydude.entity.Finisher;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.PacedAnimationController;
+import com.froggydude.entity.ai.FroggyStealGoal;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -73,6 +74,10 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     // Braço na boca: centro, no espaço do osso head (boca na frente do rosto, embaixo)
     private static final float MOUTH_Y = 26.0F;
     private static final float MOUTH_Z = -4.5F;
+    /** (v0.7.30) Meio comprimento da arma deitada na boca (px; o ícone em pé no chão, 1,4x, girado 45°). */
+    private static final float STOLEN_HALF = 7.0F;
+    /** A arma começa a entrar depois da dentada (tick 2 da weapon_eat). */
+    private static final float SWALLOW_FROM = 2.0F;
 
     /**
      * (v0.7.22) Nadando: o corpo deita (como o jogador nadando no jogo) e inclina pra onde ele vai (de cabeça pra baixo
@@ -152,18 +157,26 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                 // o braço usa outra textura: volta pro buffer do Froggy antes de continuar
                 buffer = bufferSource.getBuffer(renderType);
             } else if ("head".equals(name) && !animatable.getMouthItem().isEmpty()) {
-                // (v0.7.29) a arma roubada atravessada na boca enquanto ele mastiga (Grox 1:24,5)
+                // (v0.7.29) a arma roubada atravessada na boca enquanto ele come (Grox 1:24,0)
                 poseStack.pushPose();
                 RenderUtils.prepMatrixForBone(poseStack, bone);
                 poseStack.translate(0F, (MOUTH_Y - 2.5F) / 16F, (MOUTH_Z - 1.0F) / 16F);
-                // deitada de lado a lado da boca (o ícone de arma vem na diagonal: 45° deixa ela reta)
-                poseStack.mulPose(Axis.ZP.rotationDegrees(-45F));
-                // cada mordida tira um pedaço: vai diminuindo até engolir
-                float left = 1.0F;
-                if (animatable.getFroggyState() == FroggyState.ARM_EAT) {
-                    left = 1.0F - 0.4F * Mth.clamp(animatable.getClientStateAge() / 80F, 0F, 1F);
+                // o ícone chato vem na diagonal e centrado; a arma 3D sem textura (TaCZ) vem em pé, saindo da boca
+                // pra cima (StolenItemFx)
+                ItemStack inMouth = animatable.getMouthItem();
+                boolean flat = !StolenItemFx.standingGun(inMouth, animatable.level());
+                if (animatable.getFroggyState() == FroggyState.WEAPON_EAT) {
+                    // (v0.7.30) "vai engolindo a arma": a ponta de dentro fica parada na boca e o pedaço de fora
+                    // encurta enquanto a cabeça sacode, até o "glup" (FroggyStealGoal.SWALLOW)
+                    float age = animatable.getClientStateAge() + partialTick;
+                    float in = Mth.clamp((age - SWALLOW_FROM) / (FroggyStealGoal.SWALLOW - SWALLOW_FROM), 0F, 1F);
+                    float out = 1F - 0.92F * in;
+                    if (flat) poseStack.translate(STOLEN_HALF / 16F * (0.15F - out), 0F, 0F);
+                    poseStack.scale(out, 1F - 0.2F * in, 1F);
                 }
-                drawStolenItem(poseStack, animatable, animatable.getMouthItem(), bufferSource, packedLight, 1.4F * left);
+                // deitada de lado a lado da boca: o ícone gira 45° (fica reto); a arma 3D gira 90° (sai de lado)
+                poseStack.mulPose(Axis.ZP.rotationDegrees(flat ? -45F : 90F));
+                drawStolenItem(poseStack, animatable, inMouth, bufferSource, packedLight, flat ? 1.4F : 1.0F);
                 poseStack.popPose();
                 buffer = bufferSource.getBuffer(renderType);
             }

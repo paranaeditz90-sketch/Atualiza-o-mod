@@ -42,6 +42,9 @@ public class FinisherEvents {
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void onDamage(LivingDamageEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer p)) return;
+        // (v0.7.30) a armadura do Avaritia não protege contra a fúria dele: o dano que ela zerou volta ANTES de decidir
+        // se o golpe mata (senão o golpe que mataria não virava a cutscene)
+        AvaritiaFury.undoAvaritiaArmor(event);
         if (FinisherTracker.isVictim(p)) {
             if (!event.getSource().is(ModDamageTypes.DEVOURED)) event.setCanceled(true);
             return;

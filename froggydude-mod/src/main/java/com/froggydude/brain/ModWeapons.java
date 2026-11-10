@@ -4,6 +4,8 @@ import com.froggydude.init.ModEntityTypes;
 import com.froggydude.world.FroggyWorldData;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -17,6 +19,7 @@ import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.TridentItem;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -43,24 +46,29 @@ public final class ModWeapons {
             "longsword", "shortsword", "broadsword", "gunblade", "blade", "katana", "saber", "sabre", "scythe", "dagger",
             "knife", "spear", "lance", "halberd", "glaive", "mace", "hammer", "warhammer", "flail", "bow", "longbow",
             "shortbow", "crossbow", "trident", "battleaxe", "rapier", "cutlass", "claymore", "whip"};
-    /** Pedaços que dizem "não é a arma" (munição, peça, material). */
+    /** Pedaços que dizem "não é a arma" (munição, peça, material, a mesa de fazer arma do TaCZ: "gun_smith_table"). */
     private static final String[] NOT_WEAPON = {"ammo", "bullet", "bullets", "shell", "shells", "cartridge", "magazine",
             "mag", "arrow", "arrows", "bolt", "bolts", "upgrade", "ingot", "nugget", "scrap", "template", "part", "parts",
             "barrel", "stock", "grip", "scope", "frame", "casing", "powder", "pattern", "mold", "mould", "blueprint",
-            "cast", "fragment", "shard", "dust", "hilt", "handle", "core", "skin", "case", "box", "block", "spawn", "egg"};
+            "cast", "fragment", "shard", "dust", "hilt", "handle", "core", "skin", "case", "box", "block", "spawn", "egg",
+            "table", "bench", "workbench", "station", "smith", "statue", "target"};
 
     private static final Map<Item, Boolean> CACHE = new HashMap<>();
 
     private ModWeapons() {
     }
 
+    /** De que mod é o item ("" se vazio ou sem registro). */
+    private static String namespace(ItemStack stack) {
+        if (stack.isEmpty()) return "";
+        ResourceLocation key = ForgeRegistries.ITEMS.getKey(stack.getItem());
+        return key == null ? "" : key.getNamespace();
+    }
+
     /** Item de mod (nem do Minecraft, nem do próprio Froggydude)? */
     public static boolean isModItem(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        ResourceLocation key = ForgeRegistries.ITEMS.getKey(stack.getItem());
-        if (key == null) return false;
-        String ns = key.getNamespace();
-        return !"minecraft".equals(ns) && !ModEntityTypes.MOD_ID.equals(ns) && !"forge".equals(ns);
+        String ns = namespace(stack);
+        return !ns.isEmpty() && !"minecraft".equals(ns) && !ModEntityTypes.MOD_ID.equals(ns) && !"forge".equals(ns);
     }
 
     public static String id(ItemStack stack) {
@@ -110,15 +118,18 @@ public final class ModWeapons {
         return damage >= 6.0D;
     }
 
-    /** Ele quer tirar isso da pessoa: arma de mod do estudo, ou item de mod que já doeu nele. */
+    /**
+     * Ele quer tirar isso da pessoa: arma de mod do estudo, qualquer item do Avaritia (v0.7.30, LM: "o froggydude
+     * come itens de avaritia, como a arma do grox") ou item de mod que já doeu nele.
+     */
     public static boolean stealable(ItemStack stack, FroggyWorldData data) {
         if (!isModItem(stack)) return false;
-        return isWeapon(stack.getItem()) || data.pain.getOrDefault(id(stack), 0F) >= PAIN_LEARNED;
+        return isWeapon(stack.getItem()) || isAvaritia(stack) || data.pain.getOrDefault(id(stack), 0F) >= PAIN_LEARNED;
     }
 
-    /** O quanto ele quer aquela (pra escolher qual tirar primeiro): o que mais doeu vem antes. */
+    /** O quanto ele quer aquela (pra escolher qual tirar primeiro): o do Avaritia antes, depois o que mais doeu. */
     public static float want(ItemStack stack, FroggyWorldData data) {
-        return (isWeapon(stack.getItem()) ? 1F : 0F) + data.pain.getOrDefault(id(stack), 0F);
+        return (isWeapon(stack.getItem()) ? 1F : 0F) + (isAvaritia(stack) ? 2F : 0F) + data.pain.getOrDefault(id(stack), 0F);
     }
 
     /** Apanhou com um item de mod: anota (devolve true quando esse item acabou de virar "perigoso"). */
@@ -174,6 +185,39 @@ public final class ModWeapons {
         }
         if (tag.isEmpty()) out.setTag(null);
         return out;
+    }
+
+    /** O nome do Avaritia (o Re:Avaritia e o AvaritiaNeo usam o mesmo). */
+    private static final String AVARITIA = "avaritia";
+
+    /** (v0.7.30) Item do Avaritia (qualquer port). */
+    public static boolean isAvaritia(ItemStack stack) {
+        return AVARITIA.equals(namespace(stack));
+    }
+
+    /** Entidade do Avaritia (flecha, corte da espada, buraco negro...). */
+    public static boolean isAvaritiaEntity(@Nullable Entity e) {
+        if (e == null) return false;
+        ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(e.getType());
+        return key != null && AVARITIA.equals(key.getNamespace());
+    }
+
+    /** Dano do tipo do Avaritia (o golpe em área da espada infinita é "avaritia:infinity"). */
+    public static boolean isAvaritiaDamage(DamageSource source) {
+        return source.typeHolder().unwrapKey().map(k -> AVARITIA.equals(k.location().getNamespace())).orElse(false);
+    }
+
+    /** Qualquer item do Avaritia no inventário: mochila, armadura ou outra mão (LM: "qualquer coisa de avaritia"). */
+    public static boolean hasAvaritia(Player p) {
+        return p.getInventory().hasAnyMatching(ModWeapons::isAvaritia);
+    }
+
+    /** Vestindo alguma peça da armadura do Avaritia. */
+    public static boolean wearsAvaritia(Player p) {
+        for (ItemStack s : p.getInventory().armor) {
+            if (isAvaritia(s)) return true;
+        }
+        return false;
     }
 
     /** O mesmo tipo de número que estava lá, valendo zero (pra não confundir o mod da arma). */

@@ -50,7 +50,7 @@ public class FroggyFeastGoal extends Goal {
         FroggyState s = froggy.getFroggyState();
         return s.isCombatAction() || s == FroggyState.CONTORTING || s == FroggyState.ROAR
                 || s == FroggyState.FINISHER || s == FroggyState.FLUNG || s == FroggyState.ARM_RIP
-                || s == FroggyState.ARM_EAT || s == FroggyState.FEEDING;
+                || s == FroggyState.ARM_EAT || s == FroggyState.WEAPON_EAT || s == FroggyState.FEEDING;
     }
 
     @Override

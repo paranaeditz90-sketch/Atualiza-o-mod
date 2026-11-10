@@ -6,8 +6,6 @@ import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.world.FroggyWorldData;
-import net.minecraft.core.particles.ItemParticleOption;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -28,9 +26,11 @@ import java.util.EnumSet;
  * de boca escancarada ("This looks tasty!") e come a arma atravessada na boca. Só na IA Extra, Máx e Real.
  *
  * Alvo: a arma de mod de quem ele caça (a da mão primeiro, senão a da mochila: a língua puxa de onde estiver) ou uma
- * arma de mod largada no chão (inclusive a que cai quando a pessoa morre). A língua vai (10 ticks), gruda e volta
- * com a arma na ponta (6 ticks); ele mastiga com ela atravessada na boca (as mordidas do arm_eat, farelo do item) e
- * engole: vai pra barriga sem a munição de dentro e cai quando ele morre. Apanhou mastigando: cospe ela inteira.
+ * arma de mod largada no chão (inclusive a que cai quando a pessoa morre); e, da v0.7.30, qualquer item do Avaritia
+ * (LM: "o froggydude come itens de avaritia, como a arma do grox"). A língua vai (10 ticks), gruda e volta com ela
+ * na ponta (6 ticks); ele come com ela atravessada na boca, SACUDINDO a cabeça rápido, e ela vai entrando aos poucos
+ * (estado WEAPON_EAT, 1:24 do vídeo; LM: "ele sacode a cabeça rapidamente e vai engolindo a arma") e engole: vai pra
+ * barriga sem a munição de dentro e cai quando ele morre. Apanhou comendo: cospe ela inteira.
  */
 public class FroggyStealGoal extends Goal {
 
@@ -39,15 +39,18 @@ public class FroggyStealGoal extends Goal {
     private static final double MIN_DIST = 1.2D;
     private static final int AIM_TICKS = 10;
     private static final int BACK_TICKS = 6;
-    private static final int EAT_TICKS = FroggyState.ARM_EAT.durationTicks;
-    /** As mordidas do arm_eat (0,30 s, 1,45 s e 2,60 s) e o engolir. */
-    private static final int[] BITES = {6, 29, 52};
-    private static final int SWALLOW = 80;
+    private static final int EAT_TICKS = FroggyState.WEAPON_EAT.durationTicks;
+    /** A dentada (0,1 s) e uma mastigada a cada 0,3 s enquanto a cabeça sacode (animação weapon_eat). */
+    public static final int FIRST_BITE = 2;
+    private static final int BITE_EVERY = 6;
+    /** Engole com a cabeça indo pra trás (1,05 s, o tempo do vídeo); o renderer encolhe a arma até aqui. */
+    public static final int SWALLOW = 21;
+    private static final int BURP = 28;
     /** Depois de um roubo (ou de errar), quanto tempo até a língua tentar de novo. */
     private static final int COOLDOWN = 160;
     /** Marca no item que ele cuspiu/largou: 30 s pra pessoa pegar de volta antes dele querer de novo. */
     public static final String SPAT_TAG = "FroggySpatAt";
-    private static final long SPAT_GRACE = 600L;
+    public static final long SPAT_GRACE = 600L;
 
     private enum Phase { AIM, BACK, EAT }
 
@@ -105,7 +108,7 @@ public class FroggyStealGoal extends Goal {
         double bestD = Double.MAX_VALUE;
         long now = level.getGameTime();
         for (ItemEntity e : level.getEntitiesOfClass(ItemEntity.class, froggy.getBoundingBox().inflate(RANGE),
-                e -> e.isAlive() && !justSpat(e, now) && ModWeapons.stealable(e.getItem(), data))) {
+                e -> e.isAlive() && !froggy.spatRecently(e, now) && ModWeapons.stealable(e.getItem(), data))) {
             double d = froggy.distanceTo(e);
             if (d <= RANGE && d < bestD && froggy.hasLineOfSight(e)) {
                 best = e;
@@ -114,11 +117,6 @@ public class FroggyStealGoal extends Goal {
         }
         loot = best;
         return loot != null;
-    }
-
-    /** Ele mesmo cuspiu/largou isso faz pouco: a pessoa tem 30 s pra pegar de volta. */
-    private static boolean justSpat(ItemEntity e, long now) {
-        return e.getPersistentData().contains(SPAT_TAG) && now - e.getPersistentData().getLong(SPAT_TAG) < SPAT_GRACE;
     }
 
     /** Livre pra isso: em pé, fora de golpe, sem comer, sem se esconder, sem estar transformado ou zombando. */
@@ -146,9 +144,9 @@ public class FroggyStealGoal extends Goal {
         froggy.openMouth(AIM_TICKS + BACK_TICKS + 4);
         if (victim != null) {
             taunt(victim);
-            froggy.brainLog(victim.getScoreboardName() + " tem arma de mod: a língua vai buscar");
+            froggy.brainLog(victim.getScoreboardName() + " tem arma de mod (ou coisa do Avaritia): a língua vai buscar");
         } else if (loot != null) {
-            froggy.brainLog("arma de mod no chão (" + loot.getItem().getHoverName().getString() + "): a língua vai buscar");
+            froggy.brainLog("no chão (" + loot.getItem().getHoverName().getString() + "): a língua vai buscar");
         }
     }
 
@@ -184,7 +182,7 @@ public class FroggyStealGoal extends Goal {
                     froggy.setTongueItem(ItemStack.EMPTY);
                     froggy.setTongueLength(0F);
                     froggy.setMouthItem(taken);
-                    froggy.setFroggyState(FroggyState.ARM_EAT);
+                    froggy.setFroggyState(FroggyState.WEAPON_EAT);
                     froggy.openMouth(EAT_TICKS);
                     phase = Phase.EAT;
                     t = 0;
@@ -198,17 +196,16 @@ public class FroggyStealGoal extends Goal {
                 }
                 LivingEntity look = victim != null && victim.isAlive() ? victim : froggy.getTarget();
                 if (look != null) froggy.getLookControl().setLookAt(look, 30.0F, 30.0F);
-                for (int b : BITES) {
-                    if (t == b) crunch();
-                }
+                if (isBite(t)) crunch(t == FIRST_BITE);
                 if (t == SWALLOW) {
                     ItemStack eaten = froggy.getMouthItem();
                     froggy.swallow(eaten);
                     froggy.setMouthItem(ItemStack.EMPTY);
-                    froggy.playSound(SoundEvents.PLAYER_BURP, 1.2F, 0.6F);
+                    froggy.playSound(SoundEvents.GENERIC_DRINK, 1.4F, 0.45F); // o "glup"
                     froggy.brainLog("comi " + eaten.getHoverName().getString()
                             + (victim != null ? " de " + victim.getScoreboardName() : "") + " (fica na barriga até eu morrer)");
                 }
+                if (t == BURP) froggy.playSound(SoundEvents.PLAYER_BURP, 1.2F, 0.6F);
                 if (t >= EAT_TICKS) finish();
             }
         }
@@ -274,17 +271,21 @@ public class FroggyStealGoal extends Goal {
         t = 0;
     }
 
-    /** Uma mordida na arma: farelo do próprio item e o barulho de mastigar metal. */
-    private void crunch() {
-        ItemStack s = froggy.getMouthItem();
-        if (s.isEmpty() || !(froggy.level() instanceof ServerLevel level)) return;
-        Vec3 look = froggy.getLookAngle().multiply(1, 0, 1);
-        look = look.lengthSqr() < 1.0E-4D ? Vec3.ZERO : look.normalize();
-        Vec3 mouth = froggy.position().add(look.scale(0.45D)).add(0, froggy.getBbHeight() * 0.85D, 0);
-        level.sendParticles(new ItemParticleOption(ParticleTypes.ITEM, s), mouth.x, mouth.y, mouth.z, 12,
-                0.15D, 0.1D, 0.15D, 0.08D);
-        froggy.playSound(SoundEvents.GENERIC_EAT, 1.3F, 0.55F + froggy.getRandom().nextFloat() * 0.2F);
-        froggy.playSound(SoundEvents.ITEM_BREAK, 0.9F, 0.5F + froggy.getRandom().nextFloat() * 0.2F);
+    /** Tick de mordida (a idade do estado WEAPON_EAT): o servidor faz o barulho, o cliente o farelo. */
+    public static boolean isBite(int t) {
+        return t >= FIRST_BITE && t < SWALLOW && (t - FIRST_BITE) % BITE_EVERY == 0;
+    }
+
+    /**
+     * Uma mordida na arma: o barulho de mastigar metal (a dentada, mais forte). O farelo sai no cliente
+     * (client.StolenItemFx), que sabe se o item tem desenho de farelo (a arma do TaCZ não tem: viraria roxo).
+     */
+    private void crunch(boolean first) {
+        if (froggy.getMouthItem().isEmpty()) return;
+        froggy.playSound(SoundEvents.GENERIC_EAT, first ? 1.3F : 1.0F, 0.55F + froggy.getRandom().nextFloat() * 0.2F);
+        if (first || froggy.getRandom().nextBoolean()) {
+            froggy.playSound(SoundEvents.ITEM_BREAK, first ? 0.9F : 0.6F, 0.5F + froggy.getRandom().nextFloat() * 0.2F);
+        }
     }
 
     private void finish() {
@@ -298,14 +299,14 @@ public class FroggyStealGoal extends Goal {
             for (ItemStack s : new ItemStack[]{froggy.getTongueItem(), froggy.getMouthItem()}) {
                 if (s.isEmpty()) continue;
                 ItemEntity dropped = froggy.spawnAtLocation(s.copy(), 1.0F);
-                if (dropped != null) dropped.getPersistentData().putLong(SPAT_TAG, froggy.level().getGameTime());
+                if (dropped != null) froggy.markSpat(dropped);
             }
         }
         froggy.setTongueItem(ItemStack.EMPTY);
         froggy.setMouthItem(ItemStack.EMPTY);
         froggy.setTongueLength(0F);
         FroggyState st = froggy.getFroggyState();
-        if (st == FroggyState.TONGUE_GRAB || st == FroggyState.ARM_EAT) {
+        if (st == FroggyState.TONGUE_GRAB || st == FroggyState.WEAPON_EAT) {
             froggy.setFroggyState(froggy.getTarget() != null ? FroggyState.CHASE : FroggyState.IDLE);
         }
         readyAt = froggy.tickCount + COOLDOWN + froggy.getRandom().nextInt(80);

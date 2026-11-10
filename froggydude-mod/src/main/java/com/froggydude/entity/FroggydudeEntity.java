@@ -193,6 +193,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public static final int FRENZY_TICKS = 600; // 30 segundos
 
     private static final UUID FRENZY_SPEED_ID = UUID.fromString("6f3a2e6a-6b9e-4e9a-8f9a-6b6a1a2f9e11");
+    /** (v0.7.30) A fúria do Avaritia: o triplo da velocidade (+200%). */
+    private static final UUID FURY_SPEED_ID = UUID.fromString("3c9d5e21-7f4a-4b88-9e13-a6d2c0f5b744");
+    private static final double FURY_SPEED_BONUS = 2.0D;
+    /** Arma do Avaritia nele: quase nunca pega; quando pega, é só um arranhão (vida). */
+    private static final float AVARITIA_GRAZE_CHANCE = 0.1F;
+    private static final float AVARITIA_GRAZE = 2.0F;
     private static final UUID FRENZY_TIRED_ID = UUID.fromString("1c1a9b0e-2d3f-4a5b-9c8d-7e6f5a4b3c2d");
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
@@ -1303,6 +1309,73 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.set(DATA_HELD_ARM, owner == null ? Optional.empty() : Optional.of(owner.getUUID()));
     }
 
+    // ---------------- (v0.7.30) a fúria do Avaritia (event.AvaritiaFury)
+
+    /** Contra quem ele está correndo com a fúria do Avaritia agora (o triplo da velocidade), ou null. */
+    @Nullable
+    private UUID furyTarget;
+    /** O "croac" bravo de quando a arma do Avaritia não faz nada (um por segundo, não um por clique). */
+    private int avaritiaCroakAt;
+
+    /**
+     * (LM, 10/11) Fúria contra essa pessoa: a proteção do Avaritia some e ele bate o triplo. Vale na hora (não espera
+     * a checagem de meio segundo): IA Extra, Máx ou Real e a pessoa com qualquer item do Avaritia. Assim o fim da
+     * cutscene do golpe final (o alvo já pode ter sido largado) também passa pela armadura infinita.
+     */
+    public boolean furyAgainst(@Nullable Entity e) {
+        return e instanceof Player p && FroggyConfig.ai().stealsWeapons() && p.isAlive() && !p.isCreative()
+                && !p.isSpectator() && com.froggydude.brain.ModWeapons.hasAvaritia(p);
+    }
+
+    /** A cada meio segundo: o alvo tem coisa do Avaritia? Então corre o triplo (só na IA Extra, Máx e Real). */
+    private void updateFury() {
+        UUID now = this.getTarget() instanceof Player p && furyAgainst(p) ? p.getUUID() : null;
+        if (java.util.Objects.equals(now, furyTarget)) return;
+        furyTarget = now;
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) {
+            speed.removeModifier(FURY_SPEED_ID);
+            if (now != null) {
+                speed.addTransientModifier(new AttributeModifier(FURY_SPEED_ID, "froggy_avaritia_fury", FURY_SPEED_BONUS,
+                        AttributeModifier.Operation.MULTIPLY_TOTAL));
+            }
+        }
+        if (now != null) {
+            ribbit(2.5F); // muito bravo
+            brainLog(this.getTarget().getScoreboardName() + " tem coisa do Avaritia: fúria (o triplo de velocidade e força,"
+                    + " a proteção do Avaritia não vale contra mim)");
+        } else {
+            brainLog("acabou a fúria do Avaritia");
+        }
+    }
+
+    /**
+     * O golpe veio de coisa do Avaritia? Só o que é do Avaritia mesmo: o tipo de dano dele (o golpe em área da espada
+     * infinita), um projétil dele (flecha, corte, buraco negro) ou o golpe na mão com o item dele. Espinho, flecha de
+     * arco comum na outra mão, TNT de quem segura um lingote do Avaritia: isso machuca normal.
+     */
+    private static boolean fromAvaritia(DamageSource source) {
+        if (com.froggydude.brain.ModWeapons.isAvaritiaDamage(source)) return true;
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof Player p) {
+            return source.is(net.minecraft.world.damagesource.DamageTypes.PLAYER_ATTACK) && source.getEntity() == p
+                    && com.froggydude.brain.ModWeapons.isAvaritia(p.getMainHandItem());
+        }
+        return com.froggydude.brain.ModWeapons.isAvaritiaEntity(direct);
+    }
+
+    /**
+     * Bateram nele com coisa do Avaritia (event.AvaritiaFury já cancelou o ataque antes da espada infinita matar
+     * direto): passa pelo hurt() como um golpe comum, e lá ele quase sempre não sente nada ("clang"); às vezes um
+     * arranhão leve (LM: "o froggydude não recebe dano nenhum, apenas raro tomar um dano leve").
+     */
+    public void avaritiaHit(Player attacker) {
+        if (!this.hurt(this.damageSources().playerAttack(attacker), AVARITIA_GRAZE) && this.tickCount >= avaritiaCroakAt) {
+            avaritiaCroakAt = this.tickCount + 20;
+            ribbit(2.0F);
+        }
+    }
+
     // ---------------- (v0.7.29) roubo de arma de mod (ai.FroggyStealGoal)
 
     /** O que ele comeu de arma de mod: cai quando ele morre (sem a munição, que ele comeu junto). */
@@ -1338,10 +1411,41 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         net.minecraft.world.entity.item.ItemEntity drop = new net.minecraft.world.entity.item.ItemEntity(this.level(),
                 front.x, front.y, front.z, held.copy());
         drop.setDefaultPickUpDelay();
-        drop.getPersistentData().putLong(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG, this.level().getGameTime());
+        markSpat(drop);
         this.level().addFreshEntity(drop);
         this.playSound(SoundEvents.PLAYER_ATTACK_STRONG, 1.0F, 0.6F);
         brainLog("me bateram mastigando: cuspi " + held.getHoverName().getString());
+    }
+
+    /** O que ele cuspiu/largou faz pouco (o item e onde caiu): a pessoa tem 30 s pra pegar de volta. */
+    private record Spat(net.minecraft.world.item.Item item, Vec3 pos, long at) {
+    }
+
+    private final java.util.ArrayDeque<Spat> spat = new java.util.ArrayDeque<>();
+
+    /**
+     * Marca o item que ele cuspiu/largou. A marca no próprio item some quando o jogo troca a entidade (o item do
+     * Avaritia vira outra, a "imortal", assim que cai): por isso ele também lembra o item e o lugar.
+     */
+    public void markSpat(net.minecraft.world.entity.item.ItemEntity drop) {
+        long now = this.level().getGameTime();
+        drop.getPersistentData().putLong(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG, now);
+        if (spat.size() >= 6) spat.pollFirst();
+        spat.addLast(new Spat(drop.getItem().getItem(), drop.position(), now));
+    }
+
+    /** Ele mesmo cuspiu/largou isso faz menos de 30 s? */
+    public boolean spatRecently(net.minecraft.world.entity.item.ItemEntity e, long now) {
+        long grace = com.froggydude.entity.ai.FroggyStealGoal.SPAT_GRACE;
+        if (e.getPersistentData().contains(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG)
+                && now - e.getPersistentData().getLong(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG) < grace) {
+            return true;
+        }
+        spat.removeIf(s -> now - s.at() >= grace);
+        for (Spat s : spat) {
+            if (e.getItem().is(s.item()) && e.position().distanceToSqr(s.pos()) < 36.0D) return true;
+        }
+        return false;
     }
 
     /** Fala no chat como se fosse um jogador: "<FroggyDude> ..." (pra quem está perto e pra vítima). */
@@ -2445,6 +2549,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
         }
 
+        // (v0.7.30) a fúria do Avaritia (o alvo tem coisa do Avaritia)
+        if (!this.level().isClientSide && this.tickCount % 10 == 0) updateFury();
         // a vida também muda sem dano (cura, /summon, mundo recarregado)
         if (this.tickCount % 20 == 0) {
             updateGoreStage();
@@ -2514,6 +2620,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
         }
         clientFeastBite = bottom && st == FroggyState.FEAST.ordinal();
+        // (v0.7.30) comendo a arma roubada: o farelo de cada mordida (no mesmo tick do barulho do servidor)
+        if (st == FroggyState.WEAPON_EAT.ordinal() && com.froggydude.entity.ai.FroggyStealGoal.isBite(clientStateAge + 1)) {
+            ItemStack bitten = getMouthItem();
+            boolean first = clientStateAge + 1 == com.froggydude.entity.ai.FroggyStealGoal.FIRST_BITE;
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> () -> com.froggydude.client.StolenItemFx.crunch(this, bitten, first));
+        }
         if (FLEX_DEBUG && st == FroggyState.SMASH.ordinal() && clientStateAge >= FroggyCombatGoal.SMASH_FIRST
                 && (clientStateAge - FroggyCombatGoal.SMASH_FIRST) % FroggyCombatGoal.SMASH_EVERY == 0) {
             System.out.printf("[SMASH] cliente punho embaixo idade=%d jogo=%d%n", clientStateAge, this.level().getGameTime());
@@ -2698,9 +2811,17 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
+        // (v0.7.30) a fúria do Avaritia: arma/flecha/área do Avaritia não machuca ele (raramente um arranhão)
+        if (!this.level().isClientSide && FroggyConfig.ai().stealsWeapons() && fromAvaritia(source)) {
+            if (this.getRandom().nextFloat() >= AVARITIA_GRAZE_CHANCE) {
+                this.playSound(SoundEvents.ANVIL_LAND, 0.6F, 1.7F);
+                return false;
+            }
+            amount = Math.min(amount, AVARITIA_GRAZE);
+        }
         FroggyState state = getFroggyState();
         boolean wasFeeding = state == FroggyState.FEEDING || state == FroggyState.FEAST;
-        if (wasFeeding || state == FroggyState.ARM_EAT) {
+        if (wasFeeding || state == FroggyState.ARM_EAT || state == FroggyState.WEAPON_EAT) {
             amount *= 1.5F; // mais vulnerável enquanto come
         }
         if ((lavaWalking || fireShieldTicks > 0) && source.is(DamageTypeTags.IS_FIRE)) {
@@ -2731,7 +2852,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 brainLog("aprendi: " + weapon.getHoverName().getString() + " dói - vou tirar isso de " + hitter.getScoreboardName());
             }
             // apanhou com a arma roubada na boca: cospe
-            if (getFroggyState() == FroggyState.ARM_EAT && !getMouthItem().isEmpty()) spitMouthItem();
+            if (getFroggyState() == FroggyState.WEAPON_EAT && !getMouthItem().isEmpty()) spitMouthItem();
         }
         if (hurt && source.is(net.minecraft.world.damagesource.DamageTypes.SONIC_BOOM)
                 && source.getEntity() instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
@@ -2928,6 +3049,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             RawAnimation.begin().then("arm_rip", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_ARM_EAT =
             RawAnimation.begin().then("arm_eat", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    // (v0.7.30) a arma roubada atravessada na boca: sacode a cabeça rápido e engole (vídeo do Grox, 1:24)
+    private static final RawAnimation ANIM_WEAPON_EAT =
+            RawAnimation.begin().then("weapon_eat", Animation.LoopType.HOLD_ON_LAST_FRAME);
     // o golpe final (a cutscene) - a "_r" é a mesma a partir do braço direito (sem o esquerdo)
     private static final RawAnimation ANIM_FINISHER =
             RawAnimation.begin().then("finisher", Animation.LoopType.HOLD_ON_LAST_FRAME);
@@ -2995,6 +3119,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_ARM_RIP);
             case ARM_EAT:
                 return state.setAndContinue(ANIM_ARM_EAT);
+            case WEAPON_EAT:
+                return state.setAndContinue(ANIM_WEAPON_EAT);
             case FINISHER:
                 return state.setAndContinue(finisherSkipsLeft() ? ANIM_FINISHER_R : ANIM_FINISHER);
             case PAD_HOP:

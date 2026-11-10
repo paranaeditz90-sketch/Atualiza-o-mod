@@ -1,4 +1,4 @@
-# Froggydude - v0.7.29: ele rouba e come tua arma de mod com a língua (sobre a v0.7.28)
+# Froggydude - v0.7.30: a fúria do Avaritia e a engolida sacudindo a cabeça (sobre a v0.7.29)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,46 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.29):
+O que testar agora (v0.7.30):
+- **A engolida** (LM, 10/11: "Ele sacode a cabeça rapidamente e vai engolindo a arma"; vídeo do Grox, 1:24,0-1:25,1):
+  a arma que a língua roubou fica **atravessada na boca**, ele **sacode a cabeça rápido** pros lados (é a cabeça, o
+  corpo quase parado) e ela **vai entrando aos poucos** (o pedaço de fora encurta), com farelo e barulho de mastigar;
+  aí joga a cabeça pra trás, "glup", boca aberta vazia e arrota. Estado e animação novos (`weapon_eat`; antes ele
+  usava a de comer braço). **No tempo do vídeo** (LM: "igual do vídeo"): da arma na boca ao "glup" ~1 s (1,6 s ao
+  todo). Pra fazer ele cuspir, tem que bater nele nesse segundo.
+- **Arma de fogo de mod, tipo o TaCZ** (LM: "armas como TaCZ"): testado com o TaCZ de verdade. Ele achou a arma do
+  TaCZ no estudo dos mods (a mesa de fazer arma, a munição e os acessórios não contam), arrancou a AK da mão e comeu;
+  morto, a AK caiu **sem as 30 balas** de dentro (ele comeu), e a munição da mochila ficou contigo. A arma do TaCZ é
+  desenhada de outro jeito (modelo 3D sem textura): ela fica deitada atravessada na boca, saindo de lado, como a
+  pistola do Grox, e o farelo vira lasca de metal (antes saía o quadriculado roxo de "textura faltando").
+- **Ele come item do Avaritia** (LM: "o froggydude come itens de avaritia, como a arma do grox"): qualquer item do
+  Avaritia (lingote, singularidade, ferramenta, totem, escudo...) virou alvo da língua, não só as armas, e vem antes
+  das outras armas de mod. Da mão, da outra mão, da mochila e do chão. A armadura VESTIDA ele não arranca (aí a fúria
+  continua enquanto tu estiver com ela). Pilha inteira: se tiver 16 lingotes no espaço, ele come os 16 (caem todos
+  quando ele morre).
+- **A fúria do Avaritia** (LM, 10/11: "Armaduras e ferramentas de avaritia o froggydude fica muito bravo"). Só na IA
+  **Extra, Máx e Real**. Liga quando quem ele caça tem **qualquer item do Avaritia** no inventário (mochila, mão,
+  armadura) e desliga quando não tem mais (vale pro Re:Avaritia e pro AvaritiaNeo: os dois se chamam "avaritia"):
+  - ribbit de raiva e ele fica com o **triplo da velocidade e o triplo da força** contra essa pessoa;
+  - **a proteção do Avaritia some contra ele**: a armadura infinita não segura o dano dele e o Avaritia não
+    "ressuscita" quem ele mata (o resto do mundo continua sem conseguir te machucar);
+  - **arma do Avaritia não machuca ele**: a espada infinita (que mata qualquer coisa com um clique), o ataque em área
+    dela, flecha do arco infinito... fazem "clang" e nada; de vez em quando (1 em 10) passa um arranhão de 1 coração.
+  - consertado antes de te mandar (revisão): o golpe que mataria quem veste a armadura infinita agora vira a
+    **cutscene do golpe final**, como em qualquer um (antes ele matava direto, sem cutscene); o "clang" da espada
+    infinita também vale na tua tela (antes, no celular, ele podia aparecer caído "morto" só pra ti); espinho, flecha
+    de arco comum e TNT machucam ele normal mesmo tu segurando coisa do Avaritia (só golpe/tiro DO Avaritia é que
+    não); e a armadura comum, a Resistência e os corações amarelos continuam valendo contra ele (só as peças do
+    Avaritia é que não seguram).
+- Testado aqui (Re:Avaritia e TaCZ, IA Real; vídeo mandado pro LM): ele roubou a espada infinita e a AK e engoliu
+  sacudindo a cabeça (atravessada, sacode, encurta, "glup", boca vazia); roubou 16 lingotes de nêutron da mochila e
+  comeu; com a matriz de cristal na mão, um soco nele comendo (0,5 s depois da língua) e ele cuspiu, e em 22 s não foi
+  buscar de novo do chão; armadura
+  infinita completa, sem resistência: 14 -> 4 -> 1,2 -> **golpe final** -> "Dev was torn apart and eaten by
+  Froggydude" (o Avaritia não ressuscitou) e o corpo se desmontou; 20 golpes de espada infinita nele (criativo): 250
+  -> 247,5 (2 arranhões), e ele em pé na tela.
+
+Da v0.7.29:
 - **Roubo de arma de mod com a língua** (ideia do LM, 09/11; referência: FroggyDude VS Grox MANHUNT 1:17,7-1:24,5 - a
   pistola do Grox no chão, a língua vai e volta com ela em ~0,35 s, "This looks tasty!" e ele come). Só na IA **Extra,
   Máx e Real** (escolha do LM). Só arma DE MOD: vanilla e o próprio Froggydude nunca.
@@ -40,10 +79,8 @@ O que testar agora (v0.7.29):
   mastigando, cuspiu (e 15 s depois a espada ainda estava no chão); morto com o doMobLoot desligado, a espada caiu;
   trocado por outro FroggyDude, a espada caiu (e o novo pegou do chão); depois de apanhar com uma Pile of Neutrons
   ("aprendi: dói") roubou ela também.
-- Pra testar no PC com mod de verdade: `./gradlew runClient -PtestMods` carrega o Re:Avaritia no Minecraft de teste
-  (só lá; o jar do mod não muda).
-- Vem a seguir (0.7.30): a fúria do Avaritia (qualquer item do Avaritia no inventário: a proteção dele some contra o
-  FroggyDude, que fica com o triplo de velocidade e força, e as armas do Avaritia quase não machucam ele).
+- Pra testar no PC com mod de verdade: `./gradlew runClient -PtestMods` carrega o Re:Avaritia (e, da v0.7.30, o TaCZ)
+  no Minecraft de teste (só lá; o jar do mod não muda).
 
 Da v0.7.28:
 - **O mod inteiro em inglês ou português, seguindo o idioma do Minecraft** (LM, 09-10/11: o FroggyDude original quer
@@ -919,6 +956,7 @@ certo. Se mudar um, mude o outro.
 | SMASH           | smash             | 6,6 s     | soco a cada 0,25 s (24x), "tai!" em cada |
 | ARM_RIP         | arm_rip           | 2,0 s     | crava os dentes 0,4 s, sacode, arranca aos 1,1 s, solta aos 1,6 s |
 | ARM_EAT         | arm_eat           | 4,5 s     | mordida + tranco a cada 0,75 s, engole aos 4 s |
+| WEAPON_EAT      | weapon_eat        | 1,6 s     | dentada 0,1 s, sacode a cabeça a cada 0,1 s (a arma entra), "glup" 1,05 s, arroto 1,4 s |
 | FEEDING         | feed (1 s, loop)  | 6,0 s     | mergulha e morde 0,34 s, arranca 0,52 s |
 | FINISHER        | finisher / finisher_r | 11,6 s (8,6 sem o braço esq.) | arranca 1,6 s / 4,6 s / 8,3 s, engole 11,3 s |
 | CORPSE_EAT      | feed_mob (loop)   | 2,0 s     | a flexão por cima do corpo; emenda as rodadas |
