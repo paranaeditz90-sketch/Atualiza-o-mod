@@ -34,6 +34,8 @@ public class FroggySabotageGoal extends Goal {
     private int progress;
     private int timeout;
     private int ate;
+    /** Quando procura portal de novo (a cada 1 s). */
+    private int checkAt;
 
     public FroggySabotageGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -42,7 +44,10 @@ public class FroggySabotageGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (froggy.tickCount % 20 != 0 || !(froggy.level() instanceof ServerLevel level)) return false;
+        // (v0.7.23) a cada 1 s pelo relógio dele, não "tickCount % 20": o jogo só pergunta o canUse em tick
+        // sim, tick não, e em metade das vezes que ele nascia o segundo caía sempre no tick pulado (nunca sabotava)
+        if (froggy.tickCount < checkAt || !(froggy.level() instanceof ServerLevel level)) return false;
+        checkAt = froggy.tickCount + 20;
         if (!allowed(level)) return false;
         block = Sabotage.nearest(level, froggy.position(), 64.0D);
         return block != null;

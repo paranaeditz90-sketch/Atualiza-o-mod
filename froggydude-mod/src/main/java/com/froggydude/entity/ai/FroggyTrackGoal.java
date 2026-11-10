@@ -72,6 +72,8 @@ public class FroggyTrackGoal extends Goal {
     private int farGoalAt;
     /** IA Real: a próxima vez que pode falar do faro. */
     private int smellTalkAt;
+    /** Quando cheira de novo pra ver se tem rastro (a cada 0,5 s). */
+    private int sniffCheckAt;
 
     public FroggyTrackGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -85,7 +87,12 @@ public class FroggyTrackGoal extends Goal {
 
     @Override
     public boolean canUse() {
-        if (froggy.tickCount % 10 != 0 || !(froggy.level() instanceof ServerLevel level)) return false;
+        // (v0.7.23) a cada 0,5 s pelo relógio dele. Antes era "tickCount % 10 == 0", mas o jogo só
+        // pergunta o canUse em tick sim, tick não (Mob.serverAiStep: tick do servidor + id par): em
+        // metade das vezes que ele nascia/carregava, o 0,5 s caía sempre no tick pulado e o faro
+        // NUNCA ligava (LM: "ele às vezes esquece aonde foi o jogador")
+        if (froggy.tickCount < sniffCheckAt || !(froggy.level() instanceof ServerLevel level)) return false;
+        sniffCheckAt = froggy.tickCount + 10;
         if (!free()) return false;
         UUID lost = froggy.getRecentlyLostPrey();
         Scent.Sniff s = lost == null ? null : Scent.freshest(level, froggy.position(), LOST_PREY_RANGE * sense(), lost);
@@ -104,9 +111,13 @@ public class FroggyTrackGoal extends Goal {
         return ticks < TRACK_TICKS * sense() && (mode != Mode.SEARCH || modeTicks < SEARCH_TICKS * sense());
     }
 
-    /** Sem alvo, sem estar preso a nada (manhunt parado, fase 2, comendo). */
+    /**
+     * Sem alvo, sem estar preso a nada (manhunt parado, comendo). (v0.7.23) A fase 2 não tira mais o
+     * faro: antes, transformado, 3 s sem ver a vítima ele largava o alvo e saía passeando até a fase
+     * acabar. Agora ele vai no rastro dela correndo, sem parar pra farejar (ver tick).
+     */
     private boolean free() {
-        if (froggy.getTarget() != null || froggy.isHolding() || froggy.isFrenzyActive()) return false;
+        if (froggy.getTarget() != null || froggy.isHolding()) return false;
         FroggyState st = froggy.getFroggyState();
         return st == FroggyState.CHASE || st == FroggyState.IDLE;
     }
@@ -143,7 +154,9 @@ public class FroggyTrackGoal extends Goal {
                 + (end == null ? "" : " (cheiro de " + (now - end.time()) / 20 + " s atrás)"));
         sniff();
         // IA Real: "I can smell him! He's nearby!" (vs Every Opponent 7:11) - de vez em quando
-        if (FroggyConfig.ai().real && froggy.tickCount >= smellTalkAt && froggy.speak(VoiceSituation.SMELL)) {
+        // (transformado não: na fase 2 ele só corre, gritando)
+        if (FroggyConfig.ai().real && !froggy.isFrenzyActive() && froggy.tickCount >= smellTalkAt
+                && froggy.speak(VoiceSituation.SMELL)) {
             smellTalkAt = froggy.tickCount + 1800;
         }
     }
@@ -154,6 +167,8 @@ public class FroggyTrackGoal extends Goal {
         froggy.getNavigation().stop();
         if (!found && prey != null) froggy.brainLog("perdi o rastro de " + preyName);
         prey = null;
+        // volta a cheirar no mesmo ritmo de antes (0,5 s depois), não no tick seguinte
+        sniffCheckAt = froggy.tickCount + 10;
     }
 
     @Override
@@ -276,11 +291,17 @@ public class FroggyTrackGoal extends Goal {
                 return;
             }
         }
-        if (modeTicks % SNIFF_EVERY != 1) return;
-        pauseTicks = SNIFF_PAUSE;
-        froggy.getNavigation().stop();
-        sniff();
-        lookAround();
+        // transformado (fase 2) ele não para pra farejar nem olha em volta: fareja correndo e vai direto,
+        // e chegou num ponto da varredura já parte pro próximo (sem esperar os 2 s do farejar)
+        boolean rage = froggy.isFrenzyActive();
+        boolean sniffTick = modeTicks % SNIFF_EVERY == 1;
+        if (!sniffTick && !(rage && modeTicks % 10 == 1 && froggy.getNavigation().isDone())) return;
+        if (sniffTick) sniff();
+        if (!rage) {
+            pauseTicks = SNIFF_PAUSE;
+            froggy.getNavigation().stop();
+            lookAround();
+        }
         Vec3 goal;
         if (d <= SNIFF_RANGE) {
             // sente de onde vem o cheiro: quanto mais perto, mais certeiro
@@ -299,7 +320,12 @@ public class FroggyTrackGoal extends Goal {
             goal = searchCenter.add(Math.cos(ang) * r, 0, Math.sin(ang) * r);
         }
         lastGoal = goal;
-        pendingGoal = goal;
+        if (rage) {
+            froggy.getNavigation().moveTo(goal.x, goal.y, goal.z, FroggyCombatGoal.huntSpeed());
+            froggy.getLookControl().setLookAt(goal.x, goal.y + 0.5D, goal.z);
+        } else {
+            pendingGoal = goal;
+        }
     }
 
     private void startSearch(Vec3 center, @Nullable Scent.Mark end) {
@@ -313,8 +339,8 @@ public class FroggyTrackGoal extends Goal {
         froggy.getNavigation().stop();
         froggy.brainLog("o rastro de " + preyName + " acabou em " + (int) center.x + ", " + (int) center.y + ", "
                 + (int) center.z + ": varredura");
-        // ele sabe que tu está por perto: "you can run, but you can't hide"
-        froggy.speak(VoiceSituation.SEARCH);
+        // ele sabe que tu está por perto: "you can run, but you can't hide" (transformado não: só grita)
+        if (!froggy.isFrenzyActive()) froggy.speak(VoiceSituation.SEARCH);
     }
 
     private void found(ServerPlayer p, String how) {

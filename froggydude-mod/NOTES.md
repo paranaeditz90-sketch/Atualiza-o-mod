@@ -1,4 +1,4 @@
-# Froggydude - v0.7.22: ele nada de verdade (o dardo do vídeo) e a lava mais lenta (sobre a v0.7.21)
+# Froggydude - v0.7.23: o faro não falha mais, nem transformado (sobre a v0.7.22)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,25 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.22):
+O que testar agora (v0.7.23):
+- **O faro só funcionava em metade das vezes** (LM, 09/11: "ele às vezes 'esquece' aonde foi o jogador"): o jogo só
+  deixa ele decidir começar uma coisa nova em tick sim, tick não, e o faro só conferia o rastro em tick múltiplo de 10.
+  Dependendo do tick em que ele nascia (ou o mundo carregava), os dois nunca batiam e o faro NUNCA ligava: tu sumia da
+  vista e ele ficava parado ou passeando. Agora ele confere o rastro a cada 0,5 s pelo relógio dele. Testado aqui, 4
+  FroggyDudes nascidos do outro lado de uma parede: antes, 2 de 4 nunca farejaram; agora 8 de 8 (duas rodadas) farejaram na hora e
+  acharam o jogador em 2-3 s.
+- **Transformado (fase 2) ele não esquece mais de ti**: na fase 2 o faro ficava desligado; sumindo 3 s da vista dele,
+  ele largava o alvo e passava os 30 s da fase passeando. Agora vai no teu rastro correndo: sem parar pra farejar, sem
+  as falas do faro ("I can smell him", "you can run...") e, varrendo em volta de onde o rastro acabou, chegou num ponto
+  já vai pro próximo. Testado: escondido atrás de uma parede, ele começou a farejar logo depois do grito e me achou em
+  4,5 s (antes: os 30 s parado no mesmo lugar).
+- O mesmo defeito do tick deixava o speedrun às vezes sem sabotagem (ele nunca ia comer o portal): consertado junto.
+- Não mudou: o sumiço com o "I SEE YOU" nas costas, a perseguição ~25% mais rápida, o bote colado e a chegada pelo
+  lado cego.
+- Como ver: num mundo com "-dev" no nome o cérebro conta no chat ("[cérebro] farejando o rastro de...", "achei ...").
+  Some da vista dele atrás de uma parede ou casa e veja ele vir pelo rastro; depois o mesmo com ele transformado.
+
+Da v0.7.22:
 - **Nadando** (LM, 03/11: How many days 1:48-1:59, medido quadro a quadro a 60 qps com grade; "as pernas vão pra cima e
   pra baixo ao mesmo tempo, como se fosse um dardo", "ele impulsiona mais", "as mãos ficam retas na altura da cabeça"):
   - A ANIMAÇÃO: ele deita e inclina pra onde vai (de cabeça pra baixo mergulhando, até 50°), as pernas juntas e retas
