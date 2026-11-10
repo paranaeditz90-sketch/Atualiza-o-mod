@@ -199,6 +199,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Arma do Avaritia nele: quase nunca pega; quando pega, é só um arranhão (vida). */
     private static final float AVARITIA_GRAZE_CHANCE = 0.1F;
     private static final float AVARITIA_GRAZE = 2.0F;
+    /** (v0.7.32) Tiro de arma de mod: um décimo do dano (ele ama dor). */
+    private static final float GUNSHOT_DAMAGE = 0.1F;
     private static final UUID FRENZY_TIRED_ID = UUID.fromString("1c1a9b0e-2d3f-4a5b-9c8d-7e6f5a4b3c2d");
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
@@ -477,8 +479,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     protected void playHurtSound(DamageSource source) {
         float r = this.getRandom().nextFloat();
-        if (vocalCooldown <= 0 && r < 0.35F && speak(VoiceSituation.PAIN)) return;
-        if (r >= 0.35F && r < 0.7F && ribbit(1.8F)) return;
+        // levando tiro, o "I love pain" sai bem mais (v0.7.32: ele ama dor)
+        float love = com.froggydude.brain.ModWeapons.isGunshot(source) ? 0.6F : 0.35F;
+        if (vocalCooldown <= 0 && r < love && speak(VoiceSituation.PAIN)) return;
+        if (r >= love && r < 0.7F && ribbit(1.8F)) return;
         super.playHurtSound(source);
     }
 
@@ -2829,10 +2833,17 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             this.clearFire();
             return false;
         }
-        if (isFrenzyActive() && source.is(DamageTypeTags.IS_PROJECTILE)) {
-            // "nah bro's bulletproof now" (vs Grox, 5:30): flecha e bala não fazem nada na fase 2
+        boolean gunshot = com.froggydude.brain.ModWeapons.isGunshot(source);
+        if (isFrenzyActive() && (source.is(DamageTypeTags.IS_PROJECTILE) || gunshot)) {
+            // "nah bro's bulletproof now" (vs Grox, 5:30): flecha e bala não fazem nada na fase 2 (a bala do TaCZ não
+            // tem a marca de projétil do jogo: até a v0.7.31 ela passava)
             this.playSound(SoundEvents.SHIELD_BLOCK, 0.8F, 0.6F);
             return false;
+        }
+        if (gunshot) {
+            // (v0.7.32) ele AMA dor (LM: "tiros de armas são praticamente insignificantes"): bala de arma de mod faz
+            // um décimo do dano (a AK do TaCZ: 9 -> 0,9; antes um pente matava ele)
+            amount *= GUNSHOT_DAMAGE;
         }
 
         float before = this.getHealth();

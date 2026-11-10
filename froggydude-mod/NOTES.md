@@ -1,4 +1,4 @@
-# Froggydude - v0.7.31: passa pela porta, a arma fica na boca e o farelo é cinza (sobre a v0.7.30)
+# Froggydude - v0.7.32: ele ama dor - tiro de arma quase não machuca (sobre a v0.7.31)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,18 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.31):
+O que testar agora (v0.7.32):
+- **Tiro de arma quase não machuca** (LM, 10/11: "No vídeo original, o froggydude literalmente ama dor, ou seja, tiros
+  de armas são praticamente insignificantes"): bala de arma de mod (TaCZ e parecidos: a bala que voa, ou o dano do
+  tipo "bala" das armas que acertam na hora) faz **um décimo** do dano, e levando tiro ele fala o "I love pain" bem
+  mais (6 em 10 em vez de 3,5 em 10). Na **fase 2** a bala de mod agora também não faz nada ("bulletproof"): a bala
+  do TaCZ não tinha a marca de "projétil" do jogo e passava. Flecha e tridente do jogo continuam normais; arma do
+  Avaritia segue a regra dela.
+- Testado (IA Real, AK do TaCZ, 10 tiros em cada, os dois parados): o golem de ferro perdeu 90 (9 por tiro); o
+  FroggyDude perdeu 6,4 (0,64 por tiro, a armadura dele segura um pouco mais). Um pente inteiro tira uns 19 dos 250
+  de vida dele (antes, um pente matava). A fase 2 não foi testada no jogo (ele correndo, a mira parada não acerta).
+
+Da v0.7.31:
 - **Porta** (LM, 10/11: "ele não consegue passar por portas (tem muita dificuldade) na IA real"): a causa era a
   largura dele. A porta aberta deixa um vão de 13/16 de bloco (a folha ocupa 3/16 de um lado) e ele tinha 0,7 de
   largura: andando pelo meio do bloco, raspava 0,04 na folha e ficava empurrando a porta aberta. Agora tem 0,6 (a

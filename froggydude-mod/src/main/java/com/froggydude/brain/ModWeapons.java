@@ -207,6 +207,42 @@ public final class ModWeapons {
         return source.typeHolder().unwrapKey().map(k -> AVARITIA.equals(k.location().getNamespace())).orElse(false);
     }
 
+    /** Pedaços do nome da bala/do dano que dizem "tiro" (bala que voa, ou arma de tiro instantâneo). */
+    private static final String[] SHOT_WORDS = {"bullet", "gun", "shot", "round", "shell", "slug", "pellet"};
+
+    /**
+     * (v0.7.32) Tiro de arma de mod: a bala é um projétil de mod (o TaCZ: "tacz:bullet") com nome de bala ou atirado
+     * por quem segura arma de mod, ou o tipo de dano é de bala de mod (arma que acerta na hora, sem bala voando). O dano
+     * de bala do TaCZ não tem a marca de "projétil" do jogo. Flecha e tridente do jogo não contam, nem o Avaritia.
+     */
+    public static boolean isGunshot(DamageSource source) {
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof net.minecraft.world.entity.projectile.Projectile && !isAvaritiaEntity(direct)) {
+            ResourceLocation key = ForgeRegistries.ENTITY_TYPES.getKey(direct.getType());
+            if (key != null && !"minecraft".equals(key.getNamespace())) {
+                if (shotWord(key.getPath())) return true;
+                if (source.getEntity() instanceof net.minecraft.world.entity.LivingEntity shooter
+                        && isWeapon(shooter.getMainHandItem().getItem())) {
+                    return true;
+                }
+            }
+        }
+        return source.typeHolder().unwrapKey().map(k -> {
+            String ns = k.location().getNamespace();
+            return !"minecraft".equals(ns) && !AVARITIA.equals(ns) && !ModEntityTypes.MOD_ID.equals(ns)
+                    && shotWord(k.location().getPath());
+        }).orElse(false);
+    }
+
+    private static boolean shotWord(String path) {
+        for (String p : path.toLowerCase(Locale.ROOT).split("[_/.\\-]")) {
+            for (String w : SHOT_WORDS) {
+                if (p.equals(w)) return true;
+            }
+        }
+        return false;
+    }
+
     /** Qualquer item do Avaritia no inventário: mochila, armadura ou outra mão (LM: "qualquer coisa de avaritia"). */
     public static boolean hasAvaritia(Player p) {
         return p.getInventory().hasAnyMatching(ModWeapons::isAvaritia);
