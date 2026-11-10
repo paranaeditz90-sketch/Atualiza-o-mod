@@ -81,6 +81,19 @@ public class PlayerMemory {
 
     public static final long DAY = 24000L;
 
+    /** (v0.7.26) Trégua depois de zombar: de 1 a 2 min (era um dia do jogo, 20 min reais, e parecia que ele travou). */
+    public static final int TRUCE_MIN = 1200;
+    public static final int TRUCE_RANDOM = 1200;
+
+    /**
+     * Em trégua agora? A de um dia, salva por versão velha, vira 1 min a partir de agora (na memória; vai pro arquivo
+     * na próxima gravação). Todo mundo lê a trégua por aqui, pra ninguém ver um valor diferente.
+     */
+    public boolean underTruce(long now) {
+        if (truceUntil - now > TRUCE_MIN + TRUCE_RANDOM) truceUntil = now + TRUCE_MIN;
+        return truceUntil > now;
+    }
+
     public float[] attack(String attack) {
         return attacks.computeIfAbsent(attack, k -> new float[2]);
     }

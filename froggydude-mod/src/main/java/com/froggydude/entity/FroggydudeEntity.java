@@ -1082,24 +1082,63 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return mocking != null && mocking.equals(target.getUUID());
     }
 
-    /** Zombou e disse "Não mexe comigo": um dia de trégua com esse jogador, e vai embora andando. */
+    /** (v0.7.26) Quanto tempo, no máximo, ele espera ela tirar o olho dele pra sumir (ticks). */
+    private static final int VANISH_WAIT = 1200;
+    /** De quem ele está indo embora (pra sumir de vista dela), ou null. */
+    @Nullable
+    private UUID walkAwayPlayer;
+    private int vanishWait;
+
+    /**
+     * Zombou e disse "Não mexe comigo": vai embora andando (10 s) e, fora da vista dela, some. De 1 a 2 min depois
+     * (a trégua) ele volta pra caçada pelas costas (Hunt.ambush) - alívio, depois o susto.
+     */
     public void finishMock(LivingEntity target) {
         mocking = null;
+        int truce = PlayerMemory.TRUCE_MIN + this.getRandom().nextInt(PlayerMemory.TRUCE_RANDOM);
         if (this.level() instanceof ServerLevel server) {
             PlayerMemory m = FroggyWorldData.get(server).brain.find(target.getUUID());
             if (m != null) {
                 m.mockDue = false;
-                m.truceUntil = server.getGameTime() + PlayerMemory.DAY;
+                m.truceUntil = server.getGameTime() + truce;
                 FroggyWorldData.get(server).setDirty();
-                com.froggydude.world.Hunt.forget(server.getServer(), target.getUUID());
+                com.froggydude.world.Hunt.ambush(server.getServer(), target.getUUID(), m.truceUntil);
             }
         }
         if (engagement != null && engagement.player.equals(target.getUUID())) engagement = null;
         walkAwayFrom = target.position();
         walkAwayTicks = 200;
+        walkAwayPlayer = target instanceof Player ? target.getUUID() : null;
+        vanishWait = 0;
         setTarget(null);
         setFroggyState(FroggyState.IDLE);
-        brainLog("zombou e foi embora: trégua de um dia");
+        brainLog("zombou e foi embora: some e volta em " + truce / 20 + " s");
+    }
+
+    /**
+     * (v0.7.26) Terminou de ir embora andando: quando ela tirar o olho dele, ele some de verdade (vai pra longe, num
+     * lugar que ela não vê) e espera a trégua acabar. Devolve false pra andar mais 1 s (ela ainda está vendo).
+     */
+    private boolean vanishAfterMock() {
+        if (!(this.level() instanceof ServerLevel level) || walkAwayPlayer == null) return true;
+        if (!(level.getPlayerByUUID(walkAwayPlayer) instanceof ServerPlayer p) || !underTruce(p)) {
+            walkAwayPlayer = null; // ela saiu, mudou de dimensão ou a trégua acabou
+            return true;
+        }
+        vanishWait += 20;
+        if (vanishWait > VANISH_WAIT) {
+            walkAwayPlayer = null; // ficou olhando pra ele o tempo todo: fica por aqui
+            return true;
+        }
+        walkAwayFrom = p.position(); // se andar mais, é pra longe de onde ela está agora (ela pode ter vindo atrás)
+        if (this.distanceTo(p) < 64.0F && FroggyKeeper.visible(level, p, this.blockPosition())) return false;
+        BlockPos spot = FroggyKeeper.findSpot(level, p, 48.0D, 80.0D, FroggyKeeper.Sight.HIDDEN, this.getRandom());
+        if (spot == null || FroggyKeeper.visible(level, p, spot)) return false; // sem lugar escondido agora
+        this.getNavigation().stop();
+        this.teleportTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
+        walkAwayPlayer = null;
+        brainLog("sumiu da vista de " + p.getScoreboardName() + ": espera a trégua longe");
+        return true;
     }
 
     /** Comando de teste: zomba desse jogador agora. */
@@ -1110,6 +1149,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             m.mockDue = false;
         }
         walkAwayTicks = 0;
+        walkAwayPlayer = null;
         mocking = p.getUUID();
         stopStalking();
         setTarget(p);
@@ -1125,16 +1165,18 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public boolean underTruce(LivingEntity e) {
         if (!(e instanceof Player) || !(this.level() instanceof ServerLevel server)) return false;
         PlayerMemory m = FroggyWorldData.get(server).brain.find(e.getUUID());
-        return m != null && m.truceUntil > server.getGameTime();
+        return m != null && m.underTruce(server.getGameTime());
     }
 
     private void breakTruce(Player attacker) {
         if (!(this.level() instanceof ServerLevel server)) return;
         PlayerMemory m = FroggyWorldData.get(server).brain.find(attacker.getUUID());
-        if (m != null && m.truceUntil > server.getGameTime()) {
+        if (m != null && m.underTruce(server.getGameTime())) {
             m.truceUntil = 0L;
             walkAwayTicks = 0;
+            walkAwayPlayer = null;
             FroggyWorldData.get(server).setDirty();
+            com.froggydude.world.Hunt.cancelAmbush(server.getServer(), attacker.getUUID()); // já está brigando aqui
             brainLog(m.name + " mexeu com ele: acabou a trégua");
         }
     }
@@ -2232,6 +2274,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             this.discard();
             return;
         }
+        if (walkAwayTicks > 0 && (this.getTarget() != null || getFeedTarget() != null)) {
+            // achou outra coisa pra fazer (outro alvo, comida): para de ir embora e não some no meio disso
+            walkAwayTicks = 0;
+            walkAwayPlayer = null;
+        }
         if (walkAwayTicks > 0) {
             walkAwayTicks--;
             if (walkAwayFrom != null && walkAwayTicks % 20 == 0) {
@@ -2240,6 +2287,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 Vec3 to = this.position().add(away.scale(16.0D));
                 this.getNavigation().moveTo(to.x, this.getY(), to.z, 0.9D);
             }
+            // terminou de ir embora: some quando ela não estiver olhando (senão anda mais 1 s e confere de novo)
+            if (walkAwayTicks == 0 && walkAwayPlayer != null && !vanishAfterMock()) walkAwayTicks = 20;
         }
         if (holdTicks > 0) {
             holdTicks--;

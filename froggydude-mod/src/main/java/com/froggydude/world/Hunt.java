@@ -1,5 +1,6 @@
 package com.froggydude.world;
 
+import com.froggydude.brain.PlayerMemory;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import net.minecraft.server.MinecraftServer;
@@ -19,9 +20,12 @@ import java.util.UUID;
  * froggydude.dat) e, se ela ficar longe de 1 a 3 min, ele reaparece ESCONDIDO a 28-44 blocos dela, fora da
  * vista, e vem atrás - quem achou que despistou leva o susto pelas costas.
  *
- * Acaba quando ele mata a pessoa, morre ou fica de trégua com ela, e no manhunt/invasão (que têm o deles); espera
- * (sem contar) enquanto ele come, se esconde pra se curar, está de tocaia ou no massacre da vila (o lugar pra onde
- * ela vai voltar), briga com outro, ou ela está morta, fora do jogo ou no Pacífico.
+ * Acaba quando ele mata a pessoa ou morre, e no manhunt/invasão (que têm o deles); espera (sem contar) enquanto ele
+ * come, se esconde pra se curar, está de tocaia ou no massacre da vila (o lugar pra onde ela vai voltar), briga com
+ * outro, ou ela está morta, fora do jogo ou no Pacífico.
+ *
+ * (v0.7.26) A trégua (ele zombou e sumiu) só pausa a caçada: quando acaba (1 a 2 min), ele volta na hora, escondido
+ * pelas costas dela ({@link #ambush}).
  */
 public final class Hunt {
 
@@ -52,6 +56,7 @@ public final class Hunt {
         if (changed) {
             lostTicks = 0;
             lostDelay = -1;
+            data.huntAmbush = false; // a volta pelas costas era pra outra pessoa
         }
         // (salva no máximo a cada 30 s: no celular cada gravação do .dat pesa)
         if (changed || now - dirtyAt >= 600L) {
@@ -67,14 +72,39 @@ public final class Hunt {
         dirtyAt = 0L;
     }
 
-    /** Acabou a caçada dessa pessoa (ele matou ela, trégua). */
+    /** Acabou a caçada dessa pessoa (ele matou ela). */
     public static void forget(MinecraftServer server, UUID player) {
         FroggyWorldData data = FroggyWorldData.get(server);
         if (!player.equals(data.huntPlayer)) return;
         data.huntPlayer = null;
+        data.huntAmbush = false;
         data.setDirty();
         lostTicks = 0;
         lostDelay = -1;
+    }
+
+    /**
+     * (v0.7.26) Ele zombou dela e sumiu, com trégua até {@code truceUntil}: a caçada continua e, quando a trégua
+     * acabar, ele volta escondido pelas costas (antes era um dia inteiro de paz, 20 min reais, e ele "parava do
+     * nada").
+     */
+    public static void ambush(MinecraftServer server, UUID player, long truceUntil) {
+        FroggyWorldData data = FroggyWorldData.get(server);
+        if (data.manhuntActive || Invasion.hunting(data)) return; // esses têm o deles
+        data.huntPlayer = player;
+        data.huntUntil = truceUntil + MEMORY;
+        data.huntAmbush = true;
+        data.setDirty();
+        lostTicks = 0;
+        lostDelay = -1;
+    }
+
+    /** Ela mexeu com ele na trégua: já está brigando ali, não precisa voltar escondido (só se a volta era pra ela). */
+    public static void cancelAmbush(MinecraftServer server, UUID player) {
+        FroggyWorldData data = FroggyWorldData.get(server);
+        if (!data.huntAmbush || !player.equals(data.huntPlayer)) return;
+        data.huntAmbush = false;
+        data.setDirty();
     }
 
     /** A cada segundo (FroggyServerEvents). */
@@ -84,6 +114,7 @@ public final class Hunt {
         if (data.manhuntActive || Invasion.hunting(data)) {
             if (data.huntPlayer != null) {
                 data.huntPlayer = null;
+                data.huntAmbush = false;
                 data.setDirty();
             }
             lostTicks = 0;
@@ -97,6 +128,7 @@ public final class Hunt {
         if (now > data.huntUntil || !data.froggyAlive) {
             // passou o tempo da caçada, ou ele morreu
             data.huntPlayer = null;
+            data.huntAmbush = false;
             data.setDirty();
             lostTicks = 0;
             lostDelay = -1;
@@ -108,17 +140,21 @@ public final class Hunt {
         if (p.level().getDifficulty() == Difficulty.PEACEFUL) return;
         FroggydudeEntity froggy = FroggyKeeper.find(server);
         if (froggy != null) data.froggyHealth = froggy.getHealth(); // pra voltar com a vida que tinha, se descarregar
+        // de trégua com ela (zombou e sumiu): deixa em paz até acabar, sem contar o tempo de sumida
+        PlayerMemory m = data.brain.find(p.getUUID());
+        if (m != null && m.underTruce(now)) {
+            lostTicks = 0;
+            lostDelay = -1;
+            return;
+        }
+        boolean ambush = data.huntAmbush; // a trégua acabou: volta agora, esteja onde estiver
         boolean lost = froggy == null || froggy.level() != p.level() || froggy.distanceTo(p) > FAR;
-        if (!lost) {
+        if (!lost && !ambush) {
             lostTicks = 0;
             lostDelay = -1;
             return;
         }
         if (froggy != null) {
-            if (froggy.underTruce(p)) {
-                forget(server, p.getUUID());
-                return;
-            }
             // comendo, se escondendo pra se curar, de tocaia ou no massacre (esperando ela voltar), brigando com
             // outro, no meio de um golpe: espera
             FroggyState st = froggy.getFroggyState();
@@ -127,21 +163,33 @@ public final class Hunt {
                     || froggy.isStakingOut() || froggy.isMassacring() || other != null && other != p && other.isAlive()
                     || st != FroggyState.CHASE && st != FroggyState.IDLE) return;
         }
-        if (lostDelay < 0) lostDelay = DELAY_MIN + server.overworld().random.nextInt(DELAY_RANDOM);
-        lostTicks += 20;
-        if (lostTicks < lostDelay) return;
+        if (!ambush) {
+            if (lostDelay < 0) lostDelay = DELAY_MIN + server.overworld().random.nextInt(DELAY_RANDOM);
+            lostTicks += 20;
+            if (lostTicks < lostDelay) return;
+        }
         lostTicks = 0;
         lostDelay = -1;
         FroggydudeEntity back;
-        if (froggy != null) {
+        if (froggy != null && !lost) {
+            // (só na volta da trégua) perto o bastante: vem de onde está, pelas costas se ela não estiver olhando
+            // (RealTactics). Teleportar aqui dava "pop" na frente dela ou podia levar ele pra mais longe.
+            back = froggy;
+        } else if (froggy != null) {
             // trocar de dimensão cria outra instância: procura de novo depois
             back = FroggyKeeper.bringNear(froggy, p, 28.0D, 44.0D, FroggyKeeper.Sight.HIDDEN) ? FroggyKeeper.find(server) : null;
         } else {
             // vivo, mas num pedaço do mapa que não está carregado: um novo no lugar (o velho some quando carregar)
             back = FroggyKeeper.spawnNear(p, 28.0D, 44.0D, FroggyKeeper.Sight.HIDDEN, data.froggyHealth);
         }
-        if (back == null) return; // sem lugar agora: tenta de novo depois do próximo intervalo
+        if (back == null) return; // sem lugar agora: tenta de novo depois do próximo intervalo (na volta, no próximo segundo)
+        if (ambush) {
+            data.huntAmbush = false;
+            data.setDirty();
+        }
         back.setTarget(p); // sabe onde ela está: vem atrás, pelas costas (RealTactics)
-        back.brainLog(p.getScoreboardName() + " foi longe: reapareci escondido perto dela");
+        back.brainLog(!ambush ? p.getScoreboardName() + " foi longe: reapareci escondido perto dela"
+                : back == froggy && !lost ? "acabou a trégua com " + p.getScoreboardName() + ": volto a caçar daqui"
+                : "acabou a trégua com " + p.getScoreboardName() + ": voltei escondido pelas costas");
     }
 }

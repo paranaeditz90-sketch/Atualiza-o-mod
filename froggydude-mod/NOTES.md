@@ -1,4 +1,4 @@
-# Froggydude - v0.7.25: a caçada não acaba quando tu vai longe (sobre a v0.7.24)
+# Froggydude - v0.7.26: a trégua vira um sumiço de 1-2 min, e ele volta pelas costas (sobre a v0.7.25)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,14 +13,33 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.25):
+O que testar agora (v0.7.26):
+- **Acabou a trégua de 20 min** (LM, 09/11: "tu tem razão, qual sua recomendação?"; "do nada ele para e não ataca, só
+  volta quando eu ataco"): quando ele te matava 3 vezes no mesmo dia, ele zombava ("lol you're so bad", a dancinha,
+  "Don't mess with me.") e te deixava em paz por UM DIA do jogo (20 min reais), mesmo passando do teu lado. Agora:
+  - ele zomba igual e vai embora andando (uns 10 s, sempre pra longe de ti); depois disso, quando tu tirar o olho dele
+    (ou ele passar de ~64 blocos), ele SOME: vai pra um lugar a 48-80 blocos que tu não vê. Se tu ficar olhando, ele
+    continua andando (até 1 min). Se no caminho ele achar outra coisa (outro alvo, comida), larga o "ir embora";
+  - a trégua dura de 1 a 2 min. Quando acaba, a caçada continua na hora: até 72 blocos ele vem de onde está, pelas
+    costas se tu não estiver olhando (o alívio, depois o susto); mais longe ou noutra dimensão, reaparece escondido a
+    28-44 blocos de ti e vem;
+  - se tu bater nele durante a trégua, acaba na hora e ele briga ali mesmo (como antes), sem a volta pelas costas;
+  - mundo salvo com trégua de um dia (versão velha): vira 1 min.
+- Testado aqui (IA Real, `/froggydude zombar`): virei as costas depois que ele foi embora e ele sumiu no mesmo segundo
+  (reapareceu escondido a 52-64 blocos), ficou parado até a trégua acabar e veio correndo me pegar sem eu ver (numa
+  das vezes com o "I see you"). Olhando pra ele, ele foi andando e só sumiu depois dos 64 blocos; voltou quando a
+  trégua acabou (94 s) e me mordeu. Batendo nele na trégua: brigou ali e não teve volta pelas costas depois.
+- Como ver: mundo com "-dev" no nome mostra "[cérebro] zombou e foi embora: some e volta em X s", "sumiu da vista de
+  ...", e no fim "acabou a trégua com ...: volto a caçar daqui" (ou "voltei escondido pelas costas", se estava longe).
+
+Da v0.7.25:
 - **Ir longe não acaba mais a caçada** (LM, 09-10/11: "às vezes ele some do nada. Se eu for longe dele, simplesmente
   acaba o manhunt/caçada porque ele não é mais carregado/não sabe mais onde tô"; "em todos" os modos): fora do manhunt e
   da invasão, ele só te achava pela vista e pelo cheiro, e a mais de ~60 blocos, noutra dimensão, de pérola ou de elytra
   te perdia pra sempre. Agora o mundo lembra quem ele está caçando (10 min desde a última vez que te viu, salvo no
   mundo). Se tu ficar longe (mais de 72 blocos, outra dimensão, ou ele descarregado) de 1 a 3 min, ele reaparece
   ESCONDIDO a 28-44 blocos de ti, fora da tua vista, e vem atrás. Na IA Real ele chega pelas costas (o "I see you").
-  - Acaba quando ele te mata, morre ou fica de trégua contigo. Espera (sem contar o tempo) enquanto ele come, se esconde
+  - Acaba quando ele te mata ou morre (a trégua, desde a v0.7.26, só pausa). Espera (sem contar o tempo) enquanto ele come, se esconde
     pra se curar, está de tocaia/no massacre da vila, briga com outro, e enquanto tu está morto, fora do jogo ou no
     Pacífico. Volta com a vida que tinha.
   - No manhunt e na invasão continua o de sempre (eles já traziam ele de volta). No manhunt, quando ele PEGA alguém, o

@@ -41,6 +41,8 @@ public class FroggyWorldData extends SavedData {
     @Nullable
     public UUID huntPlayer;
     public long huntUntil;
+    /** (v0.7.26) Zombou e sumiu: quando a trégua acabar, ele volta escondido pelas costas dela. */
+    public boolean huntAmbush;
 
     // ----- manhunt
     public boolean manhuntActive;
@@ -93,6 +95,7 @@ public class FroggyWorldData extends SavedData {
         d.respawnAt = tag.contains("RespawnAt") ? tag.getLong("RespawnAt") : -1;
         if (tag.hasUUID("HuntPlayer")) d.huntPlayer = tag.getUUID("HuntPlayer");
         d.huntUntil = tag.getLong("HuntUntil");
+        d.huntAmbush = tag.getBoolean("HuntAmbush");
         CompoundTag mh = tag.getCompound("Manhunt");
         d.manhuntActive = mh.getBoolean("Active");
         try {
@@ -124,6 +127,7 @@ public class FroggyWorldData extends SavedData {
         tag.putLong("RespawnAt", respawnAt);
         if (huntPlayer != null) tag.putUUID("HuntPlayer", huntPlayer);
         tag.putLong("HuntUntil", huntUntil);
+        tag.putBoolean("HuntAmbush", huntAmbush);
         CompoundTag mh = new CompoundTag();
         mh.putBoolean("Active", manhuntActive);
         mh.putString("Mode", manhuntMode.name());
