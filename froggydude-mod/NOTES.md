@@ -1,4 +1,4 @@
-# Froggydude - v0.7.33: a captura com a língua e o arremesso, como nas réplicas aprovadas (sobre a v0.7.32)
+# Froggydude - v0.7.34: o diretor de tensão no "aparece no teu mundo" (sobre a v0.7.33)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,57 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.33):
+O que testar agora (v0.7.34):
+- **O diretor de tensão** (PLANO.md 5.5; tuas escolhas de 10/11: só no "aparece no teu mundo", calmaria de 3 a 6
+  minutos, todos os sinais, sempre fora da tua vista). Depois que ele chega, a caçada vira um RITMO em vez de caça sem
+  parar ("se ele aparecer a cada 30 s, vira piada na terceira vez"). Manhunt e /summon não mudam nada, e o cinema
+  (sumiço, I SEE YOU nas costas, a corrida, o bote) continua igual dentro da caçada.
+  1. **Caçada** (a chegada já é uma): no máximo uns 4 min. Te pegou: ele come, se gaba e some. Tu sobreviveu: ele
+     **recua** e vai embora andando (o falso alívio) e some quando tu não estiver olhando.
+  2. **Calmaria** de 3 a 6 min: nada acontece. MAS se tu for **dormir** achando que acabou, ele volta pela cama: o jogo
+     te acorda e ele tá ali (também vale se tu matou ele: tu acha que acabou...).
+  3. **Sinais** (1 a 3 min, um a cada 20-40 s, nunca o mesmo duas vezes seguidas, sempre fora da tua vista):
+     **ribbit** lá longe; **passos** atrás de ti, chegando, que **param quando tu vira**; um **bicho comido** (vira
+     pedaços numa poça de sangue); **pegadas de sangue** cruzando o chão atrás de ti; uma **tocha** tua **apaga**
+     (some com uma fumacinha); a **porta** que tu mexeu (ou uma da tua casa) aparece **aberta**; uma **placa "I SEE
+     YOU"** com letra vermelha que brilha, perto da tua casa ou do teu caminho. Começa pelos de longe e termina nos da
+     tua casa. Ele mede o quanto cada sinal te assustou (pelo jeito que tu mexe a câmera depois, a "paranoia") e guarda:
+     o que mais te assusta aparece mais.
+  4. **Vislumbre**: ele aparece **parado longe** (26-40 blocos, no escuro se tiver), olhando pra ti, **no canto do
+     olho** (17 a 34 graus do meio da tela, nunca bem na mira). Se tu **olhar direto** pra ele, ele **some**, e 3 s
+     depois a caçada começa (com a risada). Se tu **virar as costas**, quando tu virar de novo ele tá **mais perto** (até
+     2 vezes); perto demais, ele vem.
+  5. Volta pra caçada. E assim vai.
+- **A rotina** (PLANO.md 5.2: "em que hora sai e quando volta pra casa"): os lugares que ele anota de ti (baú, cama,
+  bancada, mina) agora guardam **em que hora do dia** tu usa cada um. Na IA Real, a tocaia escolhe o lugar em que tu
+  costuma estar **naquela hora**. O diretor usa a tua casa (a cama) pra porta e placa.
+- Testado (com o tempo do ciclo encolhido 10x, `-PdirectorScale=0.1`): chegou, caçou, recuou, calmaria, 4 sinais
+  diferentes (bicho, sangue, passos, tocha), vislumbre a 40 blocos, caçada de novo. Um por um: sangue, tocha (apagou 1
+  de 3), porta (abriu), bicho (a vaca virou pedaços), placa (apareceu lá longe); vislumbre: olhei, sumiu e veio; virei
+  as costas, ele chegou de 36 pra 25 e 16 blocos; deitei na cama na calmaria: acordei com ele de volta.
+- Testado de novo **no tempo normal**, gravando o vídeo-tour: tocha apagou, porta abriu, vaca comida, pegadas atrás,
+  placa; vislumbre: olhei, sumiu, 3 s depois ele veio **pulando do céu** em cima; de costas ele chegou de 32 pra 18 e
+  14 blocos; na cama: acordei com ele em pé a uns 12 blocos, e ele pulou em cima. Corrigido no caminho: o vislumbre
+  nascia em qualquer ponto da tua frente e, em 1 de cada 3, caía **bem na mira** e sumia em 0,4 s, antes de tu
+  perceber; agora nasce no canto do olho (10 de 10 ficaram parados até eu olhar).
+- **Revisão** (o /code-review achou 10 coisas; 9 eram bug de verdade, todas consertadas):
+  - a cama **dentro da trégua**: se tu deitasse logo depois dele ir embora (a trégua do recuo dura 60 s), ele voltava
+    e ficava parado. Agora ataca (testado: deitei 16 s depois do recuo, ele pulou do céu e me prendeu);
+  - ele podia ficar **congelado pra sempre** se o vislumbre parasse no meio (invasão desligada, manhunt começando).
+    Agora se solta sozinho (testado nos dois: solto em 3 s);
+  - o "bicho comido" não pega mais **cavalo, burro, mula ou lhama domados** (com o baú), nem bicho **na corda, de
+    sela ou montado** (testado: com só esses perto, não deu; a vaca comum ele comeu);
+  - o que ele **roubou não some** se o dragão morrer com ele guardado fora do mundo: cai do lado de quem matou
+    (testado: a espada da barriga dele caiu e eu peguei). O manhunt e o `invasao agora/reiniciar` trazem ele de
+    volta (o mesmo) em vez de criar outro;
+  - os sinais começam pelos **de longe** mesmo quando a fase sorteia curta; ele **não some no meio de um golpe**
+    nem comendo; a **rotina** não apaga as outras horas quando tu minera muito numa hora só (conta 1 por visita);
+  - achar tocha/porta ficou **leve**: ~1 ms (antes eram ~40 mil blocos lidos no mesmo tick, pesado no celular).
+- Pra testar sem esperar: `/froggydude invasao agora` (ele chega), `/froggydude diretor` (em que fase está),
+  `/froggydude diretor fase calma|sinais|vislumbre|caca` e `/froggydude diretor sinal
+  ribbit|sangue|passos|bicho|tocha|porta|placa`.
+
+Da v0.7.33:
 - **A captura com a língua** (as réplicas que tu aprovou em 09/11: "ficou perfeito a língua!"): ele fica **em pé e
   reto**, pernas juntas, braços pendurados; a língua estala e pega (0,3 s), **ergue a vítima até 4 blocos** em 0,7 s,
   ele segura lá em cima 2 s balançando de leve, olhando pra cima (a cabeça sobe até 50°) de boca aberta, e **puxa pra

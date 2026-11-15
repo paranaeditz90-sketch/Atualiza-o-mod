@@ -61,6 +61,10 @@ minecraft {
             if (project.hasProperty('freeCam')) {
                 property 'froggydude.freecam', 'true'
             }
+            // Testar o diretor de tensão rápido: -PdirectorScale=0.1 (todos os tempos do ciclo x 0,1)
+            if (project.hasProperty('directorScale')) {
+                property 'froggydude.directorScale', project.property('directorScale')
+            }
         }
 
         server {

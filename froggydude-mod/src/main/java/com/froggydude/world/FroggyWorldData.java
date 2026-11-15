@@ -66,6 +66,26 @@ public class FroggyWorldData extends SavedData {
     /** Hora do jogo do próximo passo da chegada (0 = ainda não marcou). */
     public long invasionAt;
 
+    // ----- (v0.7.34) o diretor de tensão (TensionDirector), só no "aparece no teu mundo"
+    /** A fase (TensionDirector.Phase): 0 ainda não começou. */
+    public int dirPhase;
+    /** Até quando vai a fase (hora do jogo). */
+    public long dirUntil;
+    /** Quando a fase começou (hora do jogo; 0 = save antigo): o quanto os sinais já andaram. */
+    public long dirSince;
+    /** O próximo sinal (hora do jogo). */
+    public long dirNextSign;
+    /** A presa do ciclo. */
+    @javax.annotation.Nullable
+    public java.util.UUID dirTarget;
+    /** O último sinal (nunca o mesmo duas vezes seguidas). */
+    public String dirLastSign = "";
+    /** Falso alívio: se ela for dormir agora, ele volta. */
+    public boolean dirTrap;
+    /** Ele fora do mundo (calmaria, sinais): o FroggyDude inteiro guardado, pra voltar o mesmo. */
+    @javax.annotation.Nullable
+    public CompoundTag parkedFroggy;
+
     public static FroggyWorldData get(ServerLevel level) {
         return get(level.getServer());
     }
@@ -117,6 +137,15 @@ public class FroggyWorldData extends SavedData {
         d.invasionDay = inv.getInt("Day");
         d.invasionStage = inv.getInt("Stage");
         d.invasionAt = inv.getLong("At");
+        CompoundTag dir = inv.getCompound("Director");
+        d.dirPhase = dir.getInt("Phase");
+        d.dirUntil = dir.getLong("Until");
+        d.dirSince = dir.getLong("Since");
+        d.dirNextSign = dir.getLong("NextSign");
+        if (dir.hasUUID("Target")) d.dirTarget = dir.getUUID("Target");
+        d.dirLastSign = dir.getString("LastSign");
+        d.dirTrap = dir.getBoolean("Trap");
+        d.parkedFroggy = dir.contains("Parked") ? dir.getCompound("Parked") : null;
         return d;
     }
 
@@ -149,6 +178,16 @@ public class FroggyWorldData extends SavedData {
         inv.putInt("Day", invasionDay);
         inv.putInt("Stage", invasionStage);
         inv.putLong("At", invasionAt);
+        CompoundTag dir = new CompoundTag();
+        dir.putInt("Phase", dirPhase);
+        dir.putLong("Until", dirUntil);
+        dir.putLong("Since", dirSince);
+        dir.putLong("NextSign", dirNextSign);
+        if (dirTarget != null) dir.putUUID("Target", dirTarget);
+        dir.putString("LastSign", dirLastSign);
+        dir.putBoolean("Trap", dirTrap);
+        if (parkedFroggy != null) dir.put("Parked", parkedFroggy);
+        inv.put("Director", dir);
         tag.put("Invasion", inv);
         return tag;
     }

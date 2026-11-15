@@ -43,6 +43,15 @@ public final class PreyStudyEvents {
         BlockState st = level.getBlockState(pos);
         BlockEntity be = level.getBlockEntity(pos);
         PreyStudy.Kind kind;
+        if (st.getBlock() instanceof net.minecraft.world.level.block.DoorBlock) {
+            // (v0.7.34) a porta que ela abriu/fechou: o diretor de tensão abre ela depois, longe da vista
+            BlockPos lower = st.getValue(net.minecraft.world.level.block.DoorBlock.HALF)
+                    == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER ? pos.below() : pos;
+            FroggyWorldData data = FroggyWorldData.get(level);
+            data.brain.memory(p.getUUID(), p.getScoreboardName()).study.noteDoor(lower, level.dimension().location().toString());
+            data.setDirty();
+            return;
+        }
         if (be instanceof AbstractFurnaceBlockEntity || st.getBlock() instanceof CraftingTableBlock) {
             kind = PreyStudy.Kind.WORK;
         } else if (be instanceof Container) {
@@ -69,7 +78,7 @@ public final class PreyStudyEvents {
         FroggyWorldData data = FroggyWorldData.get(level);
         boolean roofed = !level.canSeeSky(pos.above());
         data.brain.memory(p.getUUID(), p.getScoreboardName()).study.visit(kind, pos, level.dimension().location().toString(),
-                level.getGameTime(), roofed);
+                level.getGameTime(), roofed, level.getDayTime());
         data.setDirty();
     }
 

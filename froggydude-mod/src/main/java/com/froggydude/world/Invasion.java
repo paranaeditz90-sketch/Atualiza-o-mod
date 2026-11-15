@@ -100,7 +100,8 @@ public final class Invasion {
                 froggy.brainLog("in your world: chegou no mundo, atrás de " + p.getScoreboardName());
                 next(data, 3, 0);
             }
-            default -> Manhunt.keepOnTrail(server, data, now);
+            // (v0.7.34) aqui caçando: o diretor de tensão dá o ritmo (caçada, falso alívio, calmaria, sinais, vislumbre)
+            default -> TensionDirector.second(server, data, now);
         }
     }
 
@@ -113,11 +114,19 @@ public final class Invasion {
             broadcast(server, Component.translatable("multiplayer.player.left", NAME).withStyle(ChatFormatting.YELLOW));
             FroggydudeEntity froggy = FroggyKeeper.find(server);
             if (froggy != null) froggy.discard();
+            // (v0.7.34) guardado pelo diretor (fora do mundo): devolve o que roubou pra quem matou o dragão
+            TensionDirector.stop(server, data, event.getSource().getEntity() instanceof ServerPlayer killer ? killer : null,
+                    false);
             data.froggyAlive = false;
             data.respawnAt = -1;
             next(data, 4, 0);
-        } else if (event.getEntity() instanceof ServerPlayer
+        } else if (event.getEntity() instanceof ServerPlayer victim
                 && event.getSource().getEntity() instanceof FroggydudeEntity froggy) {
+            if (TensionDirector.active(data)) {
+                // (v0.7.34) come e se gaba; o diretor tira ele do mundo quando ela não estiver vendo (calmaria)
+                TensionDirector.onKill(server, data, victim);
+                return;
+            }
             froggy.leaveAfterWin(100);
             data.respawnAt = server.overworld().getGameTime() + AWAY_AFTER_KILL;
             data.setDirty();
@@ -148,6 +157,7 @@ public final class Invasion {
     /** /froggydude invasao agora: pula pra chegada (teste). */
     public static void arriveNow(MinecraftServer server) {
         FroggyWorldData data = FroggyWorldData.get(server);
+        TensionDirector.stop(server, data, null, true); // (v0.7.34) o diretor recomeça; guardado, ele volta pro mundo
         data.invasionDay = day(server);
         next(data, 0, server.overworld().getGameTime() + 20);
     }
@@ -155,6 +165,7 @@ public final class Invasion {
     /** /froggydude invasao reiniciar: sorteia de novo, como mundo novo. */
     public static void reset(MinecraftServer server) {
         FroggyWorldData data = FroggyWorldData.get(server);
+        TensionDirector.stop(server, data, null, true); // (v0.7.34) o diretor recomeça; guardado, ele volta pro mundo
         roll(server, data);
     }
 
@@ -164,7 +175,8 @@ public final class Invasion {
         data.setDirty();
     }
 
-    private static List<ServerPlayer> runners(MinecraftServer server) {
+    /** Quem está jogando de verdade (vivo, sem espectador nem criativo). */
+    static List<ServerPlayer> runners(MinecraftServer server) {
         return server.getPlayerList().getPlayers().stream()
                 .filter(p -> p.isAlive() && !p.isSpectator() && !p.isCreative()).toList();
     }

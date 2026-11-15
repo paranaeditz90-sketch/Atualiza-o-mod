@@ -176,5 +176,14 @@
   "froggydude.cmd.invasion.stage.waiting": "waiting",
   "froggydude.cmd.invasion.stage.arriving": "arriving",
   "froggydude.cmd.invasion.stage.hunting": "hunting",
-  "froggydude.cmd.invasion.stage.gone": "gone (dragon)"
+  "froggydude.cmd.invasion.stage.gone": "gone (dragon)",
+  "froggydude.cmd.director.status": "Tension director: %s (%s:%s left); last sign: %s.",
+  "froggydude.cmd.director.phase.off": "off (only in Froggy's in your world, once he has arrived)",
+  "froggydude.cmd.director.phase.calm": "calm",
+  "froggydude.cmd.director.phase.signs": "signs",
+  "froggydude.cmd.director.phase.glimpse": "glimpse",
+  "froggydude.cmd.director.phase.hunt": "hunt",
+  "froggydude.cmd.director_off": "The director only runs in Froggy's in your world, once he is in the world (test: /froggydude invasao agora).",
+  "froggydude.cmd.director_sign": "Sign done.",
+  "froggydude.cmd.director_sign_none": "Not possible now (no spot out of your sight, or no animal, torch or door nearby)."
 }

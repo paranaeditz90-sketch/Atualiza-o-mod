@@ -45,6 +45,7 @@ public class FroggyServerEvents {
         if (event.phase != TickEvent.Phase.END) return;
         Manhunt.tick(event.getServer());
         com.froggydude.world.Invasion.tick(event.getServer());
+        com.froggydude.world.TensionDirector.tick(event.getServer());
         long now = event.getServer().overworld().getGameTime();
         if (now % 20 == 0) {
             FroggyKeeper.keepAwake(event.getServer());
@@ -74,6 +75,7 @@ public class FroggyServerEvents {
         Sabotage.clear();
         com.froggydude.brain.Scent.clear();
         com.froggydude.world.Hunt.reset();
+        com.froggydude.world.TensionDirector.reset();
     }
 
     @SubscribeEvent

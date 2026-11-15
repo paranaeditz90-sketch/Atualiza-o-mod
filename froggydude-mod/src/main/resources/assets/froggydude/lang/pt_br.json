@@ -176,5 +176,14 @@
   "froggydude.cmd.invasion.stage.waiting": "esperando",
   "froggydude.cmd.invasion.stage.arriving": "chegando",
   "froggydude.cmd.invasion.stage.hunting": "caçando",
-  "froggydude.cmd.invasion.stage.gone": "foi embora (dragão)"
+  "froggydude.cmd.invasion.stage.gone": "foi embora (dragão)",
+  "froggydude.cmd.director.status": "Diretor de tensão: %s (falta %s:%s); último sinal: %s.",
+  "froggydude.cmd.director.phase.off": "desligado (só no 'aparece no teu mundo', com ele já aqui)",
+  "froggydude.cmd.director.phase.calm": "calmaria",
+  "froggydude.cmd.director.phase.signs": "sinais",
+  "froggydude.cmd.director.phase.glimpse": "vislumbre",
+  "froggydude.cmd.director.phase.hunt": "caçada",
+  "froggydude.cmd.director_off": "O diretor só roda no 'aparece no teu mundo', com ele já no mundo (teste: /froggydude invasao agora).",
+  "froggydude.cmd.director_sign": "Sinal feito.",
+  "froggydude.cmd.director_sign_none": "Não deu agora (sem lugar fora da tua vista, ou sem bicho, tocha ou porta perto)."
 }

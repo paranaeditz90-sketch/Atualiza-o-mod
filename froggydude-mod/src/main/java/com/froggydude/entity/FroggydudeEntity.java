@@ -908,8 +908,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // sumiu no meio da refeição (descarregou, /kill): o bicho que estava comendo levanta
         if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget);
         // (v0.7.29) sumiu sem morrer (foi embora depois do manhunt, trocado por outro FroggyDude): o que ele roubou
-        // não some junto (descarregar o pedaço do mapa não conta: a barriga vai salva com ele)
-        if (reason == RemovalReason.DISCARDED) dropStolen();
+        // não some junto (descarregar o pedaço do mapa não conta: a barriga vai salva com ele). (v0.7.34) Nem quando o
+        // diretor de tensão tira ele do mundo pra voltar depois (a barriga vai guardada junto: leaveQuietly)
+        if (reason == RemovalReason.DISCARDED && !leavingQuietly) dropStolen();
         super.remove(reason);
     }
 
@@ -925,6 +926,65 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void leaveAfterWin(int ticks) {
         holdStill(ticks, null);
         leaveTicks = ticks;
+    }
+
+    /** (v0.7.34) Saindo do mundo pelo diretor de tensão (guardado inteiro, volta o mesmo). */
+    private boolean leavingQuietly;
+
+    /** (v0.7.34) Sai do mundo sem largar nada: o diretor de tensão guardou ele inteiro e põe de volta depois. */
+    public void leaveQuietly() {
+        leavingQuietly = true;
+        this.discard();
+    }
+
+    /**
+     * (v0.7.34) Parado pelo vislumbre do diretor (NoAI). Fica salvo nele: se o diretor parar no meio (manhunt, invasão
+     * desligada na config, pedaço do mapa descarregado), ele mesmo se solta (tick) em vez de ficar congelado pra sempre.
+     */
+    private boolean glimpseFrozen;
+
+    public void freezeForGlimpse(boolean frozen) {
+        if (glimpseFrozen || frozen) this.setNoAi(frozen);
+        glimpseFrozen = frozen;
+    }
+
+    /** (v0.7.34) O diretor desistiu dele guardado (o dragão morreu): devolve o que roubou onde ele está. */
+    public void returnStolen() {
+        dropStolen();
+    }
+
+    /**
+     * (v0.7.34) O falso alívio do diretor de tensão: a caçada acabou, ele larga ela e vai embora andando (a trégua
+     * curta impede de pegar ela de novo no caminho); o diretor tira ele do mundo quando ela não estiver vendo.
+     * Se ela mexer com ele, a trégua quebra e ele briga (breakTruce).
+     */
+    public void retreatFrom(ServerPlayer p) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        PlayerMemory m = FroggyWorldData.get(server).brain.memory(p.getUUID(), p.getScoreboardName());
+        m.truceUntil = server.getGameTime() + PlayerMemory.TRUCE_MIN;
+        FroggyWorldData.get(server).setDirty();
+        if (engagement != null && engagement.player.equals(p.getUUID())) engagement = null;
+        stopStalking();
+        setTarget(null);
+        if (getFroggyState() == FroggyState.CHASE) setFroggyState(FroggyState.IDLE);
+        walkAwayFrom = p.position();
+        walkAwayTicks = 300;
+        walkAwayPlayer = null;
+        brainLog("diretor: a caçada acabou, vai embora (falso alívio)");
+    }
+
+    /** (v0.7.34) No meio de um golpe ou com alguém preso (não dá pra sumir agora). */
+    public boolean isFightingNow() {
+        FroggyState s = getFroggyState();
+        return s.isCombatAction() || s == FroggyState.FINISHER || s == FroggyState.CONTORTING || s == FroggyState.ROAR
+                || getPinnedVictim() != null;
+    }
+
+    /** (v0.7.34) Comendo alguma coisa (o banquete, um bicho, o braço, a arma roubada). */
+    public boolean isEating() {
+        FroggyState s = getFroggyState();
+        return s == FroggyState.FEAST || s == FroggyState.FEEDING || s == FroggyState.ARM_EAT || s == FroggyState.WEAPON_EAT
+                || getFeedTarget() != null;
     }
 
     /** Perdeu o manhunt (dragão morto / dias passaram): "no, no, noooo" e cai. */
@@ -2478,6 +2538,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
 
         stateTicks++;
+        if (glimpseFrozen && this.tickCount % 20 == 0 && this.level() instanceof ServerLevel gs
+                && !com.froggydude.world.TensionDirector.glimpsing(gs.getServer())) {
+            freezeForGlimpse(false); // o vislumbre acabou sem o diretor (manhunt, invasão desligada): solta
+        }
         if (getFroggyState() == FroggyState.FLUNG) {
             // arremessado: só a física manda; levanta quando cai e a animação acaba
             this.getNavigation().stop();
@@ -2994,6 +3058,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugHeldArm) tag.putBoolean("DebugHeldArm", true);
         if (debugArmless) tag.putBoolean("DebugArmless", true);
         if (debugStalk) tag.putBoolean("DebugStalk", true);
+        if (glimpseFrozen) tag.putBoolean("GlimpseFrozen", true);
         if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
         if (debugFar > 0) tag.putInt("DebugFar", debugFar);
         // a barriga, e o que estiver na boca/língua agora (salvou no meio da mastigada: conta como engolido)
@@ -3033,6 +3098,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.debugHeldArm = tag.getBoolean("DebugHeldArm");
         this.debugArmless = tag.getBoolean("DebugArmless");
         this.debugStalk = tag.getBoolean("DebugStalk");
+        this.glimpseFrozen = tag.getBoolean("GlimpseFrozen");
         this.debugPhase2In = tag.getInt("DebugPhase2In");
         this.debugFar = tag.getInt("DebugFar");
         belly.clear();

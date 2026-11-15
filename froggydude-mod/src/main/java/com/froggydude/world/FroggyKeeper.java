@@ -36,7 +36,12 @@ public final class FroggyKeeper {
         /** Fora da vista (atrás de alguma coisa ou nas costas): ele não "brota" na tua cara. */
         HIDDEN,
         /** Na tua frente, à vista (o começo do manhunt: ele ali, te olhando). */
-        IN_VIEW
+        IN_VIEW,
+        /**
+         * (v0.7.34) À vista, mas no canto do olho: de 17 a 34 graus do meio da tela. É o vislumbre do diretor, que
+         * some quando ela olha DIRETO (12 graus): nascendo bem na mira, ele sumia em 0,4 s, antes de ela perceber.
+         */
+        SIDE_VIEW
     }
 
     /** O pedaço do mapa em volta dele fica rodando (expira sozinho se ninguém renovar). */
@@ -165,6 +170,10 @@ public final class FroggyKeeper {
                 if (want == Sight.IN_VIEW) {
                     // num leque de ~70 graus na frente do jogador
                     a = Math.toRadians(player.getYRot() + 90.0F) + (random.nextDouble() - 0.5D) * 1.2D;
+                } else if (want == Sight.SIDE_VIEW) {
+                    // no mesmo leque, mas fora do meio: 0,3 a 0,6 rad (17 a 34 graus) pra um dos lados
+                    double off = 0.3D + random.nextDouble() * 0.3D;
+                    a = Math.toRadians(player.getYRot() + 90.0F) + (random.nextBoolean() ? off : -off);
                 } else {
                     a = random.nextDouble() * Math.PI * 2.0D;
                 }
@@ -174,7 +183,7 @@ public final class FroggyKeeper {
                 BlockPos found = groundAt(level, x, Mth.floor(player.getY()), z);
                 if (found == null) continue;
                 if (want == Sight.HIDDEN && visible(level, player, found)) continue;
-                if (want == Sight.IN_VIEW && !visible(level, player, found)) continue;
+                if ((want == Sight.IN_VIEW || want == Sight.SIDE_VIEW) && !visible(level, player, found)) continue;
                 return found;
             }
         }

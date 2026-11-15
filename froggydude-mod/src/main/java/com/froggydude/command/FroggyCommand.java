@@ -54,6 +54,7 @@ public final class FroggyCommand {
                 .then(Commands.literal("info").executes(c -> info(c.getSource())))
                 .then(ai())
                 .then(invasion())
+                .then(director())
                 .then(Commands.literal("manhunt")
                         .then(Commands.literal("speedrun")
                                 .executes(c -> manhunt(c.getSource(), ManhuntMode.SPEEDRUN, 0)))
@@ -127,6 +128,42 @@ public final class FroggyCommand {
                     c.getSource().sendSuccess(() -> t("invasion_reroll"), true);
                     return 1;
                 }));
+    }
+
+    /**
+     * (v0.7.34) /froggydude diretor [fase calma|sinais|vislumbre|caca] [sinal ribbit|sangue|passos|bicho|tocha|porta|placa]:
+     * o diretor de tensão do "aparece no teu mundo" (sem nada: em que fase está). Pra testar.
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> director() {
+        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("diretor").requires(FroggyCommand::admin)
+                .executes(c -> {
+                    c.getSource().sendSuccess(() -> com.froggydude.world.TensionDirector.status(c.getSource().getServer()), false);
+                    return 1;
+                });
+        LiteralArgumentBuilder<CommandSourceStack> phase = Commands.literal("fase");
+        for (String[] e : new String[][]{{"calma", "CALM"}, {"sinais", "SIGNS"}, {"vislumbre", "GLIMPSE"}, {"caca", "HUNT"}}) {
+            phase.then(Commands.literal(e[0]).executes(c -> {
+                boolean ok = com.froggydude.world.TensionDirector.force(c.getSource().getServer(),
+                        com.froggydude.world.TensionDirector.Phase.valueOf(e[1]));
+                c.getSource().sendSuccess(() -> ok ? com.froggydude.world.TensionDirector.status(c.getSource().getServer())
+                        : t("director_off"), true);
+                return ok ? 1 : 0;
+            }));
+        }
+        root.then(phase);
+        LiteralArgumentBuilder<CommandSourceStack> sign = Commands.literal("sinal");
+        for (String[] e : new String[][]{{"ribbit", "RIBBIT"}, {"sangue", "BLOOD"}, {"passos", "STEPS"}, {"bicho", "EATEN"},
+                {"tocha", "TORCH"}, {"porta", "DOOR"}, {"placa", "PLACARD"}}) {
+            sign.then(Commands.literal(e[0]).executes(c -> {
+                ServerPlayer p = c.getSource().getPlayerOrException();
+                boolean ok = com.froggydude.world.TensionDirector.forceSign(c.getSource().getServer(), p,
+                        com.froggydude.world.TensionDirector.Sign.valueOf(e[1]));
+                c.getSource().sendSuccess(() -> t(ok ? "director_sign" : "director_sign_none"), true);
+                return ok ? 1 : 0;
+            }));
+        }
+        root.then(sign);
+        return root;
     }
 
     private static int toggleInvasion(CommandSourceStack src, boolean on) {

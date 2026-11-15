@@ -95,7 +95,7 @@ public class FroggyStakeoutGoal extends Goal {
         PreyStudy study = FroggyWorldData.get(level).brain.memory(p.getUUID(), p.getScoreboardName()).study;
         long now = level.getGameTime();
         String dim = level.dimension().location().toString();
-        PreyStudy.Place best = forced ? mostUsed(study, dim, p) : study.stakeout(dim, p.blockPosition(), now);
+        PreyStudy.Place best = forced ? mostUsed(study, dim, p) : study.stakeout(dim, p.blockPosition(), now, p.level().getDayTime());
         if (best == null || !level.isLoaded(best.pos) || best.pos.distSqr(froggy.blockPosition()) > MAX_TRAVEL * MAX_TRAVEL) {
             forced = false;
             return false;

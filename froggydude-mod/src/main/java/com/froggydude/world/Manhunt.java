@@ -52,6 +52,8 @@ public final class Manhunt {
         data.respawnAt = -1;
         data.setDirty();
         missingTicks = farTicks = awayTicks = 0;
+        // (v0.7.34) o diretor de tensão do "aparece no teu mundo" para; se ele estava guardado, volta (o mesmo)
+        TensionDirector.stop(server, data, starter, true);
 
         // ele aparece perto, parado, te encarando até ser solto
         FroggydudeEntity froggy = FroggyKeeper.find(server);
