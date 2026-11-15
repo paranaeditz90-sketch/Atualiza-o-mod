@@ -85,7 +85,10 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
                 head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -25F, 25F) * Mth.DEG_TO_RAD);
             }
             if (upright || aiming) {
-                head.setRotX(head.getRotX() + Mth.clamp(data.headPitch(), -30F, 35F) * Mth.DEG_TO_RAD);
+                // (v0.7.33) segurando alguém lá em cima (captura/arremesso): a cabeça sobe até -50°, o resto do ângulo
+                // é a língua (réplica v8)
+                float up = state.isCapture() ? -50F : -30F;
+                head.setRotX(head.getRotX() + Mth.clamp(data.headPitch(), up, 35F) * Mth.DEG_TO_RAD);
             }
             // O setRot marca o osso como "mexido" e essa marca sobrevive até o próximo
             // quadro: numa animação que não mexe na cabeça (a "walk"), o GeckoLib então
@@ -95,6 +98,7 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
             head.resetStateChanges();
         }
         playerMoves(animatable, animationState);
+        throwTwist(animatable, animationState);
 
         CoreGeoBone tongue = getAnimationProcessor().getBone("tongue");
         if (tongue == null) return;
@@ -103,6 +107,21 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
         float lengthPx = blocks * 16F / FroggydudeEntity.MODEL_SCALE;
         tongue.setScaleZ(fraction * lengthPx);
         tongue.resetStateChanges(); // mesmo motivo da cabeça: senão a escala ia se multiplicando
+    }
+
+    /**
+     * (v0.7.33) O arremesso: a cintura gira por cima do corpo (o corpo quem gira é o servidor), o impulso pro outro
+     * lado e o chicote, na idade do estado (TongueCapture.waistTwist).
+     */
+    private void throwTwist(FroggydudeEntity animatable, AnimationState<FroggydudeEntity> animationState) {
+        if (animatable.getFroggyState() != FroggyState.TONGUE_THROW || !animatable.getDebugAnim().isEmpty()) return;
+        CoreGeoBone waist = getAnimationProcessor().getBone("waist");
+        if (waist == null) return;
+        float age = animatable.getClientStateAge() + animationState.getPartialTick();
+        float twist = com.froggydude.entity.ai.TongueCapture.waistTwist(age, animatable.getThrowSweep());
+        // mesmo sinal do olhar (netHeadYaw, na cabeça): + vira pra direita dele
+        waist.setRotY(waist.getRotY() + twist * Mth.DEG_TO_RAD);
+        waist.resetStateChanges();
     }
 
     /**

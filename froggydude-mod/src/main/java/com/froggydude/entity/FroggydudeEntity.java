@@ -165,6 +165,18 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** O ritmo do banquete (1 = 4 mordidas por segundo): o pitch do loop e a velocidade da flexão. */
     private static final EntityDataAccessor<Float> DATA_FEAST_RATE =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /**
+     * (v0.7.33) Quem a língua está segurando no ar (captura ou arremesso; -1 = ninguém). O cliente desenha a
+     * língua-fita da boca até o peito dela, a volta em pentágono no peito e vira o corpo dela pra ele.
+     */
+    private static final EntityDataAccessor<Integer> DATA_CAPTURE_ID =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+    /**
+     * (v0.7.33) O arremesso: quantos graus a vítima dá de volta em torno dele antes de ser solta (com sinal: + pra
+     * direita dele). O cliente gira o tronco (a cintura) com isso; o corpo quem gira é o servidor.
+     */
+    private static final EntityDataAccessor<Float> DATA_THROW_SWEEP =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
 
     /**
      * Comendo em "flexão" (pin_hold, feed_mob; v0.7.17, medido no Taste Testing e no monte do golem): uma
@@ -372,6 +384,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_FEED_ID, -1);
         this.entityData.define(DATA_CROUCH, false);
         this.entityData.define(DATA_FEAST_RATE, 1.0F);
+        this.entityData.define(DATA_CAPTURE_ID, -1);
+        this.entityData.define(DATA_THROW_SWEEP, 0F);
     }
 
     @Override
@@ -1080,6 +1094,34 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (state == FroggyState.IDLE || state == FroggyState.CHASE) {
             this.entityData.set(DATA_FACE_YAW, Float.NaN);
         }
+        // (v0.7.33) saiu da captura/arremesso por qualquer motivo: a língua solta (o gancho se desfaz sozinho)
+        if (!this.level().isClientSide && !state.isCapture()) this.entityData.set(DATA_CAPTURE_ID, -1);
+    }
+
+    /** (v0.7.33) Quem a língua segura no ar agora (-1 = ninguém). Ver DATA_CAPTURE_ID. */
+    public int getCaptureId() {
+        return this.entityData.get(DATA_CAPTURE_ID);
+    }
+
+    public void setCaptureId(int id) {
+        this.entityData.set(DATA_CAPTURE_ID, id);
+    }
+
+    /** (v0.7.33) Graus que a vítima do arremesso roda em volta dele (com sinal). Ver DATA_THROW_SWEEP. */
+    public float getThrowSweep() {
+        return this.entityData.get(DATA_THROW_SWEEP);
+    }
+
+    public void setThrowSweep(float degrees) {
+        this.entityData.set(DATA_THROW_SWEEP, degrees);
+    }
+
+    /** (v0.7.33) O servidor gira o corpo dele (o arremesso) sem mexer no resto do faceTarget. */
+    public void setFaceYawSynced(float yaw) {
+        this.setYRot(yaw);
+        this.yBodyRot = yaw;
+        this.yHeadRot = yaw;
+        this.entityData.set(DATA_FACE_YAW, yaw);
     }
 
     /** Yaw do ataque em andamento (NaN se não está atacando). Ver DATA_FACE_YAW. */
@@ -2631,6 +2673,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
                     () -> () -> com.froggydude.client.StolenItemFx.crunch(this, bitten, first));
         }
+        // (v0.7.33) a língua segurando alguém no ar: o cliente vira o corpo dela pra ele (CaptureRender)
+        int held = getCaptureId();
+        if (held >= 0) {
+            int me = this.getId();
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> () -> com.froggydude.client.CaptureRender.markHeld(held, me));
+        }
         if (FLEX_DEBUG && st == FroggyState.SMASH.ordinal() && clientStateAge >= FroggyCombatGoal.SMASH_FIRST
                 && (clientStateAge - FroggyCombatGoal.SMASH_FIRST) % FroggyCombatGoal.SMASH_EVERY == 0) {
             System.out.printf("[SMASH] cliente punho embaixo idade=%d jogo=%d%n", clientStateAge, this.level().getGameTime());
@@ -3040,6 +3089,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             RawAnimation.begin().then("tongue_grab", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_CAPTURE =
             RawAnimation.begin().then("tongue_capture", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_THROW =
+            RawAnimation.begin().then("tongue_throw", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_JUMP_PIN =
             RawAnimation.begin().then("jump_pin", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation ANIM_HIGH_JUMP =
@@ -3083,6 +3134,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             RawAnimation.begin().then("tongue_grab_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
     private static final RawAnimation TONGUE_CAPTURE =
             RawAnimation.begin().then("tongue_capture_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation TONGUE_THROW_EXT =
+            RawAnimation.begin().then("tongue_throw_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
 
     /** Câmera lenta só pra gravar a animação quadro a quadro (froggydude.animSlow; 1 = normal). */
     private static final double DEBUG_ANIM_SLOW = Double.parseDouble(System.getProperty("froggydude.animSlow", "1"));
@@ -3108,6 +3161,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_GRAB);
             case TONGUE_CAPTURE:
                 return state.setAndContinue(ANIM_CAPTURE);
+            case TONGUE_THROW:
+                return state.setAndContinue(ANIM_THROW);
             case JUMP_PIN:
                 return state.setAndContinue(ANIM_JUMP_PIN);
             case HIGH_JUMP:
@@ -3187,6 +3242,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(TONGUE_GRAB);
             case TONGUE_CAPTURE:
                 return state.setAndContinue(TONGUE_CAPTURE);
+            case TONGUE_THROW:
+                return state.setAndContinue(TONGUE_THROW_EXT);
             default:
                 return state.setAndContinue(TONGUE_HIDDEN);
         }

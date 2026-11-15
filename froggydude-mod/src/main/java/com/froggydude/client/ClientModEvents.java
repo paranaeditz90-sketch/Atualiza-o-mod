@@ -16,6 +16,7 @@ public class ClientModEvents {
         event.registerEntityRenderer(ModEntityTypes.FROGGYDUDE.get(), FroggydudeRenderer::new);
         // o cinegrafista da cutscene nunca aparece
         event.registerEntityRenderer(ModEntityTypes.CUTSCENE_CAMERA.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
+        event.registerEntityRenderer(ModEntityTypes.TONGUE_HOLD.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
     }
 
     /** Jogador sem o braço esquerdo: troca a armadura e põe o toco no ombro. E o sangue grudado na skin. */

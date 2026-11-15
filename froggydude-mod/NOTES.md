@@ -1,4 +1,4 @@
-# Froggydude - v0.7.32: ele ama dor - tiro de arma quase não machuca (sobre a v0.7.31)
+# Froggydude - v0.7.33: a captura com a língua e o arremesso, como nas réplicas aprovadas (sobre a v0.7.32)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,28 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.32):
+O que testar agora (v0.7.33):
+- **A captura com a língua** (as réplicas que tu aprovou em 09/11: "ficou perfeito a língua!"): ele fica **em pé e
+  reto**, pernas juntas, braços pendurados; a língua estala e pega (0,3 s), **ergue a vítima até 4 blocos** em 0,7 s,
+  ele segura lá em cima 2 s balançando de leve, olhando pra cima (a cabeça sobe até 50°) de boca aberta, e **puxa pra
+  boca**; depois vem o de antes (arranca o braço, morde ou derruba e come). A língua é a **fita vermelha** da réplica (1
+  px de grossura, grossa só na base, o meio mais claro e as beiradas mais escuras, nas cores do vídeo) e dá a volta no
+  peito e nos braços em **pentágono** (a tua "opção A"), saindo por baixo da volta. Quem tá preso não sai com shift e não
+  mexe; em 1ª pessoa vê a língua subindo até o peito e ele lá embaixo (a volta não aparece pra ela mesma, igual ao próprio
+  corpo, senão tampava a tela). Testado: os pés chegam a 4,0 blocos a 2,4 dele em 1 s, balançam 0,1 e ele puxa até 1 bloco
+  da boca em 3,3 s.
+- **O arremesso** (bem raro: ~1 em cada 5-6 capturas, e só se tiver um lado livre): pega, **derruba e arrasta** a
+  vítima deitada até perto dele, ergue, segura, **vira o tronco** (pega impulso pro outro lado e chicoteia) com a língua
+  mole ficando pra trás, e **solta**: ela voa rodando mole ("ragdoll") **uns 40 blocos, subindo uns 8**, pro lado em que
+  não tem parede, árvore nem teto (ele confere o caminho antes; sem lado livre, vira captura normal). A língua solta cai
+  e volta pra boca. Em 1ª pessoa a câmera tomba de leve no voo. Testado: 40,1 blocos, ponto mais alto 7,7 acima do chão.
+- Por dentro: a vítima fica num "gancho" invisível que o servidor move (como quem anda de barco), então a subida fica
+  lisa e o servidor não expulsa ninguém por "voar". Com teto baixo ele ergue só o que cabe; nada é empurrado pra dentro de
+  bloco. Empurrado no meio, ela vai junto. Se ele morrer (ou levar o boom do warden) no meio, a língua solta e quem tava
+  preso levanta e se mexe na hora (testado: morto no meio da derrubada).
+- Pra gravar de lado: `-PfreeCam` no runClient deixa a câmera livre na derrubada (no jogo normal ela vira pra cara dele).
+
+Da v0.7.32:
 - **Tiro de arma quase não machuca** (LM, 10/11: "No vídeo original, o froggydude literalmente ama dor, ou seja, tiros
   de armas são praticamente insignificantes"): bala de arma de mod (TaCZ e parecidos: a bala que voa, ou o dano do
   tipo "bala" das armas que acertam na hora) faz **um décimo** do dano, e levando tiro ele fala o "I love pain" bem

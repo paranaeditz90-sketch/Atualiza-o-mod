@@ -21,6 +21,7 @@ agacha rente ao chão -> impulso -> voa quase na horizontal (pernas esticadas
 pra trás, braços pra frente e pra baixo) -> cai nas mãos -> junta as pernas.
 """
 import copy
+import math
 import json
 import os
 import sys
@@ -748,16 +749,71 @@ ANIMS["tongue_grab"] = animation(0.8, [
     (0.65, tongue_p(14, -96, 14, root_y=-1.5, legs=-14, leg_l=14)),  # puxa
     (0.80, tongue_p(8, -70, 8)),
 ], "hold_on_last_frame")
-ANIMS["tongue_capture"] = animation(1.4, [
-    (0.00, pose()),
-    (0.18, tongue_p(-4, -120, 18)),
-    (0.35, tongue_p(-8, -160, 28)),                                 # braços em V
-    (0.56, tongue_p(26, -172, 36, root_y=-2, legs=-16, leg_l=16)),  # LÍNGUA
-    (0.90, tongue_p(22, -150, 26, root_y=-2, legs=-16, leg_l=16)),
-    (1.05, tongue_p(30, -100, 12, root_y=-2.5, legs=-18, leg_l=18)),  # puxa e abre os braços pra agarrar
-    (1.25, tongue_p(34, -92, 6, root_y=-2.5, legs=-18, leg_l=18)),
-    (1.40, tongue_p(24, -84, 8, root_y=-1.5)),
+# (v0.7.33) A CAPTURA (réplica v8 que o LM aprovou em 09/11; viking 11-lingua-captura.md): EM PÉ E RETO, pernas juntas,
+# braços pendurados quase colados (Grox 12:55: não ergue braço, não inclina, não abre as pernas). Mira 0-0,2 s com a
+# boca abrindo; o estalo 0,2-0,3 (um tranquinho da cabeça pra frente); a língua ERGUE a vítima 4 blocos (0,3-1,0) e
+# ele segura lá em cima balançando de leve (1,0-2,9); puxa pra boca (2,9-3,45) e segue pra mordida/braço/derrubada.
+# A cabeça OLHANDO pra cima (até -50°) vem do olhar do jogo (FroggydudeModel); aqui só o estalo, o balanço e o puxão.
+CAP_STAND = dict(arms=0, arm_spread=5, legs=0, leg_spread=2)
+
+
+def cap_p(head=0.0, waist=0.0, head_z=0.0, **over):
+    return pose(head=head, waist=waist, head_z=head_z, **{**CAP_STAND, **over})
+
+
+def cap_sway(t0, t1, waist=-3.0):
+    """O balanço segurando lá em cima: 1,3 s por volta, cabeça ±2° pra frente e de lado (réplica)."""
+    keys = []
+    t = t0
+    while t <= t1 + 1e-6:
+        s = math.sin((t - t0) * 2 * math.pi / 1.3)
+        keys.append((round(t, 3), cap_p(head=2 * s, head_z=2 * s, waist=waist)))
+        t += 0.1
+    return keys
+
+
+ANIMS["tongue_capture"] = animation(3.5, [
+    (0.00, cap_p()),
+    (0.20, cap_p(head=-6)),                       # boca abrindo, mirando
+    (0.25, cap_p(head=0, waist=2)),               # o ESTALO
+    (0.30, cap_p(head=-6)),
+    (0.65, cap_p(head=-2, waist=-2)),             # erguendo: o tronco vai um tico pra trás
+    (1.00, cap_p(waist=-3)),
+] + cap_sway(1.0, 2.9) + [
+    (3.00, cap_p(waist=-3)),
+    (3.15, cap_p(waist=-1.6)),                    # puxa pra boca (acelerando)
+    (3.30, cap_p(waist=2.8)),
+    (3.45, cap_p(waist=10)),
+    (3.50, cap_p(waist=10)),
 ], "hold_on_last_frame")
+
+
+# (v0.7.33) O ARREMESSO (réplica v3 aprovada pelo LM em 09/11; bem raro): pega (0,3), DERRUBA com um tranco e arrasta
+# (0,3-0,9), ergue (0,9-1,6), segura (1,6-3,6), VIRA O TRONCO segurando (3,6-4,2: os braços abrem e descem um pouco, as
+# pernas abrem pra firmar) e solta (4,2); depois volta a ficar de pé (4,2-5,0). O giro do corpo é do servidor e o da
+# cintura do FroggydudeModel (o lado depende de pra onde ele joga).
+def throw_keys():
+    keys = [(0.00, cap_p()), (0.20, cap_p(head=-6)), (0.25, cap_p(head=0, waist=2)), (0.30, cap_p(head=-6))]
+    for t in (0.36, 0.42, 0.51, 0.63, 0.75, 0.90):          # o tranco da derrubada: cabeça e tronco pra frente
+        k = (t - 0.3) / 0.6
+        yank = math.sin(math.pi * min(1.0, k / 0.35))
+        keys.append((t, cap_p(head=6 * yank, waist=2 + 8 * yank)))
+    keys += [(1.25, cap_p(waist=-1)), (1.60, cap_p(waist=-3))]
+    keys += cap_sway(1.6, 3.6)
+    for t in (3.75, 3.9, 4.05, 4.2):                         # vira o tronco segurando
+        k = (t - 3.6) / 0.6
+        keys.append((round(t, 3), cap_p(head=8 * k, waist=-3 - 4 * k, arm_spread=5 + 12 * k * k, arms=-15 * k * k,
+                                       leg_spread=2 + 3 * k)))
+    for t in (4.4, 4.6, 4.8, 5.0):                           # soltou: volta a ficar de pé
+        k = (t - 4.2) / 0.8
+        k = k * k * (3 - 2 * k)
+        keys.append((round(t, 3), cap_p(head=8 * (1 - k), waist=-7 * (1 - k), arm_spread=17 - 12 * k,
+                                       arms=-15 * (1 - k), leg_spread=5 - 3 * k)))
+    keys.append((5.4, cap_p()))
+    return keys
+
+
+ANIMS["tongue_throw"] = animation(5.4, throw_keys(), "hold_on_last_frame")
 
 
 def tongue_ext(length, out, full, hold, back):
@@ -771,7 +827,9 @@ def tongue_ext(length, out, full, hold, back):
 
 ANIMS["tongue_whip_ext"] = tongue_ext(0.7, 0.28, 0.35, 0.5, 0.68)
 ANIMS["tongue_grab_ext"] = tongue_ext(0.8, 0.36, 0.44, 0.6, 0.8)
-ANIMS["tongue_capture_ext"] = tongue_ext(1.4, 0.47, 0.56, 1.1, 1.4)
+# (v0.7.33) a reta do osso só aparece no estalo; pegou, a fita da captura (CaptureRender) toma o lugar. Errou, volta.
+ANIMS["tongue_capture_ext"] = tongue_ext(3.5, 0.2, 0.3, 0.45, 0.6)
+ANIMS["tongue_throw_ext"] = tongue_ext(5.4, 0.2, 0.3, 0.45, 0.6)
 
 # Devorando um mob (ref. "Eating a Zebra"): mergulha de cabeça na carcaça,
 # morde, puxa a carne pra cima jogando sangue e sacode a cabeça como cachorro.
@@ -1060,7 +1118,8 @@ def main():
             "contort": [0.46, 0.7, 0.95, 1.2, 1.45, 1.7, 1.95, 2.2, 2.45, 2.7, 2.95],
             "contort_hold": [0.0, 0.76, 1.68],
             "roar": [0.1, 0.25, 0.38],
-            "tongue_capture": [0.2, 0.6, 1.05],
+            "tongue_capture": [0.2, 0.25, 1.0, 3.45],
+            "tongue_throw": [0.42, 2.0, 4.2, 5.0],
             "feed": [0.22, 0.52],
             "climb": [round(i * 0.25 / 15, 4) for i in range(15)],
             "jump_pin": [0.2, 0.45, 0.68, 0.76, 1.0],

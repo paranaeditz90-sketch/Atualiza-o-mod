@@ -2,6 +2,7 @@ package com.froggydude.init;
 
 import com.froggydude.entity.CutsceneCamera;
 import com.froggydude.entity.FroggydudeEntity;
+import com.froggydude.entity.TongueHold;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -39,6 +40,18 @@ public class ModEntityTypes {
                     .noSummon()
                     .clientTrackingRange(0)
                     .build("cutscene_camera"));
+
+    /** (v0.7.33) O gancho invisível da língua (captura e arremesso): quem a língua pega monta nele. */
+    public static final RegistryObject<EntityType<TongueHold>> TONGUE_HOLD =
+            ENTITY_TYPES.register("tongue_hold", () -> EntityType.Builder
+                    .<TongueHold>of(TongueHold::new, MobCategory.MISC)
+                    .sized(0.1F, 0.1F)
+                    .noSave()
+                    .noSummon()
+                    .fireImmune()
+                    .clientTrackingRange(10)
+                    .updateInterval(1)
+                    .build("tongue_hold"));
 
     public static void register(IEventBus modBus) {
         ENTITY_TYPES.register(modBus);

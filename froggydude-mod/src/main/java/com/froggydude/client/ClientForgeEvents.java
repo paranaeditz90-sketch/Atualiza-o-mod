@@ -94,10 +94,13 @@ public class ClientForgeEvents {
         input.leftImpulse = 0F;
     }
 
+    /** Só pra gravar de lado (froggydude.freecam, -PfreeCam): a câmera não é puxada pra cara dele. */
+    private static final boolean FREE_CAM = Boolean.getBoolean("froggydude.freecam");
+
     /** Preso: a cada quadro a câmera é puxada pro rosto dele (depois do mouse). */
     @SubscribeEvent
     public static void onRenderTick(TickEvent.RenderTickEvent event) {
-        if (event.phase != TickEvent.Phase.START || !ClientShakeHandler.isKnockedDown()) return;
+        if (event.phase != TickEvent.Phase.START || !ClientShakeHandler.isKnockedDown() || FREE_CAM) return;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null || mc.level == null) return;

@@ -79,6 +79,10 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     /** A arma começa a entrar depois da dentada (tick 2 da weapon_eat). */
     private static final float SWALLOW_FROM = 2.0F;
 
+    /** (v0.7.33) A boca neste quadro (na posição dele, eixos do mundo), tirada do osso da cabeça: a língua da captura sai daí. */
+    private final Vector3f captureMouth = new Vector3f();
+    private boolean captureMouthKnown;
+
     /**
      * (v0.7.22) Nadando: o corpo deita (como o jogador nadando no jogo) e inclina pra onde ele vai (de cabeça pra baixo
      * mergulhando, de cabeça pra cima subindo), girando no meio do corpo. As batidas de perna e a gangorra são da
@@ -119,13 +123,48 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     }
 
     @Override
+    public void render(FroggydudeEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
+                       MultiBufferSource bufferSource, int packedLight) {
+        captureMouthKnown = false;
+        super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+        if (captureMouthKnown && CaptureRender.capturing(entity)
+                && entity.level().getEntity(entity.getCaptureId()) instanceof net.minecraft.world.entity.LivingEntity victim) {
+            CaptureRender.draw(poseStack, bufferSource, entity, victim, captureMouth, partialTick, packedLight);
+        } else if (captureMouthKnown && entity.getFroggyState() == FroggyState.TONGUE_THROW) {
+            // soltou no arremesso: a língua mole cai e volta pra boca
+            CaptureRender.drawLoose(poseStack, bufferSource, entity, captureMouth, partialTick, packedLight);
+        }
+    }
+
+    /** (v0.7.33) Segurando alguém lá em cima: desenha se der pra ver ele OU a vítima (a língua liga os dois). */
+    @Override
+    public boolean shouldRender(FroggydudeEntity entity, net.minecraft.client.renderer.culling.Frustum frustum,
+                                double camX, double camY, double camZ) {
+        if (super.shouldRender(entity, frustum, camX, camY, camZ)) return true;
+        if (!CaptureRender.capturing(entity)) return false;
+        net.minecraft.world.entity.Entity v = entity.level().getEntity(entity.getCaptureId());
+        return v != null && frustum.isVisible(entity.getBoundingBoxForCulling().minmax(v.getBoundingBox().inflate(0.8D)));
+    }
+
+    @Override
     public void renderRecursively(PoseStack poseStack, FroggydudeEntity animatable, GeoBone bone, RenderType renderType,
                                   MultiBufferSource bufferSource, VertexConsumer buffer, boolean isReRender,
                                   float partialTick, int packedLight, int packedOverlay,
                                   float red, float green, float blue, float alpha) {
+        if (!isReRender && "head".equals(bone.getName())
+                && (CaptureRender.capturing(animatable) || animatable.getFroggyState() == FroggyState.TONGUE_THROW)) {
+            // (v0.7.33) onde a boca está no mundo (o tronco, a cabeça olhando pra cima, tudo da animação)
+            poseStack.pushPose();
+            RenderUtils.prepMatrixForBone(poseStack, bone);
+            new Matrix4f(this.entityRenderTranslations).invert().mul(poseStack.last().pose())
+                    .transformPosition(0F, TONGUE_Y / 16F, TONGUE_Z / 16F, captureMouth);
+            captureMouthKnown = true;
+            poseStack.popPose();
+        }
         if (!isReRender) {
             String name = bone.getName();
-            if ("tongue".equals(name) && bone.getScaleZ() > 0.05F) {
+            // segurando alguém no ar, a língua é a fita da captura (CaptureRender), não a reta do osso
+            if ("tongue".equals(name) && bone.getScaleZ() > 0.05F && !CaptureRender.capturing(animatable)) {
                 poseStack.pushPose();
                 RenderUtils.prepMatrixForBone(poseStack, bone);
                 drawTongue(poseStack, buffer, packedLight, packedOverlay);

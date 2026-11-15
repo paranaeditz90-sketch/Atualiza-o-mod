@@ -57,6 +57,10 @@ minecraft {
             if (project.hasProperty('capture')) {
                 property 'froggydude.capture', 'true'
             }
+            // Gravar de lado: a derrubada não vira a câmera pra cara dele (-PfreeCam; ver ClientForgeEvents)
+            if (project.hasProperty('freeCam')) {
+                property 'froggydude.freecam', 'true'
+            }
         }
 
         server {

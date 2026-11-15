@@ -10,7 +10,12 @@ public enum FroggyState {
     CHASE(0),
     TONGUE_WHIP(14),
     TONGUE_GRAB(16),
-    TONGUE_CAPTURE(28),
+    /**
+     * (v0.7.33) A captura (réplica v8 aprovada pelo LM, 09/11): a língua pega, ERGUE a vítima 4 blocos em 0,7 s,
+     * segura 2 s lá em cima e puxa pra boca (depois morde, arranca o braço ou derruba, como antes). A vítima fica
+     * presa num gancho invisível (TongueHold) que o servidor move.
+     */
+    TONGUE_CAPTURE(70),
     JUMP_PIN(20),
     HIGH_JUMP(32),
     BITE(12),
@@ -77,7 +82,12 @@ public enum FroggyState {
      * e ela vai entrando aos poucos; engole olhando pra cima (FroggyStealGoal, animação "weapon_eat"), no tempo do
      * vídeo (~1 s até o "glup"). Apanhou no meio: cospe. Fica no fim da lista: o número do estado vai pela rede.
      */
-    WEAPON_EAT(32);
+    WEAPON_EAT(32),
+    /**
+     * (v0.7.33) O arremesso (réplica v3 aprovada pelo LM, 09/11; bem raro): pega com a língua, derruba e arrasta,
+     * ergue, segura, vira o tronco com a língua mole e solta: a vítima voa uns 40 blocos pro lado livre.
+     */
+    TONGUE_THROW(108);
 
     public final int durationTicks;
 
@@ -86,13 +96,18 @@ public enum FroggyState {
     }
 
     public boolean isAttack() {
-        return this == TONGUE_WHIP || this == TONGUE_GRAB || this == TONGUE_CAPTURE
+        return this == TONGUE_WHIP || this == TONGUE_GRAB || this == TONGUE_CAPTURE || this == TONGUE_THROW
                 || this == JUMP_PIN || this == HIGH_JUMP || this == BITE || this == SKY_DROP
                 || this == CEILING_DIVE;
     }
 
     public boolean isTongue() {
-        return this == TONGUE_WHIP || this == TONGUE_GRAB || this == TONGUE_CAPTURE;
+        return this == TONGUE_WHIP || this == TONGUE_GRAB || this == TONGUE_CAPTURE || this == TONGUE_THROW;
+    }
+
+    /** (v0.7.33) A língua segurando alguém no ar (captura ou arremesso). */
+    public boolean isCapture() {
+        return this == TONGUE_CAPTURE || this == TONGUE_THROW;
     }
 
     /** Em cima da vítima derrubada (ela fica presa no chão). */

@@ -412,7 +412,8 @@ public final class FroggyCommand {
         }
         sb.append("\n  acerto dos ataques:");
         for (FroggyState s : new FroggyState[]{FroggyState.BITE, FroggyState.TONGUE_WHIP, FroggyState.TONGUE_GRAB,
-                FroggyState.TONGUE_CAPTURE, FroggyState.JUMP_PIN, FroggyState.HIGH_JUMP, FroggyState.SKY_DROP}) {
+                FroggyState.TONGUE_CAPTURE, FroggyState.TONGUE_THROW, FroggyState.JUMP_PIN, FroggyState.HIGH_JUMP,
+                FroggyState.SKY_DROP}) {
             float[] hm = m.attacks.get(s.name());
             if (hm == null) continue;
             sb.append(String.format(Locale.ROOT, " %s %.0f%%,", s.name().toLowerCase(Locale.ROOT),

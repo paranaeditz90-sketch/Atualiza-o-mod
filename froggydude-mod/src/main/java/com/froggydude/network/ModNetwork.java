@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "7";
+    private static final String PROTOCOL = "8";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -38,6 +38,14 @@ public final class ModNetwork {
         CHANNEL.registerMessage(5, SightPacket.class,
                 SightPacket::encode, SightPacket::decode, SightPacket::handle,
                 java.util.Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_SERVER));
+        CHANNEL.registerMessage(6, FlingPacket.class,
+                FlingPacket::encode, FlingPacket::decode, FlingPacket::handle,
+                java.util.Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+    }
+
+    /** (v0.7.33) A língua soltou essa entidade no arremesso: quem vê (e ela mesma) desenha o voo mole. */
+    public static void sendFling(net.minecraft.world.entity.Entity flung, int ticks, float dx, float dz) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> flung), new FlingPacket(flung.getId(), ticks, dx, dz));
     }
 
     /** Só treme a câmera. */

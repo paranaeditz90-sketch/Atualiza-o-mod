@@ -219,6 +219,10 @@ public class FroggyCombatGoal extends Goal {
     private int hits;
     private boolean ripPlanned;
     private int ripAt = -1;
+    /** (v0.7.33) A captura e o arremesso com a língua (o gancho, o caminho da vítima, o giro e a soltura). */
+    private final TongueCapture capture;
+    /** (v0.7.33) De cada captura, quantas viram arremesso (LM: "um ataque BEM RARO"), se tiver um lado livre. */
+    private static final float THROW_CHANCE = 0.18F;
 
     public FroggyCombatGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -226,6 +230,7 @@ public class FroggyCombatGoal extends Goal {
         this.real = new RealTactics(froggy, this);
         this.farScare = new FarScare(froggy, real);
         this.jumpScare = new JumpScare(froggy, this, real);
+        this.capture = new TongueCapture(froggy);
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
 
@@ -278,6 +283,7 @@ public class FroggyCombatGoal extends Goal {
         }
         stopEating();
         releaseVictim();
+        capture.reset();
         froggy.setHeldArm(null);
         if (froggy.getFroggyState().isCombatAction() && froggy.getFroggyState() != FroggyState.FLUNG) {
             froggy.setFroggyState(FroggyState.CHASE);
@@ -1316,7 +1322,7 @@ public class FroggyCombatGoal extends Goal {
         if (only == null) return null;
         return switch (only) {
             case SMASH, PIN_HOLD -> FroggyState.JUMP_PIN;
-            case ARM_RIP, ARM_EAT -> FroggyState.TONGUE_CAPTURE;
+            case ARM_RIP, ARM_EAT, TONGUE_THROW -> FroggyState.TONGUE_CAPTURE;
             default -> only;
         };
     }
@@ -1417,8 +1423,21 @@ public class FroggyCombatGoal extends Goal {
                 froggy.onTongueOut();
                 FroggyState dbg = froggy.getDebugAttack();
                 boolean force = dbg == FroggyState.ARM_RIP || dbg == FroggyState.ARM_EAT;
-                ripPlanned = target instanceof ServerPlayer p && ArmLoss.canLoseArm(p)
-                        && (force || froggy.getRandom().nextFloat() < 0.5F);
+                capture.reset();
+                // (v0.7.33) bem raro: em vez de puxar pra boca, gira e arremessa (só se tiver um lado livre)
+                boolean throwIt = dbg == FroggyState.TONGUE_THROW || (dbg == null
+                        && froggy.isReady(FroggyState.TONGUE_THROW) && froggy.getRandom().nextFloat() < THROW_CHANCE);
+                if (throwIt && capture.planThrow(target)) {
+                    froggy.setFroggyState(FroggyState.TONGUE_THROW);
+                    froggy.openMouth(FroggyState.TONGUE_THROW.durationTicks + 4);
+                    froggy.setThrowSweep(capture.sweep());
+                    ripPlanned = false;
+                    debug("arremesso planejado: giro=" + capture.sweep());
+                } else {
+                    froggy.setThrowSweep(0F);
+                    ripPlanned = target instanceof ServerPlayer p && ArmLoss.canLoseArm(p)
+                            && (force || froggy.getRandom().nextFloat() < 0.5F);
+                }
             }
             default -> froggy.setTongueLength(0F);
         }
@@ -1479,52 +1498,8 @@ public class FroggyCombatGoal extends Goal {
                     }
                 }
             }
-            case TONGUE_CAPTURE -> {
-                if (t < 12) aimTongue(target, 10.0D);
-                if (!fired1 && t >= 12) {
-                    fired1 = true;
-                    debug("lingua de captura: t=" + t + " dist=" + dist + " acerta=" + tongueReaches(target, dist, 10.5D)
-                            + " braco=" + ripPlanned);
-                    if (tongueReaches(target, dist, 10.5D)) {
-                        // agarra com a língua e puxa até a boca (sem derrubar ainda)
-                        attackHit = true;
-                        pull(target, 1.1D);
-                        hold(target, 20);
-                        shake(target, 0.6F, 14);
-                        froggy.spawnBlood(target, 4);
-                        froggy.onTongueTaste();
-                    } else {
-                        fired2 = true; // errou a língua: não tem mordida nem braço
-                        froggy.onTongueMiss();
-                    }
-                }
-                if (t > 12 && t < 20 && !fired2) {
-                    // recolhe a língua trazendo a vítima até a boca (vs AJ, 2:18)
-                    froggy.faceTarget(target);
-                    reelIn(target);
-                }
-                if (!fired2 && t >= 20) {
-                    fired2 = true;
-                    debug("captura puxou: dist=" + dist + " braco=" + ripPlanned);
-                    if (dist <= 4.2D) {
-                        if (ripPlanned && target instanceof ServerPlayer p && ArmLoss.canLoseArm(p)) {
-                            // puxou de volta com a língua: agora arranca o braço (vs AJ, 2:21)
-                            finishAttack(state);
-                            beginArmRip(target);
-                            return;
-                        }
-                        if (dist <= 3.5D) {
-                            hurt(target, 5.0F);
-                            froggy.spawnBlood(target, 6);
-                            froggy.onBiteHit();
-                            // puxou até a boca: metade das vezes já derruba e come vivo
-                            if (target.isAlive() && froggy.getRandom().nextBoolean()) {
-                                pinVictim(state, target, 1.0F);
-                                return;
-                            }
-                        }
-                    }
-                }
+            case TONGUE_CAPTURE, TONGUE_THROW -> {
+                if (runCapture(state, target, t, dist)) return;
             }
             case JUMP_PIN, HIGH_JUMP -> {
                 boolean high = state == FroggyState.HIGH_JUMP;
@@ -1602,6 +1577,81 @@ public class FroggyCombatGoal extends Goal {
         if (t >= state.durationTicks) {
             finishAttack(state);
         }
+    }
+
+    /**
+     * (v0.7.33) A captura (réplica v8) e o arremesso (réplica v3) com a língua: TongueCapture move a vítima presa no
+     * gancho; aqui ficam a mira, o acerto e o que vem depois de puxar pra boca (morde, arranca o braço ou derruba, como
+     * antes). Devolve true se já trocou de estado.
+     */
+    private boolean runCapture(FroggyState state, LivingEntity target, int t, double dist) {
+        boolean throwing = state == FroggyState.TONGUE_THROW;
+        if (!fired1) {
+            if (t < TongueCapture.HIT) {
+                aimTongue(target, 10.0D);
+                return false;
+            }
+            fired1 = true;
+            boolean reach = tongueReaches(target, dist, 10.5D);
+            debug((throwing ? "arremesso" : "lingua de captura") + ": t=" + t + " dist=" + String.format("%.1f", dist)
+                    + " acerta=" + reach + " braco=" + ripPlanned);
+            if (reach && capture.grab(target, throwing)) {
+                attackHit = true;
+                froggy.spawnBlood(target, 4);
+                froggy.onTongueTaste();
+            } else {
+                fired2 = true; // errou: a língua volta (0,6 s) e acabou
+                froggy.onTongueMiss();
+            }
+            return false;
+        }
+        if (fired2) {
+            if (t >= 12) {
+                finishAttack(state);
+                return true;
+            }
+            return false;
+        }
+        switch (capture.tick(t)) {
+            case LOST -> {
+                // soltou no meio (ela morreu, desceu ou teleportou)
+                debug("captura soltou no meio: t=" + t);
+                finishAttack(state);
+                return true;
+            }
+            case PULLED -> {
+                LivingEntity v = capture.victim();
+                capture.release();
+                if (v == null || !v.isAlive()) {
+                    finishAttack(state);
+                    return true;
+                }
+                froggy.faceTarget(v);
+                double d = froggy.distanceTo(v);
+                debug("captura puxou: dist=" + String.format("%.1f", d) + " braco=" + ripPlanned);
+                if (d <= 4.2D && ripPlanned && v instanceof ServerPlayer p && ArmLoss.canLoseArm(p)) {
+                    // puxou de volta com a língua: agora arranca o braço (vs AJ, 2:21)
+                    finishAttack(state);
+                    beginArmRip(v);
+                    return true;
+                }
+                if (d <= 3.5D) {
+                    hurt(v, 5.0F);
+                    froggy.spawnBlood(v, 6);
+                    froggy.onBiteHit();
+                    // puxou até a boca: metade das vezes já derruba e come vivo
+                    if (v.isAlive() && froggy.getRandom().nextBoolean()) {
+                        pinVictim(state, v, 1.0F);
+                        return true;
+                    }
+                }
+                finishAttack(state);
+                return true;
+            }
+            default -> {
+            }
+        }
+        return false; // o fim (durationTicks) é o mesmo dos outros ataques, no runAttack
     }
 
     /** Enquanto a língua ainda "carrega", ele continua virado pro alvo e mira no peito. */
@@ -1682,6 +1732,7 @@ public class FroggyCombatGoal extends Goal {
     }
 
     private void abort(FroggyState state) {
+        if (state.isCapture()) capture.reset();
         froggy.setCooldown(state, 30);
         froggy.setAttackCooldown(10);
         froggy.setFroggyState(FroggyState.CHASE);
@@ -1699,6 +1750,14 @@ public class FroggyCombatGoal extends Goal {
         AiLevel ai = FroggyConfig.ai();
         int cd = ai.ticks(cooldownFor(state));
         froggy.setCooldown(state, froggy.isFrenzyActive() ? cd / 2 : cd);
+        if (state.isCapture()) {
+            capture.reset();
+            // o arremesso conta como uma captura (as duas descansam)
+            if (state == FroggyState.TONGUE_THROW) {
+                int capCd = ai.ticks(cooldownFor(FroggyState.TONGUE_CAPTURE));
+                froggy.setCooldown(FroggyState.TONGUE_CAPTURE, froggy.isFrenzyActive() ? capCd / 2 : capCd);
+            }
+        }
         if (state.isTongue()) {
             // depois de qualquer língua, a língua toda descansa um tempo
             int rest = ai.ticks(160 + froggy.getRandom().nextInt(100));
@@ -1716,6 +1775,7 @@ public class FroggyCombatGoal extends Goal {
             case TONGUE_WHIP -> 140;
             case TONGUE_GRAB -> 220;
             case TONGUE_CAPTURE -> 320;
+            case TONGUE_THROW -> 600;
             case JUMP_PIN -> 180;
             case HIGH_JUMP -> 240;
             case SKY_DROP -> 500;
@@ -2185,19 +2245,6 @@ public class FroggyCombatGoal extends Goal {
         return hurt;
     }
 
-    /**
-     * Segura o alvo por um instante, sem derrubar: jogador fica com os
-     * controles travados (sem Lentidão, que dá zoom na tela); mob fica lento.
-     */
-    private void hold(LivingEntity target, int ticks) {
-        if (target instanceof ServerPlayer player) {
-            player.setSprinting(false);
-            ModNetwork.sendEffects(player, 0F, 0, ticks, -1);
-        } else {
-            target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, ticks, 4, false, false));
-        }
-    }
-
     private void shake(LivingEntity target, float intensity, int ticks) {
         if (target instanceof ServerPlayer player) {
             ModNetwork.sendShake(player, intensity, ticks);
@@ -2211,20 +2258,6 @@ public class FroggyCombatGoal extends Goal {
         dir = dir.scale(horizontal);
         target.push(dir.x, vertical, dir.z);
         target.hurtMarked = true; // sem isso o jogador não sente o empurrão
-    }
-
-    /** Puxa a vítima presa na língua até ficar colada na boca dele (a língua encurta junto). */
-    private void reelIn(LivingEntity target) {
-        Vec3 dir = froggy.position().subtract(target.position()).multiply(1, 0, 1);
-        double d = dir.length();
-        froggy.setTongueLength(tongueLength(target, 10.0D));
-        if (d <= 1.7D) {
-            target.setDeltaMovement(0, target.getDeltaMovement().y, 0);
-        } else {
-            Vec3 v = dir.normalize().scale(Math.min(1.0D, (d - 1.5D) * 0.5D));
-            target.setDeltaMovement(v.x, Math.max(target.getDeltaMovement().y, 0.0D), v.z);
-        }
-        target.hurtMarked = true;
     }
 
     private void pull(LivingEntity target, double horizontal) {
