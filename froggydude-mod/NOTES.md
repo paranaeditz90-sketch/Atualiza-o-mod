@@ -1,4 +1,4 @@
-# Froggydude - v0.7.36: a cena de morte mais perto do "Eating a Zebra" (sobre a v0.7.35)
+# Froggydude - v0.7.37: a vítima se debatendo igual à zebra e a sacudida da cabeça dele mais rápida (sobre a v0.7.36)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,43 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.36):
+O que testar agora (v0.7.37):
+- **Tu se debatendo na cena de morte, igual à zebra** (tu: "o jogador não se mexe, tipo, não fica igual a zebra se
+  debatendo. Só fica parado [...] Repare extremamente bem como a zebra se move").
+  - **Por que ficava parado:** o mod já tinha o "se debater", mas a conta usava o tempo total do mundo. Passando de
+    umas 2 horas de jogo no mesmo mundo, essa conta estourava e dava sempre zero: a vítima congelava pra sempre (no
+    mundo de teste daqui, com 9 h de jogo, e no teu). Agora a conta usa o relógio da própria cena e não estoura mais.
+  - **Como a zebra se mexe** (medi no vídeo a 60 quadros por segundo, descontando a câmera): a **cabeça vira de um
+    lado pro outro sem parar**, do começo até ele morder a cabeça, e **não sossega nem na pausa**; ~2,4 vezes por
+    segundo antes da 1ª mordida, ~3,2 enquanto ele come o 1º pedaço e ~2,75 daí em diante; vira uns **90° de ponta a
+    ponta** (de cara pra câmera a de lado), parando um instante em cada ponta; o **corpo só dá tranquinhos** no mesmo
+    compasso (mexe ~1/4 do que a cabeça mexe).
+  - **No mod agora:** a tua cabeça faz isso (45° pra cada lado, no mesmo ritmo dos três trechos, o queixo subindo e
+    descendo junto), o corpo escorrega um tico pro lado, gira um pouco e dá um pulinho a cada virada, e as pernas e o
+    braço que sobrou só acompanham de leve (uns 16° pra cada lado; tu viu com ~32° e pediu "Faça as pernas chutarem
+    menos"; antes, quando funcionava, chutavam forte). Com a tua cabeça
+    na boca dele (da mordida até arrancar) ela quase não vira e o corpo é que se sacode; depois que a cabeça sai, uns
+    espasmos que somem em 2,5 s. Antes (quando funcionava) ela só se debatia forte durante cada mordida e quase parava
+    entre uma e outra.
+  - O aldeão devorado usa a mesma conta. O tremor da câmera da cena também passou pro relógio da cena.
+- **Aldeões tremendo de medo perto dele** (o mesmo estouro, achado junto; tu: "Conserta junto"): o tremor usava a idade
+  do aldeão no teu jogo e, depois de uns 13 a 17 minutos com ele carregado, parava de tremer pra sempre. Agora o
+  relógio do tremor dá a volta a cada 5 minutos e nunca estoura.
+  Testado: no jogo, um aldeão a 3 blocos dele treme (~2 px por quadro, parado no lugar); o caso de aldeão velho só na
+  conta (com o relógio antigo o tremor zerava a partir de ~20 mil ticks; com o novo continua em qualquer idade).
+  Testado: no jogo, no mundo de 9 h: antes a tua cabeça ficava idêntica em todos os quadros; agora vira de um lado pro
+  outro do começo ao fim, no ritmo da zebra (medido na gravação: 2,5 / 3,6 / 2,9 vezes por segundo nos três trechos,
+  contra 2,4 / 3,2 / 2,75 da zebra; a gravação é de 30 quadros por segundo e os trechos são curtos, daí a diferença).
+  Sem teste no jogo: o aldeão devorado (mesma conta, só compilado).
+- **A sacudida da cabeça no close** (tu: "deixar levemente mais rápido a 'sacodida' da cabeça dele"). Medi no "Eating
+  a Zebra" (8,7-10,4 s, a 60 quadros por segundo): ~7 sacudidas por segundo; no mod eram ~5 (cada lado 0,1 s). Agora
+  cada lado leva 0,07 s, ~7 por segundo como no vídeo; o tamanho da sacudida e o resto da cena não mudaram. Com o
+  borrão, a cabeça chicoteando borra igual ao resto do que se mexe.
+  Testado: no jogo, lado a lado com o vídeo. A gravação daqui é de 30 quadros por segundo e não conta 7 sacudidas por
+  segundo direito (o próprio original contado a 30 quadros dá a metade); o ritmo vem da animação (as chaves a cada
+  0,07 s, no mesmo relógio da cena).
+
+Da v0.7.36:
 - **A boca na cena de morte** (o golpe final; `/froggydude golpefinal` em ti, em sobrevivência). Tu comparou com o
   "Eating a Zebra" em 16/11 ("No vídeo da zebra, o froggydude fica com a boca aberta quando tá comendo") e escolheu
   "Aberta a cena toda": agora a boca fica **escancarada, com os dentes, do começo ao fim** da cena. Ele morde,

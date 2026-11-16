@@ -53,24 +53,79 @@ public final class VictimRender {
     static final Field WALK_SPEED_O = ObfuscationReflectionHelper.findField(WalkAnimationState.class, "f_267406_");
 
     /**
-     * Quanto ela se debate agora (0 a 1). Igual à zebra do vídeo: da mordida até arrancar,
-     * forte (a cabeça virando de um lado pro outro, trancos no corpo, as pernas chutando);
-     * depois de arrancar, vai morrendo em espasmos; antes da primeira mordida, só tenta se soltar.
+     * (v0.7.37, LM 16/11: "o jogador não se mexe, tipo, não fica igual a zebra se debatendo. Só fica parado [...]
+     * Repare extremamente bem como a zebra se move") Como a vítima se debate neste instante da cena, medido na zebra
+     * do "Eating a Zebra" (60 quadros por segundo, com a câmera descontada):
+     * - a CABEÇA vai de um lado pro outro SEM PARAR, do começo até ele morder a cabeça (nem na pausa ela sossega):
+     *   ~2,4 vezes por segundo antes da 1ª mordida, ~3,2 enquanto ele come o 1º pedaço e ~2,75 daí em diante; vira
+     *   uns 90° de ponta a ponta (de cara pra câmera a de lado), demorando um instante em cada ponta, e o queixo
+     *   sobe e desce junto;
+     * - o CORPO só dá tranquinhos no mesmo compasso (o pedaço dela no chão mexe ~1/4 do que a cabeça mexe);
+     * - depois que a cabeça sai, espasmos que somem em 2,5 s.
+     * Tudo no relógio da CENA (ticks desde o começo). Antes era o tempo do mundo: passando de ~2 h de jogo, a conta
+     * do seno do jogo (tabela com índice inteiro) estourava e dava sempre zero - a vítima ficava parada pra sempre.
      */
-    static float thrash(float t, boolean skipLeft) {
-        float a = t < Finisher.BEND_L ? 0.3F : 0.15F;
-        if (!skipLeft) a = Math.max(a, bout(t, Finisher.BITE_L, Finisher.RIP_L));
-        a = Math.max(a, bout(t, Finisher.BITE_R, Finisher.RIP_R));
-        a = Math.max(a, bout(t, Finisher.BITE_H, Finisher.RIP_H));
-        if (t >= Finisher.RIP_H) a = Math.max(0F, 0.5F * (1F - (t - Finisher.RIP_H) / 50F));
-        return a;
-    }
+    static final class Thrash {
+        private static final float HZ = (float) (Math.PI * 2D / 20D);
+        private static final float W_BEFORE = 2.4F * HZ, W_FIRST = 3.2F * HZ, W_REST = 2.75F * HZ;
+        /** Graus pra cada lado (a zebra: ~90° de ponta a ponta). */
+        private static final float HEAD_YAW = 45F, HEAD_PITCH = 10F, ROLL = 6F;
+        /** Blocos: o corpo escorrega pro lado e dá um pulinho a cada virada. */
+        private static final float SLIDE = 0.035F, LIFT = 0.03F;
+        /** Pernas e o braço que sobrou acompanhando (balanço de andar; 0,2 = uns 16° pra cada lado). LM, vendo o
+         *  vídeo com 0,4 (~32°): "Faça as pernas chutarem menos". */
+        private static final float LIMBS = 0.2F;
+        static final Thrash STILL = new Thrash(0F, 0F, 0F, 0F, 0F, 0F, 0F);
 
-    private static float bout(float t, int bite, int rip) {
-        if (t < bite - 3 || t > rip + 50) return 0F;
-        if (t < bite) return (t - (bite - 3)) / 3F;
-        if (t <= rip + 6) return 1F;
-        return 0.3F + 0.7F * (1F - (t - rip - 6) / 44F);
+        final float headYaw, headPitch, roll, slide, lift, limbPos, limbSpeed;
+
+        private Thrash(float headYaw, float headPitch, float roll, float slide, float lift, float limbPos, float limbSpeed) {
+            this.headYaw = headYaw;
+            this.headPitch = headPitch;
+            this.roll = roll;
+            this.slide = slide;
+            this.lift = lift;
+            this.limbPos = limbPos;
+            this.limbSpeed = limbSpeed;
+        }
+
+        /** t = tick da tabela (Finisher), com a fração do quadro; still = morta ou a cena já acabou. */
+        static Thrash at(float t, boolean still, float partial) {
+            float force = still ? 0F : force(t);
+            if (force <= 0F) return STILL;
+            float ph = phase(t);
+            // a força respira um pouco (a zebra não é um metrônomo perfeito)
+            force *= 1F + 0.12F * (float) Math.sin(t * 0.21D);
+            // com a cabeça dentro da boca dele (da mordida até arrancar) ela quase não vira; o corpo é que se sacode
+            float head = t >= Finisher.BITE_H ? 0.3F : 1F;
+            float speed = force * LIMBS;
+            return new Thrash(force * head * HEAD_YAW * swing(ph), force * head * HEAD_PITCH * swing(ph + 1.2F),
+                    force * ROLL * swing(ph - 0.6F), force * SLIDE * swing(ph - 0.3F),
+                    force * LIFT * (float) Math.abs(Math.cos(ph)),
+                    // o jogo desconta speed * (1 - fração) da posição: devolve, senão as pernas dão um soluço por tick
+                    ph / 0.6662F + speed * (1F - partial), speed);
+        }
+
+        /** Quanto ela se debate (0 a 1): forte desde o começo, inteira da 1ª mordida em diante. */
+        static float force(float t) {
+            if (t >= Finisher.RIP_H) return Math.max(0F, 0.5F * (1F - (t - Finisher.RIP_H) / 50F));
+            return t < Finisher.BITE_L ? 0.9F : 1F;
+        }
+
+        /** Quantas viradas já foram (em radianos), com o ritmo de cada trecho emendado. */
+        static float phase(float t) {
+            t = Math.max(t, 0F);
+            float before = Math.min(t, Finisher.BITE_L);
+            float first = Mth.clamp(t - Finisher.BITE_L, 0F, Finisher.CUT_1 - Finisher.BITE_L);
+            float rest = Math.max(t - Finisher.CUT_1, 0F);
+            return before * W_BEFORE + first * W_FIRST + rest * W_REST;
+        }
+
+        /** Vai e volta de -1 a 1 que demora nas pontas (a cabeça para um instante virada e volta num tranco). */
+        static float swing(float phase) {
+            double s = Math.sin(phase);
+            return (float) (Math.signum(s) * Math.pow(Math.abs(s), 0.6D));
+        }
     }
 
     /** LivingEntity.swimAmount / swimAmountO: quem estava preso no chão (pose de nado) ainda "nada" uns ticks. */
@@ -110,15 +165,13 @@ public final class VictimRender {
         PoseStack ps = event.getPoseStack();
         Vec3 pos = p.getPosition(partial);
         Vec3 h = e.h;
-        float t = e.t(partial);
-        float thr = (p.isDeadOrDying() || e.ended()) ? 0F : thrash(t, e.skipLeft);
-        float time = p.level().getGameTime() + partial;
+        Thrash th = Thrash.at(e.t(partial), p.isDeadOrDying() || e.ended(), partial);
         ps.pushPose();
-        // se debatendo: o corpo dá trancos (gira um pouco no próprio comprimento e pula)
-        double lift = thr * 0.05D * Math.abs(Mth.sin(time * 1.9F));
-        // pés em A - 0,9H, as costas encostando no chão
-        ps.translate(e.anchor.x - pos.x, e.anchor.y - pos.y + 0.14D + lift, e.anchor.z - pos.z);
-        ps.mulPose(new Quaternionf().rotationAxis(thr * 7F * Mth.DEG_TO_RAD * jitter(time, 2.3F), (float) h.x, 0F, (float) h.z));
+        // se debatendo: o corpo dá tranquinhos no compasso da cabeça (escorrega pro lado, gira um pouco no próprio
+        // comprimento e pula). Pés em A - 0,9H, as costas encostando no chão
+        ps.translate(e.anchor.x - pos.x + e.l.x * th.slide, e.anchor.y - pos.y + 0.14D + th.lift,
+                e.anchor.z - pos.z + e.l.z * th.slide);
+        ps.mulPose(new Quaternionf().rotationAxis(th.roll * Mth.DEG_TO_RAD, (float) h.x, 0F, (float) h.z));
         ps.translate(-h.x * 0.9D, 0D, -h.z * 0.9D);
         ps.mulPose(new Quaternionf().rotationTo(0F, 1F, 0F, (float) h.x, 0F, (float) h.z));
 
@@ -140,14 +193,14 @@ public final class VictimRender {
         setF(SWIM_O, p, 0F);
         float face = e.yaw + 180F;
         p.yBodyRot = p.yBodyRotO = face;
-        // a cabeça virando de um lado pro outro (a zebra, 81,2-83 s: ~a cada 0,2 s), o queixo mexendo
-        p.yHeadRot = p.yHeadRotO = face + thr * 55F * jitter(time, 1.3F);
-        p.setXRot(thr * 14F * jitter(time + 7F, 1.7F));
+        // a cabeça virando de um lado pro outro sem parar (a zebra), o queixo subindo e descendo junto
+        p.yHeadRot = p.yHeadRotO = face + th.headYaw;
+        p.setXRot(th.headPitch);
         p.xRotO = p.getXRot();
-        // pernas e o braço que sobrou chutando/batendo (o balanço de andar, rápido e forte)
-        setF(WALK_POS, p.walkAnimation, time * 1.15F);
-        setF(WALK_SPEED, p.walkAnimation, thr * 0.85F);
-        setF(WALK_SPEED_O, p.walkAnimation, thr * 0.85F);
+        // pernas e o braço que sobrou acompanhando (o balanço de andar, no mesmo compasso)
+        setF(WALK_POS, p.walkAnimation, th.limbPos);
+        setF(WALK_SPEED, p.walkAnimation, th.limbSpeed);
+        setF(WALK_SPEED_O, p.walkAnimation, th.limbSpeed);
         // sem o tombo de lado da morte (ela já está deitada)
         p.deathTime = 0;
 
@@ -210,11 +263,6 @@ public final class VictimRender {
             ((ModelPart) f.get(m)).visible = visible;
         } catch (IllegalAccessException | ClassCastException ignored) {
         }
-    }
-
-    /** Vai e volta irregular (-1 a 1), sem ficar com cara de pêndulo. */
-    static float jitter(float time, float speed) {
-        return Mth.sin(time * speed) * 0.7F + Mth.sin(time * speed * 2.27F + 1.3F) * 0.3F;
     }
 
     static float getF(Field f, Object o) {

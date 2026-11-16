@@ -1203,7 +1203,9 @@ fin += bite_sequence(T(158), T(163), T(169), 0, neck=True, start=LEANED)
 # CLOSE (8,3-10,5 s): segura uns 0,5 s quase parado, só tremendo, e então chicoteia a
 # cabeça pros lados MUITO rápido; o corpo dele não mexe
 fin += [(T(171), fin_shake(1, 8, 0)), (T(175), fin_shake(-1, 10, 0)), (T(179), fin_shake(1, 8, 0))]
-fin += shaking(T(181), T(214), period=0.1, amount=70, body=0)
+# (v0.7.37, LM 16/11: "deixar levemente mais rápido a 'sacodida' da cabeça dele") medido no "Eating a Zebra"
+# (8,7-10,4 s): ~7 sacudidas por segundo; aqui eram ~4,7 (cada lado 0,1 s). Agora cada lado 0,07 s
+fin += shaking(T(181), T(214), period=0.07, amount=70, body=0)
 # engole a cabeça (10,55-11,2 s): pra trás, uma chicotada pro lado, pra trás de novo
 # encolhendo até sumir (Finisher.GULPS_H/SWALLOW) e fica parado olhando pra câmera
 fin += gulp(T(215), T(219), 1)

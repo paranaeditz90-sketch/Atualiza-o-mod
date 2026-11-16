@@ -71,15 +71,13 @@ public final class VillagerVictimRender {
         PoseStack ps = event.getPoseStack();
         Vec3 pos = v.getPosition(partial);
         Vec3 h = e.h;
-        float t = e.t(partial);
-        float thr = (v.isDeadOrDying() || e.ended()) ? 0F : VictimRender.thrash(t, e.skipLeft);
-        float time = v.level().getGameTime() + partial;
+        // (v0.7.37) o mesmo balanço do jogador, no relógio da cena (VictimRender.Thrash)
+        VictimRender.Thrash th = VictimRender.Thrash.at(e.t(partial), v.isDeadOrDying() || e.ended(), partial);
         ps.pushPose();
-        double lift = thr * 0.05D * Math.abs(Mth.sin(time * 1.9F));
         // de costas: o robe é mais grosso que o corpo do jogador (3,5 px de cada lado)
-        ps.translate(e.anchor.x - pos.x, e.anchor.y - pos.y + 0.22D + lift, e.anchor.z - pos.z);
-        ps.mulPose(new Quaternionf().rotationAxis(thr * 7F * Mth.DEG_TO_RAD * VictimRender.jitter(time, 2.3F),
-                (float) h.x, 0F, (float) h.z));
+        ps.translate(e.anchor.x - pos.x + e.l.x * th.slide, e.anchor.y - pos.y + 0.22D + th.lift,
+                e.anchor.z - pos.z + e.l.z * th.slide);
+        ps.mulPose(new Quaternionf().rotationAxis(th.roll * Mth.DEG_TO_RAD, (float) h.x, 0F, (float) h.z));
         ps.translate(-h.x * 0.95D, 0D, -h.z * 0.95D);
         ps.mulPose(new Quaternionf().rotationTo(0F, 1F, 0F, (float) h.x, 0F, (float) h.z));
 
@@ -98,12 +96,12 @@ public final class VillagerVictimRender {
         float face = e.yaw + 180F;
         v.yBodyRot = v.yBodyRotO = face;
         // a cabeça virando de um lado pro outro, as pernas chutando (igual à zebra)
-        v.yHeadRot = v.yHeadRotO = face + thr * 55F * VictimRender.jitter(time, 1.3F);
-        v.setXRot(thr * 14F * VictimRender.jitter(time + 7F, 1.7F));
+        v.yHeadRot = v.yHeadRotO = face + th.headYaw;
+        v.setXRot(th.headPitch);
         v.xRotO = v.getXRot();
-        VictimRender.setF(VictimRender.WALK_POS, v.walkAnimation, time * 1.15F);
-        VictimRender.setF(VictimRender.WALK_SPEED, v.walkAnimation, thr * 0.85F);
-        VictimRender.setF(VictimRender.WALK_SPEED_O, v.walkAnimation, thr * 0.85F);
+        VictimRender.setF(VictimRender.WALK_POS, v.walkAnimation, th.limbPos);
+        VictimRender.setF(VictimRender.WALK_SPEED, v.walkAnimation, th.limbSpeed);
+        VictimRender.setF(VictimRender.WALK_SPEED_O, v.walkAnimation, th.limbSpeed);
         v.deathTime = 0;
 
         int miss = ClientFinisher.missing(e, partial);

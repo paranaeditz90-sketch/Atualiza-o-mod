@@ -218,7 +218,9 @@ public final class CinematicCamera {
     private static void place(Minecraft mc, float partial) {
         ClientFinisher.Entry e = entry;
         float t = e.t(partial);
-        float time = (mc.level.getGameTime() + partial);
+        // (v0.7.37) o relógio do tremor é o da cena: o tempo do mundo, somado num float, perde a fração do quadro em
+        // mundo velho (o mesmo problema que parava a vítima de se debater, VictimRender.Thrash)
+        float time = t;
         Vec3 pos, look;
         float shake;
         if (e.ended() || t >= Finisher.END + 2) {

@@ -39,7 +39,10 @@ public final class VillagerShiver {
         }
         if (near >= RANGE) return;
         float k = AMPLITUDE * (float) (1.0D - near / RANGE * 0.7D);
-        float t = e.tickCount + event.getPartialTick();
+        // (v0.7.37) o relógio dá a volta a cada 5 min: com o tickCount inteiro, depois de ~13 min o aldeão carregado
+        // parava de tremer (t * 13,1 passa de ~206 mil e a conta do seno do jogo estoura e dá sempre zero). A
+        // emenda da volta é um salto num tremor sem ritmo: não aparece
+        float t = (e.tickCount % 6000) + event.getPartialTick();
         int id = e.getId();
         // tremedeira: rápido e sem ritmo (duas senoides fora de fase)
         float dx = (Mth.sin(t * 5.3F + id) + 0.5F * Mth.sin(t * 11.7F + id * 0.37F)) * k / 1.5F;
