@@ -82,6 +82,8 @@ public class FroggyWorldData extends SavedData {
     public String dirLastSign = "";
     /** Falso alívio: se ela for dormir agora, ele volta. */
     public boolean dirTrap;
+    /** (v0.7.35) Quantas vezes ele já renasceu neste mundo (a 1ª é a longa; depois, mais rápida). */
+    public int revives;
     /** Ele fora do mundo (calmaria, sinais): o FroggyDude inteiro guardado, pra voltar o mesmo. */
     @javax.annotation.Nullable
     public CompoundTag parkedFroggy;
@@ -115,6 +117,7 @@ public class FroggyWorldData extends SavedData {
         d.froggyAlive = tag.getBoolean("FroggyAlive");
         d.froggyHealth = tag.getFloat("FroggyHealth");
         d.respawnAt = tag.contains("RespawnAt") ? tag.getLong("RespawnAt") : -1;
+        d.revives = tag.getInt("Revives");
         if (tag.hasUUID("HuntPlayer")) d.huntPlayer = tag.getUUID("HuntPlayer");
         d.huntUntil = tag.getLong("HuntUntil");
         d.huntAmbush = tag.getBoolean("HuntAmbush");
@@ -158,6 +161,7 @@ public class FroggyWorldData extends SavedData {
         tag.putBoolean("FroggyAlive", froggyAlive);
         tag.putFloat("FroggyHealth", froggyHealth);
         tag.putLong("RespawnAt", respawnAt);
+        tag.putInt("Revives", revives);
         if (huntPlayer != null) tag.putUUID("HuntPlayer", huntPlayer);
         tag.putLong("HuntUntil", huntUntil);
         tag.putBoolean("HuntAmbush", huntAmbush);

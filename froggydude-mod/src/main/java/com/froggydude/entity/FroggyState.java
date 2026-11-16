@@ -87,7 +87,13 @@ public enum FroggyState {
      * (v0.7.33) O arremesso (réplica v3 aprovada pelo LM, 09/11; bem raro): pega com a língua, derruba e arrasta,
      * ergue, segura, vira o tronco com a língua mole e solta: a vítima voa uns 40 blocos pro lado livre.
      */
-    TONGUE_THROW(108);
+    TONGUE_THROW(108),
+    /**
+     * (v0.7.35) O renascer com a língua (entity.Revive; réplica v3 aprovada pelo LM em 16/11): despedaçado, os pedaços
+     * no chão, a cabeça puxa um por um com a língua, flexão e mortal (ou sacode a cabeça de raiva), vira, estala o
+     * pescoço. Sem IA e invulnerável; quem acaba é o Revive (linha do tempo fixa). No fim da lista: o número vai pela rede.
+     */
+    REVIVE(0);
 
     public final int durationTicks;
 

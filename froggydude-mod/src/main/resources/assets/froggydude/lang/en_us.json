@@ -185,5 +185,7 @@
   "froggydude.cmd.director.phase.hunt": "hunt",
   "froggydude.cmd.director_off": "The director only runs in Froggy's in your world, once he is in the world (test: /froggydude invasao agora).",
   "froggydude.cmd.director_sign": "Sign done.",
-  "froggydude.cmd.director_sign_none": "Not possible now (no spot out of your sight, or no animal, torch or door nearby)."
+  "froggydude.cmd.director_sign_none": "Not possible now (no spot out of your sight, or no animal, torch or door nearby).",
+  "froggydude.cmd.revive_started": "He fell to pieces... and the tongue will gather them back.",
+  "froggydude.cmd.revive_not_now": "Not now (already reviving, or falling into the void)."
 }

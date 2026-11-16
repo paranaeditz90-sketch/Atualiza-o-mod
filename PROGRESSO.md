@@ -1,6 +1,6 @@
 # Onde paramos (pra retomar numa conversa nova)
 
-Atualizado em 03/11/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
+Atualizado em 16/11/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
 neste repositório, na branch `claude/froggydude-mod-research-pxrwch`, e escreve:
 **"lê o PROGRESSO.md e continua de onde parou"**.
 
@@ -13,7 +13,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.22 | 03/11: pulo do céu igual ao vídeo do AJ + todo soco do esmagamento tirando vida (0.7.19); parado de 4 agachado de sapo (0.7.20); o esmagamento visto por quem apanha igual ao vídeo do LM, câmera parada 31° pra cima e martelo encaixado no vídeo (0.7.21); NADA de verdade com o nado do vídeo (o dardo), barco (língua / quebra / afunda) e a lava ~15% mais lenta (0.7.22) |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.35 | 16/11: o renascer com a língua (35% numa morte comum, 75% explodido: se despedaça, a língua junta os pedaços, mortal pra trás e volta com metade da vida) e o pulo do céu na altura do original (~35 blocos, some da tela em 0,2 s). As versões 0.7.23 a 0.7.34 estão no `NOTES.md` |
 | BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.9 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8); nado do vídeo, galope por cima da lava sem fogo e a tremida de quem bate em 1ª pessoa (0.3.9) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.

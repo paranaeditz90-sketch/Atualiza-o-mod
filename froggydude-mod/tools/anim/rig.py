@@ -64,7 +64,7 @@ def frames(p):
     rpos = g("root", "position")
     rr = g("root", "rotation")
     R_root = rot(*rr)
-    o_root = np.array([0.0, rpos[1], rpos[0]])  # position x vira lado
+    o_root = np.array([-rpos[2], rpos[1], rpos[0]])  # position x vira lado; z+ = pra trás (v0.7.35, o mortal)
     # cintura/corpo: pivô (0,12,0) dentro do root
     wr = g("waist", "rotation")
     R_w = R_root @ rot(*wr)

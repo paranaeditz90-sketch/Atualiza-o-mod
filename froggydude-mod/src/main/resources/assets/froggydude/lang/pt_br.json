@@ -185,5 +185,7 @@
   "froggydude.cmd.director.phase.hunt": "caçada",
   "froggydude.cmd.director_off": "O diretor só roda no 'aparece no teu mundo', com ele já no mundo (teste: /froggydude invasao agora).",
   "froggydude.cmd.director_sign": "Sinal feito.",
-  "froggydude.cmd.director_sign_none": "Não deu agora (sem lugar fora da tua vista, ou sem bicho, tocha ou porta perto)."
+  "froggydude.cmd.director_sign_none": "Não deu agora (sem lugar fora da tua vista, ou sem bicho, tocha ou porta perto).",
+  "froggydude.cmd.revive_started": "Ele se despedaçou... e a língua vai juntar os pedaços.",
+  "froggydude.cmd.revive_not_now": "Agora não dá (já está renascendo, ou caindo no vazio)."
 }

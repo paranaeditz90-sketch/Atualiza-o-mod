@@ -51,6 +51,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.WrappedGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
@@ -177,6 +178,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     private static final EntityDataAccessor<Float> DATA_THROW_SWEEP =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /**
+     * (v0.7.35) O renascer com a língua (entity.Revive): os números da cena (vazio = não está renascendo). O cliente
+     * desenha os pedaços, a língua e o levantar a partir disso (client.pieces.ReviveScene).
+     */
+    private static final EntityDataAccessor<CompoundTag> DATA_REVIVE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
 
     /**
      * Comendo em "flexão" (pin_hold, feed_mob; v0.7.17, medido no Taste Testing e no monte do golem): uma
@@ -386,6 +393,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_FEAST_RATE, 1.0F);
         this.entityData.define(DATA_CAPTURE_ID, -1);
         this.entityData.define(DATA_THROW_SWEEP, 0F);
+        this.entityData.define(DATA_REVIVE, new CompoundTag());
     }
 
     @Override
@@ -973,11 +981,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         brainLog("diretor: a caçada acabou, vai embora (falso alívio)");
     }
 
-    /** (v0.7.34) No meio de um golpe ou com alguém preso (não dá pra sumir agora). */
+    /**
+     * (v0.7.34) No meio de um golpe ou com alguém preso (não dá pra sumir agora). (v0.7.35) Ou se remontando: o diretor
+     * não manda ele recuar nem tira ele do mundo no meio da cena.
+     */
     public boolean isFightingNow() {
         FroggyState s = getFroggyState();
         return s.isCombatAction() || s == FroggyState.FINISHER || s == FroggyState.CONTORTING || s == FroggyState.ROAR
-                || getPinnedVictim() != null;
+                || s == FroggyState.REVIVE || getPinnedVictim() != null;
     }
 
     /** (v0.7.34) Comendo alguma coisa (o banquete, um bicho, o braço, a arma roubada). */
@@ -1008,10 +1019,106 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         setTongueItem(ItemStack.EMPTY);
     }
 
+    // ---------------------------------------------------------------- (v0.7.35) o renascer
+
+    @Nullable
+    private Revive.Params reviveCache;
+    @Nullable
+    private CompoundTag reviveCacheTag;
+
+    public boolean isReviving() {
+        return getFroggyState() == FroggyState.REVIVE && !this.entityData.get(DATA_REVIVE).isEmpty();
+    }
+
+    /** Os números da cena (null se não está renascendo). */
+    @Nullable
+    public Revive.Params reviveParams() {
+        CompoundTag t = this.entityData.get(DATA_REVIVE);
+        if (t.isEmpty()) return null;
+        if (t != reviveCacheTag) {
+            reviveCacheTag = t;
+            reviveCache = Revive.Params.of(t);
+        }
+        return reviveCache;
+    }
+
+    /**
+     * Começa. O que ele estava fazendo acaba aqui, do jeito de cada goal (a cutscene, o bicho preso, a fase 2...): sem
+     * IA eles ficariam congelados no meio e voltariam velhos no fim. Larga o que roubou. Já fica com a vida da volta
+     * (metade): quem guarda a vida dele no meio da cena (a caçada, o manhunt, o diretor) guarda essa. Parado no lugar
+     * dos pés (o corpo deita dali pra frente) e virado pra onde o corpo deita, também no "rosto" sincronizado: sem ele o
+     * cliente punha o corpo pro lado de um ataque velho. Sem IA (isNoAi) e invulnerável (hurt) até o fim.
+     */
+    void beginRevive(Revive.Params p, Vec3 feet) {
+        if (finishing) finisherGoal.stop();
+        if (feedTarget != null) FeedLock.release(feedTarget);
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        this.targetSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        dropStolen();
+        this.setHealth(this.getMaxHealth() * 0.5F);
+        // a skin ensanguentada da metade da vida já nos pedaços (o tick para na cena: sem isso o sangue aparecia de
+        // repente 1,5 s depois de ele levantar)
+        updateGoreStage();
+        this.getNavigation().stop();
+        this.setTarget(null);
+        this.setDeltaMovement(Vec3.ZERO);
+        this.moveTo(feet.x, feet.y, feet.z, p.yaw(), 0F);
+        setFaceYawSynced(p.yaw());
+        this.entityData.set(DATA_REVIVE, p.toTag());
+        setFroggyState(FroggyState.REVIVE);
+    }
+
+    /** Acabou: de pé, metade da vida (ou o que já tinha, se for mais), volta a caçar. */
+    void endRevive() {
+        clearRevive();
+        this.setHealth(Math.max(this.getHealth(), this.getMaxHealth() * 0.5F));
+        Player near = this.level().getNearestPlayer(this, 64D);
+        setFroggyState(FroggyState.IDLE);
+        if (near != null && !near.isCreative() && !near.isSpectator()) setTarget(near);
+    }
+
+    private void clearRevive() {
+        this.entityData.set(DATA_REVIVE, new CompoundTag());
+        if (getFroggyState() == FroggyState.REVIVE) setFroggyState(FroggyState.IDLE);
+    }
+
+    /**
+     * Remontando, a IA não roda, nem se alguém ligar ela de volta no meio da cena (o diretor solta o NoAI quando acorda
+     * ele). E o NoAI de quem invocou ele parado fica como estava depois.
+     */
+    @Override
+    public boolean isNoAi() {
+        return super.isNoAi() || isReviving();
+    }
+
+    /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
+    @Override
+    public boolean isPushable() {
+        return !isReviving() && super.isPushable();
+    }
+
+    @Override
+    public boolean isPickable() {
+        return !isReviving() && super.isPickable();
+    }
+
+    @Override
+    public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
+        // os pedaços se espalham uns blocos em volta: não some da tela por causa da caixa dele
+        return isReviving() ? super.getBoundingBoxForCulling().inflate(5.0D) : super.getBoundingBoxForCulling();
+    }
+
     @Override
     public void die(DamageSource source) {
         if (!this.level().isClientSide && finishing) finisherGoal.stop(); // morto não roda Goal: acaba aqui
         if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget); // o bicho levanta
+        if (!this.level().isClientSide && isReviving()) clearRevive(); // /kill no meio do renascer: morre de vez
+        if (!this.level().isClientSide && Revive.tryStart(this, source)) {
+            // (v0.7.35) despedaçou mas vai voltar (o que roubou já caiu no beginRevive): o cérebro anota que "morreu",
+            // que é o que o jogador viu
+            endEngagement(FroggyBrain.Outcome.FROGGY_DIED);
+            return;
+        }
         super.die(source);
         if (!this.level().isClientSide) {
             dropStolen();
@@ -1936,6 +2043,29 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return Mth.positiveModulo(k + SMASH_IMPACT_TICKS, SMASH_LOOP_TICKS);
     }
 
+    /**
+     * (v0.7.35) O levantar do renascer começa uns ticks antes de o modelo aparecer (ainda são os pedaços): a mistura
+     * do controlador (MAIN_BLEND) acaba escondida, entre duas poses iguais (deitado de bruços).
+     */
+    private static final int REVIVE_PRESWITCH = MAIN_BLEND + 2;
+
+    /**
+     * (v0.7.35) No cliente: o tempo do revive_flip/revive_shake (em ticks) no relógio do servidor, o mesmo dos pedaços
+     * (ReviveScene), dos sons e da virada pro jogador. O relógio do GeckoLib (tickCount do cliente) escorrega quando o
+     * cliente fica pra trás: no teste, a mistura de 3 ticks levou 4,5, e o mortal ia atrasando em relação aos sons.
+     */
+    public double reviveStandAnimTicks(float partial) {
+        Revive.Params rp = reviveParams();
+        if (!getDebugAnim().isEmpty() || getFroggyState() != FroggyState.REVIVE || rp == null) return -1D;
+        double t = Math.max(0D, this.level().getGameTime() - rp.t0() + partial - rp.standStart());
+        // a hora do cliente às vezes volta um tico (o servidor acerta a cada 1 s): segura em vez de voltar
+        if (t < reviveStandLast && reviveStandLast - t < 4D) t = reviveStandLast;
+        reviveStandLast = t;
+        return t;
+    }
+
+    private double reviveStandLast = -1D;
+
     /** Quantas mordidas da flexão já foram neste estado (a 1ª é 1). */
     public int getPushupBites() {
         return pushupBites;
@@ -2538,6 +2668,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
 
         stateTicks++;
+        if (isReviving()) {
+            Revive.Params rp = reviveParams();
+            if (rp != null) Revive.tick(this, rp);
+            else endRevive();
+            return;
+        }
         if (glimpseFrozen && this.tickCount % 20 == 0 && this.level() instanceof ServerLevel gs
                 && !com.froggydude.world.TensionDirector.glimpsing(gs.getServer())) {
             freezeForGlimpse(false); // o vislumbre acabou sem o diretor (manhunt, invasão desligada): solta
@@ -2928,6 +3064,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
+        // (v0.7.35) remontando: "é cinema", nada machuca (só o /kill e o fundo do mundo)
+        if (isReviving() && !Revive.final_(source)) return false;
         // (v0.7.30) a fúria do Avaritia: arma/flecha/área do Avaritia não machuca ele (raramente um arranhão)
         if (!this.level().isClientSide && FroggyConfig.ai().stealsWeapons() && fromAvaritia(source)) {
             if (this.getRandom().nextFloat() >= AVARITIA_GRAZE_CHANCE) {
@@ -3058,6 +3196,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (debugHeldArm) tag.putBoolean("DebugHeldArm", true);
         if (debugArmless) tag.putBoolean("DebugArmless", true);
         if (debugStalk) tag.putBoolean("DebugStalk", true);
+        if (isReviving()) {
+            tag.putBoolean("Reviving", true);
+            // o Mob grava o NoAI pelo isNoAi(), que remontando é sempre true: grava o de verdade
+            if (!super.isNoAi()) tag.remove("NoAI");
+        }
         if (glimpseFrozen) tag.putBoolean("GlimpseFrozen", true);
         if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
         if (debugFar > 0) tag.putInt("DebugFar", debugFar);
@@ -3098,6 +3241,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.debugHeldArm = tag.getBoolean("DebugHeldArm");
         this.debugArmless = tag.getBoolean("DebugArmless");
         this.debugStalk = tag.getBoolean("DebugStalk");
+        if (tag.getBoolean("Reviving")) {
+            // (v0.7.35) salvou no meio do renascer: volta já de pé, com metade da vida
+            this.setHealth(Math.max(this.getHealth(), this.getMaxHealth() * 0.5F));
+        }
         this.glimpseFrozen = tag.getBoolean("GlimpseFrozen");
         this.debugPhase2In = tag.getInt("DebugPhase2In");
         this.debugFar = tag.getInt("DebugFar");
@@ -3137,6 +3284,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     // assets/froggydude/animations/froggydude.animation.json
 
     private static final RawAnimation ANIM_IDLE = RawAnimation.begin().thenLoop("idle");
+    private static final RawAnimation ANIM_REVIVE_LIE = RawAnimation.begin().thenLoop("revive_lie");
+    private static final RawAnimation ANIM_REVIVE_FLIP = RawAnimation.begin().thenPlayAndHold("revive_flip");
+    private static final RawAnimation ANIM_REVIVE_SHAKE = RawAnimation.begin().thenPlayAndHold("revive_shake");
     private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation ANIM_RUN_FRENZY = RawAnimation.begin().thenLoop("run_frenzy");
@@ -3219,6 +3369,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             return state.setAndContinue(RawAnimation.begin().thenLoop(debug));
         }
         switch (getFroggyState()) {
+            case REVIVE: {
+                Revive.Params rp = reviveParams();
+                if (rp != null && this.level().getGameTime() - rp.t0() >= rp.standStart() - REVIVE_PRESWITCH) {
+                    return state.setAndContinue(rp.flip() ? ANIM_REVIVE_FLIP : ANIM_REVIVE_SHAKE);
+                }
+                return state.setAndContinue(ANIM_REVIVE_LIE);
+            }
             case BITE:
                 return state.setAndContinue(ANIM_BITE);
             case TONGUE_WHIP:

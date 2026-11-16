@@ -71,6 +71,9 @@ public final class FroggyCommand {
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
                 .then(Commands.literal("irritar").requires(FroggyCommand::admin).executes(c -> irk(c.getSource())))
                 .then(Commands.literal("susto").requires(FroggyCommand::admin).executes(c -> jumpscare(c.getSource())))
+                // (v0.7.35) o renascer com a língua agora (sem ter que matar ele e torcer pros 35%)
+                .then(Commands.literal("renascer").requires(FroggyCommand::admin).executes(c -> revive(c.getSource(), false))
+                        .then(Commands.literal("explosao").executes(c -> revive(c.getSource(), true))))
                 // jeito de jogador, pra testar sem ter que morrer 3 vezes
                 .then(Commands.literal("zombar").requires(FroggyCommand::admin).executes(c -> mock(c.getSource())))
                 .then(Commands.literal("dancar").requires(FroggyCommand::admin).executes(c -> dance(c.getSource())))
@@ -338,6 +341,21 @@ public final class FroggyCommand {
             return 0;
         }
         src.sendSuccess(() -> t("irked"), true);
+        return 1;
+    }
+
+    /** (v0.7.35) Ele se despedaça agora e renasce com a língua (o teste do Revive). */
+    private static int revive(CommandSourceStack src, boolean boom) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        if (f.isReviving() || !com.froggydude.entity.Revive.start(f, boom)) {
+            src.sendFailure(t("revive_not_now"));
+            return 0;
+        }
+        src.sendSuccess(() -> t("revive_started"), true);
         return 1;
     }
 

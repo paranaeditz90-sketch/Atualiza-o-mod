@@ -73,8 +73,12 @@ public class FroggyCombatGoal extends Goal {
     private static final int HIGH_JUMP_AIR = 16;
     private static final int HIGH_JUMP_LAUNCH = 6;
 
-    // Pulo altíssimo (vs AJ, 0:56): sobe ~12 blocos em 17 ticks, cai em ~36.
-    private static final double SKY_VY = 1.5D;
+    // Pulo altíssimo (vs AJ, 0:56). (v0.7.35, LM 16/11: "pula alto o suficiente para sair do campo de visão do jogador
+    // rapidamente, o jogador precisa olhar bem pra cima pra ver onde ele tá") a altura do original (Every Opponent
+    // 29:48,65: sobe 5,5 blocos em 0,1 s e cai 3,1 s depois): sai a 2,8 blocos/tick, sobe ~35 blocos em 27 ticks e cai
+    // no plano no tick 61. Era 1,5 (~12 blocos, 36 ticks): dava pra acompanhar ele subindo sem tirar o olho.
+    // A animação "sky_drop" tem os tempos no ar tirados desta mesma conta (tools/anim/build_anims.py, SKY_VY).
+    private static final double SKY_VY = 2.8D;
     private static final int SKY_LAUNCH = 8;
     private static final double SKY_MIN_DIST = 7.0D;
     private static final double SKY_MAX_DIST = 20.0D;
@@ -1567,8 +1571,9 @@ public class FroggyCombatGoal extends Goal {
             }
             case SKY_DROP -> {
                 if (runSkyDrop(target, t)) return;
-                // o arco calculado pode voar mais que a animação: termina quando pousar
-                if (arcLand != null && t < 200) return;
+                // no ar até pousar (o pulo do céu leva ~3,5 s no plano, mais se o chão for mais baixo; o arco calculado
+                // também): o estado só acaba antes disso se cair na água
+                if (launched && t < 200 && !froggy.isInWater()) return;
             }
             default -> {
             }

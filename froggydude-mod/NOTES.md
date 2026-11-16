@@ -1,4 +1,4 @@
-# Froggydude - v0.7.34: o diretor de tensão no "aparece no teu mundo" (sobre a v0.7.33)
+# Froggydude - v0.7.35: o renascer com a língua e o pulo do céu mais alto (sobre a v0.7.34)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,56 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.34):
+O que testar agora (v0.7.35):
+- **O renascer com a língua** (o fim do vídeo vs AJTHEBOLD; tua réplica v3, aprovada em 16/11). Em vez de morrer, às
+  vezes ele **se despedaça e se remonta**: 35% numa morte comum e **75% se morreu explodido**, em todos os modos
+  (manhunt, aparece no teu mundo, /summon). Com /kill, caindo no fundo do mundo ou na borda, ele morre de verdade.
+  1. Os pedaços (tronco, os dois braços, as duas pernas) **voam com física e sangue** e param no chão; a **cabeça cai
+     de cara no chão** no lugar onde o corpo vai se montar.
+  2. Fica **parado de 5 a 10 s** (sorteado).
+  3. Cada puxada: a cabeça gira pro pedaço, **ergue a testa** pra língua passar, a língua sai, **pega o pedaço pela
+     junta** (pescoço, ombro, quadril), **arrasta** (vem pra perto, dá a volta pelo lado da junta e entra por trás, com
+     dois trancos pra cima) e **encaixa** (passa um tico e volta, com um espirro de sangue). A ordem: tronco, braço,
+     braço, perna, perna.
+  4. **Mortal pra trás**: flexão, gira no ar e cai em pé no lugar dos pés. **Sem espaço em cima** (menos de ~3 blocos
+     livres): **só levanta com a flexão e sacode a cabeça de raiva** várias vezes, sem mortal.
+  5. **Vira seco pra ti**, **estala o pescoço** e volta a caçar com **metade da vida**.
+  - "É cinema": enquanto se remonta, nada machuca ele (só /kill, o fundo do mundo e a borda), ele não empurra nem é
+    empurrado, e não dá pra mirar nele.
+  - **A 1ª vez de cada mundo é a longa** (cada puxada ~4 s, uns 32-38 s ao todo); depois as puxadas levam metade (uns
+    22-28 s).
+  - **Gore desligado**: nada de pedaço nem de sangue; ele cai de bruços inteiro, fica deitado o mesmo tempo e levanta
+    igual.
+  - Se ele ainda não tinha passado da fase 2 (morreu de uma vez, ou pelo comando), como volta com metade da vida, a
+    **fase 2 começa logo depois** (contorção e grito).
+  - Pra testar sem matar: `/froggydude renascer` (ou `/froggydude renascer explosao`) faz ele se despedaçar na hora.
+  - **A rede mudou** (protocolo 9): quem joga contigo no mesmo mundo (LAN/servidor) precisa da 0.7.35 também.
+  - Testado no jogo, com a câmera do lado e de perto: a longa e a rápida, morte comum e explosão, com mortal e com teto
+    de vidro (sacode a cabeça), e com o gore desligado. A troca dos pedaços pelo corpo inteiro **não dá pulo** (conferi
+    quadro a quadro: o 1º quadro do corpo inteiro está na mesma pose dos pedaços, e o braço só começa a ir pra baixo do ombro dali). Corrigido no caminho:
+    o levantar andava no relógio do cliente e, num jogo lento, atrasava em relação aos sons e à virada pro jogador (no
+    teste, uma mistura de 3 ticks levou 4,5); agora anda no relógio do servidor, o mesmo dos pedaços.
+- **A subida do pulo do céu** (tu marcou o original 29:48,65 em 16/11: "Essa é a última posição antes de ele pular
+  inclusive, e ele continua até atingir uma certa altura"; réplica aprovada): ele **decola ainda agachado**, de cabeça
+  baixa, com os braços abertos que vão **caindo até ficarem rentes ao corpo** (como no original de 29:48,65 a 48,72), e
+  **sobe assim, feito um lápis**, até uns 80% da altura. Só perto do topo ele abre os braços no V pra cair em cima.
+  Antes ele virava "zumbi" (braços pra frente) no instante em que saía do chão. A ameaça, a agachada, a queda e o
+  **pisão** (a perna direita vindo em ti, a esquerda esticada pra trás) continuam iguais: conferi lado a lado com o
+  original e já batiam. O BecomeLM tem a cópia dele (sky_air) e **não mudou**.
+- **A altura do pulo do céu** (tu pediu em 16/11: "O froggydude pula alto o suficiente para sair do campo de visão do
+  jogador rapidamente, o jogador precisa olhar bem pra cima pra ver onde ele tá"): agora é a do original. Medi no
+  Every Opponent: em 29:48,65 ele sai do chão, sobe 5,5 blocos em 0,1 s, some do alto da tela e só cai em cima do AJ em
+  29:51,75 (3,1 s no ar). No mod ele sai **quase o dobro mais rápido** (2,8 blocos por tick, era 1,5) e sobe uns **35
+  blocos** (eram uns 12): olhando reto pra ele, ele **some do alto da tela em menos de 0,2 s**; pra achar, tu tem que
+  olhar quase reto pra cima, e ele é um **bonequinho perto do sol**. A queda leva ~1,7 s e ele cai do teu lado
+  (~3,2 s no ar, era ~1,8). A animação é a mesma, só esticada no ar pra casar com o voo maior (o "lápis", o V no topo, o
+  pisão na queda). Ainda precisa de céu aberto em cima dele e de ti (em caverna ele não usa esse golpe).
+  Testado: no jogo, quadro a quadro (parado, 10x devagar) a pose bate com a réplica; e num pulo de verdade (eu em
+  sobrevivência, olhando reto pra ele a 10 blocos): ameaça, agachou, decolou agachado e em 0,2 s já tinha saído da tela;
+  olhei pra cima e ele estava pequenininho perto do sol; veio caindo em cima de mim com a perna do pisão, caiu do meu
+  lado 3,2 s depois de sair do chão e emendou o esmagamento.
+
+Da v0.7.34:
 - **O diretor de tensão** (PLANO.md 5.5; tuas escolhas de 10/11: só no "aparece no teu mundo", calmaria de 3 a 6
   minutos, todos os sinais, sempre fora da tua vista). Depois que ele chega, a caçada vira um RITMO em vez de caça sem
   parar ("se ele aparecer a cada 30 s, vira piada na terceira vez"). Manhunt e /summon não mudam nada, e o cinema

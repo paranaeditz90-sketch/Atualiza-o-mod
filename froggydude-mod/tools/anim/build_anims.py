@@ -490,9 +490,16 @@ ANIMS["swim"] = animation(0.62, [
 #   agachada (0,29-0,39 s): os braços caem, o direito vai pra frente antes do esquerdo; o corpo desce com as pernas
 #     RETAS e em pé ("||", não "\"), um pouco pra frente (sobem pra dentro do corpo, o pé fica no chão); em 0,357 os
 #     dois braços retos na altura do ombro, abertos ~54°;
-#   decola no 0,40 (impulso do servidor no tick 8) e voa de braço de ZUMBI levemente pra cima, aberto em "\ /"
-#     (giro Y: com o braço pra frente o Z só torceria ele no próprio eixo); caindo, a perna direita vai pra frente (a
-#     esquerda fica reta) e a cabeça balança de leve pros lados. Vai até 3,2 s (o arco muda com a distância) e segura.
+#   decola no 0,40 (impulso do servidor no tick 8) AINDA agachado: os braços caem até o corpo e ele sobe "lápis", de
+#     cabeça baixa, até 80% da altura (v0.7.35, LM 16/11); perto do topo abre o braço de ZUMBI levemente pra cima,
+#     aberto em "\ /" (giro Y: com o braço pra frente o Z só torceria ele no próprio eixo); caindo, a perna direita vai
+#     pra frente (o pisão; a esquerda fica reta) e a cabeça balança de leve pros lados. Vai até 1 s depois do pouso no
+#     plano (o arco muda com a distância e o chão) e segura.
+#   (v0.7.35, LM 16/11: "O froggydude pula alto o suficiente para sair do campo de visão do jogador rapidamente, o
+#     jogador precisa olhar bem pra cima pra ver onde ele tá. (E a animação tá boa)") a altura é a do original: em
+#     29:48,65-48,75 ele sobe 5,5 blocos em 0,1 s e cai em cima do AJ em 29:51,75 (3,1 s no ar). Na física do jogo isso é
+#     sair a 2,8 blocos/tick (FroggyCombatGoal.SKY_VY): topo de ~35 blocos aos 1,35 s, pouso aos 3,05 s. Os tempos das
+#     chaves no ar saem dessa conta; as poses são as aprovadas.
 # O BecomeLM corta daqui a partir de 0,38 s (sky_air, becomelm-mod/tools/make_anims.py).
 SKY_V = 150          # o V da ameaça
 SKY_GRITO = -25      # cabeça pra trás no grito
@@ -501,7 +508,34 @@ SKY_ABRE = 19        # abertura do V do zumbi (giro Y)
 SKY_PERNA = -50      # perna direita pra frente na queda; a esquerda fica reta (+4)
 SKY_BALANCO = 10     # a cabeça balança de leve pros lados só caindo
 SKY_CICLO = 0.6      # uma ida e volta da cabeça (s)
-SKY_FIM = 3.2
+SKY_VY = 2.8         # FroggyCombatGoal.SKY_VY (blocos/tick na saída)
+SKY_DECOLA = 0.4     # FroggyCombatGoal.SKY_LAUNCH (8 ticks)
+
+
+def _sky_voo(v0=SKY_VY):
+    """A altura tick a tick (física do jogo pra um mob no ar: y += vy; vy = (vy - 0,08) x 0,98) até voltar ao chão."""
+    y, vy, ys = 0.0, v0, [0.0]
+    while True:
+        y += vy
+        vy = (vy - 0.08) * 0.98
+        ys.append(y)
+        if vy < 0 and y <= 0:
+            return ys
+
+
+_VOO = _sky_voo()
+_TOPO = max(_VOO)
+
+
+def _sky_sobe(frac):
+    """Quando (s, no tempo da animação) ele passa de frac da altura, subindo."""
+    return SKY_DECOLA + next(i for i, y in enumerate(_VOO) if y >= frac * _TOPO) / 20
+
+
+SKY_LAPIS = _sky_sobe(0.8)                                       # sobe "lápis" até 80% da altura
+SKY_ABRE_V = _sky_sobe(0.98)                                     # abre o V perto do topo
+SKY_CAI = SKY_DECOLA + _VOO.index(_TOPO) / 20 + 0.05             # começou a cair: a perna do pisão
+SKY_FIM = round(SKY_DECOLA + (len(_VOO) - 1) / 20 + 1.0, 2)      # 1 s depois do pouso no plano
 
 
 def _sky_zumbi(arms=SKY_ZUMBI, ry=SKY_ABRE, perna=0.0, perna_l=0.0, **kw):
@@ -531,12 +565,18 @@ _SKY = [
     (0.368, _sky_agacha(3.0, 5.0, arms=-142, arm_ry=54, leg_spread=4, head=25, waist=44)),
     (0.379, _sky_agacha(3.0, 5.0, arm_spread=8, arms=-118, arm_ry=39, leg_spread=3, head=25, waist=21)),
     (0.389, _sky_agacha(1.5, 2.5, arm_spread=8, arms=-118, arm_ry=39, leg_spread=3, head=20, waist=21)),
-    (0.400, _sky_zumbi(arms=-105, ry=37, waist=15, head=12)),                                      # DECOLA
-    (0.700, _sky_zumbi(arms=-111, ry=24, waist=4, head=-2)),
-    (1.100, _sky_zumbi(arms=-112, ry=20, waist=4, head=0, perna=-30, perna_l=2)),
-    (1.300, _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0)),                               # caindo
+    # (v0.7.35, LM 16/11 marcando o original 29:48,65: "Essa é a última posição antes de ele pular inclusive, e ele
+    # continua até atingir uma certa altura") decola AINDA na pose da agachada: os braços abertos vão caindo até ficarem
+    # rentes ao corpo (48,65-48,72) e ele sobe assim, "lápis" de cabeça baixa, até 80% da altura (~28 de ~35 blocos);
+    # perto do topo abre o V da queda (réplica aprovada: scratchpad pulo2026/replica_subida.py)
+    (0.400, pose(arms=-40, arm_ry=20, arm_spread=62, leg_spread=3, head=22, waist=14)),           # DECOLA agachado
+    (0.425, pose(arms=-20, arm_ry=10, arm_spread=45, leg_spread=2, head=22, waist=8)),            # os braços caem
+    (0.470, pose(arms=-8, arm_spread=18, leg_spread=2, head=20, waist=3)),                         # rentes ao corpo
+    (SKY_LAPIS, pose(arms=-8, arm_spread=16, leg_spread=2, head=16, waist=3)),                     # sobe "lápis"
+    (SKY_ABRE_V, _sky_zumbi(arms=-112, ry=20, waist=4, head=0, perna=-30, perna_l=2)),            # abre o V no topo
+    (SKY_CAI, _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0)),                             # caindo
 ]
-_t, _k = 1.30 + SKY_CICLO / 4, 0
+_t, _k = SKY_CAI + SKY_CICLO / 4, 0
 while _t < SKY_FIM - 1e-6:   # a cabeça balança de leve pros lados até o fim
     _SKY.append((round(_t, 3), _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0,
                                           head_z=SKY_BALANCO if _k % 2 == 0 else -SKY_BALANCO)))
@@ -544,6 +584,139 @@ while _t < SKY_FIM - 1e-6:   # a cabeça balança de leve pros lados até o fim
     _k += 1
 _SKY.append((SKY_FIM, _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0)))
 ANIMS["sky_drop"] = animation(SKY_FIM, _SKY, "hold_on_last_frame")
+
+# Renascer com a língua (v0.7.35; réplica v3 aprovada pelo LM em 16/11; entity.Revive e client.pieces.ReviveScene):
+#   revive_lie: deitado de bruços - a raiz tomba 90° pra frente e sobe 2 px (o peito encosta no chão, o rosto fica 2 px
+#     enterrado). É a mesma pose das juntas dos pedaços: quando o último encaixa, o modelo inteiro assume sem pulo.
+#   revive_flip: a flexão (os braços vão pra baixo dos ombros, o corpo gira 24° na ponta do sapato, a cabeça olha pra
+#     frente), o MORTAL pra trás (450° = 1 volta + ficar em pé; mais rápido no meio; pernas encolhidas, braços sobem e
+#     abraçam) e cai EM PÉ no mesmo lugar dos pés, dobrando os joelhos; depois o estalo do pescoço.
+#   revive_shake (LM 16/11, sem espaço em cima: "Ele só levanta com a flexão, sabe? Sem mortal. Porém, ele sacode a
+#     cabeça várias vezes de raiva (como no vídeo dele comendo a zebra)"): a flexão, levanta e sacode; depois o estalo.
+REV_T = 1 / 20
+REV_FLIP = 35 * REV_T          # Revive.FLIP
+REV_SHAKE = 62 * REV_T         # Revive.SHAKE
+REV_CRACK = 18 * REV_T         # Revive.CRACK_AFTER
+REV_END = 34 * REV_T           # Revive.END_AFTER
+REV_PUSH, REV_AIR, REV_LAND = 0.5, 0.8, 0.45
+REV_G = 20.0 * 16              # px/s²
+REV_COM = (0.0, 14.0, 0.0)     # o meio do corpo (px)
+REV_TOE = (0.0, 0.0, -2.0)     # a ponta do sapato: ele gira aí na flexão
+
+
+def _sm(k):
+    k = max(0.0, min(1.0, k))
+    return k * k * (3 - 2 * k)
+
+
+def _rf(a, p):
+    """Tomba a graus pra frente em volta do x (o "cima" vai pra frente, que é -z no modelo)."""
+    r = math.radians(a)
+    x, y, z = p
+    return (x, y * math.cos(r) + z * math.sin(r), -y * math.sin(r) + z * math.cos(r))
+
+
+def _toe(a):
+    """A raiz pra ponta do sapato ficar parada no chão (na origem) com o corpo tombado a."""
+    t = _rf(a, REV_TOE)
+    return (0.0, -t[1], -t[2])
+
+
+def _rev(a, pos, **kw):
+    p = pose(**kw)
+    p["root"]["rotation"] = [round(a, 3), 0, 0]
+    p["root"]["position"] = [0, round(pos[1], 4), round(pos[2], 4)]
+    return p
+
+
+def _push(t):
+    a_in = _sm(t / 0.22)
+    b = max(0.0, min(1.0, (t - 0.18) / (REV_PUSH - 0.18)))
+    beta = 24.0 * b * b
+    a = 90.0 - beta
+    return _rev(a, _toe(a), arms=-(85.0 * a_in - beta), head=-25.0 * _sm(b))
+
+
+def _crack(t0, base):
+    """O estalo do pescoço: a cabeça tomba de lado e volta (0,5 s)."""
+    out = []
+    for j in (0.0, 0.2, 0.5, 0.8, 1.0):
+        p = copy.deepcopy(base)
+        p["head"]["rotation"][2] = round(32.0 * math.sin(math.pi * j), 3)
+        out.append((round(t0 + 0.5 * j, 4), p))
+    return out
+
+
+ANIMS["revive_lie"] = animation(1.0, [(0.0, _rev(90.0, (0, 2.0, 0))), (1.0, _rev(90.0, (0, 2.0, 0)))], True,
+                                ground=False)
+
+_RF = [(round(t, 4), _push(t)) for t in np.arange(0.0, REV_PUSH + 1e-6, 0.05)]
+_aL = 90.0 - 24.0
+_pL = _toe(_aL)
+_cL = tuple(_pL[i] + _rf(_aL, REV_COM)[i] for i in range(3))
+_cE = (0.0, REV_COM[1], 0.0)                               # cai com o meio do corpo em cima dos pés
+_vy = (_cE[1] - _cL[1] + REV_G * REV_AIR ** 2 / 2) / REV_AIR
+_ARMK = [(0.0, -(85.0 - 24.0)), (0.15, -170.0), (0.35, -78.0), (0.7, -78.0), (0.9, -20.0), (1.0, -8.0)]
+for _i in range(1, 17):
+    _tau = REV_AIR * _i / 16
+    _k = _tau / REV_AIR
+    _a = 90.0 - (24.0 + 426.0 * (_k - 0.55 / (2 * math.pi) * math.sin(2 * math.pi * _k)))
+    _c = (0.0, _cL[1] + _vy * _tau - REV_G * _tau ** 2 / 2, _cL[2] + (_cE[2] - _cL[2]) * _k)
+    _r = _rf(_a, REV_COM)
+    _pos = (0.0, _c[1] - _r[1], _c[2] - _r[2])
+    _kt = math.sin(math.pi * max(0.0, min(1.0, (_k - 0.06) / 0.8))) ** 0.7
+    _arm = _ARMK[-1][1]
+    for (_k0, _a0), (_k1, _a1) in zip(_ARMK, _ARMK[1:]):
+        if _k0 <= _k <= _k1:
+            _arm = _a0 + (_a1 - _a0) * _sm((_k - _k0) / (_k1 - _k0))
+            break
+    _RF.append((round(REV_PUSH + _tau, 4), _rev(_a, _pos, arms=_arm, waist=22.0 * _kt, legs=-115.0 * _kt,
+                                                 knee=125.0 * _kt, head=-25.0 * (1 - _sm(_k / 0.3)) + 15.0 * _kt)))
+
+
+def _land(ks):
+    p = pose(head=-10.0 * ks, waist=25.0 * ks, arms=-35.0 * ks, legs=-45.0 * ks, knee=85.0 * ks)
+    low = rig.lowest(rig.frames(p))
+    feet = min(low["right_leg"], low["left_leg"])
+    p["root"]["rotation"] = [-360.0, 0, 0]
+    p["root"]["position"] = [0, round(-feet, 4), 0]
+    return p
+
+
+for _i in range(1, 10):
+    _tau = REV_LAND * _i / 9
+    _ks = _sm(_tau / 0.09) * (1 - _sm((_tau - 0.12) / (REV_LAND - 0.12)))
+    _RF.append((round(REV_PUSH + REV_AIR + _tau, 4), _land(_ks)))
+_stand = _land(0.0)
+_RF.append((round(REV_FLIP + REV_CRACK, 4), copy.deepcopy(_stand)))
+_RF += _crack(REV_FLIP + REV_CRACK, _stand)[1:]
+_RF.append((round(REV_FLIP + REV_END, 4), copy.deepcopy(_stand)))
+ANIMS["revive_flip"] = animation(round(REV_FLIP + REV_END, 4), _RF, "hold_on_last_frame", ground=False)
+
+# sem mortal: flexão, levanta girando na ponta do sapato (os joelhos dobram um tico no meio), sacode a cabeça de raiva
+_RS = [(round(t, 4), _push(t)) for t in np.arange(0.0, REV_PUSH + 1e-6, 0.05)]
+for _i in range(1, 10):
+    _u = _i / 9
+    _a = _aL * (1 - _sm(_u))
+    _p = _rev(_a, _toe(_a), arms=-(85.0 - 24.0) * (1 - _sm(_u)), head=-25.0 * (1 - _sm(_u)),
+              legs=-12.0 * math.sin(math.pi * _u), knee=24.0 * math.sin(math.pi * _u))
+    _RS.append((round(REV_PUSH + 0.9 * _u, 4), _p))
+_t = REV_PUSH + 0.9
+_sh_end = REV_SHAKE - 0.2
+_n = 0
+while _t < _sh_end - 1e-6:
+    _amp = 35.0 - 20.0 * (_t - (REV_PUSH + 0.9)) / (_sh_end - (REV_PUSH + 0.9))
+    _p = pose(head=12.0, waist=12.0, arms=-10.0, arm_spread=12.0, head_y=_amp if _n % 2 == 0 else -_amp)
+    _p["root"]["rotation"] = [-0.0, 0, 0]
+    _RS.append((round(_t + 0.045, 4), _p))
+    _t += 0.09
+    _n += 1
+_stand2 = _rev(0.0, (0, 0, 0))
+_RS.append((round(REV_SHAKE, 4), copy.deepcopy(_stand2)))
+_RS.append((round(REV_SHAKE + REV_CRACK, 4), copy.deepcopy(_stand2)))
+_RS += _crack(REV_SHAKE + REV_CRACK, _stand2)[1:]
+_RS.append((round(REV_SHAKE + REV_END, 4), copy.deepcopy(_stand2)))
+ANIMS["revive_shake"] = animation(round(REV_SHAKE + REV_END, 4), _RS, "hold_on_last_frame", ground=False)
 
 # Arrancar o braço (vs AJ, 2:21, e o jeito de comer da "Eating a Zebra"):
 # agachado por cima, agarra o ombro esquerdo da vítima com as duas mãos, CRAVA
@@ -1111,7 +1284,8 @@ def main():
             "frenzy_idle": [0.0],
             "crouch_idle": [0.0],
             "smash": [0.0, 0.14, 0.25, 0.4],
-            "sky_drop": [0.209, 0.315, 0.347, 0.357, 0.4, 1.1, 1.45, 1.75, 3.2],
+            "sky_drop": [0.209, 0.315, 0.347, 0.357, 0.4, 0.425, 0.47, round(SKY_LAPIS, 3), round(SKY_ABRE_V, 3),
+                         round(SKY_CAI, 3), round(SKY_CAI + 0.3, 3), SKY_FIM],
             "arm_rip": [0.2, 0.42, 0.52, 1.1, 1.22, 2.0],
             "arm_eat": [0.5, 0.64, 4.0],
             "weapon_eat": [0.08, 0.2, 0.3, 0.8, 1.2],

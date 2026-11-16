@@ -132,6 +132,8 @@ public final class FroggyKeeper {
 
     /** Leva o FroggyDude pra perto do jogador (outra dimensão também). */
     public static boolean bringNear(FroggydudeEntity froggy, ServerPlayer player, double minD, double maxD, Sight sight) {
+        // (v0.7.35) se remontando, os pedaços estão no chão onde ele morreu: só depois de levantar (quem chamou tenta de novo)
+        if (froggy.isReviving()) return false;
         ServerLevel level = player.serverLevel();
         BlockPos spot = findSpot(level, player, minD, maxD, sight, level.random);
         if (spot == null) return false;

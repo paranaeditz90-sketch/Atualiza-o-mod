@@ -39,7 +39,14 @@ import net.minecraft.world.item.ItemStack;
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import software.bernie.geckolib.cache.object.BakedGeoModel;
 import software.bernie.geckolib.cache.object.GeoBone;
+import software.bernie.geckolib.cache.object.GeoCube;
+import software.bernie.geckolib.cache.object.GeoQuad;
+import software.bernie.geckolib.cache.object.GeoVertex;
+import software.bernie.geckolib.core.state.BoneSnapshot;
+import com.froggydude.client.pieces.ReviveScene;
+import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
 import software.bernie.geckolib.util.RenderUtils;
 
@@ -114,6 +121,10 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             }
             // (v0.7.18) o esmagamento: o punho bate na hora do soco e do "tai" do servidor
             if ("smash".equals(animation)) return f.smashAnimTicks(Minecraft.getInstance().getFrameTime());
+            // (v0.7.35) o levantar do renascer: no relógio do servidor, junto com os pedaços, os sons e a virada
+            if ("revive_flip".equals(animation) || "revive_shake".equals(animation)) {
+                return f.reviveStandAnimTicks(Minecraft.getInstance().getFrameTime());
+            }
             if (!animation.startsWith("finisher")) return -1D;
             ClientFinisher.Entry e = ClientFinisher.forFroggy(f.getId());
             if (e == null) return -1D;
@@ -122,10 +133,21 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         };
     }
 
+    /** (v0.7.35) Renascendo, fase dos pedaços: o modelo inteiro não é desenhado (só a animação roda por baixo). */
+    private boolean hideForRevive;
+
     @Override
     public void render(FroggydudeEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
                        MultiBufferSource bufferSource, int packedLight) {
         captureMouthKnown = false;
+        ReviveScene scene = ReviveScene.of(entity);
+        // gore desligado: nada de corpo despedaçado - ele fica deitado de bruços, inteiro, até levantar
+        boolean pieces = scene != null && scene.piecesPhase(entity.level()) && FroggyClientConfig.gore().any();
+        this.shadowRadius = pieces ? 0F : 0.5F;
+        if (pieces) {
+            renderRevive(scene, entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+            return;
+        }
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
         if (captureMouthKnown && CaptureRender.capturing(entity)
                 && entity.level().getEntity(entity.getCaptureId()) instanceof net.minecraft.world.entity.LivingEntity victim) {
@@ -146,11 +168,139 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         return v != null && frustum.isVisible(entity.getBoundingBoxForCulling().minmax(v.getBoundingBox().inflate(0.8D)));
     }
 
+    /**
+     * (v0.7.35) O renascer: a animação roda normal (fica deitado de bruços por baixo, pra emendar no levantar), mas o
+     * que aparece são os pedaços (client.pieces.ReviveScene), cada um com os ossos do próprio modelo na pose de descanso.
+     */
+    private void renderRevive(ReviveScene scene, FroggydudeEntity entity, float entityYaw, float partialTick,
+                              PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+        BakedGeoModel model = getGeoModel().getBakedModel(getGeoModel().getModelResource(entity));
+        if (!scene.hasGeometry()) scene.setGeometry(measureParts(model));
+        hideForRevive = true;
+        try {
+            super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+        } finally {
+            hideForRevive = false;
+        }
+        Vec3 base = new Vec3(Mth.lerp(partialTick, entity.xo, entity.getX()), Mth.lerp(partialTick, entity.yo, entity.getY()),
+                Mth.lerp(partialTick, entity.zo, entity.getZ()));
+        RenderType rt = getRenderType(entity, getTextureLocation(entity), bufferSource, partialTick);
+        scene.render(poseStack, base, partialTick, (ps, part) -> drawRevivePart(ps, model, entity, part, rt, bufferSource,
+                partialTick, packedLight), bufferSource, packedLight);
+    }
+
+    /** Os ossos de um pedaço, na pose de descanso (guardando e devolvendo a da animação), sem os que são outro pedaço. */
+    private void drawRevivePart(PoseStack ps, BakedGeoModel model, FroggydudeEntity entity, int part, RenderType rt,
+                                MultiBufferSource buffers, float partialTick, int light) {
+        List<GeoBone> hidden = new ArrayList<>();
+        for (String h : ReviveScene.hiddenOf(part)) {
+            model.getBone(h).ifPresent(b -> {
+                if (!b.isHidden()) {
+                    b.setHidden(true);
+                    hidden.add(b);
+                }
+            });
+        }
+        try {
+            for (String name : ReviveScene.bonesOf(part)) {
+                GeoBone bone = model.getBone(name).orElse(null);
+                if (bone == null) continue;
+                List<float[]> saved = new ArrayList<>();
+                List<GeoBone> order = new ArrayList<>();
+                rest(bone, saved, order);
+                try {
+                    renderRecursively(ps, entity, bone, rt, buffers, buffers.getBuffer(rt), true, partialTick, light,
+                            OverlayTexture.NO_OVERLAY, 1F, 1F, 1F, 1F);
+                } finally {
+                    restore(saved, order);
+                }
+            }
+        } finally {
+            for (GeoBone b : hidden) b.setHidden(false);
+        }
+    }
+
+    /** Devolve a pose da animação aos ossos (guardada pelo rest). */
+    private static void restore(List<float[]> saved, List<GeoBone> order) {
+        for (int i = 0; i < order.size(); i++) {
+            float[] v = saved.get(i);
+            GeoBone b = order.get(i);
+            b.setRotX(v[0]);
+            b.setRotY(v[1]);
+            b.setRotZ(v[2]);
+            b.setPosX(v[3]);
+            b.setPosY(v[4]);
+            b.setPosZ(v[5]);
+            b.setScaleX(v[6]);
+            b.setScaleY(v[7]);
+            b.setScaleZ(v[8]);
+        }
+    }
+
+    private static void rest(GeoBone bone, List<float[]> saved, List<GeoBone> order) {
+        saved.add(new float[]{bone.getRotX(), bone.getRotY(), bone.getRotZ(), bone.getPosX(), bone.getPosY(), bone.getPosZ(),
+                bone.getScaleX(), bone.getScaleY(), bone.getScaleZ()});
+        order.add(bone);
+        BoneSnapshot s = bone.getInitialSnapshot();
+        bone.setRotX(s.getRotX());
+        bone.setRotY(s.getRotY());
+        bone.setRotZ(s.getRotZ());
+        bone.setPosX(s.getOffsetX());
+        bone.setPosY(s.getOffsetY());
+        bone.setPosZ(s.getOffsetZ());
+        bone.setScaleX(s.getScaleX());
+        bone.setScaleY(s.getScaleY());
+        bone.setScaleZ(s.getScaleZ());
+        for (GeoBone c : bone.getChildBones()) rest(c, saved, order);
+    }
+
+    /** Centro e meia-caixa (px) de cada pedaço, pelos cubos do modelo (a cabeça, o tronco sem cabeça/braços...). */
+    private static float[][] measureParts(BakedGeoModel model) {
+        float[][] out = new float[ReviveScene.partCount()][];
+        for (int part = 0; part < out.length; part++) {
+            float[] mn = {Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE};
+            float[] mx = {-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE};
+            java.util.Set<String> skip = new java.util.HashSet<>(List.of(ReviveScene.hiddenOf(part)));
+            for (String name : ReviveScene.bonesOf(part)) {
+                model.getBone(name).ifPresent(b -> bounds(b, skip, mn, mx));
+            }
+            if (mn[0] > mx[0]) {
+                out[part] = new float[]{0F, 16F, 0F, 2F, 2F, 2F};
+                continue;
+            }
+            // o GeckoLib guarda os vértices em blocos (px/16)
+            out[part] = new float[]{(mn[0] + mx[0]) * 8F, (mn[1] + mx[1]) * 8F, (mn[2] + mx[2]) * 8F,
+                    (mx[0] - mn[0]) * 8F, (mx[1] - mn[1]) * 8F, (mx[2] - mn[2]) * 8F};
+        }
+        return out;
+    }
+
+    private static void bounds(GeoBone bone, java.util.Set<String> skip, float[] mn, float[] mx) {
+        if (skip.contains(bone.getName())) return;
+        for (GeoCube cube : bone.getCubes()) {
+            if (cube.inflate() > 0.01D) continue;   // a camada de fora (o casaco) não conta na caixa
+            for (GeoQuad q : cube.quads()) {
+                if (q == null) continue;
+                for (GeoVertex v : q.vertices()) {
+                    Vector3f p = v.position();
+                    mn[0] = Math.min(mn[0], p.x);
+                    mn[1] = Math.min(mn[1], p.y);
+                    mn[2] = Math.min(mn[2], p.z);
+                    mx[0] = Math.max(mx[0], p.x);
+                    mx[1] = Math.max(mx[1], p.y);
+                    mx[2] = Math.max(mx[2], p.z);
+                }
+            }
+        }
+        for (GeoBone c : bone.getChildBones()) bounds(c, skip, mn, mx);
+    }
+
     @Override
     public void renderRecursively(PoseStack poseStack, FroggydudeEntity animatable, GeoBone bone, RenderType renderType,
                                   MultiBufferSource bufferSource, VertexConsumer buffer, boolean isReRender,
                                   float partialTick, int packedLight, int packedOverlay,
                                   float red, float green, float blue, float alpha) {
+        if (hideForRevive) return;
         if (!isReRender && "head".equals(bone.getName())
                 && (CaptureRender.capturing(animatable) || animatable.getFroggyState() == FroggyState.TONGUE_THROW)) {
             // (v0.7.33) onde a boca está no mundo (o tronco, a cabeça olhando pra cima, tudo da animação)
