@@ -13,7 +13,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.37 | 16/11: na cena de morte a vítima volta a se debater igual à zebra (estava congelada em mundo com mais de ~2 h de jogo: estouro do seno com o tempo do mundo), a sacudida da cabeça no close no ritmo do original e os aldeões não param mais de tremer. A 0.7.36 (cena de morte mais perto do "Eating a Zebra") e as anteriores estão no `NOTES.md` |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.38 | 16/11: a voz original do FroggyDude (autorizada por ele) dentro do jar como pacote interno, fora do Git (pasta voz-privada/ ignorada; no Actions pelo segredo FROGGY_VOZ_URL). A 0.7.37 (a vítima se debatendo igual à zebra) e as anteriores estão no `NOTES.md` |
 | BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.9 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8); nado do vídeo, galope por cima da lava sem fogo e a tremida de quem bate em 1ª pessoa (0.3.9) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.

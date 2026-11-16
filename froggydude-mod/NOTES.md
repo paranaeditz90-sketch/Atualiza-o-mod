@@ -1,4 +1,4 @@
-# Froggydude - v0.7.37: a vítima se debatendo igual à zebra e a sacudida da cabeça dele mais rápida (sobre a v0.7.36)
+# Froggydude - v0.7.38: a voz original do FroggyDude dentro do mod (sobre a v0.7.37)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,21 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.37):
+O que testar agora (v0.7.38):
+- **A voz do FroggyDude já vem dentro do mod** (tu: "da pra pegar o pacote de vozes agora e colocar dentro do mod, o
+  froggydude autorizou"). O teu pacote "FroggyDude-Voz 0.5.0" agora está dentro do jar, como um pacote de recursos
+  interno sempre ligado: **não precisa mais instalar o pacote à parte** (se continuar ligado, não atrapalha, é o mesmo).
+  Ele cobre todas as falas (63 dos 72 sons do mod); os outros 9 são efeitos (pouso, mastigar, estalo, farejar...) que
+  já usam sons do próprio Minecraft.
+  - A voz **não vai pro GitHub** (o repositório é público): fica numa pasta fora do Git e entra só no jar. O jar que
+    eu te mando já sai com ela. Pro jar do GitHub Actions sair com voz também, cria o segredo `FROGGY_VOZ_URL`
+    (GitHub > Settings > Secrets and variables > Actions) com um link direto pro zip; sem ele, o Actions gera o jar
+    sem voz, como antes.
+  - Testado: o jogo carrega o pacote por cima dos sons do mod ("vanilla, mod_resources, froggydude_voz") e nenhum som
+    ficou sem arquivo. **Ouvir eu não consigo daqui** (a nuvem não tem placa de som): confere no celular se ele fala.
+  - Se a tua versão do pacote for mais nova que a 0.5.0, me manda que eu troco.
+
+Da v0.7.37:
 - **Tu se debatendo na cena de morte, igual à zebra** (tu: "o jogador não se mexe, tipo, não fica igual a zebra se
   debatendo. Só fica parado [...] Repare extremamente bem como a zebra se move").
   - **Por que ficava parado:** o mod já tinha o "se debater", mas a conta usava o tempo total do mundo. Passando de

@@ -14,7 +14,9 @@ Onde paramos: `PROGRESSO.md`. Plano: `PLANO.md`. Notas de cada versão (o LM tes
 - Perguntar antes de aplicar mudança grande; uma coisa por vez; na dúvida, perguntar.
 - **Nunca fazer commit nem push sem o OK explícito dele.** Só no ramo designado da sessão.
 - O repo é **público**: voz e sons originais do FroggyDude e os sons do LM (Voicemod, CapCut)
-  nunca entram aqui, só no pacote de sons pessoal dele. Som CC0 (com origem anotada) pode ir no mod.
+  nunca entram no Git. Som CC0 (com origem anotada) pode ir no mod. **Desde 16/11 a voz do FroggyDude
+  (autorizada por ele) vai DENTRO DO JAR**: pacote interno em `froggydude-mod/voz-privada/` (ignorado pelo
+  Git, juntado pelo build; no Actions vem do segredo `FROGGY_VOZ_URL`). Sem a pasta, o jar sai sem voz.
   Quadros, áudio e transcrições de vídeo de referência ficam no scratchpad, nunca no repo.
 - **Sem chaves, tokens ou segredos no Git** (vão em variável de ambiente da nuvem).
 - Preservar os arquivos e as mudanças do LM.

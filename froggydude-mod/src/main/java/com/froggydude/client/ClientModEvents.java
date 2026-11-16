@@ -2,11 +2,21 @@ package com.froggydude.client;
 
 import com.froggydude.init.ModEntityTypes;
 import com.froggydude.init.ModParticles;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.PathPackResources;
+import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
+import net.minecraftforge.event.AddPackFindersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.common.Mod;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class ClientModEvents {
@@ -56,5 +66,25 @@ public class ClientModEvents {
         event.registerSpriteSet(ModParticles.BLOOD.get(), BloodParticle.Provider::new);
         event.registerSpriteSet(ModParticles.DUST_PUFF.get(), DustPuffParticle.Provider::new);
         event.registerSpriteSet(ModParticles.BLOOD_CLOUD.get(), BloodCloudParticle.Provider::new);
+    }
+
+    /**
+     * (v0.7.38, LM 16/11: "da pra pegar o pacote de vozes agora e colocar dentro do mod, o froggydude autorizou") a voz
+     * original do FroggyDude vem dentro do jar como um pacote de recursos interno, sempre ligado e por cima dos sons do
+     * mod (o mesmo "FroggyDude-Voz" que o LM usava à parte; o sounds.json dele troca os eventos com replace). Ela NÃO
+     * fica no repositório, que é público: o build junta a pasta voz-privada/ (fora do Git) quando ela existe. Sem ela
+     * (o jar do GitHub sem o segredo da voz), nada é registrado e os sons caem nos do Minecraft, como antes.
+     */
+    @SubscribeEvent
+    public static void addVoicePack(AddPackFindersEvent event) {
+        if (event.getPackType() != PackType.CLIENT_RESOURCES) return;
+        var file = ModList.get().getModFileById(ModEntityTypes.MOD_ID);
+        if (file == null) return;
+        Path root = file.getFile().findResource("resourcepacks", "froggydude_voz");
+        if (!Files.isDirectory(root)) return;
+        Pack pack = Pack.readMetaAndCreate("froggydude_voz", Component.literal("FroggyDude: voz"), true,
+                id -> new PathPackResources(id, root, true), PackType.CLIENT_RESOURCES, Pack.Position.TOP,
+                PackSource.BUILT_IN);
+        if (pack != null) event.addRepositorySource(add -> add.accept(pack));
     }
 }

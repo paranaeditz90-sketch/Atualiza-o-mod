@@ -77,7 +77,12 @@ minecraft {
     }
 }
 
-sourceSets.main.resources { srcDir 'src/generated/resources' }
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+    // (v0.7.38) a voz original do FroggyDude (autorizada por ele) entra no jar como pacote interno, mas fica FORA do
+    // Git (o repo é público): pasta voz-privada/, ignorada. Sem ela o jar sai sem a voz (os sons do Minecraft).
+    srcDir 'voz-privada'
+}
 
 repositories {
     maven {
