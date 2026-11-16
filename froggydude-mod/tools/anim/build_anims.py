@@ -1082,15 +1082,17 @@ def yank():
     return pose(root_y=-0.5, waist=-14, head=-36, arms=-60, arm_l=-42, arm_spread=10, legs=10, leg_spread=16)
 
 
-def fin_shake(side, amount=50, body=5):
+def fin_shake(side, amount=50, body=5, lean=0.0):
     # em pé com o pedaço na boca sacudindo: quem sacode é a CABEÇA dele (o pedaço vai
     # junto); o tronco quase não mexe (LM: "é a cabeça que ele sacode, não o corpo")
-    return pose(root_y=0, waist=4, waist_y=body * side, head=-12, head_y=amount * side, head_z=16 * side,
-                arms=-30, arm_l=-20, arm_spread=12, legs=4, leg_spread=16)
+    return pose(root_y=0, waist=4 - FIN_LEAN_W * lean, waist_y=body * side, head=-12 - FIN_LEAN_H * lean,
+                head_y=amount * side, head_z=16 * side, arms=-30 + FIN_LEAN_A * lean, arm_l=-20 + FIN_LEAN_A * lean,
+                arm_spread=12 + FIN_LEAN_S * lean, legs=4, leg_spread=16)
 
 
-def bite_sequence(t_bend, t_bite, t_rip, side, neck=False):
-    keys = [(t_bend, pose(**OVER) if not neck else pose(**FIN_HOLD))]
+def bite_sequence(t_bend, t_bite, t_rip, side, neck=False, start=None):
+    # start: a pose de onde ele sai pro bote (sem ela, em pé por cima: OVER/FIN_HOLD)
+    keys = [(t_bend, start if start is not None else (pose(**OVER) if not neck else pose(**FIN_HOLD)))]
     target = (neck_bite if neck else (lambda **o: bend(side, **o)))
     keys.append((round(t_bend + (t_bite - t_bend) * 0.6, 3), target(head=-6 if not neck else -14)))  # abre a boca
     keys.append((t_bite, target()))                                                                  # CRAVA
@@ -1105,12 +1107,12 @@ def bite_sequence(t_bend, t_bite, t_rip, side, neck=False):
     return keys
 
 
-def shaking(t0, t1, period=0.2, amount=50, body=5):
+def shaking(t0, t1, period=0.2, amount=50, body=5, lean=0.0):
     keys = []
     k = 0
     t = t0
     while t < t1 - 0.01:
-        keys.append((round(t, 3), fin_shake(1 if k % 2 == 0 else -1, amount, body)))
+        keys.append((round(t, 3), fin_shake(1 if k % 2 == 0 else -1, amount, body, lean)))
         k += 1
         t += period
     return keys
@@ -1119,28 +1121,47 @@ def shaking(t0, t1, period=0.2, amount=50, body=5):
 # Em pé comendo o pedaço (vídeo da zebra, 2,1-2,9 s e 4,7-5,8 s): ereto, braços
 # soltos do lado, o pedaço ATRAVESSADO na boca (cachorro com osso)
 EAT = dict(root_y=0, waist=2, head=0, arms=-12, arm_l=-8, arm_spread=10, legs=2, leg_spread=16)
+# (v0.7.36, LM 16/11 comparando lado a lado com o "Eating a Zebra": "tronco com a cabeça indo levemente para trás";
+# no print dos 6 s: "as costas e braço e cabeça não vão para trás"; e por fim: "depois de ele comer o 2 braço, aí sim
+# ele começa a inclinar devagar e dar o bote final na cabeça da velocidade do original") os dois braços ele come em pé,
+# como antes; depois que o 2º some (5,8 s do vídeo) ele vai indo pra trás DEVAGAR, cada vez mais, até ~7,7 s, e dali
+# sai direto pro bote na cabeça da vítima (~0,15 s, 7,75-7,9 s). Inclinado: as costas ~22° (o tronco leva junto os
+# braços e a cabeça), a cabeça mais ~14° com a boca virada pro céu e os braços soltos, caindo pra trás junto com o
+# ombro (a mão vai uns 4 px pra trás) e um tico abertos. lean = 0 a 1 (quanto disso), somado ao que a pose já faz;
+# head_lean troca a parte da cabeça (nas engolidas a cabeça já vai pro céu: lá só o tronco e os braços inclinariam).
+FIN_LEAN_W, FIN_LEAN_H, FIN_LEAN_A, FIN_LEAN_S = 22, 14, 24, 6
 
 
-def eat_p(**over):
-    return pose(**{**EAT, **over})
+def eat_p(lean=0.0, head_lean=None, **over):
+    p = {**EAT, **over}
+    if lean:
+        p["waist"] = p.get("waist", 0) - FIN_LEAN_W * lean
+        p["head"] = p.get("head", 0) - FIN_LEAN_H * (lean if head_lean is None else head_lean)
+        p["arms"] = p.get("arms", 0) + FIN_LEAN_A * lean
+        if p.get("arm_l") is not None:
+            p["arm_l"] += FIN_LEAN_A * lean
+        p["arm_spread"] = p.get("arm_spread", 0) + FIN_LEAN_S * lean
+    return pose(**p)
 
 
-def gulp(t0, t1, side):
+def gulp(t0, t1, side, lean=0.0, lean_end=None):
     """Uma engolida (v0.4.5, vídeo da zebra quadro a quadro): joga a cabeça pra trás
     com a boca pro céu e virada pra um lado, dá um tranco curto lá em cima (o pedaço
-    desce pela goela; Finisher.GULPS_*, o pedaço encolhe no mesmo intervalo) e volta."""
+    desce pela goela; Finisher.GULPS_*, o pedaço encolhe no mesmo intervalo) e volta.
+    lean_end: a inclinação pra trás vai de lean até lean_end ao longo da engolida."""
     d = t1 - t0
     at = lambda f: round(t0 + d * f, 3)
-    return [(round(t0, 3), eat_p(head=8, head_z=4 * side)),
-            (at(0.25), eat_p(head=-44, head_y=14 * side, head_z=10 * side, waist=-6)),
-            (at(0.5), eat_p(head=-52, head_y=-4 * side, head_z=-6 * side, waist=-8)),
-            (at(0.75), eat_p(head=-42, head_y=10 * side, head_z=8 * side, waist=-6)),
-            (round(t1, 3), eat_p(head=-16, waist=-3))]
+    le = lambda f: lean + ((lean if lean_end is None else lean_end) - lean) * f
+    return [(round(t0, 3), eat_p(le(0), head=8, head_z=4 * side)),
+            (at(0.25), eat_p(le(0.25), 0, head=-44, head_y=14 * side, head_z=10 * side, waist=-6)),
+            (at(0.5), eat_p(le(0.5), 0, head=-52, head_y=-4 * side, head_z=-6 * side, waist=-8)),
+            (at(0.75), eat_p(le(0.75), 0, head=-42, head_y=10 * side, head_z=8 * side, waist=-6)),
+            (round(t1, 3), eat_p(le(1), head=-16, waist=-3))]
 
 
-def forward(side):
+def forward(side, lean=0.0):
     # entre uma engolida e outra: a cabeça vem pra frente e pra baixo, tombada (2,8 s)
-    return eat_p(head=12, head_y=6 * side, head_z=12 * side, waist=4)
+    return eat_p(lean, head=12, head_y=6 * side, head_z=12 * side, waist=4)
 
 
 # (v0.7.30) Comendo a arma roubada (FroggyDude VS Grox MANHUNT 1:24,0-1:25,1; LM: "ele sacode a cabeça
@@ -1172,10 +1193,13 @@ fin += bite_sequence(T(74), T(80), T(92), -1)
 fin += gulp(T(94), T(102), -1)
 fin += [(T(105), forward(1)), (T(108), forward(-1))]
 fin += gulp(T(110), T(118), 1)
-# sumiu (tick 120): uns 2 s parado, em pé, boca fechada, olhando pra frente (5,9-7,7 s)
-fin += [(T(120), eat_p(head=-4)), (T(124), eat_p()), (T(134), eat_p(head=3, waist=3)),
-        (T(144), eat_p()), (T(152), eat_p(head=3, waist=3))]
-fin += bite_sequence(T(158), T(163), T(169), 0, neck=True)
+# sumiu (tick 120): aí sim, parado em pé, vai indo pra trás devagar, cada vez mais (5,9-7,7 s do vídeo), com um
+# "mmmm" leve na cabeça; e do mais inclinado sai DIRETO pro bote na cabeça da vítima, rápido como no vídeo
+# (7,75-7,9 s: ~0,15 s até lá embaixo)
+LEANED = eat_p(head=-8, lean=1)
+fin += [(T(120), eat_p(head=-4)), (T(126), eat_p(lean=0.2)), (T(134), eat_p(head=3, waist=2, lean=0.45)),
+        (T(142), eat_p(head=-3, lean=0.65)), (T(150), eat_p(head=-4, lean=0.85)), (T(155), LEANED)]
+fin += bite_sequence(T(158), T(163), T(169), 0, neck=True, start=LEANED)
 # CLOSE (8,3-10,5 s): segura uns 0,5 s quase parado, só tremendo, e então chicoteia a
 # cabeça pros lados MUITO rápido; o corpo dele não mexe
 fin += [(T(171), fin_shake(1, 8, 0)), (T(175), fin_shake(-1, 10, 0)), (T(179), fin_shake(1, 8, 0))]

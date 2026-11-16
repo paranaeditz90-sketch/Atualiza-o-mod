@@ -179,6 +179,10 @@ public class FroggyFinisherGoal extends Goal {
             return;
         }
         int t = (int) (level.getGameTime() - start) + (skipLeft ? Finisher.SKIP : 0);
+        // (v0.7.36, LM 16/11, comparando com o "Eating a Zebra": "Aberta a cena toda") a boca escancarada, com os
+        // dentes, do começo ao fim: mordendo, arrancando, engolindo com o braço atravessado, na pausa e no close.
+        // Antes abria só da mordida até arrancar e enquanto sacudia; engolindo, o braço ficava grudado na boca fechada
+        froggy.openMouth(4);
         place();
         if (victim.position().distanceToSqr(anchor) > 0.04D) holdVictim();
         victim.setDeltaMovement(Vec3.ZERO);
@@ -216,7 +220,6 @@ public class FroggyFinisherGoal extends Goal {
         boolean shaking = (!skipLeft && t > Finisher.RIP_L && t < Finisher.GULPS_L[0][0])
                 || (t > Finisher.RIP_R && t < Finisher.GULPS_R[0][0])
                 || (t > Finisher.RIP_H && t < Finisher.GULPS_H[0][0]);
-        if (shaking && t % 2 == 0) froggy.openMouth(4);
         // pedaço voando da boca: pouco de cada vez (no close a câmera está perto e tampava tudo)
         if (shaking && t % 4 == 0) froggy.spawnMouthBlood(3);
         // engolindo (a cabeça vai pra trás com a boca aberta pro céu): estalo pesado de osso
@@ -226,7 +229,7 @@ public class FroggyFinisherGoal extends Goal {
             froggy.spawnMouthBlood(2);
         }
         if ((!skipLeft && t == Finisher.GONE_L) || t == Finisher.GONE_R) froggy.onGulp();
-        // parado de boca fechada depois do 2º braço: o "mmmm"
+        // parado depois do 2º braço: o "mmmm"
         if (t == Finisher.GONE_R + 6) froggy.speak(VoiceSituation.CHEWING, true);
         if (t == Finisher.BEND_H - 18) froggy.speak(VoiceSituation.LAST_BITE, true);
         if (t > Finisher.RIP_H && t < Finisher.GULPS_H[0][0] && (t - Finisher.RIP_H) % 10 == 0) froggy.onChew();
@@ -240,7 +243,6 @@ public class FroggyFinisherGoal extends Goal {
         if (t == biteAt) {
             froggy.onBiteHit();
             froggy.stainMouth(victim, 0.35F);
-            froggy.openMouth(ripAt - biteAt + 4);
             BloodFx.spray(level, at, out.add(0, 0.8D, 0), 10, 0.22F);
             BloodFx.hit(victim, froggy, at, out.scale(-1), 3F, BloodFx.RED, BloodFx.HIT_MARKS);
         } else if (t > biteAt && t < ripAt && (t - biteAt) % 3 == 0) {

@@ -12,7 +12,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.EffectInstance;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.PostChain;
+import net.minecraft.client.renderer.PostPass;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -32,6 +35,11 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
+
+import java.lang.reflect.Field;
+import java.util.List;
 
 /**
  * A câmera de cinema de quem está sendo despedaçado: você assiste de fora,
@@ -97,6 +105,7 @@ public final class CinematicCamera {
         chooseSides(mc, e);
         place(mc, 0F);
         mc.setCameraEntity(cam);
+        blurOn(mc);
         // o sangue que estava na tela (dos socos de antes) sai: agora a câmera é de cinema
         com.froggydude.client.gore.ScreenBlood.clear();
         // a altura do olho da câmera do jogo vem "andando" da entidade anterior: já põe no lugar
@@ -114,6 +123,7 @@ public final class CinematicCamera {
         if (entry == null) return;
         entry = null;
         if (mc.player != null && mc.getCameraEntity() == cam) mc.setCameraEntity(mc.player);
+        blurOff(mc);
         if (savedType != null) mc.options.setCameraType(savedType);
         savedType = null;
         cam = null;
@@ -297,7 +307,107 @@ public final class CinematicCamera {
             return;
         }
         place(mc, event.renderTickTime);
-        if (mc.getCameraEntity() != cam) mc.setCameraEntity(cam);
+        if (mc.getCameraEntity() != cam) {
+            mc.setCameraEntity(cam); // (o jogo desliga o efeito de tela quando troca a câmera)
+            blurOn(mc);
+        }
+    }
+
+    /**
+     * (v0.7.36, LM 16/11 comparando com o "Eating a Zebra": "O efeito de blur") o borrão de movimento, só durante a
+     * cena: um efeito de tela do próprio jogo (o mesmo tipo da visão de creeper do espectador) que mistura cada quadro
+     * com o anterior (shaders/post/cutscene_blur.json). Depois ("o borrão do blur é só na carne", e o exemplo dele
+     * mergulhando aos 7,85 s): o quadro anterior é lido onde cada ponto do mundo ESTAVA (profundidade + a câmera de
+     * antes, {@link #onBlurStage}), então o cenário fica nítido com a câmera tremendo e só ele, a carne e o sangue que
+     * se mexem deixam rastro. Se o shader não carregar (celular), o jogo só avisa no log e a cena segue sem. Dá pra
+     * desligar na config (cena.borrao).
+     */
+    private static final ResourceLocation BLUR = new ResourceLocation(ModEntityTypes.MOD_ID, "shaders/post/cutscene_blur.json");
+    /** Quanto do quadro anterior entra no que se mexe (LM: "Borrão mais fraco"). */
+    private static final float BLUR_MIX = 0.35F;
+    /** Câmera que pulou mais que isso de um quadro pro outro é corte de plano: aquele quadro não mistura. */
+    private static final double BLUR_CUT_DIST = 0.6D;
+    private static final float BLUR_CUT_DOT = 0.9F; // ~25°
+    private static final Matrix4f prevViewProj = new Matrix4f();
+    private static final Vector3f prevLook = new Vector3f();
+    private static Vec3 prevCam;
+    private static PostChain prevChain;
+    private static int prevW, prevH;
+    private static Field passesField;
+
+    private static void blurOn(Minecraft mc) {
+        if (!FroggyClientConfig.cutsceneBlur()) return;
+        PostChain cur = mc.gameRenderer.currentEffect();
+        if (cur != null && BLUR.toString().equals(cur.getName())) return;
+        mc.gameRenderer.loadEffect(BLUR);
+    }
+
+    /** Desliga só o nosso (a visão de creeper/aranha do espectador fica). */
+    private static void blurOff(Minecraft mc) {
+        PostChain cur = mc.gameRenderer.currentEffect();
+        if (cur != null && BLUR.toString().equals(cur.getName())) mc.gameRenderer.shutdownEffect();
+        prevCam = null;
+        prevChain = null;
+    }
+
+    /**
+     * A cada quadro, antes do mundo ser desenhado (o efeito roda depois dele, no mesmo quadro): passa pro shader a
+     * câmera de agora (tela -> mundo) e a do quadro anterior (mundo -> tela). No primeiro quadro, num corte de plano
+     * ou se a tela mudou de tamanho, o anterior não serve (é de outro lugar ou está preto): esse quadro não mistura.
+     */
+    @SubscribeEvent
+    public static void onBlurStage(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY || entry == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        PostChain chain = mc.gameRenderer.currentEffect();
+        if (chain == null || !BLUR.toString().equals(chain.getName())) {
+            prevCam = null;
+            return;
+        }
+        // nesta etapa o PoseStack é só o giro da câmera (o projetor vem à parte); posições do mundo em volta da câmera
+        Matrix4f viewProj = new Matrix4f(event.getProjectionMatrix()).mul(event.getPoseStack().last().pose());
+        Vec3 camPos = event.getCamera().getPosition();
+        Vector3f look = event.getCamera().getLookVector();
+        int w = mc.getMainRenderTarget().width, h = mc.getMainRenderTarget().height;
+        boolean fresh = prevCam == null || chain != prevChain || w != prevW || h != prevH
+                || prevCam.distanceToSqr(camPos) > BLUR_CUT_DIST * BLUR_CUT_DIST || look.dot(prevLook) < BLUR_CUT_DOT;
+        float mix = fresh ? 0F : BLUR_MIX;
+        Vec3 delta = fresh ? Vec3.ZERO : camPos.subtract(prevCam);
+        Matrix4f inv = new Matrix4f(viewProj).invert();
+        for (PostPass pass : passes(chain)) {
+            EffectInstance fx = pass.getEffect();
+            fx.safeGetUniform("InvViewProj").set(inv);
+            fx.safeGetUniform("PrevViewProj").set(fresh ? viewProj : prevViewProj);
+            fx.safeGetUniform("CamDelta").set((float) delta.x, (float) delta.y, (float) delta.z);
+            fx.safeGetUniform("BlurMix").set(mix);
+        }
+        prevViewProj.set(viewProj);
+        prevLook.set(look);
+        prevCam = camPos;
+        prevChain = chain;
+        prevW = w;
+        prevH = h;
+    }
+
+    /** Os passos do efeito (o jogo não mostra a lista): acha o campo pelo conteúdo, que vale com qualquer nome. */
+    @SuppressWarnings("unchecked")
+    private static List<PostPass> passes(PostChain chain) {
+        try {
+            if (passesField == null) {
+                for (Field f : PostChain.class.getDeclaredFields()) {
+                    if (f.getType() != List.class) continue;
+                    f.setAccessible(true);
+                    if (f.get(chain) instanceof List<?> l && !l.isEmpty() && l.get(0) instanceof PostPass) {
+                        passesField = f;
+                        break;
+                    }
+                }
+                if (passesField == null) return List.of();
+            }
+            return (List<PostPass>) passesField.get(chain);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return List.of();
+        }
     }
 
     /** Fica valendo enquanto ela está na cutscene ou morta vendo o corpo; renasceu/trocou de mundo: acaba. */

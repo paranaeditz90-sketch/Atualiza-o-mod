@@ -1,4 +1,4 @@
-# Froggydude - v0.7.35: o renascer com a língua e o pulo do céu mais alto (sobre a v0.7.34)
+# Froggydude - v0.7.36: a cena de morte mais perto do "Eating a Zebra" (sobre a v0.7.35)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,41 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.35):
+O que testar agora (v0.7.36):
+- **A boca na cena de morte** (o golpe final; `/froggydude golpefinal` em ti, em sobrevivência). Tu comparou com o
+  "Eating a Zebra" em 16/11 ("No vídeo da zebra, o froggydude fica com a boca aberta quando tá comendo") e escolheu
+  "Aberta a cena toda": agora a boca fica **escancarada, com os dentes, do começo ao fim** da cena. Ele morde,
+  arranca, engole com o braço atravessado, fica na pausa depois do 2º braço e faz o close com a tua cabeça, sempre
+  de boca aberta. Antes ela abria só da mordida até arrancar e enquanto ele sacudia o pedaço; engolindo, a boca
+  fechava e o braço parecia grudado na cara. O resto da cena não mudou.
+  Testado: no jogo, gravando a cena inteira e comparando lado a lado com o vídeo da zebra (as 3 mordidas batem):
+  boca aberta em todos os quadros que conferi, do começo da cena ao close.
+- **Depois do 2º braço, ele vai pra trás devagar e dá o bote na cabeça** (tu pediu "tronco com a cabeça indo
+  levemente para trás", no print dos 6 s "as costas e braço e cabeça não vão para trás" e, por fim: "depois de ele
+  comer o 2 braço, aí sim ele começa a inclinar devagar e dar o bote final na cabeça da velocidade do original"). Os
+  **dois braços ele come em pé**, igual à v0.7.35. Quando o 2º braço some, parado em pé, ele **vai indo pra trás
+  devagar, cada vez mais** (uns 1,8 s, como no vídeo): as costas até ~20° pra trás (o tronco leva junto os braços e a
+  cabeça), a cabeça até ~40° virada pro céu e os braços soltos caindo pra trás junto com o ombro. Do mais inclinado
+  ele **sai direto pro bote** na tua cabeça, **rápido como no vídeo** (~0,15 s até lá embaixo, com o borrão); antes
+  ele se endireitava primeiro e o bote saía de pé.
+  Testado: no jogo, lado a lado com o vídeo da zebra (antes do 2º braço sumir: nada mudou da v0.7.35; inclinando de
+  6,5 a 7,7 s; o bote borrado aos 7,8-7,85 s junto com o vídeo, e lá embaixo um quadro depois dele). Da nossa câmera
+  (mais de frente pra ele que a do vídeo), o que mais aparece é a cabeça virada pro céu; o tronco inclinado aparece
+  menos que no vídeo.
+- **O borrão de movimento (blur), só no que se mexe** (tu: "Borrão mais fraco", depois "o borrão do blur é só na
+  carne" e o exemplo dele mergulhando aos 7,85 s). Durante a cena borra **só o que se move de verdade**: ele (o
+  mergulho na tua cabeça, a cabeça chicoteando no close), a carne na boca e o sangue voando. O **cenário fica nítido**
+  mesmo com a câmera tremendo ou virando (antes a tela inteira borrava quando a câmera mexia). No corte de um plano
+  pro outro não borra. Só na cena; acabou, a tela volta ao normal. É um efeito de tela do próprio jogo (o mesmo tipo
+  da visão de creeper do espectador), agora lendo também a profundidade da tela. **No celular eu não consigo testar
+  daqui**: se o jogo engasgar ou a tela ficar estranha na cena (borrão no cenário, tela preta, piscando), desliga em
+  `config/froggydude-client.toml`, seção `[cena]`, `borrao = false`. Se o shader não carregar, a cena só fica sem o
+  borrão.
+  Testado: no jogo, lado a lado com o vídeo da zebra: borra o corpo no mergulho (igual ao teu exemplo), a cabeça no
+  close e o sangue espirrando. E medi quadro a quadro o horizonte (céu/grama) nos trancos de câmera: no borrão antigo
+  ele aparecia dobrado (50% de um fantasma no lugar de antes); agora 0,6%, igual a sem borrão (0,4%).
+
+Da v0.7.35:
 - **O renascer com a língua** (o fim do vídeo vs AJTHEBOLD; tua réplica v3, aprovada em 16/11). Em vez de morrer, às
   vezes ele **se despedaça e se remonta**: 35% numa morte comum e **75% se morreu explodido**, em todos os modos
   (manhunt, aparece no teu mundo, /summon). Com /kill, caindo no fundo do mundo ou na borda, ele morre de verdade.

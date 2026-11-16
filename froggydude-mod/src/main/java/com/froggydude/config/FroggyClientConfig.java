@@ -16,6 +16,7 @@ public final class FroggyClientConfig {
     public static final ForgeConfigSpec.IntValue PIECES_SECONDS;
     public static final ForgeConfigSpec.IntValue PIECES_MAX;
     public static final ForgeConfigSpec.IntValue PIECES_SHARDS;
+    public static final ForgeConfigSpec.BooleanValue CUTSCENE_BLUR;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -34,6 +35,11 @@ public final class FroggyClientConfig {
         PIECES_MAX = b.comment("Máximo de cacos no mundo ao mesmo tempo (celular fraco: diminua).")
                 .defineInRange("maximo", 300, 20, 1000);
         b.pop();
+        b.comment("A cena de morte (o golpe final).").push("cena");
+        CUTSCENE_BLUR = b.comment("Borrão de movimento, como no vídeo \"Eating a Zebra\": só no que se mexe (ele, a carne,",
+                        "o sangue); o cenário fica nítido. Desligue (false) se o celular engasgar ou a tela ficar estranha na cena.")
+                .define("borrao", true);
+        b.pop();
         SPEC = b.build();
     }
 
@@ -42,6 +48,11 @@ public final class FroggyClientConfig {
 
     public static GoreLevel gore() {
         return SPEC.isLoaded() ? GORE.get() : GORE.getDefault();
+    }
+
+    /** (v0.7.36) O borrão de movimento na cena de morte (client.cutscene.CinematicCamera). */
+    public static boolean cutsceneBlur() {
+        return SPEC.isLoaded() ? CUTSCENE_BLUR.get() : CUTSCENE_BLUR.getDefault();
     }
 
     public static int piecesSeconds() {
