@@ -1,4 +1,4 @@
-# Froggydude - v0.7.38: a voz original do FroggyDude dentro do mod (sobre a v0.7.37)
+# Froggydude - v0.7.39: a tela inicial com as frases do FroggyDude e o TikTok do LM (sobre a v0.7.38)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,22 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.38):
+O que testar agora (v0.7.39):
+- **As frases amarelas da tela inicial** (tu: "Consegue deixar somente 6 sortidos para esses (depende do idioma do
+  jogador)"). As frases sorteadas do lado do "Minecraft" agora são só estas 6, no idioma do teu jogo (português ou
+  inglês; outro idioma cai no inglês):
+  "Eu consigo sentir seu cheiro" / "I can smell you"; "Já pensou o quão bom é a sua carne?" / "Ever thought about how
+  good your flesh is?"; "Hora de comer." / "Time to eat."; "FroggyDude?!!!"; "Made by LMzolaMC!"; "Quantos dias você
+  consegue sobreviver a mim? [teu nome]" / "How many days can you survive me? [teu nome]". Sorteia uma a cada vez que a
+  tela inicial abre (as de data do jogo, tipo Natal, também saíram).
+- **A caixinha do TikTok** no canto de baixo à direita da tela inicial (acima do "Copyright Mojang"), com o ícone:
+  passando o dedo/mouse mostra "TikTok: @lm54546"; tocando, abre a confirmação do próprio jogo com "Abrir no
+  navegador", "Copiar para a área de transferência" e "Cancelar". **No celular confere se o "Abrir" funciona** (depende
+  do Zalith abrir link); se não abrir, o "Copiar" sempre funciona.
+  Testado: no jogo em português (a frase "FroggyDude?!!!" no lugar das do jogo; a caixinha, a dica e a confirmação com
+  o link certo).
+
+Da v0.7.38:
 - **A voz do FroggyDude já vem dentro do mod** (tu: "da pra pegar o pacote de vozes agora e colocar dentro do mod, o
   froggydude autorizou"). O teu pacote "FroggyDude-Voz 0.5.0" agora está dentro do jar, como um pacote de recursos
   interno sempre ligado: **não precisa mais instalar o pacote à parte** (se continuar ligado, não atrapalha, é o mesmo).

@@ -187,5 +187,11 @@
   "froggydude.cmd.director_sign": "Sinal feito.",
   "froggydude.cmd.director_sign_none": "Não deu agora (sem lugar fora da tua vista, ou sem bicho, tocha ou porta perto).",
   "froggydude.cmd.revive_started": "Ele se despedaçou... e a língua vai juntar os pedaços.",
-  "froggydude.cmd.revive_not_now": "Agora não dá (já está renascendo, ou caindo no vazio)."
+  "froggydude.cmd.revive_not_now": "Agora não dá (já está renascendo, ou caindo no vazio).",
+  "froggydude.splash.1": "Eu consigo sentir seu cheiro",
+  "froggydude.splash.2": "Já pensou o quão bom é a sua carne?",
+  "froggydude.splash.3": "Hora de comer.",
+  "froggydude.splash.4": "FroggyDude?!!!",
+  "froggydude.splash.5": "Made by LMzolaMC!",
+  "froggydude.splash.6": "Quantos dias você consegue sobreviver a mim? %s"
 }
