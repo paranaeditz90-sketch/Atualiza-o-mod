@@ -1,4 +1,4 @@
-# Froggydude - v0.7.42: a IA dinâmica, etapa 1 + o anti-trapaça (sobre a v0.7.41)
+# Froggydude - v0.7.43: a tela de morte do anti-trapaça por cima de mod de tela de morte (sobre a v0.7.42)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,24 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.42):
+O que testar agora (v0.7.43):
+- **O anti-trapaça com o "Death screen FNAF"** (tu, com a gravação: "No final, ele bugou com a minha tela de morte").
+  O FNAF troca a tela de morte do jogo pela dele (1,75 s de chiado com som, depois a tela normal). A 0.7.42 também
+  usava a tela de morte do jogo e trocava a dele de volta a cada tick: os dois ficavam brigando e o chiado recomeçava
+  pra sempre, sem a mensagem. Agora a morte do anti-trapaça tem **uma tela própria** (igual à do jogo: "Você morreu!",
+  "Você talvez esqueceu de uma coisa... Eu odeio TRAPAÇAS.", pontuação, "Renascer" apagado, "Menu principal" com
+  "Deseja mesmo sair?" Menu principal / Voltar) que entra por último, por cima de qualquer mod de tela de morte, e cala o
+  som de outro mod de morte enquanto está aberta.
+  - **Primeiro a tela do FNAF, depois a nossa** (tu: "eu queria a tela de morte e depois a sua tela de morte"): o
+    chiado do FNAF passa inteiro (1,75 s, com o som) e aí entra a nossa. Sair e voltar pro mundo: chiado de novo e a
+    nossa. Sem o FNAF (ou com outro mod de tela de morte), a nossa entra direto. Nada mudou no FNAF.
+  - **Nas mortes normais o FNAF continua igual** (chiado, "Você morreu!", renascer).
+  - Testado aqui com o teu `FNAFuniverse.jar` de verdade (o mesmo do teu log): morte normal = chiado + tela + renascer;
+    `/gamemode creative` = vídeo inteiro + a nossa tela (sem chiado, sem loop, sem som), com e sem "renascer na hora";
+    "Menu principal" → "Voltar" e ESC voltam pra ela; sair e voltar pro mundo cai nela de novo.
+  - Do teu log: no teu celular passaram 1805 de 2022 quadros (89%), 11,8 ms por quadro. O vídeo está bom.
+
+Da v0.7.42:
 - **O anti-trapaça** (tu: "Trapaças? Sim em vermelho, Não em verde... o vídeo... Você talvez esqueceu de uma coisa... Eu
   odeio TRAPAÇAS... não renasce nunca mais"; e 17/11: "60 FPS o vídeo + áudio", "só quando entra no criativo ou
   espectador").

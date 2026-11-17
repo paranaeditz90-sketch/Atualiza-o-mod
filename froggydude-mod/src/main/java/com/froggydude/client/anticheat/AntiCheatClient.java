@@ -13,9 +13,10 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.DeathScreen;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.GenericDirtMessageScreen;
+import net.minecraft.client.gui.screens.ProgressScreen;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.client.gui.screens.ReceivingLevelScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
@@ -39,8 +40,8 @@ import javax.annotation.Nullable;
 
 /**
  * (v0.7.42) O lado do jogador no anti-trapaça (world.AntiCheat): o botão "Trapaças?" na tela de criar mundo, o vídeo
- * (CheatVideoScreen), que não deixa outra tela passar na frente, e a tela de morte de quem foi pego: com a mensagem
- * dele e sem o botão de renascer (nem o "renascer na hora" da regra do jogo salva).
+ * (CheatVideoScreen), que não deixa outra tela passar na frente, e a tela de morte de quem foi pego (CheatDeathScreen):
+ * com a mensagem dele e sem renascer (nem o "renascer na hora" da regra do jogo salva), por cima de mod de tela de morte.
  */
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class AntiCheatClient {
@@ -51,12 +52,23 @@ public final class AntiCheatClient {
     private static boolean pendingPlay;
     @Nullable
     private static CheatVideoScreen playing;
-    /** A tela de morte que a gente abriu (com a mensagem dele). */
+    /**
+     * A tela de morte do condenado: própria (CheatDeathScreen), não a DeathScreen do jogo, que mod de tela de morte
+     * pinta por cima (o "Death screen FNAF" do LM pôs chiado no lugar da mensagem).
+     */
     @Nullable
-    private static DeathScreen ourDeath;
-    /** O "Deseja mesmo sair?" nosso: sem o "Renascer" que o do jogo tem (e o ESC dele renascia). */
+    private static CheatDeathScreen ourDeath;
+    /**
+     * (v0.7.43, LM: "eu queria a tela de morte e depois a sua"; "só para quem tem o .jar do FNAF") Com o "Death screen
+     * FNAF" do LM, o chiado dele passa primeiro, inteiro (35 ticks, 1,75 s), e só depois entra a nossa.
+     */
+    private static final int INTRO_TICKS = 35;
+    private static final String FNAF_PACKAGE = "com.fnafuniverse.";
     @Nullable
-    private static ConfirmScreen ourQuit;
+    private static Screen intro;
+    private static int introTicks;
+    /** A de outro mod já passou nesta morte: daqui pra frente, só a nossa (senão as duas ficam trocando). */
+    private static boolean introDone;
     // ----- a tela de criar mundo (fraca: não segura a tela velha na memória depois que o mundo é criado)
     private static java.lang.ref.WeakReference<Screen> createScreen = new java.lang.ref.WeakReference<>(null);
     @Nullable
@@ -78,6 +90,10 @@ public final class AntiCheatClient {
             case AntiCheatPacket.CLEAR -> {
                 condemned = false;
                 pendingPlay = false;
+                // perdoado na tela de morte: volta a do jogo, com o renascer
+                if (mc.screen instanceof CheatDeathScreen && mc.level != null) {
+                    mc.setScreen(new DeathScreen(null, mc.level.getLevelData().isHardcore()));
+                }
                 ourDeath = null;
                 // perdoado no meio do vídeo: para na hora
                 if (playing != null) {
@@ -128,22 +144,35 @@ public final class AntiCheatClient {
         }
         if (condemned) {
             mc.player.setShowDeathScreen(true); // sem "renascer na hora"
-            if (mc.screen == null && mc.player.isDeadOrDying()) {
-                ourDeath = new DeathScreen(deathMessage(mc), mc.level.getLevelData().isHardcore());
-                mc.setScreen(ourDeath);
-            } else if (mc.screen instanceof DeathScreen ds) {
-                if (ds != ourDeath) {
-                    // a tela de morte de quando volta pro mundo não tem a mensagem: põe a dele
-                    ourDeath = new DeathScreen(deathMessage(mc), mc.level.getLevelData().isHardcore());
-                    mc.setScreen(ourDeath);
-                } else {
-                    lockRespawn(ds);
+            if (intro != null && mc.screen == intro) {
+                // a de outro mod passando: quando acabar o chiado dela, entra a nossa
+                if (++introTicks >= INTRO_TICKS) {
+                    introDone = true;
+                    intro = null;
+                    mc.setScreen(death(mc));
                 }
+                return;
+            }
+            // morto e sem a nossa tela (a do jogo, a de outro mod, nenhuma): põe a nossa
+            if (mc.player.isDeadOrDying() && !(mc.screen instanceof CheatDeathScreen) && !allowedWhileDead(mc.screen)) {
+                mc.setScreen(death(mc));
             }
         }
     }
 
-    private static Component deathMessage(Minecraft mc) {
+    private static CheatDeathScreen death(Minecraft mc) {
+        if (ourDeath == null) ourDeath = new CheatDeathScreen(mc.level != null && mc.level.getLevelData().isHardcore());
+        return ourDeath;
+    }
+
+    /** As telas que podem aparecer com o condenado morto: a pergunta de sair (a nossa) e as de sair do mundo. */
+    private static boolean allowedWhileDead(@Nullable Screen s) {
+        return s instanceof ConfirmScreen && !(s instanceof DeathScreen.TitleConfirmScreen)
+                || s instanceof TitleScreen || s instanceof GenericDirtMessageScreen || s instanceof ProgressScreen
+                || s instanceof ReceivingLevelScreen || s instanceof DisconnectedScreen;
+    }
+
+    static Component deathMessage(Minecraft mc) {
         return Component.translatable("death.attack.froggydude.anticheat",
                 mc.player == null ? Component.empty() : mc.player.getDisplayName());
     }
@@ -163,31 +192,28 @@ public final class AntiCheatClient {
             event.setCanceled(true);
             return;
         }
-        if (condemned && next instanceof DeathScreen && next != ourDeath && mc.level != null) {
-            ourDeath = new DeathScreen(deathMessage(mc), mc.level.getLevelData().isHardcore());
-            event.setNewScreen(ourDeath);
-        } else if (condemned && next instanceof ConfirmScreen && next != ourQuit && isQuitConfirm(next)) {
-            // o "Menu principal" da tela de morte pergunta "Deseja mesmo sair?" com Menu principal / Renascer (e o ESC
-            // renasce): troca por um com Menu principal / Voltar
-            ourQuit = new ConfirmScreen(yes -> {
-                if (yes) exitToTitle(mc);
-                else mc.setScreen(ourDeath != null ? ourDeath
-                        : new DeathScreen(deathMessage(mc), mc.level != null && mc.level.getLevelData().isHardcore()));
-            }, Component.translatable("deathScreen.quit.confirm"), CommonComponents.EMPTY,
-                    Component.translatable("deathScreen.titleScreen"), CommonComponents.GUI_BACK);
-            event.setNewScreen(ourQuit);
+    }
+
+    /**
+     * A tela de morte do condenado é a nossa, por cima de qualquer outra: roda por último (LOWEST), depois que outro mod
+     * de tela de morte já trocou a do jogo pela dele.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onDeathScreenOpening(ScreenEvent.Opening event) {
+        Minecraft mc = Minecraft.getInstance();
+        if (!condemned || mc.level == null || mc.player == null || mc.getConnection() == null) return;
+        Screen next = event.getNewScreen();
+        if (next instanceof CheatDeathScreen || next == intro) return;
+        // a tela do "Death screen FNAF" (o mod do LM) passa primeiro, uma vez por morte. Sem o FNAF (ou com outro mod de
+        // tela de morte), a nossa entra direto
+        if (next instanceof DeathScreen && next.getClass().getName().startsWith(FNAF_PACKAGE) && !introDone && intro == null) {
+            intro = next;
+            introTicks = 0;
+            return;
         }
-    }
-
-    private static boolean isQuitConfirm(Screen s) {
-        return s.getTitle().getContents() instanceof TranslatableContents tc && tc.getKey().equals("deathScreen.quit.confirm");
-    }
-
-    /** O mesmo "Menu principal" da tela de morte do jogo. */
-    private static void exitToTitle(Minecraft mc) {
-        if (mc.level != null) mc.level.disconnect();
-        mc.clearLevel(new GenericDirtMessageScreen(Component.translatable("menu.savingLevel")));
-        mc.setScreen(new TitleScreen());
+        if (next instanceof DeathScreen || mc.player.isDeadOrDying() && !allowedWhileDead(next)) {
+            event.setNewScreen(death(mc));
+        }
     }
 
     // ----- o vídeo passando: o mundo atrás dele não precisa ser desenhado (60 quadros por segundo no celular).
@@ -212,7 +238,14 @@ public final class AntiCheatClient {
     /** O vídeo passando: só o som dele toca. */
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
-        if (videoOn() && event.getSound() != null && !playing.isOurSound(event.getSound())) event.setSound(null);
+        if (event.getSound() == null) return;
+        if (videoOn() && !playing.isOurSound(event.getSound())) {
+            event.setSound(null);
+        } else if (Minecraft.getInstance().screen instanceof CheatDeathScreen) {
+            // na nossa tela de morte, som de outro mod de morte (o chiado do FNAF) não toca; o mundo, sim
+            String ns = event.getSound().getLocation().getNamespace();
+            if (!ns.equals("minecraft") && !ns.equals(ModEntityTypes.MOD_ID)) event.setSound(null);
+        }
     }
 
     @SubscribeEvent
@@ -221,7 +254,8 @@ public final class AntiCheatClient {
         pendingPlay = false;
         playing = null;
         ourDeath = null;
-        ourQuit = null;
+        intro = null;
+        introDone = false; // voltou pro mundo: a do outro mod passa de novo antes da nossa
     }
 
     // ----- a tela de morte: o renascer não funciona
