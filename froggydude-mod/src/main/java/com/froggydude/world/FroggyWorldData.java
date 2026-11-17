@@ -4,13 +4,18 @@ import com.froggydude.brain.DangerMemory;
 import com.froggydude.brain.FroggyBrain;
 import com.froggydude.entity.voice.FroggyVoice;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtUtils;
+import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.LevelResource;
 
 import javax.annotation.Nullable;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -88,6 +93,14 @@ public class FroggyWorldData extends SavedData {
     @javax.annotation.Nullable
     public CompoundTag parkedFroggy;
 
+    // ----- (v0.7.42) o anti-trapaça (AntiCheat)
+    /** "Trapaças?" do mundo: -1 mundo antigo (desligado), 0 Não (ele pune), 1 Sim. */
+    public byte cheats = AntiCheat.UNSET;
+    /** Quem entrou no criativo/espectador com "Trapaças? Não": vai ver o vídeo e morrer. */
+    public final Set<UUID> condemned = new HashSet<>();
+    /** Desses, quem já viu o vídeo e morreu: não renasce nunca mais. */
+    public final Set<UUID> executed = new HashSet<>();
+
     public static FroggyWorldData get(ServerLevel level) {
         return get(level.getServer());
     }
@@ -149,6 +162,10 @@ public class FroggyWorldData extends SavedData {
         d.dirLastSign = dir.getString("LastSign");
         d.dirTrap = dir.getBoolean("Trap");
         d.parkedFroggy = dir.contains("Parked") ? dir.getCompound("Parked") : null;
+        CompoundTag ac = tag.getCompound("AntiCheat");
+        d.cheats = ac.contains("Cheats") ? ac.getByte("Cheats") : AntiCheat.UNSET;
+        readUuids(ac.getList("Condemned", Tag.TAG_INT_ARRAY), d.condemned);
+        readUuids(ac.getList("Executed", Tag.TAG_INT_ARRAY), d.executed);
         return d;
     }
 
@@ -193,6 +210,21 @@ public class FroggyWorldData extends SavedData {
         if (parkedFroggy != null) dir.put("Parked", parkedFroggy);
         inv.put("Director", dir);
         tag.put("Invasion", inv);
+        CompoundTag ac = new CompoundTag();
+        if (cheats != AntiCheat.UNSET) ac.putByte("Cheats", cheats);
+        ac.put("Condemned", writeUuids(condemned));
+        ac.put("Executed", writeUuids(executed));
+        tag.put("AntiCheat", ac);
         return tag;
+    }
+
+    private static void readUuids(ListTag list, Set<UUID> into) {
+        for (Tag t : list) into.add(NbtUtils.loadUUID(t));
+    }
+
+    private static ListTag writeUuids(Set<UUID> uuids) {
+        ListTag list = new ListTag();
+        for (UUID u : uuids) list.add(NbtUtils.createUUID(u));
+        return list;
     }
 }

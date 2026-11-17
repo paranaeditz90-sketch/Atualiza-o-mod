@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "10";
+    private static final String PROTOCOL = "11";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -41,6 +41,9 @@ public final class ModNetwork {
         CHANNEL.registerMessage(6, FlingPacket.class,
                 FlingPacket::encode, FlingPacket::decode, FlingPacket::handle,
                 java.util.Optional.of(net.minecraftforge.network.NetworkDirection.PLAY_TO_CLIENT));
+        // (v0.7.42) o anti-trapaça: vai e volta (o vídeo começa no cliente; o "acabou" volta pro servidor)
+        CHANNEL.registerMessage(7, AntiCheatPacket.class,
+                AntiCheatPacket::encode, AntiCheatPacket::decode, AntiCheatPacket::handle);
     }
 
     /** (v0.7.33) A língua soltou essa entidade no arremesso: quem vê (e ela mesma) desenha o voo mole. */

@@ -50,6 +50,8 @@ public class FroggyMassacreGoal extends Goal {
     private int repath;
     /** Teste (/froggydude estudo massacre): vai agora, mesmo com ela em casa. */
     private boolean forced;
+    /** (v0.7.42) Este massacre veio do comando de teste: o decisor não corta. */
+    private boolean debugRun;
 
     public FroggyMassacreGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -71,7 +73,7 @@ public class FroggyMassacreGoal extends Goal {
                 end("largou a vila de " + ownerName + ": caçando gente");
                 return false;
             }
-            return free() && froggy.level() instanceof ServerLevel level && stillOn(level);
+            return free() && froggy.level() instanceof ServerLevel level && stillOn(level) && stillChosen();
         }
         if (!forced && (froggy.tickCount < nextThink || froggy.tickCount < readyAt)) return false;
         nextThink = froggy.tickCount + THINK_EVERY;
@@ -87,11 +89,16 @@ public class FroggyMassacreGoal extends Goal {
                 continue;
             }
             if (!forced && !away(level, p, h)) continue;
-            // nem sempre: às vezes ele prefere ir atrás dela (o faro, a tocaia)
-            if (!forced && froggy.getRandom().nextFloat() > 0.6F) {
-                readyAt = froggy.tickCount + 1200;
-                return false;
+            // (v0.7.42) a IA dinâmica: ir na vila é uma escolha do decisor (fome e raiva contra o faro, a tocaia...);
+            // antes era cara ou coroa. Avisa e confere de novo em 1 s
+            if (!forced) {
+                froggy.decider().offer(com.froggydude.brain.Intent.VILLAGE);
+                if (!froggy.decider().allows(com.froggydude.brain.Intent.VILLAGE)) {
+                    nextThink = froggy.tickCount + 20;
+                    return false;
+                }
             }
+            debugRun = forced;
             forced = false;
             home = h;
             owner = p.getUUID();
@@ -109,7 +116,19 @@ public class FroggyMassacreGoal extends Goal {
 
     @Override
     public boolean canContinueToUse() {
-        return home != null && free() && froggy.level() instanceof ServerLevel level && stillOn(level);
+        return home != null && free() && froggy.level() instanceof ServerLevel level && stillOn(level) && stillChosen();
+    }
+
+    /** (v0.7.42) Continua sendo a escolha do decisor? Senão larga a vila (fica avisando que ela ainda está lá). */
+    private boolean stillChosen() {
+        if (!FroggyDecider.active()) return true;
+        froggy.decider().offer(com.froggydude.brain.Intent.VILLAGE);
+        if (debugRun) return true;
+        com.froggydude.brain.Intent i = froggy.decider().intent();
+        // comendo o aldeão (a FeedGoal) o decisor pode estar em "comer": ainda é o massacre
+        if (i == com.froggydude.brain.Intent.VILLAGE || i == com.froggydude.brain.Intent.FEED) return true;
+        end("larguei a vila de " + ownerName + ": decidi " + i.label);
+        return false;
     }
 
     @Override

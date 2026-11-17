@@ -100,6 +100,9 @@ public class FroggyTrackGoal extends Goal {
         if (s == null) return false;
         ServerPlayer p = player(s.player());
         if (!valid(p)) return false;
+        // (v0.7.42) a IA dinâmica: seguir o rastro é caçar; avisa o decisor e só vai se for a escolha dele
+        froggy.decider().offer(com.froggydude.brain.Intent.HUNT);
+        if (!froggy.decider().allows(com.froggydude.brain.Intent.HUNT)) return false;
         prey = s.player();
         preyName = p.getScoreboardName();
         return true;
@@ -108,6 +111,8 @@ public class FroggyTrackGoal extends Goal {
     @Override
     public boolean canContinueToUse() {
         if (prey == null || found || !free() || !valid(player(prey))) return false;
+        froggy.decider().offer(com.froggydude.brain.Intent.HUNT);
+        if (!froggy.decider().allows(com.froggydude.brain.Intent.HUNT)) return false;
         return ticks < TRACK_TICKS * sense() && (mode != Mode.SEARCH || modeTicks < SEARCH_TICKS * sense());
     }
 
@@ -165,7 +170,15 @@ public class FroggyTrackGoal extends Goal {
     public void stop() {
         froggy.setTracking(false);
         froggy.getNavigation().stop();
-        if (!found && prey != null) froggy.brainLog("perdi o rastro de " + preyName);
+        if (!found && prey != null) {
+            // (v0.7.42) o decisor mudou de ideia (fome, tédio...) não é perder o rastro; perder de verdade dá raiva
+            if (!froggy.decider().allows(com.froggydude.brain.Intent.HUNT)) {
+                froggy.brainLog("larguei o rastro de " + preyName + ": decidi " + froggy.decider().intent().label);
+            } else {
+                froggy.brainLog("perdi o rastro de " + preyName);
+                froggy.drives().lostTrail();
+            }
+        }
         prey = null;
         // volta a cheirar no mesmo ritmo de antes (0,5 s depois), não no tick seguinte
         sniffCheckAt = froggy.tickCount + 10;

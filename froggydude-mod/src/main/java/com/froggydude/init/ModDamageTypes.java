@@ -15,6 +15,13 @@ public final class ModDamageTypes {
     public static final ResourceKey<DamageType> DEVOURED =
             ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(ModEntityTypes.MOD_ID, "devoured"));
 
+    /**
+     * (v0.7.42) O anti-trapaça: quem entrou no criativo ou no espectador num mundo com "Trapaças? Não" morre com essa
+     * mensagem depois do vídeo (world.AntiCheat). Ignora armadura, totem e invencibilidade, como o de cima.
+     */
+    public static final ResourceKey<DamageType> ANTICHEAT =
+            ResourceKey.create(Registries.DAMAGE_TYPE, new ResourceLocation(ModEntityTypes.MOD_ID, "anticheat"));
+
     private ModDamageTypes() {
     }
 }

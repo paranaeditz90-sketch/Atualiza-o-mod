@@ -8,6 +8,7 @@ import com.froggydude.config.AiLevel;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
+import com.froggydude.world.AntiCheat;
 import com.froggydude.world.FroggyKeeper;
 import com.froggydude.world.FroggyWorldData;
 import com.froggydude.world.Manhunt;
@@ -15,10 +16,12 @@ import com.froggydude.world.ManhuntMode;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
@@ -41,6 +44,14 @@ public final class FroggyCommand {
     /** OP / cheats ligados. */
     private static boolean admin(CommandSourceStack s) {
         return s.hasPermission(2);
+    }
+
+    /**
+     * (v0.7.42) Quem mexe no anti-trapaça: o console do servidor, ou o mundo de teste ("-dev"). Um jogador com
+     * "Permitir trapaças" não desliga o "Trapaças? Não" nem se perdoa (senão um comando desfazia a escolha do mundo).
+     */
+    private static boolean warden(CommandSourceStack s) {
+        return s.hasPermission(2) && (!(s.getEntity() instanceof ServerPlayer) || FroggyWorldData.isDev(s.getServer()));
     }
 
     /** Quem joga: OP, ou o dono do mundo de um jogador só. */
@@ -76,6 +87,32 @@ public final class FroggyCommand {
                         .then(Commands.literal("explosao").executes(c -> revive(c.getSource(), true))))
                 .then(Commands.literal("ragdoll").requires(FroggyCommand::admin).executes(c -> ragdoll(c.getSource())))
                 .then(Commands.literal("cabeca").requires(FroggyCommand::admin).executes(c -> headGrab(c.getSource())))
+                // (v0.7.42) a IA dinâmica: ver e mexer nas vontades (pra testar sem esperar a fome subir)
+                .then(Commands.literal("vontades").requires(FroggyCommand::admin).executes(c -> drives(c.getSource())))
+                .then(Commands.literal("vontade").requires(FroggyCommand::admin)
+                        .then(Commands.argument("qual", StringArgumentType.word())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                        new String[]{"fome", "raiva", "tedio"}, b))
+                                .then(Commands.argument("valor", IntegerArgumentType.integer(0, 100))
+                                        .executes(c -> setDrive(c.getSource(),
+                                                StringArgumentType.getString(c, "qual"),
+                                                IntegerArgumentType.getInteger(c, "valor"))))))
+                // (v0.7.42) o anti-trapaça do mundo: ver, ligar/desligar e perdoar quem foi pego
+                .then(Commands.literal("trapacas").requires(FroggyCommand::admin)
+                        .executes(c -> cheats(c.getSource()))
+                        .then(Commands.literal("sim").requires(FroggyCommand::warden).executes(c -> setCheats(c.getSource(), true)))
+                        .then(Commands.literal("nao").requires(FroggyCommand::warden).executes(c -> setCheats(c.getSource(), false))))
+                .then(Commands.literal("perdoar").requires(FroggyCommand::warden)
+                        .then(Commands.argument("jogador", GameProfileArgument.gameProfile())
+                                .executes(c -> {
+                                    int n = 0;
+                                    for (GameProfile gp : GameProfileArgument.getGameProfiles(c, "jogador")) {
+                                        if (AntiCheat.pardon(c.getSource().getServer(), gp.getId())) n++;
+                                    }
+                                    int count = n;
+                                    c.getSource().sendSuccess(() -> t("pardoned", count), true);
+                                    return n;
+                                })))
                 // jeito de jogador, pra testar sem ter que morrer 3 vezes
                 .then(Commands.literal("zombar").requires(FroggyCommand::admin).executes(c -> mock(c.getSource())))
                 .then(Commands.literal("dancar").requires(FroggyCommand::admin).executes(c -> dance(c.getSource())))
@@ -212,6 +249,20 @@ public final class FroggyCommand {
             return 1;
         }));
         return root;
+    }
+
+    private static int cheats(CommandSourceStack src) {
+        byte v = FroggyWorldData.get(src.getServer()).cheats;
+        String key = v == AntiCheat.FORBIDDEN ? "cheats_no"
+                : v == AntiCheat.ALLOWED ? "cheats_yes" : "cheats_old";
+        src.sendSuccess(() -> t(key), false);
+        return 1;
+    }
+
+    private static int setCheats(CommandSourceStack src, boolean allowed) {
+        AntiCheat.set(src.getServer(), allowed);
+        src.sendSuccess(() -> t(allowed ? "cheats_yes" : "cheats_no"), true);
+        return 1;
     }
 
     /** (v0.7.28) Resposta do comando no idioma de quem joga (en_us/pt_br: froggydude.cmd.*). */
@@ -374,6 +425,32 @@ public final class FroggyCommand {
         }
         src.sendSuccess(() -> t("headgrab_started"), true);
         return 1;
+    }
+
+    /** (v0.7.42) As vontades dele e o que o decisor está escolhendo (a IA dinâmica só manda na IA Real). */
+    private static int drives(CommandSourceStack src) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        String mode = com.froggydude.entity.ai.FroggyDecider.active() ? f.decider().describe() : "-";
+        src.sendSuccess(() -> t("drives", Math.round(f.drives().hunger * 100F), Math.round(f.drives().anger * 100F),
+                Math.round(f.drives().boredom * 100F), mode), false);
+        return 1;
+    }
+
+    private static int setDrive(CommandSourceStack src, String which, int value) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        if (!f.drives().set(which.toLowerCase(Locale.ROOT), value / 100F)) {
+            src.sendFailure(t("drive_unknown", which));
+            return 0;
+        }
+        return drives(src);
     }
 
     /** (v0.7.40) Voa longe como se levasse um tiro parado (o teste do ragdoll, sem precisar de mod de arma). */

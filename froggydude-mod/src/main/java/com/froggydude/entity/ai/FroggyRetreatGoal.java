@@ -125,13 +125,18 @@ public class FroggyRetreatGoal extends Goal {
     public boolean canUse() {
         if (froggy.tickCount < readyAt || !ready(froggy)) return false;
         threat = threat(froggy);
-        return threat != null;
+        if (threat == null) return false;
+        // (v0.7.42) a IA dinâmica: fugir é uma escolha (com muita raiva ele briga mesmo ferido)
+        froggy.decider().offer(com.froggydude.brain.Intent.HEAL);
+        return froggy.decider().allows(com.froggydude.brain.Intent.HEAL);
     }
 
     @Override
     public boolean canContinueToUse() {
+        if (threat != null) froggy.decider().offer(com.froggydude.brain.Intent.HEAL);
         return threat != null && threat.isAlive() && ticks < GIVE_UP && !froggy.isFrenzyActive() && !cornered
-                && !(froggy.distanceTo(threat) >= SAFE_DIST && unseen >= SAFE_UNSEEN);
+                && !(froggy.distanceTo(threat) >= SAFE_DIST && unseen >= SAFE_UNSEEN)
+                && froggy.decider().allows(com.froggydude.brain.Intent.HEAL);
     }
 
     @Override

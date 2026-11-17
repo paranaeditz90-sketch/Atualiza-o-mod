@@ -190,6 +190,8 @@
   "froggydude.cmd.revive_not_now": "Not now (already reviving, or falling into the void).",
   "froggydude.cmd.ragdoll_started": "Bang. He flew like a rag doll.",
   "froggydude.cmd.ragdoll_not_now": "Not now (already down, or reviving).",
+  "froggydude.cmd.drives": "Hunger %s%%, anger %s%%, boredom %s%% | deciding: %s",
+  "froggydude.cmd.drive_unknown": "Unknown drive: %s (use fome, raiva or tedio).",
   "froggydude.cmd.headgrab_started": "He's coming for your head. Hit him!",
   "froggydude.cmd.headgrab_not_now": "Not now (you must be in survival, close to him and in his sight).",
   "froggydude.qte.shoot": "SHOOT HIM!",
@@ -206,5 +208,16 @@
   "subtitles.froggydude.voice.pin_give_me_your_body_3": "FroggyDude: \"Give me your body\"",
   "subtitles.froggydude.voice.hunt_smell_mile_away": "FroggyDude: \"Smell you from a mile away now\"",
   "subtitles.froggydude.voice.roar_rip": "FroggyDude roars",
-  "subtitles.froggydude.shot_moan": "FroggyDude moans"
+  "subtitles.froggydude.shot_moan": "FroggyDude moans",
+  "death.attack.froggydude.anticheat": "Maybe you forgot something... I hate CHEATS.",
+  "death.attack.froggydude.anticheat.player": "Maybe you forgot something... I hate CHEATS.",
+  "froggydude.cheats.label": "Cheats?",
+  "froggydude.cheats.yes": "Yes",
+  "froggydude.cheats.no": "No",
+  "froggydude.cheats.tooltip.no": "No: whoever enters Creative or Spectator in this world will regret it. And won't come back.",
+  "froggydude.cheats.tooltip.yes": "Yes: Creative and Spectator are allowed. He doesn't care.",
+  "froggydude.cmd.cheats_no": "Cheats in this world: No (Creative or Spectator = death with no respawn).",
+  "froggydude.cmd.cheats_yes": "Cheats in this world: Yes (the anti-cheat is off).",
+  "froggydude.cmd.cheats_old": "This world is older than the anti-cheat: it's off. Use /froggydude trapacas nao to turn it on.",
+  "froggydude.cmd.pardoned": "%s player(s) pardoned: they can respawn."
 }

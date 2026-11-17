@@ -68,6 +68,8 @@ public class FroggyStakeoutGoal extends Goal {
     private int unseenNear;
     /** Comando de teste (/froggydude estudo tocaia): vai agora, mesmo fora de hora. */
     private boolean forced;
+    /** (v0.7.42) Esta tocaia veio do comando de teste: o decisor não corta. */
+    private boolean debugRun;
 
     public FroggyStakeoutGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -100,11 +102,16 @@ public class FroggyStakeoutGoal extends Goal {
             forced = false;
             return false;
         }
-        // imprevisível: nem sempre (às vezes vai atrás pelo faro, às vezes espera)
-        if (!forced && froggy.getRandom().nextFloat() > 0.55F) {
-            readyAt = froggy.tickCount + 600;
-            return false;
+        // (v0.7.42) a IA dinâmica: esperar é uma escolha do decisor (paciência contra fome, raiva, a vila...); antes
+        // era cara ou coroa. Avisa que dá pra fazer tocaia e confere de novo em 1 s
+        if (!forced) {
+            froggy.decider().offer(com.froggydude.brain.Intent.STALK);
+            if (!froggy.decider().allows(com.froggydude.brain.Intent.STALK)) {
+                nextThink = froggy.tickCount + 20;
+                return false;
+            }
         }
+        debugRun = forced;
         forced = false;
         prey = p.getUUID();
         preyName = p.getScoreboardName();
@@ -158,6 +165,12 @@ public class FroggyStakeoutGoal extends Goal {
     @Override
     public boolean canContinueToUse() {
         if (stage == Stage.DONE || player() == null || FroggyRetreatGoal.mustFlee(froggy) || froggy.isFrenzyActive()) return false;
+        // (v0.7.42) a fome apertou, a raiva subiu...: o decisor mudou de ideia
+        froggy.decider().offer(com.froggydude.brain.Intent.STALK);
+        if (!debugRun && !froggy.decider().allows(com.froggydude.brain.Intent.STALK)) {
+            froggy.brainLog("larguei a tocaia: decidi " + froggy.decider().intent().label);
+            return false;
+        }
         // bateram nele (o alvo vem do HurtByTarget) ou já caiu em cima dela: o combate assume
         return froggy.getTarget() == null;
     }

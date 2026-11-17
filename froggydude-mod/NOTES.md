@@ -1,4 +1,4 @@
-# Froggydude - v0.7.41: a cutscene jogável da cabeça (sobre a v0.7.40)
+# Froggydude - v0.7.42: a IA dinâmica, etapa 1 + o anti-trapaça (sobre a v0.7.41)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,57 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.41):
+O que testar agora (v0.7.42):
+- **O anti-trapaça** (tu: "Trapaças? Sim em vermelho, Não em verde... o vídeo... Você talvez esqueceu de uma coisa... Eu
+  odeio TRAPAÇAS... não renasce nunca mais"; e 17/11: "60 FPS o vídeo + áudio", "só quando entra no criativo ou
+  espectador").
+  - **Criar mundo, aba Jogo**: embaixo de "Permitir trapaças" tem **"Trapaças?"**: **Não** (verde, o padrão) ou **Sim**
+    (vermelho). Passa o dedo pra ler o que cada um faz. Some nas outras abas.
+  - **Com "Não"**: entrou no **criativo ou no espectador** (comando, F3+F4, LAN, ou criou/entrou no mundo já nesse
+    modo) = não entra. Volta pro sobrevivência, a tela fica preta e passa **o vídeo do FroggyDude em tela cheia, 60
+    quadros por segundo, com o áudio** (34 s; não fecha com ESC, nada encosta em ti enquanto passa, os outros sons
+    ficam mudos). Acabou: morre com **"Você talvez esqueceu de uma coisa... Eu odeio TRAPAÇAS."**
+  - **Não renasce nunca mais nesse mundo**: o "Renascer" fica apagado; o "Menu principal" pergunta "Deseja mesmo
+    sair?" com **Menu principal / Voltar** (a pergunta do jogo tinha outro "Renascer", e o ESC dela renascia: tirei);
+    sair e voltar cai na mesma tela com a mesma mensagem; se renascer de outro jeito, morre de novo. Saiu no meio do
+    vídeo? Volta e vê de novo, do começo.
+  - Só criativo e espectador acionam (comandos, /give e o resto não). No **hardcore** o espectador é o "morto" do
+    próprio jogo, então lá só o criativo aciona. **Mundo antigo** (de antes desta versão): desligado.
+  - Comandos (só o console do servidor, ou mundo "-dev": um jogador com "Permitir trapaças" não desfaz a escolha):
+    `/froggydude trapacas` (mostra; esse qualquer admin vê), `/froggydude trapacas sim|nao`, `/froggydude perdoar
+    <jogador>`. Em servidor dedicado o mundo novo começa com "Não".
+  - **O vídeo vem dentro do jar** (autorizado pelo FroggyDude; fica fora do Git, no pacote da voz): o jar foi de 3 MB
+    pra **35 MB** (2022 quadros). O jar do GitHub só tem o vídeo se o zip do segredo `FROGGY_VOZ_URL` for atualizado;
+    sem ele o anti-trapaça funciona igual, só sem o vídeo (morre direto com a mensagem).
+  - **Celular**: o vídeo usa o leitor de JPEG do próprio jogo (nada nativo, nada de shader), 3 fios decodificando à
+    frente (aqui 2-3 ms por quadro), e enquanto ele passa **o mundo atrás não é desenhado** (sem isso, aqui caía pra
+    12 FPS; com isso, 57). Se o celular não der conta, ele pula quadro e o som não atrasa. O `latest.log` diz quantos
+    quadros apareceram ("anti-trapaca: video acabou (X de 2022 quadros na tela...)"): manda se travar.
+  - Testado no jogo: botão (Não/Sim, some na aba Mundo), mundo novo com Não, `/gamemode creative` = vídeo inteiro com
+    som + morte com a mensagem; clicar em Renascer, Tab+Enter, ESC na pergunta de sair, sair e voltar (2 jeitos): morto
+    sempre; mundo antigo no criativo: nada.
+- **A IA dinâmica, etapa 1: as vontades e o decisor** (tu: "uma IA dinâmica, não uma qualquer que segue normas, mas que
+  realmente age por si só"). **Só na IA Real**: os outros níveis ficam iguais.
+  - **Três vontades** que sobem e descem e ficam salvas com ele: **fome** (sobe com o tempo e correndo, desce comendo),
+    **raiva** (sobe quando apanha, leva tiro, perde o rastro ou a presa foge; esfria devagar e cai quando ele pega
+    alguém) e **tédio** (sobe quando não acontece nada; passa quando acha alguma coisa ou sai explorando).
+  - **O decisor**: a cada meio segundo ele dá nota pra tudo que pode fazer (caçar, tocaia, comer bicho, ir na vila,
+    fugir pra se curar, explorar, ficar à toa) com as vontades, a vida dele e o que ele sabe da presa, e escolhe a
+    melhor. Antes era uma ordem fixa (comer passava na frente de tudo; a tocaia e a vila eram cara ou coroa). Agora:
+    com fome e tu longe, ele come o bicho; tu apareceu perto, larga a comida e vem; ferido e calmo, foge pra se curar;
+    ferido com raiva, fica e briga; entediado sem ninguém, sai andando pelo mapa farejando (e às vezes vai bisbilhotar a
+    tua cama, o teu baú, a tua mina). O cinema (I SEE YOU, o bote, o sumiço) continua igual.
+  - **No mundo com "-dev" no nome** o chat mostra cada decisão com as notas ("decidi caçar (1.03), antes comer | caçar
+    1.03 > à toa 0.15 | fome 41% raiva 0% tédio 0%").
+  - Testes (só admin): **`/froggydude vontades`** mostra as vontades e o que ele está decidindo; **`/froggydude vontade
+    <fome|raiva|tedio> <0-100>`** muda uma.
+  - Testado no jogo (IA Real): com fome comeu as vacas; tu chegou perto, largou e caçou (1.03); tu sumiu, voltou a
+    comer; entediado, saiu explorando; ferido e calmo, fugiu pra se curar (0.89 contra caçar 0.64); ferido com raiva,
+    brigou (1.35 contra fugir 0.44).
+  - Próximas etapas: o olheiro (o diretor vira quem estuda o mapa, a rotina e o tipo de jogador pro decisor), a
+    escolha de caminho (o exemplo da caverna), a vida própria longe de ti, a memória das últimas lutas, a rede pequena.
+
+Da v0.7.41:
 - **A cutscene JOGÁVEL da cabeça** (tu: "Ele tentando arrancar a cabeça do jogador, vai ser uma cutscene que é jogável...
   piscando em vermelho com ícone de alerta... Se o jogador tiver uma espada... Precisa acertar 2 vezes... se o jogador
   tiver arma, o jogo pede para ele atirar... ou arco"; falhou: "Arranca a cabeça (morte)"; os teus vídeos 3 e 5).

@@ -190,6 +190,8 @@
   "froggydude.cmd.revive_not_now": "Agora não dá (já está renascendo, ou caindo no vazio).",
   "froggydude.cmd.ragdoll_started": "Pá. Ele voou mole igual boneco de pano.",
   "froggydude.cmd.ragdoll_not_now": "Agora não dá (já está caído, ou renascendo).",
+  "froggydude.cmd.drives": "Fome %s%%, raiva %s%%, tédio %s%% | decidindo: %s",
+  "froggydude.cmd.drive_unknown": "Vontade desconhecida: %s (use fome, raiva ou tedio).",
   "froggydude.cmd.headgrab_started": "Ele vai na tua cabeça. Bate nele!",
   "froggydude.cmd.headgrab_not_now": "Agora não dá (precisa estar no sobrevivência, perto dele e na vista dele).",
   "froggydude.qte.shoot": "ATIRE NELE!",
@@ -206,5 +208,16 @@
   "subtitles.froggydude.voice.pin_give_me_your_body_3": "FroggyDude: \"Give me your body\" (me dá teu corpo)",
   "subtitles.froggydude.voice.hunt_smell_mile_away": "FroggyDude: \"Smell you from a mile away now\" (sinto teu cheiro de longe)",
   "subtitles.froggydude.voice.roar_rip": "FroggyDude ruge",
-  "subtitles.froggydude.shot_moan": "FroggyDude geme"
+  "subtitles.froggydude.shot_moan": "FroggyDude geme",
+  "death.attack.froggydude.anticheat": "Você talvez esqueceu de uma coisa... Eu odeio TRAPAÇAS.",
+  "death.attack.froggydude.anticheat.player": "Você talvez esqueceu de uma coisa... Eu odeio TRAPAÇAS.",
+  "froggydude.cheats.label": "Trapaças?",
+  "froggydude.cheats.yes": "Sim",
+  "froggydude.cheats.no": "Não",
+  "froggydude.cheats.tooltip.no": "Não: quem entrar no criativo ou no espectador neste mundo vai se arrepender. E não volta.",
+  "froggydude.cheats.tooltip.yes": "Sim: criativo e espectador liberados. Ele não liga.",
+  "froggydude.cmd.cheats_no": "Trapaças neste mundo: Não (criativo ou espectador = morte sem volta).",
+  "froggydude.cmd.cheats_yes": "Trapaças neste mundo: Sim (o anti-trapaça está desligado).",
+  "froggydude.cmd.cheats_old": "Este mundo é de antes do anti-trapaça: está desligado. Use /froggydude trapacas nao pra ligar.",
+  "froggydude.cmd.pardoned": "%s jogador(es) perdoado(s): podem renascer."
 }

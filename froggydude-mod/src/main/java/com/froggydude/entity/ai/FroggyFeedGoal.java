@@ -70,6 +70,8 @@ public class FroggyFeedGoal extends Goal {
     private boolean pouncing;
     /** A comida é quem veio brigar com ele (golem, warden...): bote, prende e come vivo. */
     private boolean fight;
+    /** (v0.7.42) IA Real: começou porque o decisor escolheu comer (então para se ele mudar de ideia). */
+    private boolean chosen;
 
     public FroggyFeedGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -92,7 +94,7 @@ public class FroggyFeedGoal extends Goal {
             return true;
         }
         // IA Real: ferido do lado de quem bate nele, primeiro foge (FroggyRetreatGoal), depois come
-        if (FroggyRetreatGoal.mustFlee(froggy)) return false;
+        if (fleeFirst()) return false;
         // bicho brigando com ele (golem, warden, lobo...): não troca soco, come (LM: "os golems
         // morrem igual aos outros mobs")
         LivingEntity rival = froggy.getTarget();
@@ -117,6 +119,25 @@ public class FroggyFeedGoal extends Goal {
             froggy.brainLog("comendo o aldeão perto da vítima (sem troca pra quem quer zerar)");
             return true;
         }
+        // (v0.7.42) IA Real: comer não passa mais na frente de tudo. Ele avisa o decisor que tem comida à vista e só
+        // vai se for a escolha dele (a fome contra a caçada, a tocaia, a vila...). No massacre da vila, come os aldeões
+        if (FroggyDecider.active() && !froggy.isMassacring()) {
+            if (froggy.isHolding()) return false;
+            LivingEntity food = findVictim();
+            if (food == null) {
+                froggy.setFeedSearchCooldown(40);
+                return false;
+            }
+            froggy.decider().offer(com.froggydude.brain.Intent.FEED);
+            if (!feedChosen()) {
+                froggy.setFeedSearchCooldown(10);
+                return false;
+            }
+            chosen = true;
+            froggy.setFeedTarget(food);
+            if (favorite(food)) froggy.brainLog("aldeão à vista: comida favorita");
+            return true;
+        }
         // a comida favorita: sem gente pra caçar, o aldeão que ele vê vira a refeição
         if (froggy.wantsVillager() && !(froggy.getTarget() instanceof Player) && !froggy.isHolding()) {
             LivingEntity v = findFavoriteVillager();
@@ -139,11 +160,31 @@ public class FroggyFeedGoal extends Goal {
         return true;
     }
 
+    /** O decisor escolheu comer (no massacre da vila quem come é o caminho antigo, sem o decisor). */
+    private boolean feedChosen() {
+        return froggy.decider().intent() == com.froggydude.brain.Intent.FEED;
+    }
+
+    /**
+     * Ferido com quem bate nele por perto: foge antes de comer. (v0.7.42) Na IA Real só se o decisor escolheu fugir; com
+     * raiva ele fica e briga, e aí pode comer o bicho do lado (comer cura).
+     */
+    private boolean fleeFirst() {
+        return FroggyRetreatGoal.mustFlee(froggy)
+                && (!FroggyDecider.active() || froggy.decider().allows(com.froggydude.brain.Intent.HEAL));
+    }
+
     @Override
     public boolean canContinueToUse() {
         LivingEntity victim = froggy.getFeedTarget();
+        // (v0.7.42) IA Real: ela apareceu perto (ou a fome passou): o decisor muda de ideia e ele larga, a não ser no
+        // meio da mordida
+        if (chosen && victim != null && victim.isAlive()) {
+            froggy.decider().offer(com.froggydude.brain.Intent.FEED);
+            if (!feedChosen() && froggy.getFroggyState() != FroggyState.FEEDING) return false;
+        }
         return victim != null && victim.isAlive()
-                && (froggy.getFroggyState() == FroggyState.FEEDING || chaseTimeout > 0 && !FroggyRetreatGoal.mustFlee(froggy));
+                && (froggy.getFroggyState() == FroggyState.FEEDING || chaseTimeout > 0 && !fleeFirst());
     }
 
     @Override
@@ -169,6 +210,7 @@ public class FroggyFeedGoal extends Goal {
         }
         pouncing = false;
         fight = false;
+        chosen = false;
     }
 
     @Override

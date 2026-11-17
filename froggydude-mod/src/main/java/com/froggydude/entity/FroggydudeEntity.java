@@ -302,6 +302,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** A caçada em andamento (o cérebro avalia quando ela acaba). */
     @Nullable
     private Engagement engagement;
+    /** (v0.7.42) As vontades (fome, raiva, tédio) e o decisor que escolhe o que fazer com elas (IA dinâmica, só IA Real). */
+    private final com.froggydude.brain.Drives drives = new com.froggydude.brain.Drives();
+    private final com.froggydude.entity.ai.FroggyDecider decider = new com.froggydude.entity.ai.FroggyDecider(this);
     /** Parado, sem IA (vantagem do manhunt, fim do manhunt). */
     private int holdTicks = 0;
     @Nullable
@@ -452,6 +455,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(1, stakeoutGoal);
         // abre porta de madeira (quem não trancou a porta... - vs "how many days", 7:18)
         this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyDoorGoal(this));
+        // 3: (v0.7.42) IA Real - entediado, sai andando pelo mapa farejando (quando o decisor escolhe explorar)
+        this.goalSelector.addGoal(3, new com.froggydude.entity.ai.FroggyExploreGoal(this));
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         // sem RandomLookAroundGoal: ele virava a cabeça pros lados do nada (parecia tique).
         // Só encara quem estiver perto.
@@ -572,6 +577,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             com.froggydude.world.Hunt.forget(kl.getServer(), killed.getUUID()); // pegou: acabou essa caçada
         }
         if (killed instanceof Player) {
+            drives.killedPrey(); // (v0.7.42) pegou: a raiva passa e a barriga enche
             // barriga cheia: 45 s sem caçar quem ele acabou de matar (antes ele
             // farejava quem renascia e matava de novo, sem parar)
             fedOn.put(killed.getUUID(), this.tickCount + FED_TICKS);
@@ -729,6 +735,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             case ESCAPED -> {
                 m.escapes++;
                 ribbit(2.5F); // escapou dele: raiva
+                drives.preyEscaped();
             }
             case FROGGY_DIED -> m.froggyDeaths++;
             default -> {
@@ -863,6 +870,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         data.dangers.mark(dim, at, radius, server.getGameTime());
         data.setDirty();
         if (!known) brainLog("aprendi um perigo: " + what + " em " + at.toShortString() + " (o caminho agora desvia)");
+    }
+
+    /** (v0.7.42) As vontades dele (IA dinâmica). */
+    public com.froggydude.brain.Drives drives() {
+        return drives;
+    }
+
+    /** (v0.7.42) O decisor (IA dinâmica; só manda na IA Real). */
+    public com.froggydude.entity.ai.FroggyDecider decider() {
+        return decider;
     }
 
     /** Mundo -dev: conta no chat o que o cérebro decidiu/aprendeu. */
@@ -2383,6 +2400,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void villagerEaten() {
         villagerAppetite = VILLAGER_FULL_TICKS;
         satiety = MEAL_FULL_TICKS;
+        drives.ate(0.5F);
     }
 
     /** Barriga vazia (quase sempre): qualquer bicho que ele vê vira comida. */
@@ -2969,6 +2987,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             else endRevive();
             return;
         }
+        // (v0.7.42) a IA dinâmica: o decisor escolhe o que fazer; as vontades andam a cada 1 s
+        decider.tick();
+        if (this.tickCount % 20 == 0) {
+            com.froggydude.brain.Intent it = decider.intent();
+            boolean busy = this.getTarget() != null || hasFeast() || getFroggyState() == FroggyState.FEEDING
+                    || it != com.froggydude.brain.Intent.EXPLORE && it != com.froggydude.brain.Intent.REST;
+            boolean running = (this.getTarget() != null || it == com.froggydude.brain.Intent.HEAL)
+                    && this.getDeltaMovement().horizontalDistanceSqr() > 0.02D;
+            drives.tickSecond(running, busy, it == com.froggydude.brain.Intent.EXPLORE);
+        }
         if (glimpseFrozen && this.tickCount % 20 == 0 && this.level() instanceof ServerLevel gs
                 && !com.froggydude.world.TensionDirector.glimpsing(gs.getServer())) {
             freezeForGlimpse(false); // o vislumbre acabou sem o diretor (manhunt, invasão desligada): solta
@@ -3412,6 +3440,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         float before = this.getHealth();
         boolean hurt = super.hurt(source, amount);
         if (hurt && !this.level().isClientSide) learnDanger(source);
+        // (v0.7.42) apanhou: a raiva sobe (bala de arma de mod, mais)
+        if (hurt && !this.level().isClientSide && source.getEntity() instanceof LivingEntity) {
+            drives.hurt((before - this.getHealth()) / this.getMaxHealth(), gunshot);
+        }
         // (v0.7.40) o ragdoll: bala nele parado no chão joga ele longe; caído, conta as balas (e o golpe de perto levanta)
         if (hurt && !this.level().isClientSide) Ragdoll.onHurt(this, source, gunshot);
         // (v0.7.40) bateram nele no meio da raiva: acabou a paciência
@@ -3510,6 +3542,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (phase2Started) tag.putBoolean("Phase2Started", true);
         if (!getDebugAnim().isEmpty()) tag.putString("DebugAnim", getDebugAnim());
         if (debugHunt) tag.putBoolean("DebugHunt", true);
+        tag.put("Drives", drives.save());
         if (debugAttack != null) tag.putString("DebugAttack", debugAttack.name());
         if (debugHeldArm) tag.putBoolean("DebugHeldArm", true);
         if (debugArmless) tag.putBoolean("DebugArmless", true);
@@ -3534,6 +3567,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
+        if (tag.contains("Drives")) drives.load(tag.getCompound("Drives"));
         // mundo de antes da v0.6.2: a vida máxima salva era 150 - sobe pra nova, na mesma proporção
         var maxHp = this.getAttribute(Attributes.MAX_HEALTH);
         if (maxHp != null && maxHp.getBaseValue() < MAX_HEALTH) {
@@ -3986,6 +4020,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public void eatVictim(LivingEntity victim) {
         satiety = Math.max(satiety, SNACK_FULL_TICKS);
+        drives.ate(0.3F);
         spawnBlood(victim, 25);
         BloodType type = BloodType.of(victim);
         if (type.bleeds()) {
