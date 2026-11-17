@@ -1,5 +1,8 @@
 package com.froggydude.client.cutscene;
 
+import com.froggydude.entity.FroggydudeEntity;
+import com.froggydude.entity.HeadGrab;
+
 import com.froggydude.entity.Finisher;
 import com.froggydude.init.ModEntityTypes;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -43,8 +46,9 @@ public final class VictimRender {
     public static final int LYING = 1;
 
     private static final class Saved {
-        float bodyRot, bodyRotO, headRot, headRotO, xRot, xRotO, swim, swimO, walkPos, walkSpeed, walkSpeedO;
+        float bodyRot, bodyRotO, headRot, headRotO, xRot, xRotO, swim, swimO, walkPos, walkSpeed, walkSpeedO, headZ, hatZ;
         int deathTime;
+        boolean rolled;
     }
 
     /** WalkAnimationState.position / speed / speedOld: as pernas e o braço chutando ao se debater. */
@@ -78,6 +82,10 @@ public final class VictimRender {
         static final Thrash STILL = new Thrash(0F, 0F, 0F, 0F, 0F, 0F, 0F);
 
         final float headYaw, headPitch, roll, slide, lift, limbPos, limbSpeed;
+        /** Graus: o corpo inteiro erguido pela cabeça (gira nos pés), puxado pela boca dele (a cutscene da cabeça). */
+        float pull;
+        /** Graus: a cabeça tombando pro lado, orelha no ombro (+ = pra esquerda dela); o jogo não mexe nisso sozinho. */
+        float headRoll;
 
         private Thrash(float headYaw, float headPitch, float roll, float slide, float lift, float limbPos, float limbSpeed) {
             this.headYaw = headYaw;
@@ -104,6 +112,41 @@ public final class VictimRender {
                     force * LIFT * (float) Math.abs(Math.cos(ph)),
                     // o jogo desconta speed * (1 - fração) da posição: devolve, senão as pernas dão um soluço por tick
                     ph / 0.6662F + speed * (1F - partial), speed);
+        }
+
+        /** Cravado na cabeça (a cutscene da cabeça): ela vira junto com a dele, pra cada lado (graus). */
+        /**
+         * Presa nos dentes dele: a boca dele varre ~0,25 bloco pra cada lado (build_anims.py, hg_shake) e a cabeça dela
+         * tomba junto, orelha no ombro, ~36°, torcendo. O corpo dela reage como o do Grox no vídeo 3: é levantado e
+         * largado pela cabeça (sobe e desce), gira e é arrastado a cada sacudida, e as pernas continuam se debatendo.
+         */
+        private static final float GRAB_HEAD_ROLL = 36F, GRAB_TWIST = 18F, GRAB_PITCH = 12F, GRAB_ROLL = 8F;
+        /** Blocos: o corpo dela é arrastado pro lado em cada sacudida. */
+        private static final float GRAB_SLIDE = 0.05F;
+        /**
+         * Graus: o corpo dela erguido pela cabeça, girando nos pés (vídeo 3, 1,10-1,85 s: o tronco do Grox sobe e desce
+         * junto com a cabeça na boca, ~2 vezes por segundo, HeadGrab.lift): de PULL (no chão) a PULL + PULL_UP.
+         */
+        private static final float GRAB_PULL = 4F, GRAB_PULL_UP = 11F, GRAB_CHIN_UP = 16F;
+
+        /**
+         * (v0.7.41) A cutscene da cabeça, t = ticks desde que ele agarrou. Até a mordida ela se debate como na zebra;
+         * com os dentes dele na cabeça dela (HeadGrab.BITE), a cabeça vai junto com a dele na sacudida (vídeo 5 do LM:
+         * as duas giram juntas, a dela saindo do chão) e o corpo chacoalha um pouco no mesmo compasso.
+         */
+        static Thrash grab(float t, boolean still, float partial) {
+            Thrash th = at(t, still, partial);
+            if (still || t <= HeadGrab.BITE) return th;
+            float s = HeadGrab.shake(t);
+            float in = Math.min(1F, (t - HeadGrab.BITE) / 3F);
+            // como pano na boca de cachorro: pra onde a boca dele vai, a cabeça dela vai (s = +1: pra esquerda dela)
+            float up = HeadGrab.lift(t);
+            Thrash g = new Thrash(Mth.lerp(in, th.headYaw, GRAB_TWIST * s),
+                    Mth.lerp(in, th.headPitch, GRAB_PITCH + GRAB_CHIN_UP * up),
+                    th.roll + GRAB_ROLL * s * in, th.slide + GRAB_SLIDE * s * in, th.lift, th.limbPos, th.limbSpeed);
+            g.headRoll = GRAB_HEAD_ROLL * s * in;
+            g.pull = (GRAB_PULL + GRAB_PULL_UP * up) * in;
+            return g;
         }
 
         /** Quanto ela se debate (0 a 1): forte desde o começo, inteira da 1ª mordida em diante. */
@@ -139,7 +182,8 @@ public final class VictimRender {
 
     public static int state(Entity p) {
         ClientFinisher.Entry e = ClientFinisher.forVictim(p.getId());
-        if (e == null) return NORMAL;
+        // (v0.7.41) com a cabeça presa (a cutscene da cabeça): deitado de costas se debatendo, inteiro
+        if (e == null) return GrabCamera.grabberOf(p) != null ? LYING : NORMAL;
         if (!e.ended()) return LYING;
         // acabou e morreu: fica deitado sem cabeça até sumir; logo depois do fim, ainda esperando
         // o cadáver (Extremo) aparecer, também; se escapou viva (ele morreu no meio), levanta
@@ -164,15 +208,43 @@ public final class VictimRender {
         float partial = event.getPartialTick();
         PoseStack ps = event.getPoseStack();
         Vec3 pos = p.getPosition(partial);
-        Vec3 h = e.h;
-        Thrash th = Thrash.at(e.t(partial), p.isDeadOrDying() || e.ended(), partial);
+        Vec3 h, l, anchor;
+        float yaw, t;
+        boolean still;
+        int miss;
+        if (e != null) {
+            h = e.h;
+            l = e.l;
+            anchor = e.anchor;
+            yaw = e.yaw;
+            t = e.t(partial);
+            still = p.isDeadOrDying() || e.ended();
+            miss = ClientFinisher.missing(e, partial);
+        } else {
+            // (v0.7.41) a cutscene da cabeça (vídeo 5 do LM): ele por cima do corpo dela, de frente pra cabeça, e a
+            // cabeça dela embaixo da boca dele - a mesma conta do golpe final (Finisher.froggySpot: ele em A - 0,2H,
+            // a cabeça em A + 0,85H, a ~1 bloco na frente dele, onde a boca chega na pose da mordida)
+            FroggydudeEntity f = GrabCamera.grabberOf(p);
+            if (f == null) return;
+            h = GrabCamera.headDir(f, p, partial).scale(-1D);
+            l = Finisher.left(h);
+            Vec3 fp = f.getPosition(partial);
+            anchor = new Vec3(fp.x + h.x * 0.2D, pos.y, fp.z + h.z * 0.2D);
+            yaw = (float) (Mth.atan2(h.z, h.x) * Mth.RAD_TO_DEG) - 90F;
+            t = GrabCamera.grabAge(f, partial);
+            still = p.isDeadOrDying();
+            miss = 0;
+        }
+        Thrash th = e == null ? Thrash.grab(t, still, partial) : Thrash.at(t, still, partial);
         ps.pushPose();
         // se debatendo: o corpo dá tranquinhos no compasso da cabeça (escorrega pro lado, gira um pouco no próprio
         // comprimento e pula). Pés em A - 0,9H, as costas encostando no chão
-        ps.translate(e.anchor.x - pos.x + e.l.x * th.slide, e.anchor.y - pos.y + 0.14D + th.lift,
-                e.anchor.z - pos.z + e.l.z * th.slide);
+        ps.translate(anchor.x - pos.x + l.x * th.slide, anchor.y - pos.y + 0.14D + th.lift,
+                anchor.z - pos.z + l.z * th.slide);
         ps.mulPose(new Quaternionf().rotationAxis(th.roll * Mth.DEG_TO_RAD, (float) h.x, 0F, (float) h.z));
         ps.translate(-h.x * 0.9D, 0D, -h.z * 0.9D);
+        // (v0.7.41) erguida pela cabeça: gira nos pés, a cabeça sobe
+        if (th.pull != 0F) ps.mulPose(new Quaternionf().rotationAxis(th.pull * Mth.DEG_TO_RAD, (float) l.x, 0F, (float) l.z));
         ps.mulPose(new Quaternionf().rotationTo(0F, 1F, 0F, (float) h.x, 0F, (float) h.z));
 
         Saved s = new Saved();
@@ -191,7 +263,7 @@ public final class VictimRender {
         PUSHED.put(p.getId(), s);
         setF(SWIM, p, 0F);
         setF(SWIM_O, p, 0F);
-        float face = e.yaw + 180F;
+        float face = yaw + 180F;
         p.yBodyRot = p.yBodyRotO = face;
         // a cabeça virando de um lado pro outro sem parar (a zebra), o queixo subindo e descendo junto
         p.yHeadRot = p.yHeadRotO = face + th.headYaw;
@@ -204,9 +276,13 @@ public final class VictimRender {
         // sem o tombo de lado da morte (ela já está deitada)
         p.deathTime = 0;
 
-        int miss = ClientFinisher.missing(e, partial);
         PlayerModel<AbstractClientPlayer> m = event.getRenderer().getModel();
         m.crouching = false;
+        // a cabeça tombando pro lado (o setupAnim do jogo não mexe no giro Z da cabeça; o chapéu copia dela). Volta no Post
+        s.headZ = m.head.zRot;
+        s.hatZ = m.hat.zRot;
+        s.rolled = th.headRoll != 0F;
+        if (s.rolled) m.head.zRot = th.headRoll * Mth.DEG_TO_RAD;
         if ((miss & 1) != 0) {
             m.leftArm.visible = false;
             m.leftSleeve.visible = false;
@@ -243,6 +319,10 @@ public final class VictimRender {
         setF(WALK_SPEED, p.walkAnimation, s.walkSpeed);
         setF(WALK_SPEED_O, p.walkAnimation, s.walkSpeedO);
         PlayerModel<AbstractClientPlayer> m = event.getRenderer().getModel();
+        if (s.rolled) {
+            m.head.zRot = s.headZ;
+            m.hat.zRot = s.hatZ;
+        }
         m.rightArm.visible = true;
         m.rightSleeve.visible = p.isModelPartShown(PlayerModelPart.RIGHT_SLEEVE);
         m.head.visible = true;

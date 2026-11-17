@@ -105,7 +105,12 @@ public enum FroggyState {
      * (v0.7.40) A raiva depois das balas (entity.Rage; vídeo 4 do LM): estala o pescoço, avança correndo agachado e
      * para colado em "()" com a boca aberta, só pra pessoa recuar; repete e depois ataca. Sem as Goals enquanto dura.
      */
-    RAGE(0);
+    RAGE(0),
+    /**
+     * (v0.7.41) A cutscene jogável da cabeça (entity.HeadGrab): o bote, em cima de quem está caído, olha, morde a cabeça
+     * e chacoalha dando trancos durante o rugido; tiro/golpes o bastante = ele voa; não = arranca a cabeça.
+     */
+    HEAD_GRAB(0);
 
     public final int durationTicks;
 

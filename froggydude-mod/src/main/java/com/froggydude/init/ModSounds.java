@@ -81,6 +81,8 @@ public class ModSounds {
      */
     public static final RegistryObject<SoundEvent> FINISHER = register("froggydude.finisher");
     public static final RegistryObject<SoundEvent> FINISHER_R = register("froggydude.finisher_r");
+    /** (v0.7.41) A mesma coisa só da cabeça (a cutscene da cabeça falhou: Finisher.HEAD_ONLY). */
+    public static final RegistryObject<SoundEvent> FINISHER_H = register("froggydude.finisher_h");
     /** Mastigando o braço. */
     public static final RegistryObject<SoundEvent> CHEW = register("froggydude.chew");
     /** As patadas do galope de quatro (junto com o passo do bloco do chão). */

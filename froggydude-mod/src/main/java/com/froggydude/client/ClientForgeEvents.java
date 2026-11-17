@@ -109,7 +109,11 @@ public class ClientForgeEvents {
 
         Vec3 eye = player.getEyePosition(event.renderTickTime);
         boolean smash = pinner instanceof FroggydudeEntity f && f.getFroggyState() == FroggyState.SMASH;
-        Vec3 face = smash ? pinner.getPosition(event.renderTickTime)
+        // (v0.7.41) a cutscene da cabeça: debruçado, a cara dele fica fora da caixa de acerto; a mira vai no meio do
+        // corpo (dentro da caixa), senão o tiro e o golpe pra se soltar passavam por fora dele
+        boolean grab = pinner instanceof FroggydudeEntity g && g.getFroggyState() == FroggyState.HEAD_GRAB;
+        Vec3 face = grab ? pinner.getPosition(event.renderTickTime).add(0D, pinner.getBbHeight() * 0.55D, 0D)
+                : smash ? pinner.getPosition(event.renderTickTime)
                 : pinner instanceof FroggydudeEntity froggy
                 ? froggy.getFacePosition(event.renderTickTime)
                 : pinner.getEyePosition(event.renderTickTime);

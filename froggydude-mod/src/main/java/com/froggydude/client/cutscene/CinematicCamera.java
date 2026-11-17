@@ -100,7 +100,8 @@ public final class CinematicCamera {
         owner = mc.player;
         cam = new CutsceneCamera(ModEntityTypes.CUTSCENE_CAMERA.get(), mc.level);
         cam.setId(-91_7001);
-        savedType = mc.options.getCameraType();
+        // (v0.7.41) vindo da cutscene da cabeça, o tipo de câmera de agora é a 3ª pessoa dela: guarda o de antes dela
+        savedType = GrabCamera.cameraTypeBefore(mc);
         mc.options.setCameraType(CameraType.FIRST_PERSON);
         chooseSides(mc, e);
         place(mc, 0F);
@@ -337,7 +338,7 @@ public final class CinematicCamera {
     private static int prevW, prevH;
     private static Field passesField;
 
-    private static void blurOn(Minecraft mc) {
+    static void blurOn(Minecraft mc) {
         if (!FroggyClientConfig.cutsceneBlur()) return;
         PostChain cur = mc.gameRenderer.currentEffect();
         if (cur != null && BLUR.toString().equals(cur.getName())) return;
@@ -345,7 +346,7 @@ public final class CinematicCamera {
     }
 
     /** Desliga só o nosso (a visão de creeper/aranha do espectador fica). */
-    private static void blurOff(Minecraft mc) {
+    static void blurOff(Minecraft mc) {
         PostChain cur = mc.gameRenderer.currentEffect();
         if (cur != null && BLUR.toString().equals(cur.getName())) mc.gameRenderer.shutdownEffect();
         prevCam = null;
@@ -359,7 +360,8 @@ public final class CinematicCamera {
      */
     @SubscribeEvent
     public static void onBlurStage(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY || entry == null) return;
+        // (v0.7.41) a cutscene da cabeça também usa (GrabCamera, mais fraco)
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY || (entry == null && !GrabCamera.active())) return;
         Minecraft mc = Minecraft.getInstance();
         PostChain chain = mc.gameRenderer.currentEffect();
         if (chain == null || !BLUR.toString().equals(chain.getName())) {
@@ -373,7 +375,7 @@ public final class CinematicCamera {
         int w = mc.getMainRenderTarget().width, h = mc.getMainRenderTarget().height;
         boolean fresh = prevCam == null || chain != prevChain || w != prevW || h != prevH
                 || prevCam.distanceToSqr(camPos) > BLUR_CUT_DIST * BLUR_CUT_DIST || look.dot(prevLook) < BLUR_CUT_DOT;
-        float mix = fresh ? 0F : BLUR_MIX;
+        float mix = fresh ? 0F : entry != null ? BLUR_MIX : GrabCamera.BLUR_MIX;
         Vec3 delta = fresh ? Vec3.ZERO : camPos.subtract(prevCam);
         Matrix4f inv = new Matrix4f(viewProj).invert();
         for (PostPass pass : passes(chain)) {
@@ -517,7 +519,7 @@ public final class CinematicCamera {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return;
         float t = e.t(partial);
-        float start = e.skipLeft ? Finisher.SKIP : 0F;
+        float start = Finisher.offset(e.mode);
         float in = Mth.clamp((t - start) / 10F, 0F, 1F);
         int bar = (int) (h * 0.11F * (in * in * (3F - 2F * in)));
         if (bar > 0) {
@@ -539,8 +541,8 @@ public final class CinematicCamera {
         }
         if (!FroggyClientConfig.gore().dismember()) {
             // Desligado: não mostra nada sendo arrancado
-            if (!e.skipLeft) black = Math.max(black, window(t, Finisher.BEND_L + 2, Finisher.RIP_L + 14));
-            black = Math.max(black, window(t, Finisher.BEND_R + 2, Finisher.RIP_R + 14));
+            if (e.mode == Finisher.FULL) black = Math.max(black, window(t, Finisher.BEND_L + 2, Finisher.RIP_L + 14));
+            if (e.mode != Finisher.HEAD_ONLY) black = Math.max(black, window(t, Finisher.BEND_R + 2, Finisher.RIP_R + 14));
             black = Math.max(black, window(t, Finisher.BEND_H + 2, Finisher.END + 14));
         }
         if (black > 0.004F) {

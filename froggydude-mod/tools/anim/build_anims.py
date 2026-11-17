@@ -394,6 +394,58 @@ ANIMS["jump_pin"] = animation(1.0, [
     (1.00, pose(**PIN_POSE)),
 ], "hold_on_last_frame")
 
+# (v0.7.41) A cutscene da cabeça (entity.HeadGrab). Refeita igual ao vídeo 5 do LM (Grox, 6,2-8,6 s; e o vídeo 3,
+# 0,7-2,6 s): LM 17/11, "o froggydude pula em cima do player, derruba o jogador e olha levemente e morde a cabeça e
+# começa a sacudir rapidamente com leve blur pra tentar arrancar a cabeça". Medido: pousa e fica ~0,7 s parado por cima
+# olhando (a cabeça mexe pouco), crava a boca na cabeça da vítima e chacoalha como cachorro rasgando pano (LM),
+# a cabeça dela junto, pra direita e pra esquerda, um lado a cada 0,09 s, as mãos prendendo o peito dela.
+# Sem laço: o relógio é o do servidor (HeadGrab.GLANCE/BITE/SIDE, FroggydudeRenderer), pra a cabeça da vítima
+# (VictimRender) ir junto com a dele. 4,2 s (HeadGrab.WINDOW); depois disso ou vem o golpe final ou ele já voou.
+HG_GLANCE, HG_BITE, HG_SIDE, HG_END = 0.65, 0.85, 0.09, 4.2
+# (vídeo 3, 1,10-1,85 s) além da sacudida pros lados, a cabeça do Grox sobe e desce presa na boca, ~2 vezes por segundo
+# (HeadGrab.LIFT): a cabeça dele puxa pra cima junto (o corpo dele continua parado)
+HG_LIFT = 0.5
+
+
+def hg_lift(t):
+    return 0.5 - 0.5 * math.cos(2 * math.pi * max(0.0, t - HG_BITE) / HG_LIFT)
+# montado por cima (o fim do jump_pin), a boca a 1 bloco na frente e a 0,6 de altura: a cabeça de quem está deitado.
+# (LM 17/11: "os braços dele ficam em '()', o corpo do jogador fica entre o meio dos braços curvados de forma
+# apertada" - parecia outro jeito de comer) Os braços retos e paralelos, as mãos plantadas no chão dos dois lados da
+# CABEÇA dela (rig: 0,85 bloco na frente, 0,33 pro lado), como a mão dele do lado da cabeça do Grox no vídeo 5 (6,3 s)
+HG_MOUNT = dict(PIN_POSE, arms=-87, arm_spread=0)
+# cravado: o tronco desce, a cara virada pra baixo em cima da cabeça dela (boca a ~1,0 bloco, 0,6 de altura; rig)
+HG_BITE_POSE = dict(root_y=-4, waist=72, head=-12, arms=-91, legs=leg_back(-4), arm_spread=0, leg_spread=18)
+
+
+def hg_shake(k, n, t=None):
+    # k-ésimo lado da sacudida (de n). LM 17/11: "Como um cachorro tenta rasgar um pano? Ele fica sacodindo pra direita
+    # e esquerda rapidamente, e a cabeça, que tá na boca do froggydude, vai junto porque tá preso entre os dentes".
+    # (LM: "o corpo fica parado, só a cabeça fica sacodindo na tentativa de arrancar a cabeça") Só a cabeça: vira pro
+    # lado (head_y) torcendo (head_z ao contrário) e a boca varre ~0,25 bloco pra cada lado (rig: s=+1 = pra direita
+    # dele, que é a esquerda de quem está embaixo). O tronco, os braços e as pernas não mexem. A cabeça de quem está
+    # embaixo tomba pro mesmo lado (VictimRender, HeadGrab.shake). Com o tempo a cabeça puxa um pouco mais pra cima.
+    s = 1 if k % 2 == 0 else -1
+    pull = min(1.0, k / max(1.0, n * 0.6))
+    lift = hg_lift(t) if t is not None else 0.0
+    return pose(**dict(HG_BITE_POSE, head=-12 - 5 * pull - 14 * lift, head_y=46 * s, head_z=-24 * s))
+
+
+_hg = [
+    (0.00, pose(**HG_MOUNT)),
+    # olha levemente: a cabeça sobe um pouco e tomba, encarando a cara dela
+    (0.22, pose(**dict(HG_MOUNT, head=-38, head_z=10, head_y=8))),
+    (0.45, pose(**dict(HG_MOUNT, head=-37, head_z=13, head_y=11))),
+    # puxa a cabeça pra trás, a boca escancarada (o bote da mordida); as mãos continuam no chão
+    (0.65, pose(**dict(HG_MOUNT, waist=58, head=-48, head_z=4, head_y=3, arms=-80))),
+    (HG_BITE, pose(**HG_BITE_POSE)),
+]
+_n = int((HG_END - HG_BITE - HG_SIDE / 2) / HG_SIDE) + 1
+for _k in range(_n):
+    _t = round(HG_BITE + HG_SIDE / 2 + _k * HG_SIDE, 3)
+    _hg.append((_t, hg_shake(_k, _n, _t)))
+ANIMS["head_grab"] = animation(HG_END, [k for k in _hg if k[0] <= HG_END], "hold_on_last_frame")
+
 # Salto alto (ref 2,7-3,2 s): junta, explode pra cima esticado, encolhe no
 # topo e mergulha com os braços na vítima. Impulso no tick 6, impacto no ~22.
 ANIMS["high_jump"] = animation(1.6, [

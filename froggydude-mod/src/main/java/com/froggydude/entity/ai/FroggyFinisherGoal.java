@@ -54,7 +54,8 @@ public class FroggyFinisherGoal extends Goal {
     private Vec3 h;
     private float yaw;
     private long start;
-    private boolean skipLeft;
+    /** Finisher.FULL / NO_LEFT / HEAD_ONLY. */
+    private byte mode;
     private int lastT = -1;
     private boolean anyLimb;
     private boolean done;
@@ -76,8 +77,10 @@ public class FroggyFinisherGoal extends Goal {
 
     @Override
     public boolean canUse() {
+        boolean headOnly = froggy.takePendingFinisherHead();
         LivingEntity p = froggy.takePendingFinisher();
         if (p == null) return false;
+        this.headOnly = headOnly;
         if (!p.isAlive() || p.level() != froggy.level() || p.isSpectator()
                 || p instanceof Player pl && pl.isCreative()) {
             if (p instanceof Player pl) FinisherTracker.clear(pl);
@@ -88,6 +91,8 @@ public class FroggyFinisherGoal extends Goal {
         return true;
     }
 
+    private boolean headOnly;
+
     @Override
     public boolean canContinueToUse() {
         return !done;
@@ -96,10 +101,12 @@ public class FroggyFinisherGoal extends Goal {
     @Override
     public void start() {
         done = false;
-        lastT = -1;
         anyLimb = false;
         ServerPlayer player = victim instanceof ServerPlayer sp ? sp : null;
-        skipLeft = player == null || ArmLoss.isArmless(player);
+        mode = headOnly && player != null ? Finisher.HEAD_ONLY
+                : player == null || ArmLoss.isArmless(player) ? Finisher.NO_LEFT : Finisher.FULL;
+        // os eventos (mordida, arrancar) já passados nessa tabela não disparam
+        lastT = Finisher.offset(mode) - 1;
         ServerLevel level = (ServerLevel) froggy.level();
         // ele vem por trás dos pés: a cabeça da vítima aponta pra longe dele
         Vec3 d = victim.position().subtract(froggy.position()).multiply(1, 0, 1);
@@ -119,7 +126,7 @@ public class FroggyFinisherGoal extends Goal {
             // o aldeão não foge nem reage (a IA volta se ele escapar vivo: abort)
             FeedLock.lock(victim);
         }
-        froggy.beginFinisher(victim, skipLeft);
+        froggy.beginFinisher(victim, mode == Finisher.NO_LEFT);
         place();
         // a vítima deitada olha pro céu; o corpo no servidor fica parado onde caiu
         holdVictim();
@@ -127,10 +134,11 @@ public class FroggyFinisherGoal extends Goal {
         ModNetwork.CHANNEL.send(PacketDistributor.NEAR.with(() -> new PacketDistributor.TargetPoint(
                         anchor.x, anchor.y, anchor.z, 128.0D, level.dimension())),
                 new CutscenePacket(CutscenePacket.START, froggy.getId(), victim.getId(), start,
-                        anchor.x, anchor.y, anchor.z, yaw, skipLeft));
-        froggy.speak(VoiceSituation.PIN, true);
+                        anchor.x, anchor.y, anchor.z, yaw, mode));
+        if (mode != Finisher.HEAD_ONLY) froggy.speak(VoiceSituation.PIN, true);
         level.playSound(null, anchor.x, anchor.y, anchor.z, ModSounds.PIN.get(), SoundSource.HOSTILE, 1.2F, 0.9F);
-        froggy.brainLog("golpe final em " + victim.getScoreboardName() + (skipLeft ? " (já sem o braço esquerdo)" : ""));
+        froggy.brainLog("golpe final em " + victim.getScoreboardName() + (mode == Finisher.NO_LEFT
+                ? " (já sem o braço esquerdo)" : mode == Finisher.HEAD_ONLY ? " (só a cabeça)" : ""));
     }
 
     /** A vítima parada no lugar onde caiu (o jogador pelo teleporte, senão o cliente dele a move). */
@@ -178,7 +186,7 @@ public class FroggyFinisherGoal extends Goal {
             abort(false);
             return;
         }
-        int t = (int) (level.getGameTime() - start) + (skipLeft ? Finisher.SKIP : 0);
+        int t = (int) (level.getGameTime() - start) + Finisher.offset(mode);
         // (v0.7.36, LM 16/11, comparando com o "Eating a Zebra": "Aberta a cena toda") a boca escancarada, com os
         // dentes, do começo ao fim: mordendo, arrancando, engolindo com o braço atravessado, na pausa e no close.
         // Antes abria só da mordida até arrancar e enquanto sacudia; engolindo, o braço ficava grudado na boca fechada
@@ -197,16 +205,17 @@ public class FroggyFinisherGoal extends Goal {
         Vec3 l = Finisher.left(h);
         Vec3 up = new Vec3(0, 1, 0);
         // as duas mordidas nos braços e a da cabeça: crava, sacode rasgando, arranca
-        if (!skipLeft) bite(level, t, Finisher.BITE_L, Finisher.RIP_L, ls, l);
-        bite(level, t, Finisher.BITE_R, Finisher.RIP_R, rs, l.scale(-1));
+        boolean left = mode == Finisher.FULL, right = mode != Finisher.HEAD_ONLY;
+        if (left) bite(level, t, Finisher.BITE_L, Finisher.RIP_L, ls, l);
+        if (right) bite(level, t, Finisher.BITE_R, Finisher.RIP_R, rs, l.scale(-1));
         bite(level, t, Finisher.BITE_H, Finisher.RIP_H, nk, h);
 
-        if (!skipLeft && t == Finisher.RIP_L) {
+        if (left && t == Finisher.RIP_L) {
             if (victim instanceof ServerPlayer sp) ArmLoss.removeArmQuiet(sp);
             anyLimb = true;
             rip(level, ls, l, 0.34F, Finisher.CUT_1 - Finisher.RIP_L);
         }
-        if (t == Finisher.RIP_R) {
+        if (right && t == Finisher.RIP_R) {
             anyLimb = true;
             rip(level, rs, l.scale(-1), 0.34F, Finisher.STILL - Finisher.RIP_R + 6);
         }
@@ -217,20 +226,20 @@ public class FroggyFinisherGoal extends Goal {
         }
         // sacudindo o pedaço na boca (rasgando): jorra da boca dele. Nos braços é só o
         // instante entre arrancar e a 1ª engolida; a cabeça ele sacode até engolir
-        boolean shaking = (!skipLeft && t > Finisher.RIP_L && t < Finisher.GULPS_L[0][0])
-                || (t > Finisher.RIP_R && t < Finisher.GULPS_R[0][0])
+        boolean shaking = (left && t > Finisher.RIP_L && t < Finisher.GULPS_L[0][0])
+                || (right && t > Finisher.RIP_R && t < Finisher.GULPS_R[0][0])
                 || (t > Finisher.RIP_H && t < Finisher.GULPS_H[0][0]);
         // pedaço voando da boca: pouco de cada vez (no close a câmera está perto e tampava tudo)
         if (shaking && t % 4 == 0) froggy.spawnMouthBlood(3);
         // engolindo (a cabeça vai pra trás com a boca aberta pro céu): estalo pesado de osso
-        int gulp = Finisher.gulpAt(t, skipLeft);
+        int gulp = Finisher.gulpAt(t, mode);
         if (gulp > 0) {
             froggy.onHeavyChew(true);
             froggy.spawnMouthBlood(2);
         }
-        if ((!skipLeft && t == Finisher.GONE_L) || t == Finisher.GONE_R) froggy.onGulp();
+        if ((left && t == Finisher.GONE_L) || (right && t == Finisher.GONE_R)) froggy.onGulp();
         // parado depois do 2º braço: o "mmmm"
-        if (t == Finisher.GONE_R + 6) froggy.speak(VoiceSituation.CHEWING, true);
+        if (right && t == Finisher.GONE_R + 6) froggy.speak(VoiceSituation.CHEWING, true);
         if (t == Finisher.BEND_H - 18) froggy.speak(VoiceSituation.LAST_BITE, true);
         if (t > Finisher.RIP_H && t < Finisher.GULPS_H[0][0] && (t - Finisher.RIP_H) % 10 == 0) froggy.onChew();
         if (t == Finisher.SWALLOW) {
@@ -324,7 +333,7 @@ public class FroggyFinisherGoal extends Goal {
         ModNetwork.CHANNEL.send(PacketDistributor.NEAR.with(() -> new PacketDistributor.TargetPoint(
                         anchor.x, anchor.y, anchor.z, 160.0D, level.dimension())),
                 new CutscenePacket(CutscenePacket.END, froggy.getId(), victim.getId(), start,
-                        anchor.x, anchor.y, anchor.z, yaw, skipLeft));
+                        anchor.x, anchor.y, anchor.z, yaw, mode));
     }
 
     /** O aldeão que ele está comendo agora (null se não for aldeão/bicho). */

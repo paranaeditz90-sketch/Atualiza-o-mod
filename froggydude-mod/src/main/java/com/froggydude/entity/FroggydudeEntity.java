@@ -190,6 +190,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     private static final EntityDataAccessor<CompoundTag> DATA_RAGDOLL =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /** (v0.7.41) A cutscene da cabeça (entity.HeadGrab): quem está embaixo, quando agarrou, acertos (vazio = não está). */
+    private static final EntityDataAccessor<CompoundTag> DATA_HEADGRAB =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
     /** (v0.7.40) A fase da raiva (entity.Rage: estalo, avança, parado, estalo parado), pra animação do cliente. */
     private static final EntityDataAccessor<Byte> DATA_RAGE =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
@@ -407,6 +410,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_REVIVE, new CompoundTag());
         this.entityData.define(DATA_RAGDOLL, new CompoundTag());
         this.entityData.define(DATA_RAGE, (byte) 0);
+        this.entityData.define(DATA_HEADGRAB, new CompoundTag());
     }
 
     @Override
@@ -752,14 +756,30 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      * chamado pela FroggyFeedGoal depois da flexão.
      */
     public void requestFinisher(LivingEntity victim) {
-        if (!finishing) pendingFinisher = victim;
+        requestFinisher(victim, false);
     }
+
+    /** (v0.7.41) headOnly: só a cabeça, com os braços no lugar (a cutscene da cabeça falhou: entity.HeadGrab). */
+    public void requestFinisher(LivingEntity victim, boolean headOnly) {
+        if (finishing) return;
+        pendingFinisher = victim;
+        pendingFinisherHead = headOnly;
+    }
+
+    private boolean pendingFinisherHead;
 
     @Nullable
     public LivingEntity takePendingFinisher() {
         LivingEntity p = pendingFinisher;
         pendingFinisher = null;
         return p;
+    }
+
+    /** O próximo golpe final é só a cabeça? (lê e apaga) */
+    public boolean takePendingFinisherHead() {
+        boolean h = pendingFinisherHead;
+        pendingFinisherHead = false;
+        return h;
     }
 
     public boolean isFinishing() {
@@ -1231,14 +1251,81 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return this.entityData.get(DATA_RAGE);
     }
 
-    /** Acabou a raiva: parte pra cima (as Goals voltam, com o alvo dela). */
+    /** Acabou a raiva: parte pra cima (as Goals voltam, com o alvo dela) - ou, se dá, o bote na cabeça (HeadGrab). */
     void endRage() {
+        endRage(true);
+    }
+
+    private void endRage(boolean attack) {
         Rage.Run run = rageRun;
         rageRun = null;
         for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
         this.getNavigation().stop();
         if (getFroggyState() == FroggyState.RAGE) setFroggyState(FroggyState.CHASE);
-        if (run != null && run.target.isAlive()) setTarget(run.target);
+        if (run != null && run.target.isAlive()) {
+            setTarget(run.target);
+            // (v0.7.41) o fim da raiva é o bote na cabeça (a cutscene jogável)
+            if (attack && HeadGrab.begin(this, run.target)) return;
+        }
+    }
+
+    // ---------------------------------------------------------------- (v0.7.41) a cutscene da cabeça (entity.HeadGrab)
+
+    @Nullable
+    private HeadGrab.Run headGrabRun;
+    private int headGrabCooldownUntil;
+
+    int headGrabCooldownUntil() {
+        return headGrabCooldownUntil;
+    }
+
+    void clearHeadGrabCooldown() {
+        headGrabCooldownUntil = 0;
+    }
+
+    /** O comando de teste: larga o que estiver fazendo (raiva, ragdoll) antes do bote. */
+    void forceIdleForHeadGrab() {
+        if (rageRun != null) {
+            rageRun = null;
+            for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        }
+        if (ragdollRun != null) endRagdoll(false);
+        if (getFroggyState() != FroggyState.HEAD_GRAB) setFroggyState(FroggyState.CHASE);
+    }
+
+    void beginHeadGrab(HeadGrab.Run run) {
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        this.getNavigation().stop();
+        headGrabRun = run;
+        headGrabCooldownUntil = this.tickCount + HeadGrab.COOLDOWN;
+        this.entityData.set(DATA_HEADGRAB, new CompoundTag());
+        setFroggyState(FroggyState.HEAD_GRAB);
+        setTarget(run.victim);
+    }
+
+    void setHeadGrabState(CompoundTag t) {
+        this.entityData.set(DATA_HEADGRAB, t);
+    }
+
+    /** O que o cliente lê (o alerta, a animação): vazio enquanto pula ou se não está agarrando. */
+    public CompoundTag headGrabState() {
+        return this.entityData.get(DATA_HEADGRAB);
+    }
+
+    @Nullable
+    HeadGrab.Run headGrabRun() {
+        return headGrabRun;
+    }
+
+    /** Acabou (se soltou, arrancou, ela sumiu): a IA volta. */
+    void endHeadGrab() {
+        HeadGrab.release(this, headGrabRun);
+        headGrabRun = null;
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        if (!this.entityData.get(DATA_HEADGRAB).isEmpty()) this.entityData.set(DATA_HEADGRAB, new CompoundTag());
+        setPinnedVictim(null);
+        if (getFroggyState() == FroggyState.HEAD_GRAB) setFroggyState(FroggyState.CHASE);
     }
 
     /**
@@ -1248,7 +1335,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     protected void updateControlFlags() {
         super.updateControlFlags();
-        if (ragdollRun != null || rageRun != null) {
+        if (ragdollRun != null || rageRun != null || headGrabRun != null) {
             for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
         }
     }
@@ -2894,7 +2981,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (getFroggyState() == FroggyState.RAGE && rageRun != null) {
             Rage.tick(this, rageRun);
         } else if (rageRun != null || getFroggyState() == FroggyState.RAGE) {
-            endRage();
+            endRage(false); // alguém trocou o estado no meio: sem bote
+        }
+        if (getFroggyState() == FroggyState.HEAD_GRAB && headGrabRun != null) {
+            HeadGrab.tick(this, headGrabRun);
+        } else if (headGrabRun != null || getFroggyState() == FroggyState.HEAD_GRAB) {
+            endHeadGrab();
         }
         if (getFroggyState() == FroggyState.FLUNG) {
             // arremessado: só a física manda; levanta quando cai e a animação acaba
@@ -3324,6 +3416,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (hurt && !this.level().isClientSide) Ragdoll.onHurt(this, source, gunshot);
         // (v0.7.40) bateram nele no meio da raiva: acabou a paciência
         if (hurt && rageRun != null && source.getEntity() instanceof Player) rageRun.hit = true;
+        // (v0.7.41) a cutscene da cabeça: conta o que veio de quem está embaixo
+        if (hurt && headGrabRun != null) HeadGrab.onHurt(this, headGrabRun, source);
         if (hurt && this.level() instanceof ServerLevel sl && source.getEntity() instanceof Player hitter) {
             // (v0.7.29) aprende pelo que dói: item de mod que machucou ele vira alvo da língua - só golpe na mão mais
             // forte que um soco, ou tiro de projétil de mod (a bala de uma arma de mod)
@@ -3514,6 +3608,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_RAGDOLL_GETUP = RawAnimation.begin().thenPlayAndHold("ragdoll_getup");
     private static final RawAnimation ANIM_RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
     private static final RawAnimation ANIM_RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
+    private static final RawAnimation ANIM_HEAD_GRAB = RawAnimation.begin().thenPlayAndHold("head_grab");
     private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation ANIM_RUN_FRENZY = RawAnimation.begin().thenLoop("run_frenzy");
@@ -3603,6 +3698,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 }
                 return state.setAndContinue(ANIM_REVIVE_LIE);
             }
+            case HEAD_GRAB:
+                // (v0.7.41) o bote (o mesmo pulo baixo que derruba) e, montado, puxando a cabeça em trancos
+                return state.setAndContinue(headGrabState().isEmpty() ? ANIM_JUMP_PIN : ANIM_HEAD_GRAB);
             case RAGE: {
                 // (v0.7.40) a raiva: o estalo do pescoço, avança agachado (o galope da fase 2), parado em "()"
                 byte ph = getRagePhase();

@@ -78,7 +78,7 @@ public final class FinisherAudio {
                 continue;
             }
             float t = e.t(0F);
-            int from = e.skipLeft ? Finisher.SKIP : START_TICK;
+            int from = e.mode == Finisher.FULL ? START_TICK : Finisher.offset(e.mode);
             if (t < from) continue;
             e.audio = true;
             STARTED.add(key);
@@ -86,7 +86,8 @@ public final class FinisherAudio {
             // chegou atrasado (entrou no mundo no meio): não começa o áudio no meio
             if (t > from + 10) continue;
             SoundInstance s = new SimpleSoundInstance(
-                    (e.skipLeft ? ModSounds.FINISHER_R : ModSounds.FINISHER).get().getLocation(),
+                    (e.mode == Finisher.HEAD_ONLY ? ModSounds.FINISHER_H : e.skipLeft ? ModSounds.FINISHER_R
+                            : ModSounds.FINISHER).get().getLocation(),
                     SoundSource.HOSTILE, 1.0F, 1.0F, RandomSource.create(), false, 0,
                     SoundInstance.Attenuation.LINEAR, e.anchor.x, e.anchor.y + 0.5D, e.anchor.z, false);
             // o grito da fase 2 (9 s) não continua por baixo da zebra
@@ -104,7 +105,8 @@ public final class FinisherAudio {
         if (s == null || PLAYING.isEmpty() || PLAYING.containsValue(s)) return;
         ResourceLocation loc = s.getLocation();
         boolean ours = ModEntityTypes.MOD_ID.equals(loc.getNamespace())
-                && !loc.getPath().equals("froggydude.finisher") && !loc.getPath().equals("froggydude.finisher_r");
+                && !loc.getPath().equals("froggydude.finisher") && !loc.getPath().equals("froggydude.finisher_r")
+                && !loc.getPath().equals("froggydude.finisher_h");
         boolean vanilla = "minecraft".equals(loc.getNamespace()) && MUTED_VANILLA.contains(loc.getPath());
         if (!ours && !vanilla) return;
         for (ClientFinisher.Entry e : PLAYING.keySet()) {

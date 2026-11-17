@@ -1,6 +1,7 @@
 package com.froggydude.client;
 
 import com.froggydude.client.cutscene.ClientFinisher;
+import com.froggydude.client.cutscene.GrabCamera;
 import com.froggydude.client.cutscene.Stumps;
 import com.froggydude.config.FroggyClientConfig;
 import com.froggydude.entity.Finisher;
@@ -135,6 +136,10 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             }
             // (v0.7.40) o levantar do ragdoll: no relógio do servidor, emendado na ida pra pose de bruços
             if ("ragdoll_getup".equals(animation)) return f.ragdollGetupAnimTicks(Minecraft.getInstance().getFrameTime());
+            // (v0.7.41) a mordida e a sacudida da cabeça: no relógio do servidor, junto com a cabeça da vítima (VictimRender)
+            if ("head_grab".equals(animation)) {
+                return f.headGrabState().isEmpty() ? -1D : GrabCamera.grabAge(f, Minecraft.getInstance().getFrameTime());
+            }
             if (!animation.startsWith("finisher")) return -1D;
             ClientFinisher.Entry e = ClientFinisher.forFroggy(f.getId());
             if (e == null) return -1D;
@@ -375,7 +380,7 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             } else if ("head".equals(name) && animatable.getFroggyState() == FroggyState.FINISHER) {
                 // golpe final: o que está na boca vem da tabela (braço esquerdo, direito, cabeça)
                 ClientFinisher.Entry e = ClientFinisher.forFroggy(animatable.getId());
-                int held = e == null || !FroggyClientConfig.gore().dismember() ? 0 : Finisher.held(e.t(partialTick), e.skipLeft);
+                int held = e == null || !FroggyClientConfig.gore().dismember() ? 0 : Finisher.held(e.t(partialTick), e.mode);
                 if (held != 0) {
                     poseStack.pushPose();
                     RenderUtils.prepMatrixForBone(poseStack, bone);

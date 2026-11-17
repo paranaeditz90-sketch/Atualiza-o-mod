@@ -75,6 +75,7 @@ public final class FroggyCommand {
                 .then(Commands.literal("renascer").requires(FroggyCommand::admin).executes(c -> revive(c.getSource(), false))
                         .then(Commands.literal("explosao").executes(c -> revive(c.getSource(), true))))
                 .then(Commands.literal("ragdoll").requires(FroggyCommand::admin).executes(c -> ragdoll(c.getSource())))
+                .then(Commands.literal("cabeca").requires(FroggyCommand::admin).executes(c -> headGrab(c.getSource())))
                 // jeito de jogador, pra testar sem ter que morrer 3 vezes
                 .then(Commands.literal("zombar").requires(FroggyCommand::admin).executes(c -> mock(c.getSource())))
                 .then(Commands.literal("dancar").requires(FroggyCommand::admin).executes(c -> dance(c.getSource())))
@@ -357,6 +358,21 @@ public final class FroggyCommand {
             return 0;
         }
         src.sendSuccess(() -> t("revive_started"), true);
+        return 1;
+    }
+
+    /** (v0.7.41) A cutscene da cabeça agora, em quem mandou (precisa estar no sobrevivência). */
+    private static int headGrab(CommandSourceStack src) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        if (!com.froggydude.entity.HeadGrab.debugBegin(f, src.getEntity())) {
+            src.sendFailure(t("headgrab_not_now"));
+            return 0;
+        }
+        src.sendSuccess(() -> t("headgrab_started"), true);
         return 1;
     }
 

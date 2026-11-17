@@ -32,6 +32,9 @@ public final class ClientFinisher {
         public final long start;
         public final Vec3 anchor;
         public final float yaw;
+        /** Finisher.FULL / NO_LEFT / HEAD_ONLY. */
+        public final byte mode;
+        /** Começa do braço direito (a animação "finisher_r" e os planos da câmera de quem já estava sem o esquerdo). */
         public final boolean skipLeft;
         public final Vec3 h;
         public final Vec3 l;
@@ -39,13 +42,14 @@ public final class ClientFinisher {
         /** O áudio da zebra já foi decidido pra essa cutscene (FinisherAudio). */
         boolean audio;
 
-        Entry(int froggyId, int victimId, long start, Vec3 anchor, float yaw, boolean skipLeft) {
+        Entry(int froggyId, int victimId, long start, Vec3 anchor, float yaw, byte mode) {
             this.froggyId = froggyId;
             this.victimId = victimId;
             this.start = start;
             this.anchor = anchor;
             this.yaw = yaw;
-            this.skipLeft = skipLeft;
+            this.mode = mode;
+            this.skipLeft = mode == Finisher.NO_LEFT;
             this.h = Finisher.dir(yaw);
             this.l = Finisher.left(h);
         }
@@ -54,7 +58,7 @@ public final class ClientFinisher {
         public float t(float partial) {
             ClientLevel level = Minecraft.getInstance().level;
             long now = level == null ? start : level.getGameTime();
-            return Finisher.timeline(now, start, partial, skipLeft);
+            return Finisher.timeline(now, start, partial, mode);
         }
 
         public boolean ended() {
@@ -72,10 +76,10 @@ public final class ClientFinisher {
     }
 
     public static void onPacket(byte kind, int froggyId, int victimId, long start, double x, double y, double z,
-                                float yaw, boolean skipLeft) {
+                                float yaw, byte mode) {
         Minecraft mc = Minecraft.getInstance();
         if (kind == CutscenePacket.START) {
-            Entry e = new Entry(froggyId, victimId, start, new Vec3(x, y, z), yaw, skipLeft);
+            Entry e = new Entry(froggyId, victimId, start, new Vec3(x, y, z), yaw, mode);
             BY_VICTIM.put(victimId, e);
             if (mc.player != null && mc.player.getId() == victimId) CinematicCamera.begin(e);
         } else {
@@ -109,8 +113,8 @@ public final class ClientFinisher {
         if (!FroggyClientConfig.gore().dismember()) return 0;
         float t = e.t(partial);
         int m = 0;
-        if (Finisher.leftGone(t, e.skipLeft)) m |= 1;
-        if (Finisher.rightGone(t)) m |= 2;
+        if (Finisher.leftGone(t, e.mode)) m |= 1;
+        if (Finisher.rightGone(t, e.mode)) m |= 2;
         if (Finisher.headGone(t)) m |= 4;
         return m;
     }

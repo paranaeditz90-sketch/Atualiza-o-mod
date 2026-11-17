@@ -150,6 +150,25 @@ public final class Ragdoll {
         f.beginRagdoll(p, shooter instanceof Player pl ? pl.getUUID() : null);
     }
 
+    /**
+     * (v0.7.41) A pessoa se soltou da cutscene da cabeça (entity.HeadGrab): ele voa pra longe dela. Com tiro, o voo
+     * inteiro (como levar bala parado); com golpe de espada/soco, bem menos (LM: "com ragdoll, voa bem menos").
+     */
+    static void knockOff(FroggydudeEntity f, Entity from, boolean shot) {
+        RandomSource r = f.getRandom();
+        Vec3 dir = f.position().subtract(from.position()).multiply(1, 0, 1);
+        if (dir.lengthSqr() < 1.0E-4D) {
+            float a = r.nextFloat() * Mth.TWO_PI;
+            dir = new Vec3(Mth.cos(a), 0, Mth.sin(a));
+        }
+        dir = dir.normalize();
+        double speed = shot ? SPEED * (0.9D + 0.2D * r.nextDouble()) : 0.62D;
+        double up = shot ? UP : 0.34D;
+        Params p = new Params(f.level().getGameTime(), (float) dir.x, (float) dir.z, (float) speed, (float) up, r.nextInt(),
+                -1L, -1L);
+        f.beginRagdoll(p, from instanceof Player pl ? pl.getUUID() : null);
+    }
+
     /** O tiro do comando /froggydude ragdoll: pra longe de quem mandou (ou pra um lado qualquer). */
     public static boolean debugLaunch(FroggydudeEntity f, @Nullable Entity from) {
         if (f.getFroggyState() == FroggyState.RAGDOLL || f.isReviving()) return false;

@@ -22,10 +22,11 @@ public class CutscenePacket {
     final long start;
     final double x, y, z;
     final float yaw;
-    final boolean skipLeft;
+    /** Finisher.FULL / NO_LEFT / HEAD_ONLY. */
+    final byte mode;
 
     public CutscenePacket(byte kind, int froggyId, int victimId, long start, double x, double y, double z,
-                          float yaw, boolean skipLeft) {
+                          float yaw, byte mode) {
         this.kind = kind;
         this.froggyId = froggyId;
         this.victimId = victimId;
@@ -34,7 +35,7 @@ public class CutscenePacket {
         this.y = y;
         this.z = z;
         this.yaw = yaw;
-        this.skipLeft = skipLeft;
+        this.mode = mode;
     }
 
     public static void encode(CutscenePacket m, FriendlyByteBuf buf) {
@@ -46,18 +47,18 @@ public class CutscenePacket {
         buf.writeDouble(m.y);
         buf.writeDouble(m.z);
         buf.writeFloat(m.yaw);
-        buf.writeBoolean(m.skipLeft);
+        buf.writeByte(m.mode);
     }
 
     public static CutscenePacket decode(FriendlyByteBuf buf) {
         return new CutscenePacket(buf.readByte(), buf.readVarInt(), buf.readVarInt(), buf.readLong(),
-                buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readBoolean());
+                buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readByte());
     }
 
     public static void handle(CutscenePacket m, Supplier<NetworkEvent.Context> ctx) {
         ctx.get().enqueueWork(() -> net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
                 () -> () -> com.froggydude.client.cutscene.ClientFinisher.onPacket(m.kind, m.froggyId, m.victimId, m.start,
-                        m.x, m.y, m.z, m.yaw, m.skipLeft)));
+                        m.x, m.y, m.z, m.yaw, m.mode)));
         ctx.get().setPacketHandled(true);
     }
 }

@@ -52,6 +52,18 @@ public final class Finisher {
     public static final int END = 232;
     /** Sem o braço esquerdo: começa direto no direito (a tabela anda isso pra frente). */
     public static final int SKIP = 60;
+    /**
+     * (v0.7.41) Os três jeitos da cena: inteira; sem o braço esquerdo (a língua já tinha arrancado); e SÓ A CABEÇA (a
+     * cutscene da cabeça falhou, entity.HeadGrab: os braços ficam, a tabela começa um pouco antes de ele abaixar pra
+     * cabeça, em {@link #HEAD_FROM}).
+     */
+    public static final byte FULL = 0, NO_LEFT = 1, HEAD_ONLY = 2;
+    public static final int HEAD_FROM = BEND_H - 16;
+
+    /** Onde a tabela começa em cada jeito. */
+    public static int offset(byte mode) {
+        return mode == NO_LEFT ? SKIP : mode == HEAD_ONLY ? HEAD_FROM : 0;
+    }
 
     // ---- comendo (v0.4.5, o "Eating a Zebra" quadro a quadro, 60 fps): arrancou, a perna fica
     // ATRAVESSADA na boca, de um lado ao outro do rosto (como cachorro com osso), e ele engole
@@ -76,21 +88,21 @@ public final class Finisher {
     }
 
     /** O tick da tabela (com fração, pro cliente), contando o pulo do braço esquerdo. */
-    public static float timeline(long now, long start, float partial, boolean skipLeft) {
-        return (now - start) + partial + (skipLeft ? SKIP : 0);
+    public static float timeline(long now, long start, float partial, byte mode) {
+        return (now - start) + partial + offset(mode);
     }
 
     /** Quanto dura de verdade (sem o braço esquerdo é mais curta). */
-    public static int length(boolean skipLeft) {
-        return END - (skipLeft ? SKIP : 0);
+    public static int length(byte mode) {
+        return END - offset(mode);
     }
 
-    public static boolean leftGone(float t, boolean skipLeft) {
-        return skipLeft || t >= RIP_L;
+    public static boolean leftGone(float t, byte mode) {
+        return mode == NO_LEFT || (mode == FULL && t >= RIP_L);
     }
 
-    public static boolean rightGone(float t) {
-        return t >= RIP_R;
+    public static boolean rightGone(float t, byte mode) {
+        return mode != HEAD_ONLY && t >= RIP_R;
     }
 
     public static boolean headGone(float t) {
@@ -98,10 +110,10 @@ public final class Finisher {
     }
 
     /** O que está na boca dele agora: 0 nada, 1 braço esquerdo, 2 braço direito, 3 cabeça. */
-    public static int held(float t, boolean skipLeft) {
+    public static int held(float t, byte mode) {
         if (t >= RIP_H && t < SWALLOW) return 3;
-        if (t >= RIP_R && t < GONE_R) return 2;
-        if (!skipLeft && t >= RIP_L && t < GONE_L) return 1;
+        if (mode != HEAD_ONLY && t >= RIP_R && t < GONE_R) return 2;
+        if (mode == FULL && t >= RIP_L && t < GONE_L) return 1;
         return 0;
     }
 
@@ -133,9 +145,9 @@ public final class Finisher {
     }
 
     /** O tick é o começo de uma engolida de braço? (o servidor abre a boca e toca o som) */
-    public static int gulpAt(int t, boolean skipLeft) {
-        for (int[] g : GULPS_R) if (t == g[0]) return g[1] - g[0];
-        if (!skipLeft) for (int[] g : GULPS_L) if (t == g[0]) return g[1] - g[0];
+    public static int gulpAt(int t, byte mode) {
+        if (mode != HEAD_ONLY) for (int[] g : GULPS_R) if (t == g[0]) return g[1] - g[0];
+        if (mode == FULL) for (int[] g : GULPS_L) if (t == g[0]) return g[1] - g[0];
         for (int[] g : GULPS_H) if (t == g[0]) return g[1] - g[0];
         return 0;
     }

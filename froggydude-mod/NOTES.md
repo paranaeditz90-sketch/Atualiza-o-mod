@@ -1,4 +1,4 @@
-# Froggydude - v0.7.40: o ragdoll do tiro, a raiva "()" e as falas novas do FroggyDude (sobre a v0.7.39)
+# Froggydude - v0.7.41: a cutscene jogável da cabeça (sobre a v0.7.40)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,44 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.40):
+O que testar agora (v0.7.41):
+- **A cutscene JOGÁVEL da cabeça** (tu: "Ele tentando arrancar a cabeça do jogador, vai ser uma cutscene que é jogável...
+  piscando em vermelho com ícone de alerta... Se o jogador tiver uma espada... Precisa acertar 2 vezes... se o jogador
+  tiver arma, o jogo pede para ele atirar... ou arco"; falhou: "Arranca a cabeça (morte)"; os teus vídeos 3 e 5).
+  - **Quando:** no fim da raiva (ele avança e para no "()" pra tu recuar), em vez de atacar normal ele dá o bote em ti.
+  - **Igual ao teu vídeo do Grox, em 3ª pessoa** (tu, 17/11: "pula em cima do player, derruba o jogador e olha
+    levemente e morde a cabeça e começa a sacudir rapidamente com leve blur"; e "a cutscene é em 3 pessoa sempre"): ele
+    pula, tu cai de costas embaixo dele se debatendo, ele **olha um instante** pra tua cara (~0,7 s, como no vídeo),
+    recua a cabeça e **crava a boca na tua cabeça**. Daí **sacode pra direita e pra esquerda bem rápido, como cachorro
+    rasgando pano** (tu: "a cabeça, que tá na boca do froggydude, vai junto porque tá preso entre os dentes"): um lado a
+    cada 0,09 s, e a **tua cabeça vai junto**, tombando pro mesmo lado, e sobe e desce presa na boca (~2 vezes por
+    segundo, como a do Grox no vídeo 3). **Só a cabeça dele sacode**: o corpo dele fica parado (tu: "o corpo fica parado,
+    só a cabeça fica sacodindo"), com os **braços retos e as mãos no chão dos dois lados da tua cabeça**, como a mão dele
+    do lado da cabeça do Grox no vídeo (antes ficavam em "()" apertando o teu corpo). **O teu corpo reage** como o do
+    Grox: é levantado e largado pela cabeça, gira e é arrastado a cada sacudida, e as pernas se debatendo.
+  - **A câmera igual à do teu vídeo** (tu: "consegue corrigir pra deixar igual ao do vídeo a posição da câmera?"):
+    medida no plano aberto do vídeo, onde ele sacode (vídeo 5, 6,1-8,6 s; o mesmo do vídeo 3). A câmera fica parada,
+    quase rente ao chão (um quarto de bloco), a 1,6 bloco das cabeças, de lado e um pouco na frente (pelo lado esquerdo
+    dele), olhando de leve pra cima. Achei isso testando 60 posições no jogo, lado a lado com o quadro do vídeo, até a
+    cabeça dele ficar do mesmo tamanho (~30% da tela), no mesmo lugar e com o horizonte na mesma altura. **Treme pouco,
+    no compasso da sacudida**, e o **borrão** no que se mexe (ele e tu) ficou um pouco mais forte. Com o rugido de 4,2 s e o pescoço estalando. A tua mira continua presa
+    no corpo dele: o tiro sai na direção
+    dele e o soco/espada vai direto nele. Os corações, a fome e a hotbar continuam na tela. **Um clique =
+    um golpe** (segurar o botão não conta).
+  - **O alerta**, em cima da hotbar, no vão entre os corações e a fome: o triângulo vermelho piscando e, em cima dele,
+    **"ATIRE NELE!"** (arma de fogo, arco ou besta: 1 tiro), **"BATA NELE! 0/2"** (espada, machado ou arma de mod: 2
+    golpes) ou **"SOQUE ELE! 0/3"** (outra coisa: 3 socos), com uma barrinha do tempo que sobra (o rugido) diminuindo.
+  - **Se soltou:** ele voa no ragdoll (com tiro, longe como levar bala parado; com golpe, bem menos) e tu levanta
+    olhando pra frente (vê ele voando).
+    O tiro conta quando tu DISPARA (a bala do TacZ disparada deitado não registrava o acerto: no teste ela saía, gastava
+    a munição e o dano nunca chegava nele; agora disparar contra ele já te solta, com qualquer mod de arma ou arco).
+  - Testado no jogo: o tiro soltou e ele voou 12,9 blocos; os 2 golpes de espada soltaram; sem fazer nada, ele arrancou
+    a cabeça com a cena da zebra só da cabeça (a mensagem "despedaçado e devorado").
+  - **Não deu:** a câmera vira cinema e ele **arranca a tua cabeça**, a mesma cena da zebra mas **só a cabeça** (os
+    braços ficam), com o pedaço da trilha da zebra desse trecho. Morte.
+  - Teste sem esperar a raiva: **`/froggydude cabeca`** (precisa estar no sobrevivência, perto dele).
+
+Da v0.7.40:
 - **O RAGDOLL do tiro, feito do zero** (tu: "ragdoll é ragdoll mesmo, nada de coisa duro... é necessário fazer o nosso
   próprio. E a rajada só funciona se ele tiver no chão parado"; e depois: "Incrível!"). Bala de mod de arma (TacZ ou
   outro) nele **parado no chão** joga ele longe: voa ~11 blocos em ~0,6 s girando pra trás, com braços e pernas soltos,
