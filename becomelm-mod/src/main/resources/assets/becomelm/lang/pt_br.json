@@ -29,5 +29,7 @@
   "subtitles.becomelm.punch": "FroggyDude soca",
   "subtitles.becomelm.bite": "FroggyDude morde",
   "subtitles.becomelm.throw": "FroggyDude arremessa",
-  "becomelm.command.finisher": "O próximo golpe de %s jogador(es) vira a finalização"
+  "becomelm.command.finisher": "O próximo golpe de %s jogador(es) vira a finalização",
+  "becomelm.action.neck_crack": "Estalar\no pescoço",
+  "becomelm.action.rage": "Raiva\n()"
 }

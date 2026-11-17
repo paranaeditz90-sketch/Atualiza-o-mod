@@ -29,5 +29,7 @@
   "subtitles.becomehim.punch": "FroggyDude punches",
   "subtitles.becomehim.bite": "FroggyDude bites",
   "subtitles.becomehim.throw": "FroggyDude throws",
-  "becomehim.command.finisher": "Next hit of %s player(s) will be the finisher"
+  "becomehim.command.finisher": "Next hit of %s player(s) will be the finisher",
+  "becomehim.action.neck_crack": "Neck\ncrack",
+  "becomehim.action.rage": "Rage\n()"
 }

@@ -304,7 +304,7 @@ public final class LmActsClient {
     /** Montado socando, martelando, finalizando ou deitado no monte: não anda nem bate. */
     static boolean locked(Player p) {
         Act a = ACTS.get(p.getUUID());
-        return a != null && (riding(a) || a.kind == LmAttack.PILE);
+        return a != null && (riding(a) || a.kind == LmAttack.PILE || a.kind == LmAttack.NECK_CRACK);
     }
 
     /** Montado em cima de alguém (socando, martelando ou finalizando). */
@@ -369,6 +369,8 @@ public final class LmActsClient {
             case RISE -> RISE_TICKS;
             case FINISH -> LmFinish.TICKS + 30;
             case HAMMER -> LmAttacks.HAMMER_MAX + 20;
+            case NECK_CRACK -> LmAttacks.NECK_CRACK_TICKS + 10;
+            case RAGE -> LmAttacks.RAGE_MAX + 20;
             default -> 40;
         };
     }
@@ -619,6 +621,10 @@ public final class LmActsClient {
         event.setCanceled(true);
         event.setSwingHand(false);
         if (event.isAttack() && holding(p)) localShake(p);
+        // na raiva, atacar acaba com ela (de pé de novo)
+        if (event.isAttack() && a != null && a.kind == LmAttack.RAGE && a.age > 4) {
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.RAGE, -1));
+        }
     }
 
     @SubscribeEvent

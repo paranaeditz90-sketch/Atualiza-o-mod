@@ -4,6 +4,21 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.4.0 — a roda de ações (estalar o pescoço e a raiva "()")
+
+Rede "9": quem joga junto precisa estar na 0.4.0 também.
+
+O que testar:
+- **A roda nova**: no meio o Humano, em volta os jeitos (galope, em pé, fase 2) e, no anel de fora, as **ações**. As
+  câmeras continuam do lado. As ações saem na hora que tu toca no gomo.
+- **Estalar o pescoço** (gomo de cima): a cabeça tomba de lado num tranco, com o estalo de osso (0,6 s, parado).
+- **Raiva "()"** (gomo de baixo): estala o pescoço e fica agachado fundo, braços abertos até o chão, boca aberta (a
+  raiva do mod da IA 0.7.40, o teu vídeo 4). Andando, avança curvado (a corrida da fase 2). Acaba quando tu ataca,
+  escolhe a raiva de novo, ou em 30 s. Testado no jogo (parado, andando, atacando pra sair).
+- O pulo super alto continua o mesmo da 0.3.9: o `sky_air` e companhia ficaram congelados em `tools/frozen/` (o
+  `sky_drop` do mod da IA mudou e o corte antigo ia pegar a ameaça em vez do voo se o gerador rodasse).
+- Os próximos golpes do FroggyDude entram como gomos nesse anel (no BecomeLM, com a boca no lugar da língua).
+
 ## v0.3.9 — o nado do vídeo, a lava sem queimar e a tremida em primeira pessoa
 
 Rede "8" (a mesma: nada mudou no que vai pela rede).

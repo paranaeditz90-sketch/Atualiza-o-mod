@@ -30,7 +30,14 @@ public enum LmAttack {
      */
     HAMMER,
     /** (pedido) soltou o atacar: para de martelar e levanta. */
-    HAMMER_STOP;
+    HAMMER_STOP,
+    /** (roda) Estala o pescoço: a cabeça tomba de lado num tranco (rage_crack, 0,6 s). */
+    NECK_CRACK,
+    /**
+     * (roda) A raiva "()" (mod da IA 0.7.40, o vídeo 4 do LM): agachado fundo, braços abertos até o chão, boca aberta;
+     * andando, avança agachado. Até escolher de novo, atacar ou 30 s.
+     */
+    RAGE;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

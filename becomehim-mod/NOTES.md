@@ -11,6 +11,12 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.2.0 — a roda de ações (estalar o pescoço e a raiva "()")
+
+Rede "2". O mesmo da roda do BecomeLM 0.4.0: a roda ganhou o anel de fora com as ações; **estalar o pescoço** (gomo
+de cima) e a **raiva "()"** (gomo de baixo: agachado fundo, braços abertos, boca aberta; andando avança curvado;
+atacar, escolher de novo ou 30 s acaba). Testado no jogo.
+
 ## v0.1.0 — a língua do FroggyDude
 
 O que testar:

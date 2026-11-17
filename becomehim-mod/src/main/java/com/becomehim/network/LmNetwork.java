@@ -31,9 +31,9 @@ public final class LmNetwork {
 
     /**
      * (Become HIM...) "1": canal próprio (becomehim:main). Veio da rede "8" do BecomeLM, mais a língua: o ActSync do
-     * arremesso leva o giro no "age" e o pacote Fling (quem voou rodando).
+     * arremesso leva o giro no "age" e o pacote Fling (quem voou rodando). "2" (0.2.0): os golpes da roda.
      */
-    private static final String VERSION = "1";
+    private static final String VERSION = "2";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeHim.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 

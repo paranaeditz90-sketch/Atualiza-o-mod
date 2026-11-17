@@ -1,6 +1,8 @@
 package com.becomelm.client;
 
+import com.becomelm.LmAttack;
 import com.becomelm.LmMode;
+import com.becomelm.network.LmNetwork;
 import com.becomelm.LmModes;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -34,6 +36,13 @@ public class LmWheelScreen extends Screen {
     private static final float[] FROM = {135F, 270F, 45F};
     private static final float[] TO = {270F, 405F, 135F};
     private static final LmCamera.Shot[] SHOTS = LmCamera.Shot.values();
+    /**
+     * (roda de ações) O anel de fora: os golpes que não saem pelo contexto. Os gestos saem na hora; os que precisam de
+     * alvo (quando entrarem) ficam armados pro próximo ataque.
+     */
+    private static final LmAttack[] ACTIONS = {LmAttack.NECK_CRACK, LmAttack.RAGE};
+    /** O anel de fora começa um pouco depois do dos jeitos. */
+    private int ring;
 
     private static final int BASE = 0xC0141A14;
     private static final int HOVER = 0xE0397A45;
@@ -44,7 +53,7 @@ public class LmWheelScreen extends Screen {
     private final int heldKey;
     private final int openedAt;
 
-    private int cx, cy, outer, inner;
+    private int cx, cy, outer, inner, mid;
     private int chipW, chipH, chipY, chipX0, chipGap;
     private boolean vertical;
 
@@ -61,20 +70,24 @@ public class LmWheelScreen extends Screen {
         if (width > height * 1.3F) {
             // deitado (o celular jogando): roda grande à esquerda, câmeras numa coluna à direita
             outer = Mth.clamp(Math.min(height / 2 - 12, width * 28 / 100), 48, 150);
-            inner = outer * 42 / 100;
+            inner = outer * 30 / 100;
+            mid = outer * 64 / 100;
             cx = Math.max(outer + 10, width * 38 / 100);
             cy = height / 2;
             chipW = Mth.clamp(width - (cx + outer + 24) - 10, 60, 110);
+            ring = mid + 3;
             chipX0 = cx + outer + 24;
             chipY = (height - SHOTS.length * (chipH + chipGap) + chipGap) / 2;
             vertical = true;
         } else {
             int rows = chipH + 16;
             outer = Mth.clamp(Math.min(width, height - rows * 2) * 40 / 100, 48, 150);
-            inner = outer * 42 / 100;
+            inner = outer * 30 / 100;
+            mid = outer * 64 / 100;
             cx = width / 2;
             cy = Math.max(outer + 8, (height - rows) / 2);
             chipW = Mth.clamp((width - 16 - chipGap * (SHOTS.length - 1)) / SHOTS.length, 44, 96);
+            ring = mid + 3;
             int total = chipW * SHOTS.length + chipGap * (SHOTS.length - 1);
             chipX0 = (width - total) / 2;
             chipY = Math.min(height - chipH - 6, cy + outer + 12);
@@ -112,18 +125,29 @@ public class LmWheelScreen extends Screen {
         bb.begin(VertexFormat.Mode.TRIANGLES, DefaultVertexFormat.POSITION_COLOR);
         for (int i = 0; i < MODES.length; i++) {
             int col = hover == MODES[i] ? HOVER : mode == MODES[i] ? CURRENT : BASE;
-            ring(bb, m, FROM[i] + 2F, TO[i] - 2F, inner + 3, outer, col);
+            ring(bb, m, FROM[i] + 2F, TO[i] - 2F, inner + 3, mid, col);
         }
-        int mid = hover == LmMode.HUMAN ? HOVER : mode == LmMode.HUMAN ? CURRENT : BASE;
-        ring(bb, m, 0F, 360F, 0, inner - 1, mid);
+        LmAttack doing = actNow();
+        for (int i = 0; i < ACTIONS.length; i++) {
+            int col = hover == ACTIONS[i] ? HOVER : doing == ACTIONS[i] ? CURRENT : ACTION_BASE;
+            ring(bb, m, actFrom(i) + 1.5F, actTo(i) - 1.5F, ring, outer, col);
+        }
+        int midCol = hover == LmMode.HUMAN ? HOVER : mode == LmMode.HUMAN ? CURRENT : BASE;
+        ring(bb, m, 0F, 360F, 0, inner - 1, midCol);
         BufferUploader.drawWithShader(bb.end());
         RenderSystem.enableCull();
         RenderSystem.disableBlend();
 
         // nomes dos gomos
+        for (int i = 0; i < ACTIONS.length; i++) {
+            float a = (actFrom(i) + actTo(i)) / 2F * Mth.DEG_TO_RAD;
+            int r = (ring + outer) / 2;
+            label(gfx, Component.translatable("becomelm.action." + ACTIONS[i].name().toLowerCase(java.util.Locale.ROOT)),
+                    cx + Math.round(Mth.cos(a) * r), cy + Math.round(Mth.sin(a) * r));
+        }
         for (int i = 0; i < MODES.length; i++) {
             float a = (FROM[i] + TO[i]) / 2F * Mth.DEG_TO_RAD;
-            int r = (inner + outer) / 2;
+            int r = (inner + mid) / 2;
             label(gfx, Component.translatable("becomelm.mode." + MODES[i].id), cx + Math.round(Mth.cos(a) * r),
                     cy + Math.round(Mth.sin(a) * r));
         }
@@ -152,6 +176,26 @@ public class LmWheelScreen extends Screen {
         Component cam = Component.translatable("becomelm.camera");
         int camX = vertical ? chipX0 + (chipW - font.width(cam)) / 2 : (width - font.width(cam)) / 2;
         gfx.drawString(font, cam, camX, chipY - 11, 0xB0E8F5E0, false);
+    }
+
+    private static final int ACTION_BASE = 0xC0201418;
+    /** O primeiro gomo de ação começa em cima (270°) e eles vão em volta no sentido do relógio. */
+    private static final float ACT_START = 270F - 180F / 2F;
+
+    private static float actFrom(int i) {
+        return ACT_START + 360F / ACTIONS.length * i;
+    }
+
+    private static float actTo(int i) {
+        return ACT_START + 360F / ACTIONS.length * (i + 1);
+    }
+
+    /** O gesto/golpe da roda que o jogador está fazendo agora (pra pintar o gomo). */
+    @javax.annotation.Nullable
+    private static LmAttack actNow() {
+        Minecraft mc = Minecraft.getInstance();
+        LmActsClient.Act a = mc.player == null ? null : LmActsClient.get(mc.player);
+        return a == null ? null : a.kind;
     }
 
     private void label(GuiGraphics gfx, Component c, int x, int y) {
@@ -194,6 +238,11 @@ public class LmWheelScreen extends Screen {
         if (d < inner) return LmMode.HUMAN;
         if (d > outer * 1.25D) return null;
         float ang = (float) (Mth.atan2(dy, dx) * Mth.RAD_TO_DEG);
+        if (d >= ring) {
+            float rel = ((ang - ACT_START) % 360F + 360F) % 360F;
+            int i = (int) (rel / (360F / ACTIONS.length));
+            return ACTIONS[Mth.clamp(i, 0, ACTIONS.length - 1)];
+        }
         for (int i = 0; i < MODES.length; i++) {
             float rel = ((ang - FROM[i]) % 360F + 360F) % 360F;
             if (rel < TO[i] - FROM[i]) return MODES[i];
@@ -202,7 +251,11 @@ public class LmWheelScreen extends Screen {
     }
 
     private boolean choose(Object o) {
-        if (o instanceof LmMode mode) {
+        if (o instanceof LmAttack act) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null || !LmModes.get(mc.player).froggy()) return false;
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(act, -1));
+        } else if (o instanceof LmMode mode) {
             LmClientEvents.chooseMode(mode);
         } else if (o instanceof LmCamera.Shot s) {
             LmCamera.set(s);

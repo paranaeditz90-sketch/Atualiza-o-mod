@@ -180,6 +180,12 @@ public final class LmAttacks {
                 if (a != null && a.kind == LmAttack.PILE) end(p, a);
             }
             case HAMMER -> startHammer(p, targetId);
+            case NECK_CRACK -> startEmote(p, LmAttack.NECK_CRACK);
+            case RAGE -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.RAGE) end(p, a);
+                else startEmote(p, LmAttack.RAGE);
+            }
             case HAMMER_STOP -> {
                 Act a = ACTS.get(p.getUUID());
                 if (a != null && a.kind == LmAttack.HAMMER) a.stop = true;
@@ -269,6 +275,19 @@ public final class LmAttacks {
     private static void toss(ServerPlayer p) {
         Act a = ACTS.get(p.getUUID());
         if (a != null && a.kind == LmAttack.GRAB) release(p, a, true);
+    }
+
+    /** (roda) Os gestos: estalar o pescoço e a raiva "()". */
+    public static final int NECK_CRACK_TICKS = 12;
+    public static final int RAGE_MAX = 600;
+
+    private static void startEmote(ServerPlayer p, LmAttack kind) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        ACTS.put(p.getUUID(), new Act(kind, null));
+        // o estalo: o osso da transformação (no pacote de sons do LM vira o som dele); a raiva começa com o estalo
+        p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), BecomeLM.CRACK.get(), SoundSource.PLAYERS, 1.0F,
+                0.9F + p.getRandom().nextFloat() * 0.2F);
+        LmNetwork.sendAct(p, kind, -1, 0);
     }
 
     /** Deita no monte de pedaços na frente (os pedaços são do cliente: o servidor só trava e conta). */
@@ -435,6 +454,12 @@ public final class LmAttacks {
             }
             case FINISH -> tickFinish(p, a);
             case HAMMER -> tickHammer(p, a);
+            case NECK_CRACK -> {
+                if (a.age >= NECK_CRACK_TICKS) end(p, a);
+            }
+            case RAGE -> {
+                if (a.age >= RAGE_MAX || !LmModes.get(p).froggy() || LmTransform.active(p) || LmKnock.lying(p)) end(p, a);
+            }
             default -> end(p, a);
         }
     }

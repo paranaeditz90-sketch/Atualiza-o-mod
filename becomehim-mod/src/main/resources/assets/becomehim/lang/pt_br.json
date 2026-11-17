@@ -29,5 +29,7 @@
   "subtitles.becomehim.punch": "FroggyDude soca",
   "subtitles.becomehim.bite": "FroggyDude morde",
   "subtitles.becomehim.throw": "FroggyDude arremessa",
-  "becomehim.command.finisher": "O próximo golpe de %s jogador(es) vira a finalização"
+  "becomehim.command.finisher": "O próximo golpe de %s jogador(es) vira a finalização",
+  "becomehim.action.neck_crack": "Estalar\no pescoço",
+  "becomehim.action.rage": "Raiva\n()"
 }

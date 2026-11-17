@@ -21,6 +21,12 @@ DST = os.path.join(ROOT, 'src', 'main', 'resources', 'assets', 'becomelm', 'anim
 #   o ar depois da cabeça da vítima.
 FROZEN = {
     'smash_bite': os.path.join(ROOT, 'tools', 'frozen', 'smash_bite.json'),
+    # (0.4.0) as da 0.3.9, testadas no jogo: o sky_drop do mod da IA ganhou a ameaça e a agachada no começo (4,45 s) e
+    # o corte do sky_air (0,38 s) passou a pegar a ameaça em vez do voo
+    'sky_air': os.path.join(ROOT, 'tools', 'frozen', 'sky_air.json'),
+    'sky_drop': os.path.join(ROOT, 'tools', 'frozen', 'sky_drop.json'),
+    'finisher': os.path.join(ROOT, 'tools', 'frozen', 'finisher.json'),
+    'finisher_r': os.path.join(ROOT, 'tools', 'frozen', 'finisher_r.json'),
 }
 
 # nova animação: (original, segundo em que começa)

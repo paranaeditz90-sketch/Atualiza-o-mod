@@ -56,6 +56,9 @@ final class LmAnims {
     /** O mortal saindo do monte e os braços abertos quando pousa. */
     static final RawAnimation FLIP = RawAnimation.begin().thenPlayAndHold("flip");
     static final RawAnimation TADA = RawAnimation.begin().thenLoop("tada");
+    /** (roda) O estalo do pescoço e a raiva "()" parada (do mod da IA 0.7.40). */
+    static final RawAnimation RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
+    static final RawAnimation RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
     /** Fase 2: correndo em pé curvado, desesperado. */
     static final RawAnimation FRENZY_RUN = RawAnimation.begin().thenLoop("run_frenzy");
     static final RawAnimation FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
@@ -82,6 +85,12 @@ final class LmAnims {
                 return groundSpeed(p) > MOVING ? GRAB_WALK : GRAB_HOLD;
             }
             if (act.kind == LmAttack.THROW) return GRAB_THROW;
+            if (act.kind == LmAttack.NECK_CRACK) return RAGE_CRACK;
+            if (act.kind == LmAttack.RAGE) {
+                // começa com o estalo; parado, o "()"; andando, avança agachado (a corrida da fase 2)
+                if (act.age < LmAttacks.NECK_CRACK_TICKS) return RAGE_CRACK;
+                return groundSpeed(p) > MOVING ? FRENZY_RUN : RAGE_IDLE;
+            }
             if (act.kind == LmAttack.PILE) return act.age < LmActsClient.PILE_DROP ? PILE_DROP : PILE_LIE;
             if (act.kind == LmAttack.RISE) return PILE_RISE;
             if (act.kind == LmAttack.FINISH) {
