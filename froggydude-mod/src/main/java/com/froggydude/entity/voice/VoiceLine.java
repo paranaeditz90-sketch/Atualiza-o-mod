@@ -31,9 +31,13 @@ public enum VoiceLine {
     LOVE_PAIN_1("hurt_love_pain_1", 47),
     LOVE_PAIN_2("hurt_love_pain_2", 53),
     LOVE_PAIN_3("hurt_love_pain_3", 31),
+    // (v0.7.40) das gravações do LM de 16/11 (o FroggyDude levando tiro do Grox): "I love pain" e a fala das balas
+    LOVE_PAIN_4("hurt_love_pain_4", 48),
+    SHOOT_ME("hurt_shoot_me", 68),
     // derrubou / montado
     GIVE_ME_YOUR_BODY_1("pin_give_me_your_body_1", 40),
     GIVE_ME_YOUR_BODY_2("pin_give_me_your_body_2", 35),
+    GIVE_ME_YOUR_BODY_3("pin_give_me_your_body_3", 22),
     STAY_ON_GROUND("pin_stay_on_ground", 92),
     // comendo
     MMMM("eat_mmmm", 19),
@@ -53,10 +57,13 @@ public enum VoiceLine {
     I_SEE_YOU("hunt_i_see_you", 147),
     // IA Real: o faro (vs Every Opponent 7:11 e 10:19)
     SMELL_HIM("hunt_smell_him", 52),
+    SMELL_MILE_AWAY("hunt_smell_mile_away", 37),
     SNIFF_NEARBY("hunt_sniff_nearby", 83),
     // IA Real: encarando de longe antes de partir pra cima (vs Every Opponent 9:13)
     SMELL_FEAR("hunt_smell_fear", 80),
     // IA Real: apanhando demais, foge, se cura e volta com um plano (vs Every Opponent 16:56-17:36 e 7:58)
+    // (v0.7.40) o rugido longo (~4 s) do bote na cabeça (gravação do LM de 16/11): a cutscene jogável da cabeça
+    ROAR_RIP("roar_rip", 84),
     GET_OUT("retreat_get_out", 40),
     LOW_HEALTH("retreat_low_health", 143),
     BACK_TO_FULL("retreat_back_to_full", 22),

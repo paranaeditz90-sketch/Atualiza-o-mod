@@ -95,6 +95,8 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> FEAST_BITE = register("froggydude.feast_bite");
     /** O molhado do sangue a cada mordida sem o pacote (o pacote cala). */
     public static final RegistryObject<SoundEvent> FEAST_SQUISH = register("froggydude.feast_squish");
+    /** (v0.7.40) O gemido curto a cada tiro de mod de arma que ele leva (LM: "8B [...] para cada tiro que ele leva"). */
+    public static final RegistryObject<SoundEvent> SHOT_MOAN = register("froggydude.shot_moan");
 
     /**
      * Uma fala por som (froggydude.voice.&lt;clipe&gt;), pra tocar na ordem dos vídeos

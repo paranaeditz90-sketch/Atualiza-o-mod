@@ -13,7 +13,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.39 | 16/11: a tela inicial com as 6 frases do FroggyDude no idioma do jogador e a caixinha do TikTok do LM (@lm54546). A 0.7.38 (a voz do FroggyDude dentro do jar) e as anteriores estão no `NOTES.md` |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.40 | 17/11: o ragdoll do tiro feito do zero (bala com ele parado no chão: voa ~11 blocos mole, cai torto; caído, conversa com quem chega armado, "I love pain" e "Yeah, shoot me..."; bala caído faz metade do dano), a raiva "()" com o estalo do pescoço (avança e para pra pessoa recuar), falas novas tiradas das gravações do LM e as legendas das falas. A 0.7.39 e as anteriores estão no `NOTES.md` |
 | BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.9 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8); nado do vídeo, galope por cima da lava sem fogo e a tremida de quem bate em 1ª pessoa (0.3.9) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.

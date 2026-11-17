@@ -188,10 +188,18 @@
   "froggydude.cmd.director_sign_none": "Não deu agora (sem lugar fora da tua vista, ou sem bicho, tocha ou porta perto).",
   "froggydude.cmd.revive_started": "Ele se despedaçou... e a língua vai juntar os pedaços.",
   "froggydude.cmd.revive_not_now": "Agora não dá (já está renascendo, ou caindo no vazio).",
+  "froggydude.cmd.ragdoll_started": "Pá. Ele voou mole igual boneco de pano.",
+  "froggydude.cmd.ragdoll_not_now": "Agora não dá (já está caído, ou renascendo).",
   "froggydude.splash.1": "Eu consigo sentir seu cheiro",
   "froggydude.splash.2": "Já pensou o quão bom é a sua carne?",
   "froggydude.splash.3": "Hora de comer.",
   "froggydude.splash.4": "FroggyDude?!!!",
   "froggydude.splash.5": "Made by LMzolaMC!",
-  "froggydude.splash.6": "Quantos dias você consegue sobreviver a mim? %s"
+  "froggydude.splash.6": "Quantos dias você consegue sobreviver a mim? %s",
+  "subtitles.froggydude.voice.hurt_love_pain_4": "FroggyDude: \"I love pain\" (eu amo dor)",
+  "subtitles.froggydude.voice.hurt_shoot_me": "FroggyDude: \"Yeah, shoot me. I want to feel the bullets hit my body\" (atira em mim, quero sentir as balas)",
+  "subtitles.froggydude.voice.pin_give_me_your_body_3": "FroggyDude: \"Give me your body\" (me dá teu corpo)",
+  "subtitles.froggydude.voice.hunt_smell_mile_away": "FroggyDude: \"Smell you from a mile away now\" (sinto teu cheiro de longe)",
+  "subtitles.froggydude.voice.roar_rip": "FroggyDude ruge",
+  "subtitles.froggydude.shot_moan": "FroggyDude geme"
 }

@@ -1014,5 +1014,59 @@
         "volume": 0.8
       }
     ]
+  },
+  "froggydude.voice.hurt_love_pain_4": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.love_pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hurt_love_pain_4"
+  },
+  "froggydude.voice.hurt_shoot_me": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.love_pain",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hurt_shoot_me"
+  },
+  "froggydude.voice.pin_give_me_your_body_3": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.pin",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.pin_give_me_your_body_3"
+  },
+  "froggydude.voice.hunt_smell_mile_away": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hunt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.hunt_smell_mile_away"
+  },
+  "froggydude.voice.roar_rip": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.scream",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.voice.roar_rip"
+  },
+  "froggydude.shot_moan": {
+    "sounds": [
+      {
+        "name": "froggydude:froggydude.hurt",
+        "type": "event"
+      }
+    ],
+    "subtitle": "subtitles.froggydude.shot_moan"
   }
 }

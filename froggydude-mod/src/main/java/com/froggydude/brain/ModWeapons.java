@@ -209,6 +209,35 @@ public final class ModWeapons {
 
     /** Pedaços do nome da bala/do dano que dizem "tiro" (bala que voa, ou arma de tiro instantâneo). */
     private static final String[] SHOT_WORDS = {"bullet", "gun", "shot", "round", "shell", "slug", "pellet"};
+    /** (v0.7.40) Pedaços do nome que dizem "arma de fogo" (o TaCZ: "tacz:modern_kinetic_gun"). */
+    private static final String[] GUN_WORDS = {"gun", "rifle", "pistol", "revolver", "shotgun", "sniper", "smg",
+            "carbine", "minigun", "railgun", "handgun", "musket", "blaster", "firearm", "kinetic"};
+    private static final Map<Item, Boolean> GUN_CACHE = new HashMap<>();
+
+    /**
+     * (v0.7.40) Arma de fogo de mod na mão (a conversa do ragdoll: "a fala das balas só funciona com um mod de armas").
+     * Arco, besta e espada não contam.
+     */
+    public static boolean isGun(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        return GUN_CACHE.computeIfAbsent(stack.getItem(), item -> {
+            ItemStack s = new ItemStack(item);
+            if (!isModItem(s) || item instanceof ProjectileWeaponItem || item instanceof SwordItem) return false;
+            ResourceLocation key = ForgeRegistries.ITEMS.getKey(item);
+            String[] parts = (key == null ? "" : key.getPath().toLowerCase(Locale.ROOT)).split("[_/.\\-]");
+            for (String p : parts) {
+                for (String no : NOT_WEAPON) {
+                    if (p.equals(no)) return false;
+                }
+            }
+            for (String p : parts) {
+                for (String w : GUN_WORDS) {
+                    if (p.equals(w)) return true;
+                }
+            }
+            return false;
+        });
+    }
 
     /**
      * (v0.7.32) Tiro de arma de mod: a bala é um projétil de mod (o TaCZ: "tacz:bullet") com nome de bala ou atirado

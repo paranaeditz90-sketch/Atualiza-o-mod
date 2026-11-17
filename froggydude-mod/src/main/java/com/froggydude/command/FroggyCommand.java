@@ -74,6 +74,7 @@ public final class FroggyCommand {
                 // (v0.7.35) o renascer com a língua agora (sem ter que matar ele e torcer pros 35%)
                 .then(Commands.literal("renascer").requires(FroggyCommand::admin).executes(c -> revive(c.getSource(), false))
                         .then(Commands.literal("explosao").executes(c -> revive(c.getSource(), true))))
+                .then(Commands.literal("ragdoll").requires(FroggyCommand::admin).executes(c -> ragdoll(c.getSource())))
                 // jeito de jogador, pra testar sem ter que morrer 3 vezes
                 .then(Commands.literal("zombar").requires(FroggyCommand::admin).executes(c -> mock(c.getSource())))
                 .then(Commands.literal("dancar").requires(FroggyCommand::admin).executes(c -> dance(c.getSource())))
@@ -356,6 +357,21 @@ public final class FroggyCommand {
             return 0;
         }
         src.sendSuccess(() -> t("revive_started"), true);
+        return 1;
+    }
+
+    /** (v0.7.40) Voa longe como se levasse um tiro parado (o teste do ragdoll, sem precisar de mod de arma). */
+    private static int ragdoll(CommandSourceStack src) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        if (!com.froggydude.entity.Ragdoll.debugLaunch(f, src.getEntity())) {
+            src.sendFailure(t("ragdoll_not_now"));
+            return 0;
+        }
+        src.sendSuccess(() -> t("ragdoll_started"), true);
         return 1;
     }
 

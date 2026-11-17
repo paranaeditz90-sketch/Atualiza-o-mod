@@ -184,6 +184,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     private static final EntityDataAccessor<CompoundTag> DATA_REVIVE =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /**
+     * (v0.7.40) O ragdoll do tiro (entity.Ragdoll): os números da cena (vazio = não está). O cliente faz o corpo mole a
+     * partir disso (client.pieces.RagdollScene).
+     */
+    private static final EntityDataAccessor<CompoundTag> DATA_RAGDOLL =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /** (v0.7.40) A fase da raiva (entity.Rage: estalo, avança, parado, estalo parado), pra animação do cliente. */
+    private static final EntityDataAccessor<Byte> DATA_RAGE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
 
     /**
      * Comendo em "flexão" (pin_hold, feed_mob; v0.7.17, medido no Taste Testing e no monte do golem): uma
@@ -258,6 +267,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Gritando (o grito da fase 2): nenhuma fala entra, nem as que cortam as outras. */
     private int screamTicks = 0;
     private int ribbitCooldown = 0;
+    /** (v0.7.40) O gemido de tiro não metralha (ticks até o próximo). */
+    private int shotMoanCooldown = 0;
     /** Calado (as falas nem entram na fila). */
     private int muteTicks = 0;
     /** A fala tocando agora (pra cortar quando precisa falar outra por cima). */
@@ -394,6 +405,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_CAPTURE_ID, -1);
         this.entityData.define(DATA_THROW_SWEEP, 0F);
         this.entityData.define(DATA_REVIVE, new CompoundTag());
+        this.entityData.define(DATA_RAGDOLL, new CompoundTag());
+        this.entityData.define(DATA_RAGE, (byte) 0);
     }
 
     @Override
@@ -501,8 +514,19 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     protected void playHurtSound(DamageSource source) {
         float r = this.getRandom().nextFloat();
-        // levando tiro, o "I love pain" sai bem mais (v0.7.32: ele ama dor)
-        float love = com.froggydude.brain.ModWeapons.isGunshot(source) ? 0.6F : 0.35F;
+        if (com.froggydude.brain.ModWeapons.isGunshot(source)) {
+            // (v0.7.40, LM 16/11) tiro de mod de arma: o gemido curto dele a cada tiro (no máximo um a cada 0,35 s: arma
+            // automática dá ~12 tiros por segundo; o som da arma abafa o resto). A conversa das balas ("I love pain",
+            // "Yeah, shoot me...") é com ele caído, quando o jogador chega perto armado (entity.Ragdoll); caído levando
+            // bala, às vezes um "I love pain" no meio.
+            if (isRagdollDown() && vocalCooldown <= 0 && r < 0.25F && speak(VoiceSituation.PAIN)) return;
+            if (vocalCooldown <= 0 && shotMoanCooldown <= 0) {
+                this.playSound(ModSounds.SHOT_MOAN.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
+                shotMoanCooldown = 7;
+            }
+            return;
+        }
+        float love = 0.35F;
         if (vocalCooldown <= 0 && r < love && speak(VoiceSituation.PAIN)) return;
         if (r >= love && r < 0.7F && ribbit(1.8F)) return;
         super.playHurtSound(source);
@@ -1082,6 +1106,175 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (getFroggyState() == FroggyState.REVIVE) setFroggyState(FroggyState.IDLE);
     }
 
+    // ---------------------------------------------------------------- (v0.7.40) o ragdoll do tiro (entity.Ragdoll)
+
+    /** As Goals com essas marcas param enquanto ele está mole (e nenhuma começa). */
+    private static final net.minecraft.world.entity.ai.goal.Goal.Flag[] RAGDOLL_FLAGS = {
+            net.minecraft.world.entity.ai.goal.Goal.Flag.MOVE, net.minecraft.world.entity.ai.goal.Goal.Flag.LOOK,
+            net.minecraft.world.entity.ai.goal.Goal.Flag.JUMP};
+    /** Deitado: a caixa baixa e larga (dá pra acertar o corpo caído, em qualquer direção que ele caiu). */
+    private static final net.minecraft.world.entity.EntityDimensions RAGDOLL_FLAT =
+            net.minecraft.world.entity.EntityDimensions.scalable(1.6F, 0.6F);
+    @Nullable
+    private Ragdoll.Run ragdollRun;
+    private int ragdollCooldownUntil;
+    /** Onde levou o tiro (o log de teste mede o voo). */
+    Vec3 ragdollFrom = Vec3.ZERO;
+    @Nullable
+    private Ragdoll.Params ragdollCache;
+    @Nullable
+    private CompoundTag ragdollCacheTag;
+
+    /** Os números do ragdoll (null se não está). */
+    @Nullable
+    public Ragdoll.Params ragdollParams() {
+        CompoundTag t = this.entityData.get(DATA_RAGDOLL);
+        if (t.isEmpty()) return null;
+        if (t != ragdollCacheTag) {
+            ragdollCacheTag = t;
+            ragdollCache = Ragdoll.Params.of(t);
+        }
+        return ragdollCache;
+    }
+
+    void setRagdollParams(Ragdoll.Params p) {
+        this.entityData.set(DATA_RAGDOLL, p.toTag());
+    }
+
+    @Nullable
+    Ragdoll.Run ragdollRun() {
+        return ragdollRun;
+    }
+
+    int ragdollCooldownUntil() {
+        return ragdollCooldownUntil;
+    }
+
+    int vocalCooldown() {
+        return vocalCooldown;
+    }
+
+    /** Caído depois do tiro (deitado, ainda sem levantar): a bala faz metade do dano. */
+    public boolean isRagdollDown() {
+        if (getFroggyState() != FroggyState.RAGDOLL) return false;
+        Ragdoll.Params p = ragdollParams();
+        return p != null && p.lying() && !p.rising();
+    }
+
+    /** Deitado até o fim do levantar: a caixa baixa. */
+    private boolean ragdollFlat() {
+        if (getFroggyState() != FroggyState.RAGDOLL) return false;
+        Ragdoll.Params p = ragdollParams();
+        return p != null && p.lying();
+    }
+
+    /**
+     * Voa: o que estava fazendo para (as Goals pelas marcas de controle; sem IsNoAi, que congelaria a física), o empurrão
+     * na direção da bala, sem dano de queda.
+     */
+    void beginRagdoll(Ragdoll.Params p, @Nullable UUID shooter) {
+        if (finishing) finisherGoal.stop();
+        if (feedTarget != null) FeedLock.release(feedTarget);
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        this.getNavigation().stop();
+        ragdollRun = new Ragdoll.Run();
+        ragdollRun.shooter = shooter;
+        ragdollFrom = this.position();
+        this.setDeltaMovement(p.dx() * p.speed(), p.up(), p.dz() * p.speed());
+        // já no ar: senão o 1º tick aplica o atrito do chão (x0,55) e ele voava só ~8 blocos
+        this.setOnGround(false);
+        this.hurtMarked = true;
+        this.hasImpulse = true;
+        setNoFallTicks(120);
+        this.entityData.set(DATA_RAGDOLL, p.toTag());
+        setFroggyState(FroggyState.RAGDOLL);
+        brainLog("tomei um tiro parado: voei longe");
+    }
+
+    /** Acabou (levantou, ou alguém trocou o estado): a IA volta; levantou com raiva = caça quem atirou. */
+    void endRagdoll(boolean angry) {
+        Ragdoll.Run run = ragdollRun;
+        ragdollRun = null;
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        if (!this.entityData.get(DATA_RAGDOLL).isEmpty()) this.entityData.set(DATA_RAGDOLL, new CompoundTag());
+        if (getFroggyState() == FroggyState.RAGDOLL) setFroggyState(FroggyState.CHASE);
+        if (!angry || run == null) return;
+        ragdollCooldownUntil = this.tickCount + Ragdoll.COOLDOWN;
+        enragedUntil = Math.max(enragedUntil, this.tickCount + 300 + 30 * Math.min(run.shots, 10));
+        Player p = Ragdoll.shooter(this, run);
+        if (p != null) setTarget(p);
+        // levou bala caído (tentaram matar ele com bala): MUITA raiva - o "()" e o estalo do pescoço (entity.Rage)
+        if (run.shots > 0 && Rage.begin(this, p)) return;
+        brainLog("levantei" + (run.shots > 0 ? " com " + run.shots + " balas no corpo" : "") + ": agora é pessoal");
+    }
+
+    // ---------------------------------------------------------------- (v0.7.40) a raiva (entity.Rage)
+
+    @Nullable
+    private Rage.Run rageRun;
+
+    void beginRage(Rage.Run run) {
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        rageRun = run;
+        this.entityData.set(DATA_RAGE, Rage.CRACK);
+        setFroggyState(FroggyState.RAGE);
+        setTarget(run.target);
+    }
+
+    void setRagePhase(byte phase) {
+        this.entityData.set(DATA_RAGE, phase);
+    }
+
+    public byte getRagePhase() {
+        return this.entityData.get(DATA_RAGE);
+    }
+
+    /** Acabou a raiva: parte pra cima (as Goals voltam, com o alvo dela). */
+    void endRage() {
+        Rage.Run run = rageRun;
+        rageRun = null;
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        this.getNavigation().stop();
+        if (getFroggyState() == FroggyState.RAGE) setFroggyState(FroggyState.CHASE);
+        if (run != null && run.target.isAlive()) setTarget(run.target);
+    }
+
+    /**
+     * O jogo religa as marcas de controle das Goals a cada 5 ticks (Mob.tick): mole (ragdoll) ou na raiva, elas
+     * continuam desligadas (sem isso o bote do combate voltava no meio do voo).
+     */
+    @Override
+    protected void updateControlFlags() {
+        super.updateControlFlags();
+        if (ragdollRun != null || rageRun != null) {
+            for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        }
+    }
+
+    @Override
+    public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
+        return ragdollFlat() ? RAGDOLL_FLAT : super.getDimensions(pose);
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_RAGDOLL.equals(key) || DATA_STATE.equals(key)) this.refreshDimensions();
+    }
+
+    /** (cliente) Bala nele caído: o corpo mole dá o tranco (client.pieces.RagdollScene). */
+    @Override
+    public void handleDamageEvent(DamageSource source) {
+        super.handleDamageEvent(source);
+        if (this.level().isClientSide && getFroggyState() == FroggyState.RAGDOLL) {
+            Entity from = source.getEntity();
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> () -> com.froggydude.client.pieces.RagdollScene.hit(this, from));
+        }
+    }
+
     /**
      * Remontando, a IA não roda, nem se alguém ligar ela de volta no meio da cena (o diretor solta o NoAI quando acorda
      * ele). E o NoAI de quem invocou ele parado fica como estava depois.
@@ -1094,7 +1287,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
     @Override
     public boolean isPushable() {
-        return !isReviving() && super.isPushable();
+        return !isReviving() && getFroggyState() != FroggyState.RAGDOLL && super.isPushable();
     }
 
     @Override
@@ -1105,7 +1298,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     @Override
     public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
         // os pedaços se espalham uns blocos em volta: não some da tela por causa da caixa dele
-        return isReviving() ? super.getBoundingBoxForCulling().inflate(5.0D) : super.getBoundingBoxForCulling();
+        if (isReviving()) return super.getBoundingBoxForCulling().inflate(5.0D);
+        // (v0.7.40) mole, o corpo passa da caixa (braço, cabeça pra fora)
+        if (getFroggyState() == FroggyState.RAGDOLL) return super.getBoundingBoxForCulling().inflate(2.0D);
+        return super.getBoundingBoxForCulling();
     }
 
     @Override
@@ -2066,6 +2262,18 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     private double reviveStandLast = -1D;
 
+    /** (v0.7.40) O relógio do "ragdoll_getup": ticks desde o fim da ida pra pose de bruços (-1 = não está levantando). */
+    public double ragdollGetupAnimTicks(float partial) {
+        Ragdoll.Params p = ragdollParams();
+        if (!getDebugAnim().isEmpty() || getFroggyState() != FroggyState.RAGDOLL || p == null || !p.rising()) return -1D;
+        double t = Math.max(0D, this.level().getGameTime() - p.upAt() + partial - Ragdoll.BLEND);
+        if (t < ragdollGetupLast && ragdollGetupLast - t < 4D) t = ragdollGetupLast;
+        ragdollGetupLast = t;
+        return t;
+    }
+
+    private double ragdollGetupLast = -1D;
+
     /** Quantas mordidas da flexão já foram neste estado (a 1ª é 1). */
     public int getPushupBites() {
         return pushupBites;
@@ -2678,6 +2886,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 && !com.froggydude.world.TensionDirector.glimpsing(gs.getServer())) {
             freezeForGlimpse(false); // o vislumbre acabou sem o diretor (manhunt, invasão desligada): solta
         }
+        if (getFroggyState() == FroggyState.RAGDOLL) {
+            Ragdoll.tick(this);
+        } else if (ragdollRun != null) {
+            endRagdoll(false); // alguém trocou o estado no meio (comando, diretor): solta a IA e a caixa
+        }
+        if (getFroggyState() == FroggyState.RAGE && rageRun != null) {
+            Rage.tick(this, rageRun);
+        } else if (rageRun != null || getFroggyState() == FroggyState.RAGE) {
+            endRage();
+        }
         if (getFroggyState() == FroggyState.FLUNG) {
             // arremessado: só a física manda; levanta quando cai e a animação acaba
             this.getNavigation().stop();
@@ -2770,6 +2988,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         tickReal();
         if (this.tickCount % 10 == 0) tickPredators();
         if (ribbitCooldown > 0) ribbitCooldown--;
+        if (shotMoanCooldown > 0) shotMoanCooldown--;
         // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
         if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
         if (irkPending || irkTicks >= 0) tickIrk();
@@ -3093,13 +3312,18 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
         if (gunshot) {
             // (v0.7.32) ele AMA dor (LM: "tiros de armas são praticamente insignificantes"): bala de arma de mod faz
-            // um décimo do dano (a AK do TaCZ: 9 -> 0,9; antes um pente matava ele)
-            amount *= GUNSHOT_DAMAGE;
+            // um décimo do dano (a AK do TaCZ: 9 -> 0,9; antes um pente matava ele). (v0.7.40) Caído depois do tiro
+            // (ragdoll): metade (LM: "da meio dano nele, mas ele fica mais bravo")
+            amount *= isRagdollDown() ? Ragdoll.DOWN_DAMAGE : GUNSHOT_DAMAGE;
         }
 
         float before = this.getHealth();
         boolean hurt = super.hurt(source, amount);
         if (hurt && !this.level().isClientSide) learnDanger(source);
+        // (v0.7.40) o ragdoll: bala nele parado no chão joga ele longe; caído, conta as balas (e o golpe de perto levanta)
+        if (hurt && !this.level().isClientSide) Ragdoll.onHurt(this, source, gunshot);
+        // (v0.7.40) bateram nele no meio da raiva: acabou a paciência
+        if (hurt && rageRun != null && source.getEntity() instanceof Player) rageRun.hit = true;
         if (hurt && this.level() instanceof ServerLevel sl && source.getEntity() instanceof Player hitter) {
             // (v0.7.29) aprende pelo que dói: item de mod que machucou ele vira alvo da língua - só golpe na mão mais
             // forte que um soco, ou tiro de projétil de mod (a bala de uma arma de mod)
@@ -3287,6 +3511,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_REVIVE_LIE = RawAnimation.begin().thenLoop("revive_lie");
     private static final RawAnimation ANIM_REVIVE_FLIP = RawAnimation.begin().thenPlayAndHold("revive_flip");
     private static final RawAnimation ANIM_REVIVE_SHAKE = RawAnimation.begin().thenPlayAndHold("revive_shake");
+    private static final RawAnimation ANIM_RAGDOLL_GETUP = RawAnimation.begin().thenPlayAndHold("ragdoll_getup");
+    private static final RawAnimation ANIM_RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
+    private static final RawAnimation ANIM_RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
     private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation ANIM_RUN_FRENZY = RawAnimation.begin().thenLoop("run_frenzy");
@@ -3373,6 +3600,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 Revive.Params rp = reviveParams();
                 if (rp != null && this.level().getGameTime() - rp.t0() >= rp.standStart() - REVIVE_PRESWITCH) {
                     return state.setAndContinue(rp.flip() ? ANIM_REVIVE_FLIP : ANIM_REVIVE_SHAKE);
+                }
+                return state.setAndContinue(ANIM_REVIVE_LIE);
+            }
+            case RAGE: {
+                // (v0.7.40) a raiva: o estalo do pescoço, avança agachado (o galope da fase 2), parado em "()"
+                byte ph = getRagePhase();
+                if (ph == Rage.RUSH) return state.setAndContinue(ANIM_RUN_FRENZY);
+                if (ph == Rage.STAND) return state.setAndContinue(ANIM_RAGE_IDLE);
+                return state.setAndContinue(ANIM_RAGE_CRACK);
+            }
+            case RAGDOLL: {
+                // (v0.7.40) mole, o modelo não aparece (são as partes do RagdollScene); por baixo fica de bruços, pra
+                // emendar no levantar sem pulo. A troca vem antes, pra mistura do controlador acabar antes de aparecer.
+                Ragdoll.Params rd = ragdollParams();
+                if (rd != null && rd.rising() && this.level().getGameTime() - rd.upAt() >= Ragdoll.BLEND - REVIVE_PRESWITCH) {
+                    return state.setAndContinue(ANIM_RAGDOLL_GETUP);
                 }
                 return state.setAndContinue(ANIM_REVIVE_LIE);
             }

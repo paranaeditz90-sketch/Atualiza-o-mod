@@ -45,8 +45,8 @@ public enum VoiceSituation {
     SEARCH(0, CANT_RUN_CANT_HIDE, YOU_THINK_ESCAPE, NEVER_LOSE_PREY),
     TONGUE_HIT(0, LIKE_THE_WAY_YOU_TASTE),
     TONGUE_DODGED(0, SCARED_OF_MY_TONGUE),
-    PAIN(0, LOVE_PAIN_1, LOVE_PAIN_2, LOVE_PAIN_3),
-    PIN(0, GIVE_ME_YOUR_BODY_1, GIVE_ME_YOUR_BODY_2),
+    PAIN(0, LOVE_PAIN_1, LOVE_PAIN_2, LOVE_PAIN_3, LOVE_PAIN_4),
+    PIN(0, GIVE_ME_YOUR_BODY_1, GIVE_ME_YOUR_BODY_2, GIVE_ME_YOUR_BODY_3),
     ON_TOP(0, STAY_ON_GROUND, WANNA_EAT_YOU),
     LAST_BITE(0, WANT_YOUR_FLESH),
     CHEWING(0, MMMM),
@@ -61,12 +61,20 @@ public enum VoiceSituation {
     DEATH(0, NO_NO_NOOO, NOOOOO),
     // só na IA Real (entity/ai/RealTactics)
     SEE_YOU(0, I_SEE_YOU),
-    SMELL(0, SMELL_HIM, SNIFF_NEARBY),
+    SMELL(0, SMELL_HIM, SNIFF_NEARBY, SMELL_MILE_AWAY),
     STANDOFF(0, SMELL_FEAR),
     RETREAT(0, GET_OUT),
     HIDING(0, LOW_HEALTH),
     HEALED(0, BACK_TO_FULL),
-    PLAN(0, PLAN_SMASH, PLAN_ATTACK);
+    PLAN(0, PLAN_SMASH, PLAN_ATTACK),
+    /** (v0.7.40) O rugido do bote na cabeça. */
+    ROAR(0, ROAR_RIP),
+    /**
+     * (v0.7.40) Caído depois do tiro (entity.Ragdoll), o jogador chega perto com arma de mod (LM: "se o jogador se
+     * aproximar com uma arma, ele fala 'Yes shoot me...' E o restante do diálogo"; a ordem do vídeo 1 dele).
+     */
+    DOWN_LOVE_PAIN(0, LOVE_PAIN_4),
+    DOWN_SHOOT_ME(0, SHOOT_ME);
 
     final VoiceLine[] lines;
     final int loopFrom;

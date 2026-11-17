@@ -45,6 +45,7 @@ import software.bernie.geckolib.cache.object.GeoCube;
 import software.bernie.geckolib.cache.object.GeoQuad;
 import software.bernie.geckolib.cache.object.GeoVertex;
 import software.bernie.geckolib.core.state.BoneSnapshot;
+import com.froggydude.client.pieces.RagdollScene;
 import com.froggydude.client.pieces.ReviveScene;
 import net.minecraft.world.phys.Vec3;
 import software.bernie.geckolib.renderer.GeoEntityRenderer;
@@ -98,6 +99,13 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
     @Override
     protected void applyRotations(FroggydudeEntity animatable, PoseStack poseStack, float ageInTicks, float rotationYaw,
                                   float partialTick) {
+        // (v0.7.40) levantando do ragdoll: começa no lugar e no rumo em que o corpo mole caiu e vai pros do mob
+        float[] up = RagdollScene.getup(animatable, partialTick);
+        if (up != null) {
+            float inv = 1F / FroggydudeEntity.MODEL_SCALE; // o poseStack já está na escala do modelo
+            poseStack.translate(up[0] * inv, 0.0D, up[1] * inv);
+            rotationYaw = up[2];
+        }
         super.applyRotations(animatable, poseStack, ageInTicks, rotationYaw, partialTick);
         float swim = animatable.getSwimAmount(partialTick);
         if (swim <= 0F) return;
@@ -125,6 +133,8 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             if ("revive_flip".equals(animation) || "revive_shake".equals(animation)) {
                 return f.reviveStandAnimTicks(Minecraft.getInstance().getFrameTime());
             }
+            // (v0.7.40) o levantar do ragdoll: no relógio do servidor, emendado na ida pra pose de bruços
+            if ("ragdoll_getup".equals(animation)) return f.ragdollGetupAnimTicks(Minecraft.getInstance().getFrameTime());
             if (!animation.startsWith("finisher")) return -1D;
             ClientFinisher.Entry e = ClientFinisher.forFroggy(f.getId());
             if (e == null) return -1D;
@@ -146,6 +156,12 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
         this.shadowRadius = pieces ? 0F : 0.5F;
         if (pieces) {
             renderRevive(scene, entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+            return;
+        }
+        // (v0.7.40) mole depois do tiro: as partes do corpo com física (client.pieces.RagdollScene)
+        RagdollScene rag = RagdollScene.of(entity);
+        if (rag != null && RagdollScene.physicsPhase(entity, partialTick)) {
+            renderRagdoll(rag, entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
             return;
         }
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
@@ -189,11 +205,40 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                 partialTick, packedLight), bufferSource, packedLight);
     }
 
+    /**
+     * (v0.7.40) O ragdoll: a animação roda escondida por baixo (de bruços, pra emendar no levantar) e o que aparece são as
+     * partes, cada uma com os ossos do próprio modelo na pose de descanso, onde a física pôs.
+     */
+    private void renderRagdoll(RagdollScene rag, FroggydudeEntity entity, float entityYaw, float partialTick,
+                               PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+        BakedGeoModel model = getGeoModel().getBakedModel(getGeoModel().getModelResource(entity));
+        if (!RagdollScene.hasGeometry()) RagdollScene.geometry(model);
+        hideForRevive = true;
+        try {
+            super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
+        } finally {
+            hideForRevive = false;
+        }
+        Vec3 base = new Vec3(Mth.lerp(partialTick, entity.xo, entity.getX()), Mth.lerp(partialTick, entity.yo, entity.getY()),
+                Mth.lerp(partialTick, entity.zo, entity.getZ()));
+        RenderType rt = getRenderType(entity, getTextureLocation(entity), bufferSource, partialTick);
+        // a bala nele caído: o vermelho do dano, como no corpo normal
+        int overlay = OverlayTexture.pack(OverlayTexture.u(0F), OverlayTexture.v(entity.hurtTime > 0));
+        rag.render(entity, poseStack, base, partialTick, (ps, part) -> drawBones(ps, model, entity, RagdollScene.bonesOf(part),
+                RagdollScene.hiddenOf(part), rt, bufferSource, partialTick, packedLight, overlay));
+    }
+
     /** Os ossos de um pedaço, na pose de descanso (guardando e devolvendo a da animação), sem os que são outro pedaço. */
     private void drawRevivePart(PoseStack ps, BakedGeoModel model, FroggydudeEntity entity, int part, RenderType rt,
                                 MultiBufferSource buffers, float partialTick, int light) {
+        drawBones(ps, model, entity, ReviveScene.bonesOf(part), ReviveScene.hiddenOf(part), rt, buffers, partialTick, light,
+                OverlayTexture.NO_OVERLAY);
+    }
+
+    private void drawBones(PoseStack ps, BakedGeoModel model, FroggydudeEntity entity, String[] bones, String[] hide,
+                           RenderType rt, MultiBufferSource buffers, float partialTick, int light, int overlay) {
         List<GeoBone> hidden = new ArrayList<>();
-        for (String h : ReviveScene.hiddenOf(part)) {
+        for (String h : hide) {
             model.getBone(h).ifPresent(b -> {
                 if (!b.isHidden()) {
                     b.setHidden(true);
@@ -202,7 +247,7 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
             });
         }
         try {
-            for (String name : ReviveScene.bonesOf(part)) {
+            for (String name : bones) {
                 GeoBone bone = model.getBone(name).orElse(null);
                 if (bone == null) continue;
                 List<float[]> saved = new ArrayList<>();
@@ -210,7 +255,7 @@ public class FroggydudeRenderer extends GeoEntityRenderer<FroggydudeEntity> {
                 rest(bone, saved, order);
                 try {
                     renderRecursively(ps, entity, bone, rt, buffers, buffers.getBuffer(rt), true, partialTick, light,
-                            OverlayTexture.NO_OVERLAY, 1F, 1F, 1F, 1F);
+                            overlay, 1F, 1F, 1F, 1F);
                 } finally {
                     restore(saved, order);
                 }

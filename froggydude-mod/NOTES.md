@@ -1,4 +1,4 @@
-# Froggydude - v0.7.39: a tela inicial com as frases do FroggyDude e o TikTok do LM (sobre a v0.7.38)
+# Froggydude - v0.7.40: o ragdoll do tiro, a raiva "()" e as falas novas do FroggyDude (sobre a v0.7.39)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,47 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.39):
+O que testar agora (v0.7.40):
+- **O RAGDOLL do tiro, feito do zero** (tu: "ragdoll é ragdoll mesmo, nada de coisa duro... é necessário fazer o nosso
+  próprio. E a rajada só funciona se ele tiver no chão parado"; e depois: "Incrível!"). Bala de mod de arma (TacZ ou
+  outro) nele **parado no chão** joga ele longe: voa ~11 blocos em ~0,6 s girando pra trás, com braços e pernas soltos,
+  quica, rola e fica caído torto (os teus vídeos 1 e 2). É o boneco de blocos do próprio modelo: cabeça, tronco, braços,
+  coxas e canelas, presos nas juntas com limite de gente (a cabeça tomba até 70°, o joelho só dobra pra trás, nada
+  atravessa o tronco), batendo nos blocos de verdade, com o barulho de queda do bloco onde cai. Java puro (o Physics Mod
+  usa uma biblioteca da NVIDIA que fecha o jogo no celular). Correndo, pulando ou no meio de um ataque: a bala faz o de
+  sempre (um décimo do dano e o gemido).
+  - **Caído**, se tu chega perto **com arma de fogo na mão**, ele fala **"Yeah, I love pain"** e uns segundos depois
+    **"Yeah, shoot me. I want to feel the bullets hit my body"** (a ordem do teu vídeo 1).
+  - **Bala nele caído**: **metade do dano** (em pé é um décimo), o corpo dá um tranco a cada tiro, o gemido, e ele fica
+    com mais raiva. Bater de perto (espada) levanta ele na hora.
+  - **Levanta**: o corpo rola de bruços, faz a flexão e fica em pé, virando pra ti. Sozinho (ninguém armado perto) ele
+    levanta depois de ~8 s.
+  - Teste sem mod de arma: **`/froggydude ragdoll`** joga ele pra longe de ti.
+- **A RAIVA depois das balas** (tu: "os braços dele em '()' e estralar do pescoço quando ele tá COM MUITA RAIVA após o
+  jogador tentar matar ele com balas. Ele avança rápido e para só para o jogador recuar"; e depois: "olhando assim
+  parece que é bug... O do vídeo fica bem mais intencional"). Levou bala caído e levantou: estala o pescoço (a cabeça
+  tomba de lado num tranco), grita com a boca escancarada, **avança correndo agachado e PARA** a uns 3 blocos de ti no
+  "()" do teu vídeo (tronco quase deitado pra frente, a cara de frente pra ti, um braço de cada lado da cabeça descendo
+  até a mão no chão), respirando pesado, e estala o pescoço de novo. **Tu recuou? Ele avança e para de novo** (até 3
+  vezes). Chegou perto dele ou bateu nele: aí ele parte pra cima.
+- **Falas novas dele, tiradas das tuas gravações de 16/11** (tu: "separe somente as vozes do froggydude, atualize dentro
+  do .jar o sons"). Separei a voz dele do barulho do jogo e tu aprovou de ouvido (1, 3, 5, 7, 8B e 10):
+  - **levando tiro de mod de arma** (TacZ ou outro): o **gemido curto** dele (o 8B) a cada tiro, no máximo um a cada
+    0,35 s (arma automática dá ~12 tiros por segundo; o som da arma cobre o resto). As falas das balas ("I love pain" e
+    "Yeah, shoot me...") ficaram pra conversa dele caído (acima). Tiro de outra coisa (flecha, espada) continua igual;
+  - **"Smell you from a mile away now"** entrou nas falas de quando ele te fareja, e **"Give me your body"** (mais uma
+    versão) nas de quando te derruba;
+  - **o rugido longo (~4 s)** já está no mod, guardado pra cutscene jogável da cabeça (ainda não toca).
+  - **Legendas:** as falas dele agora mostram legenda (com as legendas de som ligadas nas opções do jogo). Antes, com
+    o pacote de voz, as falas apareciam sem legenda nenhuma.
+  - Como antes, a voz vai **dentro do jar** e nunca no GitHub.
+  Testado no jogo (com a AK do TacZ, o som gravado num arquivo porque a nuvem não tem placa de som): o tiro com ele
+  parado joga ele 11,1 blocos em 13 ticks; tu chegando armado, "I love pain" e "Yeah, shoot me..." com legenda; 3
+  tiros nele caído contam, com sangue e gemido; ele levanta, estala o pescoço e entra na raiva. Dois defeitos achados e
+  consertados no teste: o jogo religava a IA de ataque no meio do voo (ele dava o bote voando) e o 1º tick do voo
+  pegava o atrito do chão (voava só 8 blocos). Nenhum som sem arquivo.
+
+Da v0.7.39:
 - **As frases amarelas da tela inicial** (tu: "Consegue deixar somente 6 sortidos para esses (depende do idioma do
   jogador)"). As frases sorteadas do lado do "Minecraft" agora são só estas 6, no idioma do teu jogo (português ou
   inglês; outro idioma cai no inglês):

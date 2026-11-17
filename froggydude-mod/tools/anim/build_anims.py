@@ -332,6 +332,48 @@ ANIMS["crouch_idle"] = animation(1.2, [
     (1.20, frog_idle(60)),
 ], True)
 
+# (v0.7.40) A RAIVA depois das balas (vídeos do LM de 16/11: v4 e Screenrecorder 19-19-22, 9,6 s; LM: "os braços dele
+# em '()' e estralar do pescoço quando ele tá COM MUITA RAIVA após o jogador tentar matar ele com balas. Ele avança
+# rápido e para só para o jogador recuar"; depois: "olhando assim parece que é bug... O do vídeo fica bem mais
+# intencional"): o tronco quase DEITADO pra frente (~76°), a cabeça erguida de frente pra pessoa (a boca escancarada é
+# a skin de grito, do servidor), os ombros altos e os braços descendo RETOS dos dois lados da cabeça até as mãos no chão,
+# um pouco abertos ("()" visto de frente: um braço de cada lado do rosto). Pernas de sapo atrás. Respira pesado (o
+# tronco e os ombros sobem e descem). "rage_crack": o estalo do pescoço (a cabeça tomba de lado num tranco e volta).
+# A 1ª versão abria os braços 36° pros lados ("/\") e parecia defeito.
+RAGE_SPREAD = 16.0
+
+
+def rage_crouch(w=76, spread=RAGE_SPREAD, look=6, py=1.5, head_z=0.0):
+    """O "()": acha o braço que põe a mão no chão junto com o pé (pode ir pra frente ou pra trás da vertical)."""
+    best = None
+    for phi in range(-30, 60):
+        a = -(w + phi)
+        p = pose(waist=w, head=-w + look, head_z=head_z, arms=a, arm_l=a, legs=-82, leg_l=-79, knee=150,
+                 knee_l=147, arm_spread=spread, leg_spread=14, arm_py=py, arm_lpy=py)
+        low = rig.lowest(rig.frames(p))
+        feet = min(low["right_leg"], low["left_leg"])
+        hands = min(low["right_arm"], low["left_arm"])
+        if best is None or abs(hands - feet) < best[0]:
+            best = (abs(hands - feet), p, min(feet, hands))
+    _, p, lowest = best
+    p["root"]["position"][1] = round(p["root"]["position"][1] + 0.5 - lowest, 2)
+    return p
+
+
+ANIMS["rage_idle"] = animation(0.9, [
+    (0.00, rage_crouch(76)),
+    (0.30, rage_crouch(72, look=10, py=2.6)),      # puxa o ar: o tronco e os ombros sobem
+    (0.45, rage_crouch(73, look=9, py=2.3)),
+    (0.90, rage_crouch(76)),
+], True)
+ANIMS["rage_crack"] = animation(0.6, [
+    (0.00, rage_crouch(76)),
+    (0.07, rage_crouch(76, head_z=44.0, look=2)),  # o tranco: a cabeça tomba de lado
+    (0.20, rage_crouch(76, head_z=40.0, look=2)),
+    (0.45, rage_crouch(76, head_z=6.0)),
+    (0.60, rage_crouch(76)),
+], "hold_on_last_frame")
+
 # Bote baixo que derruba: salta rente ao chão com os braços pra frente pra
 # agarrar e cai montado na vítima. Impulso no tick 4, impacto no ~15.
 # Cabeça olhando pro rosto da vítima (deitada a ~2 blocos): o rosto dele aponta
@@ -717,6 +759,14 @@ _RS.append((round(REV_SHAKE + REV_CRACK, 4), copy.deepcopy(_stand2)))
 _RS += _crack(REV_SHAKE + REV_CRACK, _stand2)[1:]
 _RS.append((round(REV_SHAKE + REV_END, 4), copy.deepcopy(_stand2)))
 ANIMS["revive_shake"] = animation(round(REV_SHAKE + REV_END, 4), _RS, "hold_on_last_frame", ground=False)
+
+# (v0.7.40) O levantar do ragdoll do tiro (entity.Ragdoll, client.pieces.RagdollScene): o corpo mole vai pra pose de
+# bruços (a mesma do revive_lie) e daí a flexão e o levantar do revive_shake, sem o sacudir (a raiva vem depois); no fim
+# a raiz volta pro lugar dos pés (o levantar termina com ela 2 px pra trás, na ponta do sapato). 1,55 s = Ragdoll.GETUP.
+RAG_UP = REV_PUSH + 0.9
+_RG = [(t, copy.deepcopy(p)) for (t, p) in _RS if t <= RAG_UP + 1e-6]
+_RG.append((round(RAG_UP + 0.15, 4), _rev(0.0, (0, 0, 0))))
+ANIMS["ragdoll_getup"] = animation(round(RAG_UP + 0.15, 4), _RG, "hold_on_last_frame", ground=False)
 
 # Arrancar o braço (vs AJ, 2:21, e o jeito de comer da "Eating a Zebra"):
 # agachado por cima, agarra o ombro esquerdo da vítima com as duas mãos, CRAVA

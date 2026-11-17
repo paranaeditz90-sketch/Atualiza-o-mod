@@ -93,7 +93,19 @@ public enum FroggyState {
      * no chão, a cabeça puxa um por um com a língua, flexão e mortal (ou sacode a cabeça de raiva), vira, estala o
      * pescoço. Sem IA e invulnerável; quem acaba é o Revive (linha do tempo fixa). No fim da lista: o número vai pela rede.
      */
-    REVIVE(0);
+    REVIVE(0),
+    /**
+     * (v0.7.40) O ragdoll do tiro (entity.Ragdoll; LM 16/11, vídeos v1/v2): bala de arma de mod com ele parado no chão
+     * joga ele longe, mole de verdade (o corpo é física no cliente: client.pieces.RagdollScene); cai, fica deitado
+     * (conversa com quem chega perto armado, leva mais tiro) e levanta com raiva. Sem IA enquanto dura. No fim da
+     * lista: o número vai pela rede.
+     */
+    RAGDOLL(0),
+    /**
+     * (v0.7.40) A raiva depois das balas (entity.Rage; vídeo 4 do LM): estala o pescoço, avança correndo agachado e
+     * para colado em "()" com a boca aberta, só pra pessoa recuar; repete e depois ataca. Sem as Goals enquanto dura.
+     */
+    RAGE(0);
 
     public final int durationTicks;
 
