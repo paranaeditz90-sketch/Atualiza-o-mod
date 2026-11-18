@@ -4,6 +4,19 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.6.0 — roubar e comer a arma
+
+Rede "11": quem joga junto precisa estar na 0.6.0.
+
+O que testar (gomo novo na roda, "Roubar a arma", embaixo à direita):
+- Tocar no gomo **arma** o golpe; o próximo ataque em quem estiver com uma **arma na mão** (espada, machado, arco,
+  besta, tridente ou arma de mod: TaCZ, Avaritia...; tu escolheu "só armas") sai num bote curto **mordendo a mão** (de perto, até 3,2 blocos) e arranca. A arma **some** da mão da pessoa (ou
+  do bicho) e ele **come**: sacode a cabeça com ela atravessada na boca, ela vai entrando aos poucos, com farelo cinza
+  e barulho de mastigar, e engole olhando pra cima (o "glup", o arroto). Igual ao mod da IA (Grox 1:24).
+- Sem arma na mão: aparece "Ele não tem arma na mão" e o golpe continua armado.
+- Testado no jogo: zumbi com espada de ferro ficou de mão vazia.
+- A roda agora tem 5 ações: estalar o pescoço (em cima), arrancar o braço, roubar a arma, teto e raiva.
+
 ## v0.5.0 — arrancar o braço (e comer vivo na flexão) e o teto
 
 Rede "10": quem joga junto precisa estar na 0.5.0.

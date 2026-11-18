@@ -11,7 +11,20 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
-## v0.5.0 — arrancar o braço (e comer vivo na flexão) e o teto
+## v0.4.0 — roubar e comer a arma
+
+Rede "4".
+
+O que testar (gomo novo na roda, "Roubar a arma", embaixo à direita):
+- Tocar no gomo **arma** o golpe; o próximo ataque em quem estiver com uma **arma na mão** (espada, machado, arco,
+  besta, tridente ou arma de mod: TaCZ, Avaritia...; tu escolheu "só armas") puxa ela com a **língua** (até 8 blocos). A arma **some** da mão da pessoa (ou
+  do bicho) e ele **come**: sacode a cabeça com ela atravessada na boca, ela vai entrando aos poucos, com farelo cinza
+  e barulho de mastigar, e engole olhando pra cima (o "glup", o arroto). Igual ao mod da IA (Grox 1:24).
+- Sem arma na mão: aparece "Ele não tem arma na mão" e o golpe continua armado.
+- Testado no jogo: zumbi com espada de ferro ficou de mão vazia.
+- A roda agora tem 5 ações: estalar o pescoço (em cima), arrancar o braço, roubar a arma, teto e raiva.
+
+## v0.3.0 — arrancar o braço (e comer vivo na flexão) e o teto
 
 Rede "3".
 

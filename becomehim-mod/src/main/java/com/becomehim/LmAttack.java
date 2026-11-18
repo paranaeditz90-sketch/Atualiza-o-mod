@@ -47,7 +47,11 @@ public enum LmAttack {
     /** (roda) Grudado no teto (mod da IA: a tocaia do canto do teto, Grox RABIES). Pedido de novo = solta. */
     CEILING,
     /** Do teto, se joga em cima do bicho (o bote, caindo de cima). */
-    CEILING_DIVE;
+    CEILING_DIVE,
+    /** (roda, armado) Rouba a arma da mão de alguém (a língua puxa / a boca arranca). */
+    STEAL,
+    /** Come a arma roubada: sacode a cabeça e ela vai entrando aos poucos (o mod da IA, Grox 1:24). */
+    WEAPON_EAT;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

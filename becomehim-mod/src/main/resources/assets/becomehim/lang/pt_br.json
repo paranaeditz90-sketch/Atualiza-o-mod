@@ -36,5 +36,8 @@
   "becomehim.armed.arm_rip": "Arrancar o braço: ataque alguém perto (bicho: come deitado)",
   "becomehim.armed.off": "Desarmado",
   "becomehim.action.ceiling": "Teto",
-  "becomehim.ceiling.none": "Sem teto aqui em cima (até 4 blocos)"
+  "becomehim.ceiling.none": "Sem teto aqui em cima (até 4 blocos)",
+  "becomehim.action.steal": "Roubar\na arma",
+  "becomehim.armed.steal": "Roubar a arma: ataque quem estiver armado",
+  "becomehim.steal.none": "Ele não tem arma na mão"
 }

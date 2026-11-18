@@ -1,5 +1,6 @@
 package com.becomehim.client;
 
+import net.minecraft.world.item.ItemStack;
 import com.becomehim.BecomeHim;
 import com.becomehim.LmAttack;
 import com.becomehim.LmAttacks;
@@ -56,6 +57,8 @@ public final class LmActsClient {
         /** No monte: o ritmo da flexão pela fome (a mesma conta do servidor). */
         @Nullable
         LmPileRhythm pile;
+        /** (roda) A arma roubada (a cópia do que estava na mão da vítima). */
+        ItemStack stolen = ItemStack.EMPTY;
         /** (Become HIM...) Arremesso: o giro (graus) e pra onde ele olhava quando pulou. */
         float sweep;
         float throwYaw;
@@ -161,6 +164,7 @@ public final class LmActsClient {
         Act a = new Act(k, target, age);
         a.confirmed = true;
         if (k == LmAttack.ARM_EAT && old != null) a.pileYaw = old.pileYaw;
+        stealFrom(a, old);
         // no monte o "alvo" é o rumo do corpo deitado (graus x10) junto com a fome de quando deitou
         if (k == LmAttack.PILE) {
             a.pileYaw = LmPileRhythm.yawX10(target) / 10F;
@@ -174,9 +178,22 @@ public final class LmActsClient {
         ACTS.remove(p.getUUID());
     }
 
+    /** (roda) O roubo: guarda o que estava na mão da vítima (comendo, vem do roubo de antes). */
+    private static void stealFrom(Act a, @Nullable Act old) {
+        Minecraft mc = Minecraft.getInstance();
+        if (a.kind == LmAttack.STEAL && mc.level != null && mc.level.getEntity(a.target) instanceof LivingEntity v) {
+            a.stolen = v.getMainHandItem().copy();
+        } else if (a.kind == LmAttack.WEAPON_EAT && old != null) {
+            a.stolen = old.stolen;
+            a.pileYaw = old.pileYaw;
+        }
+    }
+
     /** O próprio jogador já começa (sem esperar o servidor): a animação sai no quadro do pouso. */
     static void startLocal(LocalPlayer p, LmAttack kind, int target) {
-        ACTS.put(p.getUUID(), new Act(kind, target, 0));
+        Act a = new Act(kind, target, 0);
+        stealFrom(a, null);
+        ACTS.put(p.getUUID(), a);
     }
 
     /** Deita no monte (o próprio jogador já começa; o servidor confirma). */
@@ -330,7 +347,8 @@ public final class LmActsClient {
     static boolean locked(Player p) {
         Act a = ACTS.get(p.getUUID());
         return a != null && (riding(a) || a.kind == LmAttack.PILE || a.kind == LmAttack.THROW
-                || a.kind == LmAttack.NECK_CRACK || a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT);
+                || a.kind == LmAttack.NECK_CRACK || a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT
+                || a.kind == LmAttack.STEAL || a.kind == LmAttack.WEAPON_EAT);
     }
 
     /** Montado em cima de alguém (socando, martelando ou finalizando). */
@@ -415,6 +433,8 @@ public final class LmActsClient {
             case NECK_CRACK -> LmAttacks.NECK_CRACK_TICKS + 10;
             case ARM_RIP -> LmAttacks.RIP_TICKS + 20;
             case CEILING -> LmAttacks.CEILING_MAX + 40;
+            case STEAL -> LmAttacks.STEAL_TICKS + 20;
+            case WEAPON_EAT -> LmAttacks.EAT_WEAPON_TICKS + 20;
             case CEILING_DIVE -> 14;
             case ARM_EAT -> LmAttacks.EAT_TICKS + 20;
             case RAGE -> LmAttacks.RAGE_MAX + 20;
@@ -530,10 +550,11 @@ public final class LmActsClient {
             p.yBodyRotO = a.pileYaw;
             return;
         }
-        if (a != null && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT)) {
+        if (a != null && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT || a.kind == LmAttack.STEAL
+                || a.kind == LmAttack.WEAPON_EAT)) {
             // arrancando e comendo: virado pra vítima (comendo, ela pode ter fugido: fica como estava)
             Entity v = p.level().getEntity(a.target);
-            if (v != null && a.kind == LmAttack.ARM_RIP) {
+            if (v != null && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.STEAL)) {
                 float yaw = (float) (Mth.atan2(v.getZ() - p.getZ(), v.getX() - p.getX()) * Mth.RAD_TO_DEG) - 90F;
                 a.pileYaw = yaw;
             }

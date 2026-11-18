@@ -33,8 +33,9 @@ public final class LmNetwork {
      * "8" (v0.3.5): o "alvo" do monte no ActSync leva o rumo e a fome juntos (LmPileRhythm.pack).
      * "9" (v0.4.0): os golpes da roda (estalar o pescoço, a raiva) no fim da lista de golpes.
      * "10" (v0.5.0): arrancar o braço (ArmSync) e comer vivo na flexão.
+     * "11" (v0.6.0): roubar e comer a arma.
      */
-    private static final String VERSION = "10";
+    private static final String VERSION = "11";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeLM.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 

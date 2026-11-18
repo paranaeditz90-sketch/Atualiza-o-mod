@@ -1,5 +1,6 @@
 package com.becomehim.client;
 
+import com.becomehim.LmAttacks;
 import com.becomehim.BecomeHim;
 import com.becomehim.LmAttack;
 import com.becomehim.LmTongue;
@@ -126,6 +127,7 @@ public final class LmTongueRender {
         LmActsClient.Act a = LmActsClient.get(p);
         if (a == null) return false;
         if (a.kind == LmAttack.GRAB) return true;
+        if (a.kind == LmAttack.STEAL) return a.age < LmAttacks.STEAL_TICKS;
         return a.kind == LmAttack.THROW && a.age < LmTongue.T_REL + 8;
     }
 
@@ -139,6 +141,14 @@ public final class LmTongueRender {
         Entity e = holder.level().getEntity(a.target);
         LivingEntity victim = e instanceof LivingEntity le ? le : null;
         float age = a.age + partial;
+        if (a.kind == LmAttack.STEAL) {
+            // o roubo: a língua vai até a mão e volta com a arma
+            if (victim == null) return;
+            float k = age < LmAttacks.STEAL_HIT ? age / LmAttacks.STEAL_HIT
+                    : 1F - (age - LmAttacks.STEAL_HIT) / (LmAttacks.STEAL_TICKS - LmAttacks.STEAL_HIT);
+            drawShot(poseStack, buffers, holder, victim, mouth, k, partial, light);
+            return;
+        }
         if (a.kind == LmAttack.THROW && age >= LmTongue.T_REL) {
             drawLoose(poseStack, buffers, holder, mouth, age - LmTongue.T_REL, light);
             return;

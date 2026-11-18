@@ -1,5 +1,7 @@
 package com.becomelm;
 
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.InteractionHand;
 import com.becomelm.network.LmNetwork;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -209,6 +211,7 @@ public final class LmAttacks {
                 }
             }
             case CEILING_DIVE -> ceilingDive(p, targetId);
+            case STEAL -> startSteal(p, targetId);
             case HAMMER_STOP -> {
                 Act a = ACTS.get(p.getUUID());
                 if (a != null && a.kind == LmAttack.HAMMER) a.stop = true;
@@ -369,6 +372,63 @@ public final class LmAttacks {
             p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 1.0F, 0.7F);
         }
         if (a.age >= EAT_TICKS) end(p, a);
+    }
+
+    // (roda, armado) Roubar e comer a arma (mod da IA: FroggyStealGoal, WEAPON_EAT 32 ticks, o "glup" no 21)
+    /** Até onde pega (no BecomeLM ele morde a mão: de perto). */
+    public static final double STEAL_REACH = 3.2D;
+    /** A boca chega na mão / arranca a arma. */
+    public static final int STEAL_HIT = 6;
+    public static final int STEAL_TICKS = 12;
+    public static final int EAT_WEAPON_TICKS = 32;
+    public static final int WEAPON_SWALLOW = 21;
+
+    private static void startSteal(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, STEAL_REACH + SLACK) || !LmWeapons.isWeapon(t.getMainHandItem())
+                || !p.hasLineOfSight(t)) {
+            return;
+        }
+        ACTS.put(p.getUUID(), new Act(LmAttack.STEAL, t));
+        lock(p, true);
+        p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), BecomeLM.BITE.get(), SoundSource.PLAYERS, 1.0F, 0.9F);
+        LmNetwork.sendAct(p, LmAttack.STEAL, t.getId(), 0);
+    }
+
+    private static void tickSteal(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (a.age == STEAL_HIT) {
+            ItemStack held = t == null ? ItemStack.EMPTY : t.getMainHandItem();
+            if (t == null || !t.isAlive() || p.distanceTo(t) > STEAL_REACH + SLACK || !LmWeapons.isWeapon(held)) {
+                end(p, a);
+                return;
+            }
+            // tirou da mão (some: ele come)
+            t.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            a.ripped = true;
+            p.level().playSound(null, t.getX(), t.getEyeY(), t.getZ(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 1.0F, 0.6F);
+            if (DEBUG) System.out.printf("[LMATK] roubou %s de %s%n", held, t.getName().getString());
+        }
+        if (a.age < STEAL_TICKS) return;
+        Act eat = new Act(LmAttack.WEAPON_EAT, t);
+        ACTS.put(p.getUUID(), eat);
+        LmNetwork.sendAct(p, LmAttack.WEAPON_EAT, t == null ? -1 : t.getId(), 0);
+    }
+
+    private static void tickWeaponEat(ServerPlayer p, Act a) {
+        if (a.age < WEAPON_SWALLOW && a.age % 4 == 0 && p.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+            // a cabeça sacode e o farelo cinza cai (o mod da IA, 0.7.31)
+            Vec3 m = p.getEyePosition().add(p.getLookAngle().scale(0.4D)).add(0, -0.25D, 0);
+            sl.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK,
+                    net.minecraft.world.level.block.Blocks.LIGHT_GRAY_CONCRETE.defaultBlockState()), m.x, m.y, m.z, 4, 0.1D, 0.05D, 0.1D, 0.05D);
+            p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 0.8F,
+                    0.6F + p.getRandom().nextFloat() * 0.2F);
+        }
+        if (a.age == WEAPON_SWALLOW) {
+            p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.PLAYER_BURP, SoundSource.PLAYERS, 1.0F, 0.7F);
+        }
+        if (a.age >= EAT_WEAPON_TICKS) end(p, a);
     }
 
     /** Pendurado no teto no máximo 1 min. */
@@ -582,6 +642,8 @@ public final class LmAttacks {
                 if (a.age >= NECK_CRACK_TICKS) end(p, a);
             }
             case ARM_RIP -> tickArmRip(p, a);
+            case STEAL -> tickSteal(p, a);
+            case WEAPON_EAT -> tickWeaponEat(p, a);
             case ARM_EAT -> tickArmEat(p, a);
             case RAGE -> {
                 if (a.age >= RAGE_MAX || !LmModes.get(p).froggy() || LmTransform.active(p) || LmKnock.lying(p)) end(p, a);

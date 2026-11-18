@@ -40,7 +40,8 @@ public class LmWheelScreen extends Screen {
      * (roda de ações) O anel de fora: os golpes que não saem pelo contexto. Os gestos saem na hora; os que precisam de
      * alvo (quando entrarem) ficam armados pro próximo ataque.
      */
-    private static final LmAttack[] ACTIONS = {LmAttack.NECK_CRACK, LmAttack.ARM_RIP, LmAttack.CEILING, LmAttack.RAGE};
+    private static final LmAttack[] ACTIONS = {LmAttack.NECK_CRACK, LmAttack.ARM_RIP, LmAttack.STEAL, LmAttack.CEILING,
+            LmAttack.RAGE};
     /** O anel de fora começa um pouco depois do dos jeitos. */
     private int ring;
 
@@ -262,11 +263,11 @@ public class LmWheelScreen extends Screen {
                 } else if (cur == null) {
                     LmCeilingClient.start(mc.player);
                 }
-            } else if (act == LmAttack.ARM_RIP) {
+            } else if (act == LmAttack.ARM_RIP || act == LmAttack.STEAL) {
                 // armado: sai no próximo ataque (tocar de novo desarma)
                 LmActsClient.armed = LmActsClient.armed == act ? null : act;
                 mc.gui.setOverlayMessage(Component.translatable(LmActsClient.armed == null ? "becomehim.armed.off"
-                        : "becomehim.armed.arm_rip"), false);
+                        : "becomehim.armed." + act.name().toLowerCase(java.util.Locale.ROOT)), false);
             } else {
                 LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(act, -1));
             }

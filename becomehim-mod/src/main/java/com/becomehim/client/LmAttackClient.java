@@ -1,5 +1,6 @@
 package com.becomehim.client;
 
+import com.becomehim.LmWeapons;
 import com.becomehim.BecomeHim;
 import com.becomehim.LmAttack;
 import com.becomehim.LmAttacks;
@@ -234,6 +235,18 @@ public final class LmAttackClient {
      * não perde nada), derruba e come deitado em cima, na flexão (escolha do LM). Ninguém perto: continua armado.
      */
     private static boolean armedAttack(Minecraft mc, LocalPlayer p) {
+        if (LmActsClient.armed == LmAttack.STEAL) {
+            // roubar a arma: quem estiver na mira com uma arma na mão
+            LivingEntity t = pickTarget(mc, p, LmAttacks.STEAL_REACH);
+            if (t == null || !LmWeapons.isWeapon(t.getMainHandItem())) {
+                mc.gui.setOverlayMessage(net.minecraft.network.chat.Component.translatable("becomehim.steal.none"), false);
+                return t != null;
+            }
+            LmActsClient.armed = null;
+            LmActsClient.startLocal(p, LmAttack.STEAL, t.getId());
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.STEAL, t.getId()));
+            return true;
+        }
         LivingEntity t = pickTarget(mc, p, LmAttacks.RIP_REACH);
         if (DEBUG) {
             System.out.printf("[LMATK] golpe armado %s alvo=%s dist=%.2f%n", LmActsClient.armed, t,

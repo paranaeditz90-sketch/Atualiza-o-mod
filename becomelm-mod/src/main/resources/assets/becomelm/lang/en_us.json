@@ -36,5 +36,8 @@
   "becomelm.armed.arm_rip": "Rip the arm: attack someone close (mob: eat it lying down)",
   "becomelm.armed.off": "Disarmed",
   "becomelm.action.ceiling": "Ceiling",
-  "becomelm.ceiling.none": "No ceiling above (up to 4 blocks)"
+  "becomelm.ceiling.none": "No ceiling above (up to 4 blocks)",
+  "becomelm.action.steal": "Steal\nthe weapon",
+  "becomelm.armed.steal": "Steal the weapon: bite the hand of someone armed",
+  "becomelm.steal.none": "No weapon in their hand"
 }

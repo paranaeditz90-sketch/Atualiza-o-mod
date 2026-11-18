@@ -1,5 +1,7 @@
 package com.becomelm.client;
 
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.world.item.ItemDisplayContext;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.RenderType;
 import software.bernie.geckolib.util.RenderUtils;
@@ -100,6 +102,25 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
             if (a != null && a.kind == LmAttack.ARM_RIP && a.age >= LmAttacks.RIP_AT) eaten = 0F;
             if (a != null && a.kind == LmAttack.ARM_EAT && a.age < LmAttacks.EAT_SWALLOW) {
                 eaten = 0.75F * Math.min(1F, (a.age + partialTick) / LmAttacks.EAT_SWALLOW);
+            }
+            if (a != null && !a.stolen.isEmpty() && (a.kind == LmAttack.WEAPON_EAT && a.age < LmAttacks.WEAPON_SWALLOW
+                    || a.kind == LmAttack.STEAL && a.age >= LmAttacks.STEAL_TICKS - 2)) {
+                poseStack.pushPose();
+                RenderUtils.prepMatrixForBone(poseStack, bone);
+                poseStack.translate(0F, (MOUTH_Y - 2.5F) / 16F, (MOUTH_Z - 1.0F) / 16F);
+                if (a.kind == LmAttack.WEAPON_EAT) {
+                    // vai engolindo: a ponta de dentro parada na boca e o pedaço de fora encurtando (mod da IA 0.7.30)
+                    float in = Mth.clamp((a.age + partialTick - 2F) / (LmAttacks.WEAPON_SWALLOW - 2F), 0F, 1F);
+                    float out = 1F - 0.92F * in;
+                    poseStack.translate(7F / 16F * (0.15F - out), 0F, 0F);
+                    poseStack.scale(out, 1F - 0.2F * in, 1F);
+                }
+                poseStack.mulPose(Axis.ZP.rotationDegrees(-45F));
+                poseStack.scale(1.4F, 1.4F, 1.4F);
+                Minecraft.getInstance().getItemRenderer().renderStatic(a.stolen, ItemDisplayContext.GROUND, packedLight,
+                        OverlayTexture.NO_OVERLAY, poseStack, bufferSource, p.level(), p.getId());
+                poseStack.popPose();
+                buffer = bufferSource.getBuffer(renderType);
             }
             if (eaten >= 0F) {
                 poseStack.pushPose();
