@@ -29,12 +29,18 @@ public final class LmServerEvents {
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer p) LmNetwork.sendMode(p, LmModes.get(p));
+        if (event.getEntity() instanceof ServerPlayer p) {
+            LmNetwork.sendMode(p, LmModes.get(p));
+            if (LmArmLoss.isArmless(p)) LmNetwork.sendArm(p, true);
+        }
     }
 
     @SubscribeEvent
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        if (event.getEntity() instanceof ServerPlayer p) LmNetwork.sendMode(p, LmModes.get(p));
+        if (event.getEntity() instanceof ServerPlayer p) {
+            LmNetwork.sendMode(p, LmModes.get(p));
+            LmArmLoss.respawned(p);
+        }
     }
 
     @SubscribeEvent
@@ -46,7 +52,10 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onStartTracking(PlayerEvent.StartTracking event) {
         if (!(event.getEntity() instanceof ServerPlayer viewer)) return;
-        if (event.getTarget() instanceof ServerPlayer target) LmNetwork.sendModeTo(viewer, target, LmModes.get(target));
+        if (event.getTarget() instanceof ServerPlayer target) {
+            LmNetwork.sendModeTo(viewer, target, LmModes.get(target));
+            if (LmArmLoss.isArmless(target)) LmNetwork.sendArmTo(viewer, target, true);
+        }
         LmKnock.sendTo(viewer, event.getTarget());
         LmTransform.sendTo(viewer, event.getTarget());
         LmAttacks.sendTo(viewer, event.getTarget());
@@ -64,6 +73,7 @@ public final class LmServerEvents {
                 LmAttacks.tick(sp);
                 LmTransform.tick(sp);
                 LmLava.tick(sp);
+                LmArmLoss.tick(sp);
             }
             return;
         }

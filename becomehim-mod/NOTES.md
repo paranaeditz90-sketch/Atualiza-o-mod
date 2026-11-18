@@ -11,6 +11,30 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.5.0 — arrancar o braço (e comer vivo na flexão) e o teto
+
+Rede "3".
+
+O que testar (gomo novo na roda, "Arrancar o braço", à direita embaixo):
+- Tocar no gomo **arma** o golpe (aparece o aviso em cima da barra; tocar de novo desarma). Ele sai no **próximo
+  ataque** em alguém a até 3,2 blocos. Ninguém perto: continua armado.
+- **Em jogador** (que não esteja no criativo e ainda tenha o braço): derruba de costas, crava os dentes no ombro (0,4 s),
+  ARRANCA o braço esquerdo (1,1 s, jato de sangue) e come ele (4,5 s, o braço atravessado na boca, com a skin e a manga
+  de quem perdeu, encurtando a cada mordida). Comer enche a fome (3 mordidas de 1 coxinha). Igual ao mod da IA (tu
+  escolheu): quem perde o braço fica com 3 corações a menos, sem a mão secundária e sangrando pelo ombro (para em 3
+  corações); o braço só volta quando ele morre. O braço some do corpo de jogador, da 1ª pessoa e do boneco do FroggyDude.
+- **Em bicho** (tu: "mobs come normal, deitado, com a flexão"): derruba e deita em cima dele na flexão do monte, comendo
+  ele VIVO (cada mordida de verdade tira 1 coração e enche a fome). Morreu: vira o monte de pedaços embaixo de ti e tu
+  segue comendo. Andar levanta, pular sai no mortal, igual ao monte.
+- Testado no jogo com 2 jogadores (vida máxima da vítima 20 -> 14) e num zumbi (20 -> 7 em ~5 s).
+- **Teto** (gomo novo, embaixo na roda): sobe e gruda de cabeça pra baixo no teto que estiver em cima da cabeça (até 4
+  blocos; sem teto aparece o aviso). Fica parado lá (a tocaia do canto do teto do mod da IA). **Atacar** = se joga em
+  cima do bicho da mira (até 9 blocos), derruba e dá o dano do bote. **Pular ou agachar** = solta. Sozinho, solta em
+  1 min. Testado: 8 s pendurado sem o servidor chutar por "voar", mergulho num zumbi (20 -> 13).
+- A roda agora tem 4 gomos de ação: estalar o pescoço (em cima), arrancar o braço (direita), teto (embaixo) e raiva
+  (esquerda).
+- Ainda sem o toco vermelho no ombro de quem perdeu o braço (no mod da IA tem): fica pra depois se tu quiser.
+
 ## v0.2.0 — a roda de ações (estalar o pescoço e a raiva "()")
 
 Rede "2". O mesmo da roda do BecomeLM 0.4.0: a roda ganhou o anel de fora com as ações; **estalar o pescoço** (gomo

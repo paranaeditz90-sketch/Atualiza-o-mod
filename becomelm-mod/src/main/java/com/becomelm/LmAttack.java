@@ -37,7 +37,17 @@ public enum LmAttack {
      * (roda) A raiva "()" (mod da IA 0.7.40, o vídeo 4 do LM): agachado fundo, braços abertos até o chão, boca aberta;
      * andando, avança agachado. Até escolher de novo, atacar ou 30 s.
      */
-    RAGE;
+    RAGE,
+    /** (roda, armado) Arranca o braço esquerdo de um jogador: derruba, crava os dentes no ombro e puxa (2 s). */
+    ARM_RIP,
+    /** Come o braço arrancado: mastiga, engole e digere (4,5 s). */
+    ARM_EAT,
+    /** (roda, armado, em bicho) Quem o golpe vai comer deitado (vem logo antes do PILE). */
+    FEED,
+    /** (roda) Grudado no teto (mod da IA: a tocaia do canto do teto, Grox RABIES). Pedido de novo = solta. */
+    CEILING,
+    /** Do teto, se joga em cima do bicho (o bote, caindo de cima). */
+    CEILING_DIVE;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

@@ -1,5 +1,11 @@
 package com.becomelm.client;
 
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.RenderType;
+import software.bernie.geckolib.util.RenderUtils;
+import software.bernie.geckolib.cache.object.GeoBone;
+import com.becomelm.LmAttacks;
+import com.becomelm.LmAttack;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.util.Mth;
@@ -34,6 +40,10 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
     static long localHeadFrame = -1;
 
     private static LmRenderer instance;
+
+    /** A boca (px), onde o braço arrancado fica atravessado (a do mod da IA). */
+    private static final float MOUTH_Y = 26.0F;
+    private static final float MOUTH_Z = -4.5F;
 
     private LmRenderer(EntityRendererProvider.Context context) {
         super(context, new LmModel(), LmAnimatable.INSTANCE);
@@ -75,6 +85,32 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
         poseStack.translate(0.0D, Mth.lerp(swim, 1.0D, 0.3D), 0.0D);
         poseStack.mulPose(Axis.XP.rotationDegrees(-tilt));
         poseStack.translate(0.0D, -1.0D, 0.0D);
+    }
+
+    @Override
+    public void renderRecursively(PoseStack poseStack, LmAnimatable animatable, GeoBone bone, RenderType renderType,
+                                  MultiBufferSource bufferSource, VertexConsumer buffer, boolean isReRender,
+                                  float partialTick, int packedLight, int packedOverlay,
+                                  float red, float green, float blue, float alpha) {
+        AbstractClientPlayer p = this.currentEntity;
+        if (!isReRender && p != null && "head".equals(bone.getName())) {
+            // o braço arrancado atravessado na boca (arrancando depois do puxão, e comendo até engolir)
+            LmActsClient.Act a = LmActsClient.get(p);
+            float eaten = -1F;
+            if (a != null && a.kind == LmAttack.ARM_RIP && a.age >= LmAttacks.RIP_AT) eaten = 0F;
+            if (a != null && a.kind == LmAttack.ARM_EAT && a.age < LmAttacks.EAT_SWALLOW) {
+                eaten = 0.75F * Math.min(1F, (a.age + partialTick) / LmAttacks.EAT_SWALLOW);
+            }
+            if (eaten >= 0F) {
+                poseStack.pushPose();
+                RenderUtils.prepMatrixForBone(poseStack, bone);
+                LmArmClient.drawHeldArm(poseStack, bufferSource, packedLight, a.target, eaten, MOUTH_Y, MOUTH_Z);
+                poseStack.popPose();
+                buffer = bufferSource.getBuffer(renderType);
+            }
+        }
+        super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick,
+                packedLight, packedOverlay, red, green, blue, alpha);
     }
 
     @Override

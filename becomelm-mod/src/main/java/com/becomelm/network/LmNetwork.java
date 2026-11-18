@@ -32,8 +32,9 @@ public final class LmNetwork {
     /**
      * "8" (v0.3.5): o "alvo" do monte no ActSync leva o rumo e a fome juntos (LmPileRhythm.pack).
      * "9" (v0.4.0): os golpes da roda (estalar o pescoço, a raiva) no fim da lista de golpes.
+     * "10" (v0.5.0): arrancar o braço (ArmSync) e comer vivo na flexão.
      */
-    private static final String VERSION = "9";
+    private static final String VERSION = "10";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeLM.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 
@@ -64,6 +65,17 @@ public final class LmNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(id++, BreakBody.class, BreakBody::encode, BreakBody::decode, BreakBody::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, ArmSync.class, ArmSync::encode, ArmSync::decode, ArmSync::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+    }
+
+    /** Esse jogador perdeu (ou recuperou, renascendo) o braço esquerdo: quem vê esconde o braço. */
+    public static void sendArm(ServerPlayer p, boolean armless) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> p), new ArmSync(p.getId(), armless));
+    }
+
+    public static void sendArmTo(ServerPlayer viewer, ServerPlayer p, boolean armless) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), new ArmSync(p.getId(), armless));
     }
 
     /** O FroggyDude matou: quem vê despedaça o corpo (pra onde o golpe empurra, a força e o sangue). */
@@ -344,6 +356,23 @@ public final class LmNetwork {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.becomelm.client.pieces.BodyPieces.breakEntity(m.entity, m.dx, m.dy, m.dz, m.power,
                             m.color, m.bleeds)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+    /** Servidor -> quem vê: esse jogador está sem o braço esquerdo (ou com ele de volta). */
+    public record ArmSync(int entity, boolean armless) {
+        static void encode(ArmSync m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.entity);
+            buf.writeBoolean(m.armless);
+        }
+
+        static ArmSync decode(FriendlyByteBuf buf) {
+            return new ArmSync(buf.readVarInt(), buf.readBoolean());
+        }
+
+        static void handle(ArmSync m, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.becomelm.client.LmArmClient.set(m.entity, m.armless)));
             ctx.get().setPacketHandled(true);
         }
     }

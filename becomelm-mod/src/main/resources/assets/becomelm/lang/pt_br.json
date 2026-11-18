@@ -31,5 +31,10 @@
   "subtitles.becomelm.throw": "FroggyDude arremessa",
   "becomelm.command.finisher": "O próximo golpe de %s jogador(es) vira a finalização",
   "becomelm.action.neck_crack": "Estalar\no pescoço",
-  "becomelm.action.rage": "Raiva\n()"
+  "becomelm.action.rage": "Raiva\n()",
+  "becomelm.action.arm_rip": "Arrancar\no braço",
+  "becomelm.armed.arm_rip": "Arrancar o braço: ataque alguém perto (bicho: come deitado)",
+  "becomelm.armed.off": "Desarmado",
+  "becomelm.action.ceiling": "Teto",
+  "becomelm.ceiling.none": "Sem teto aqui em cima (até 4 blocos)"
 }

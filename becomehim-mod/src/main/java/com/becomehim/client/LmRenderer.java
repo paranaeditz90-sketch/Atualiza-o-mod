@@ -6,6 +6,8 @@ import software.bernie.geckolib.util.RenderUtils;
 import software.bernie.geckolib.cache.object.GeoBone;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import com.becomehim.LmAttack;
+import com.becomehim.LmAttacks;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.util.Mth;
@@ -47,6 +49,9 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
     /** O pivô da língua no modelo (px): na frente do rosto, na altura da boca (o mesmo do mod da IA). */
     private static final float TONGUE_Y = 26.0F;
     private static final float TONGUE_Z = -4.0F;
+    /** A boca (px), onde o braço arrancado fica atravessado (a do mod da IA: um tico abaixo e na frente do rosto). */
+    private static final float MOUTH_Y = 26.0F;
+    private static final float MOUTH_Z = -4.5F;
 
     private LmRenderer(EntityRendererProvider.Context context) {
         super(context, new LmModel(), LmAnimatable.INSTANCE);
@@ -104,6 +109,22 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
                     .transformPosition(0F, TONGUE_Y / 16F, TONGUE_Z / 16F, mouth);
             mouthKnown = true;
             poseStack.popPose();
+        }
+        if (!isReRender && p != null && "head".equals(bone.getName())) {
+            // o braço arrancado atravessado na boca (arrancando depois do puxão, e comendo até engolir)
+            LmActsClient.Act a = LmActsClient.get(p);
+            float eaten = -1F;
+            if (a != null && a.kind == LmAttack.ARM_RIP && a.age >= LmAttacks.RIP_AT) eaten = 0F;
+            if (a != null && a.kind == LmAttack.ARM_EAT && a.age < LmAttacks.EAT_SWALLOW) {
+                eaten = 0.75F * Math.min(1F, (a.age + partialTick) / LmAttacks.EAT_SWALLOW);
+            }
+            if (eaten >= 0F) {
+                poseStack.pushPose();
+                RenderUtils.prepMatrixForBone(poseStack, bone);
+                LmArmClient.drawHeldArm(poseStack, bufferSource, packedLight, a.target, eaten, MOUTH_Y, MOUTH_Z);
+                poseStack.popPose();
+                buffer = bufferSource.getBuffer(renderType);
+            }
         }
         super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick,
                 packedLight, packedOverlay, red, green, blue, alpha);

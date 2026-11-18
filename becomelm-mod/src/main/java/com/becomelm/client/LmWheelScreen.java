@@ -40,7 +40,7 @@ public class LmWheelScreen extends Screen {
      * (roda de ações) O anel de fora: os golpes que não saem pelo contexto. Os gestos saem na hora; os que precisam de
      * alvo (quando entrarem) ficam armados pro próximo ataque.
      */
-    private static final LmAttack[] ACTIONS = {LmAttack.NECK_CRACK, LmAttack.RAGE};
+    private static final LmAttack[] ACTIONS = {LmAttack.NECK_CRACK, LmAttack.ARM_RIP, LmAttack.CEILING, LmAttack.RAGE};
     /** O anel de fora começa um pouco depois do dos jeitos. */
     private int ring;
 
@@ -180,7 +180,7 @@ public class LmWheelScreen extends Screen {
 
     private static final int ACTION_BASE = 0xC0201418;
     /** O primeiro gomo de ação começa em cima (270°) e eles vão em volta no sentido do relógio. */
-    private static final float ACT_START = 270F - 180F / 2F;
+    private static final float ACT_START = 270F - 180F / ACTIONS.length;
 
     private static float actFrom(int i) {
         return ACT_START + 360F / ACTIONS.length * i;
@@ -195,7 +195,7 @@ public class LmWheelScreen extends Screen {
     private static LmAttack actNow() {
         Minecraft mc = Minecraft.getInstance();
         LmActsClient.Act a = mc.player == null ? null : LmActsClient.get(mc.player);
-        return a == null ? null : a.kind;
+        return a == null ? LmActsClient.armed : a.kind;
     }
 
     private void label(GuiGraphics gfx, Component c, int x, int y) {
@@ -254,7 +254,22 @@ public class LmWheelScreen extends Screen {
         if (o instanceof LmAttack act) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null || !LmModes.get(mc.player).froggy()) return false;
-            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(act, -1));
+            if (act == LmAttack.CEILING) {
+                LmActsClient.Act cur = LmActsClient.get(mc.player);
+                if (cur != null && cur.kind == LmAttack.CEILING) {
+                    LmCeilingClient.drop(mc.player, true);
+                    LmActsClient.stopLocal(mc.player);
+                } else if (cur == null) {
+                    LmCeilingClient.start(mc.player);
+                }
+            } else if (act == LmAttack.ARM_RIP) {
+                // armado: sai no próximo ataque (tocar de novo desarma)
+                LmActsClient.armed = LmActsClient.armed == act ? null : act;
+                mc.gui.setOverlayMessage(Component.translatable(LmActsClient.armed == null ? "becomelm.armed.off"
+                        : "becomelm.armed.arm_rip"), false);
+            } else {
+                LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(act, -1));
+            }
         } else if (o instanceof LmMode mode) {
             LmClientEvents.chooseMode(mode);
         } else if (o instanceof LmCamera.Shot s) {

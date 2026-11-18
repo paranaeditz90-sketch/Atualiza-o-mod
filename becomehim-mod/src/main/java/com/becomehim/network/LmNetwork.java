@@ -31,9 +31,9 @@ public final class LmNetwork {
 
     /**
      * (Become HIM...) "1": canal próprio (becomehim:main). Veio da rede "8" do BecomeLM, mais a língua: o ActSync do
-     * arremesso leva o giro no "age" e o pacote Fling (quem voou rodando). "2" (0.2.0): os golpes da roda.
+     * arremesso leva o giro no "age" e o pacote Fling (quem voou rodando). "2" (0.2.0): os golpes da roda. "3" (0.3.0): o braço (ArmSync).
      */
-    private static final String VERSION = "2";
+    private static final String VERSION = "3";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeHim.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 
@@ -66,6 +66,17 @@ public final class LmNetwork {
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         CHANNEL.registerMessage(id++, Fling.class, Fling::encode, Fling::decode, Fling::handle,
                 Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(id++, ArmSync.class, ArmSync::encode, ArmSync::decode, ArmSync::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+    }
+
+    /** Esse jogador perdeu (ou recuperou, renascendo) o braço esquerdo: quem vê esconde o braço. */
+    public static void sendArm(ServerPlayer p, boolean armless) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> p), new ArmSync(p.getId(), armless));
+    }
+
+    public static void sendArmTo(ServerPlayer viewer, ServerPlayer p, boolean armless) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), new ArmSync(p.getId(), armless));
     }
 
     /** (Become HIM...) A língua arremessou esse: quem vê faz ele voar rodando mole (e a câmera de quem voa tomba). */
@@ -371,6 +382,24 @@ public final class LmNetwork {
         static void handle(Fling m, Supplier<NetworkEvent.Context> ctx) {
             ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.becomehim.client.LmTongueRender.fling(m.entity, m.ticks, m.dx, m.dz)));
+            ctx.get().setPacketHandled(true);
+        }
+    }
+
+    /** Servidor -> quem vê: esse jogador está sem o braço esquerdo (ou com ele de volta). */
+    public record ArmSync(int entity, boolean armless) {
+        static void encode(ArmSync m, FriendlyByteBuf buf) {
+            buf.writeVarInt(m.entity);
+            buf.writeBoolean(m.armless);
+        }
+
+        static ArmSync decode(FriendlyByteBuf buf) {
+            return new ArmSync(buf.readVarInt(), buf.readBoolean());
+        }
+
+        static void handle(ArmSync m, Supplier<NetworkEvent.Context> ctx) {
+            ctx.get().enqueueWork(() -> DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.becomehim.client.LmArmClient.set(m.entity, m.armless)));
             ctx.get().setPacketHandled(true);
         }
     }

@@ -31,5 +31,10 @@
   "subtitles.becomelm.throw": "FroggyDude throws",
   "becomelm.command.finisher": "Next hit of %s player(s) will be the finisher",
   "becomelm.action.neck_crack": "Neck\ncrack",
-  "becomelm.action.rage": "Rage\n()"
+  "becomelm.action.rage": "Rage\n()",
+  "becomelm.action.arm_rip": "Rip\nthe arm",
+  "becomelm.armed.arm_rip": "Rip the arm: attack someone close (mob: eat it lying down)",
+  "becomelm.armed.off": "Disarmed",
+  "becomelm.action.ceiling": "Ceiling",
+  "becomelm.ceiling.none": "No ceiling above (up to 4 blocks)"
 }

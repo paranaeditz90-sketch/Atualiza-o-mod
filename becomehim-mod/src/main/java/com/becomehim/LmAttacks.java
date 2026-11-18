@@ -143,6 +143,11 @@ public final class LmAttacks {
         LmPileRhythm pile;
         /** Martelando: soltou o atacar. */
         boolean stop;
+        /** No monte: o bicho vivo embaixo, que está sendo comido na flexão (o golpe armado do braço em bicho). */
+        @Nullable
+        LivingEntity feed;
+        /** Arrancando: o braço saiu (aí ele come). */
+        boolean ripped;
         /** (Become HIM...) A língua: quem está nela e onde. */
         @Nullable
         LmTongue tongue;
@@ -185,6 +190,23 @@ public final class LmAttacks {
             }
             case HAMMER -> startHammer(p, targetId);
             case NECK_CRACK -> startEmote(p, LmAttack.NECK_CRACK);
+            case ARM_RIP -> startArmRip(p, targetId);
+            case CEILING -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.CEILING) end(p, a);
+                else if (LmModes.get(p).froggy() && free(p)) {
+                    ACTS.put(p.getUUID(), new Act(LmAttack.CEILING, null));
+                    p.setNoGravity(true);
+                    LmNetwork.sendAct(p, LmAttack.CEILING, -1, 0);
+                }
+            }
+            case CEILING_DIVE -> ceilingDive(p, targetId);
+            case FEED -> {
+                Entity e = p.level().getEntity(targetId);
+                if (e instanceof LivingEntity t && canHit(p, t, RIP_REACH + SLACK) && LmKnock.canKnock(t) && !taken(t)) {
+                    FEEDS.put(p.getUUID(), t);
+                }
+            }
             case RAGE -> {
                 Act a = ACTS.get(p.getUUID());
                 if (a != null && a.kind == LmAttack.RAGE) end(p, a);
@@ -299,6 +321,99 @@ public final class LmAttacks {
                 && a.tongue.victim() == victim;
     }
 
+    // (roda, armado) Arrancar o braço (mod da IA: FroggyCombatGoal.runArmRip/runArmEat, os mesmos tempos)
+    public static final double RIP_REACH = 3.2D;
+    public static final int RIP_BITE = 8;
+    public static final int RIP_AT = 22;
+    private static final int RIP_RELEASE = 32;
+    public static final int RIP_TICKS = 40;
+    public static final int EAT_TICKS = 90;
+    public static final int EAT_SWALLOW = 80;
+    private static final int[] EAT_BITES = {6, 29, 52};
+    /** Quem o próximo "deitar no monte" vai comer vivo (o cliente manda o FEED logo antes do PILE). */
+    private static final Map<UUID, LivingEntity> FEEDS = new HashMap<>();
+
+    private static void startArmRip(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof ServerPlayer t) || !canHit(p, t, RIP_REACH + SLACK) || !LmArmLoss.canLoseArm(t) || taken(t)) {
+            return;
+        }
+        Act a = new Act(LmAttack.ARM_RIP, t);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        if (LmKnock.upright(t)) LmKnock.knockBack(t, p, RIP_TICKS + 10);
+        else LmKnock.knock(t, p, RIP_TICKS + 10);
+        if (DEBUG) System.out.printf("[LMATK] arrancar o braco de %s%n", t.getName().getString());
+        LmNetwork.sendAct(p, LmAttack.ARM_RIP, t.getId(), 0);
+    }
+
+    private static void tickArmRip(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (a.age < RIP_AT && (t == null || !t.isAlive() || t.level() != p.level() || p.distanceTo(t) > RIP_REACH + 1D)) {
+            if (t != null) LmKnock.letGo(t, 10);
+            end(p, a);
+            return;
+        }
+        if (a.age == RIP_BITE && t != null) {
+            // crava os dentes no ombro
+            boolean hurt = hurtInPlace(p, t, 1F);
+            LmNetwork.sendHit(p, t, LmAttack.BITE, hurt, 0);
+        }
+        if (a.age == RIP_AT && t instanceof ServerPlayer sp && LmArmLoss.canLoseArm(sp)) {
+            LmArmLoss.removeArm(sp);
+            a.ripped = true;
+            boolean hurt = hurtInPlace(p, t, 4F);
+            LmNetwork.sendHit(p, t, LmAttack.BITE, hurt, 1);
+            if (DEBUG) System.out.printf("[LMATK] arrancou o braco de %s%n", t.getName().getString());
+        }
+        if (a.age == RIP_RELEASE && t != null) LmKnock.letGo(t, 10);
+        if (a.age < RIP_TICKS) return;
+        if (!a.ripped || t == null) {
+            end(p, a);
+            return;
+        }
+        Act eat = new Act(LmAttack.ARM_EAT, t);
+        ACTS.put(p.getUUID(), eat);
+        LmNetwork.sendAct(p, LmAttack.ARM_EAT, t.getId(), 0);
+    }
+
+    private static void tickArmEat(ServerPlayer p, Act a) {
+        for (int bite : EAT_BITES) {
+            if (a.age == bite) {
+                p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), BecomeHim.BITE.get(), SoundSource.PLAYERS,
+                        1.0F, 0.85F + p.getRandom().nextFloat() * 0.1F);
+                eat(p, 2, 0.5F);
+            }
+        }
+        if (a.age == EAT_SWALLOW) {
+            p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 1.0F, 0.7F);
+        }
+        if (a.age >= EAT_TICKS) end(p, a);
+    }
+
+    /** Pendurado no teto no máximo 1 min. */
+    public static final int CEILING_MAX = 1200;
+
+    /** Do teto, se joga em cima do bicho: o bote (a mesma pegada e o mesmo dano), com mais tempo pra cair. */
+    private static void ceilingDive(ServerPlayer p, int targetId) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || a.kind != LmAttack.CEILING) return;
+        ACTS.remove(p.getUUID());
+        p.setNoGravity(false);
+        Entity e = p.level().getEntity(targetId);
+        if (e instanceof LivingEntity t && canHit(p, t, 9D + SLACK)) {
+            Act dive = new Act(LmAttack.POUNCE, t);
+            // o bote do chão tem 16 ticks pra chegar; do teto a queda é mais longa
+            dive.age = -14;
+            ACTS.put(p.getUUID(), dive);
+            LAST.put(p.getUUID(), p.level().getGameTime());
+            LmNetwork.sendAct(p, LmAttack.CEILING_DIVE, t.getId(), 0);
+        } else {
+            LmNetwork.sendAct(p, null, -1, 0);
+        }
+    }
+
     /** (roda) Os gestos: estalar o pescoço e a raiva "()". */
     public static final int NECK_CRACK_TICKS = 12;
     public static final int RAGE_MAX = 600;
@@ -324,6 +439,12 @@ public final class LmAttacks {
         int food = LmPileRhythm.foodCode(p);
         a.data = LmPileRhythm.pack(yawX10, food);
         a.pile = new LmPileRhythm(food);
+        // o golpe armado em bicho: ele está vivo embaixo e vai sendo comido de verdade
+        LivingEntity feed = FEEDS.remove(p.getUUID());
+        if (feed != null && feed.isAlive() && feed.level() == p.level() && p.distanceTo(feed) < RIP_REACH + SLACK) {
+            a.feed = feed;
+            LmKnock.knock(feed, p, PILE_MAX + 20);
+        }
         ACTS.put(p.getUUID(), a);
         lock(p, true);
         LmNetwork.sendAct(p, LmAttack.PILE, a.data, 0);
@@ -403,6 +524,8 @@ public final class LmAttacks {
             case SMASH, HAMMER -> 0.35F;
             case GRAB -> 0.6F;
             case FINISH -> 0.15F;
+            // comido vivo na flexão: o monte fica embaixo dele
+            case PILE -> 0.25F;
             default -> 1.0F;
         };
     }
@@ -478,6 +601,16 @@ public final class LmAttacks {
             case NECK_CRACK -> {
                 if (a.age >= NECK_CRACK_TICKS) end(p, a);
             }
+            case ARM_RIP -> tickArmRip(p, a);
+            case CEILING -> {
+                // parado lá em cima também no servidor (o cliente parado quase não manda posição e a gravidade do
+                // servidor ia descendo ele até o chão)
+                p.setDeltaMovement(Vec3.ZERO);
+                p.fallDistance = 0F;
+                // caiu (soltou, quebraram o teto) ou cansou de esperar
+                if (a.age >= CEILING_MAX || (a.age > 10 && p.onGround()) || !LmModes.get(p).froggy()) end(p, a);
+            }
+            case ARM_EAT -> tickArmEat(p, a);
             case RAGE -> {
                 if (a.age >= RAGE_MAX || !LmModes.get(p).froggy() || LmTransform.active(p) || LmKnock.lying(p)) end(p, a);
             }
@@ -647,6 +780,10 @@ public final class LmAttacks {
                     a.pile.rate(), a.pile.biteNow(), a.pile.ateNow(), p.getFoodData().getFoodLevel());
         }
         if (a.pile.ateNow()) eat(p, LmPileRhythm.FOOD, PILE_SATURATION);
+        if (a.feed != null && a.pile.ateNow() && a.feed.isAlive()) {
+            boolean hurt = hurtInPlace(p, a.feed, BITE_DAMAGE);
+            LmNetwork.sendHit(p, a.feed, LmAttack.BITE, hurt, 0);
+        }
     }
 
     /** Enche a fome e a saturação (como comer um item); arrota quando a barra completa. */
@@ -684,6 +821,8 @@ public final class LmAttacks {
         if (DEBUG) System.out.printf("[LMATK] fim %s t=%d%n", a.kind, a.age);
         ACTS.remove(p.getUUID());
         if (a.tongue != null) a.tongue.release();
+        if (a.kind == LmAttack.CEILING) p.setNoGravity(false);
+        if (a.feed != null && a.feed.isAlive()) LmKnock.letGo(a.feed, 10);
         if (a.kind == LmAttack.POUNCE) return;
         lock(p, false);
         LmNetwork.sendAct(p, null, -1, 0);
@@ -727,7 +866,9 @@ public final class LmAttacks {
     }
 
     public static void forget(Player p) {
+        FEEDS.remove(p.getUUID());
         Act a = ACTS.remove(p.getUUID());
+        if (a != null && a.kind == LmAttack.CEILING) p.setNoGravity(false);
         if (a != null && a.tongue != null) a.tongue.release();
         LAST.remove(p.getUUID());
         SKY.remove(p.getUUID());

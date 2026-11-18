@@ -31,5 +31,10 @@
   "subtitles.becomehim.throw": "FroggyDude arremessa",
   "becomehim.command.finisher": "O próximo golpe de %s jogador(es) vira a finalização",
   "becomehim.action.neck_crack": "Estalar\no pescoço",
-  "becomehim.action.rage": "Raiva\n()"
+  "becomehim.action.rage": "Raiva\n()",
+  "becomehim.action.arm_rip": "Arrancar\no braço",
+  "becomehim.armed.arm_rip": "Arrancar o braço: ataque alguém perto (bicho: come deitado)",
+  "becomehim.armed.off": "Desarmado",
+  "becomehim.action.ceiling": "Teto",
+  "becomehim.ceiling.none": "Sem teto aqui em cima (até 4 blocos)"
 }

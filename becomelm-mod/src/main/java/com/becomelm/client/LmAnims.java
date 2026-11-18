@@ -59,6 +59,12 @@ final class LmAnims {
     /** (roda) O estalo do pescoço e a raiva "()" parada (do mod da IA 0.7.40). */
     static final RawAnimation RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
     static final RawAnimation RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
+    /** (roda, armado) Arranca o braço (2 s) e come (4,5 s), as do mod da IA. */
+    static final RawAnimation ARM_RIP = RawAnimation.begin().thenPlayAndHold("arm_rip");
+    static final RawAnimation ARM_EAT = RawAnimation.begin().thenPlayAndHold("arm_eat");
+    /** (roda) No teto, de cabeça pra baixo, e o mergulho de lá (os do mod da IA). */
+    static final RawAnimation CEILING_HANG = RawAnimation.begin().thenLoop("ceiling_hang");
+    static final RawAnimation CEILING_DIVE = RawAnimation.begin().thenPlayAndHold("ceiling_dive");
     /** Fase 2: correndo em pé curvado, desesperado. */
     static final RawAnimation FRENZY_RUN = RawAnimation.begin().thenLoop("run_frenzy");
     static final RawAnimation FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
@@ -86,6 +92,10 @@ final class LmAnims {
             }
             if (act.kind == LmAttack.THROW) return GRAB_THROW;
             if (act.kind == LmAttack.NECK_CRACK) return RAGE_CRACK;
+            if (act.kind == LmAttack.ARM_RIP) return ARM_RIP;
+            if (act.kind == LmAttack.CEILING) return CEILING_HANG;
+            if (act.kind == LmAttack.CEILING_DIVE) return CEILING_DIVE;
+            if (act.kind == LmAttack.ARM_EAT) return ARM_EAT;
             if (act.kind == LmAttack.RAGE) {
                 // começa com o estalo; parado, o "()"; andando, avança agachado (a corrida da fase 2)
                 if (act.age < LmAttacks.NECK_CRACK_TICKS) return RAGE_CRACK;

@@ -97,6 +97,9 @@ public class LmModel extends GeoModel<LmAnimatable> {
         }
         if (mode == LmMode.STAND && !busy) playerMoves(p, state);
         tongue(p, state);
+        // sem o braço esquerdo (arrancado): o osso some
+        CoreGeoBone leftArm = getAnimationProcessor().getBone("left_arm");
+        if (leftArm != null) leftArm.setHidden(LmArmClient.isArmless(p.getId()));
     }
 
     /**

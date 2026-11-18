@@ -93,6 +93,9 @@ public class LmModel extends GeoModel<LmAnimatable> {
             head.resetStateChanges();
         }
         if (mode == LmMode.STAND && !busy) playerMoves(p, state);
+        // sem o braço esquerdo (arrancado): o osso some
+        CoreGeoBone leftArm = getAnimationProcessor().getBone("left_arm");
+        if (leftArm != null) leftArm.setHidden(LmArmClient.isArmless(p.getId()));
     }
 
     /** Em pé: o agachar e o soco/pôr bloco por cima da animação, como o jogador. */

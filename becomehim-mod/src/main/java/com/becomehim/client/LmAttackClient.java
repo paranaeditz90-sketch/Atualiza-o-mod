@@ -175,6 +175,11 @@ public final class LmAttackClient {
         if (p == null || mc.screen != null || !LmClientEvents.serverHasMod()) return;
         if (!LmModes.get(p).froggy() || LmKnockClient.lying(p) || LmTransformClient.busy(p) || LmActsClient.busy(p)
                 || p.isSpectator()) return;
+        if (LmActsClient.armed != null && armedAttack(mc, p)) {
+            event.setCanceled(true);
+            event.setSwingHand(false);
+            return;
+        }
         if (LmModes.get(p) == LmMode.STAND) {
             // em pé: o bicho na mira = derruba de costas e martela com os dois braços enquanto segurar
             LivingEntity t = hammerTarget(mc, p);
@@ -222,6 +227,47 @@ public final class LmAttackClient {
         } else {
             pounce(p, target);
         }
+    }
+
+    /**
+     * (roda) O golpe armado: arrancar o braço. Num jogador que ainda tem o braço, arranca; num bicho (ou jogador que
+     * não perde nada), derruba e come deitado em cima, na flexão (escolha do LM). Ninguém perto: continua armado.
+     */
+    private static boolean armedAttack(Minecraft mc, LocalPlayer p) {
+        LivingEntity t = pickTarget(mc, p, LmAttacks.RIP_REACH);
+        if (DEBUG) {
+            System.out.printf("[LMATK] golpe armado %s alvo=%s dist=%.2f%n", LmActsClient.armed, t,
+                    t == null ? -1D : p.distanceTo(t));
+        }
+        if (t == null || !LmKnock.canKnock(t) || LmActsClient.tongueHolder(t) != null || t.isPassenger()) return false;
+        LmActsClient.armed = null;
+        if (t instanceof Player tp && !tp.isCreative() && !LmArmClient.isArmless(tp.getId())) {
+            // perto o bastante pra cravar os dentes no ombro (1,5 bloco, como o mod da IA)
+            Vec3 d = new Vec3(p.getX() - t.getX(), 0D, p.getZ() - t.getZ());
+            if (d.length() > 1.6D) {
+                Vec3 spot = t.position().add(d.normalize().scale(1.5D));
+                AABB moved = p.getBoundingBox().move(spot.x - p.getX(), 0D, spot.z - p.getZ());
+                if (p.level().noCollision(p, moved)) p.setPos(spot.x, p.getY(), spot.z);
+            }
+            LmActsClient.startLocal(p, LmAttack.ARM_RIP, t.getId());
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.ARM_RIP, t.getId()));
+            return true;
+        }
+        // em bicho: deita em cima dele (os ombros em cima do corpo) e come vivo
+        Vec3 to = new Vec3(t.getX() - p.getX(), 0D, t.getZ() - p.getZ());
+        double dl = to.length();
+        Vec3 dir = dl < 1.0E-3D ? Vec3.directionFromRotation(0F, p.getYRot()) : to.scale(1D / dl);
+        float yaw = (float) (Mth.atan2(dir.z, dir.x) * Mth.RAD_TO_DEG) - 90F;
+        Vec3 feet = new Vec3(t.getX(), p.getY(), t.getZ()).subtract(dir.scale(LmActsClient.PILE_CENTER));
+        AABB moved = p.getBoundingBox().move(feet.x - p.getX(), 0D, feet.z - p.getZ());
+        if (p.level().noCollision(p, moved)) p.setPos(feet.x, p.getY(), feet.z);
+        p.setYRot(yaw);
+        p.yRotO = yaw;
+        p.setYBodyRot(yaw);
+        LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.FEED, t.getId()));
+        LmActsClient.startPile(p, yaw);
+        LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.PILE, Math.round(Mth.wrapDegrees(yaw) * 10F)));
+        return true;
     }
 
     /** Em pé: o bicho na mira, no alcance do soco, que dá pra derrubar. */

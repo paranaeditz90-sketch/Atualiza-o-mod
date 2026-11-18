@@ -101,12 +101,16 @@ public final class LmActsClient {
     private static final double FLIP_BACK = 0.12D;
 
     private static boolean jumpHeld;
+    /** (roda) O golpe armado: sai no próximo ataque (null = nenhum). */
+    @Nullable
+    static LmAttack armed;
 
     private LmActsClient() {
     }
 
     /** Chegou do servidor (kind -1 = acabou). */
     public static void set(UUID player, int kind, int target, int age) {
+        if (DEBUG) System.out.printf("[LMATK] act do servidor kind=%d alvo=%d idade=%d%n", kind, target, age);
         if (kind < 0) {
             Act old = ACTS.remove(player);
             // saiu do monte num mortal: já está no ar, não levanta (o levantar tapava o mortal pra quem vê)
@@ -156,12 +160,18 @@ public final class LmActsClient {
         }
         Act a = new Act(k, target, age);
         a.confirmed = true;
+        if (k == LmAttack.ARM_EAT && old != null) a.pileYaw = old.pileYaw;
         // no monte o "alvo" é o rumo do corpo deitado (graus x10) junto com a fome de quando deitou
         if (k == LmAttack.PILE) {
             a.pileYaw = LmPileRhythm.yawX10(target) / 10F;
             a.pile = new LmPileRhythm(LmPileRhythm.food(target));
         }
         ACTS.put(player, a);
+    }
+
+    /** O próprio jogador largou o golpe (sem esperar o servidor). */
+    static void stopLocal(LocalPlayer p) {
+        ACTS.remove(p.getUUID());
     }
 
     /** O próprio jogador já começa (sem esperar o servidor): a animação sai no quadro do pouso. */
@@ -320,7 +330,7 @@ public final class LmActsClient {
     static boolean locked(Player p) {
         Act a = ACTS.get(p.getUUID());
         return a != null && (riding(a) || a.kind == LmAttack.PILE || a.kind == LmAttack.THROW
-                || a.kind == LmAttack.NECK_CRACK);
+                || a.kind == LmAttack.NECK_CRACK || a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT);
     }
 
     /** Montado em cima de alguém (socando, martelando ou finalizando). */
@@ -387,7 +397,9 @@ public final class LmActsClient {
             }
             if (a.shake >= 0 && ++a.shake >= LmAttacks.SHAKE_TICKS) a.shake = -1;
             // sem notícia do servidor (ele não tem o mod, recusou, ou o pacote se perdeu): solta sozinho
-            return (!a.confirmed && a.age > CONFIRM) || a.age > limit(a.kind);
+            boolean gone = (!a.confirmed && a.age > CONFIRM) || a.age > limit(a.kind);
+            if (gone && DEBUG) System.out.printf("[LMATK] act some no cliente %s idade=%d confirmado=%s%n", a.kind, a.age, a.confirmed);
+            return gone;
         });
     }
 
@@ -401,6 +413,10 @@ public final class LmActsClient {
             case FINISH -> LmFinish.TICKS + 30;
             case HAMMER -> LmAttacks.HAMMER_MAX + 20;
             case NECK_CRACK -> LmAttacks.NECK_CRACK_TICKS + 10;
+            case ARM_RIP -> LmAttacks.RIP_TICKS + 20;
+            case CEILING -> LmAttacks.CEILING_MAX + 40;
+            case CEILING_DIVE -> 14;
+            case ARM_EAT -> LmAttacks.EAT_TICKS + 20;
             case RAGE -> LmAttacks.RAGE_MAX + 20;
             default -> 40;
         };
@@ -411,6 +427,12 @@ public final class LmActsClient {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.START || !(event.player instanceof LocalPlayer p)) return;
         Act a = ACTS.get(p.getUUID());
+        // (roda) no teto: parado lá em cima; acabou (do lado do servidor também): cai
+        if (a != null && a.kind == LmAttack.CEILING) {
+            LmCeilingClient.hold(p);
+            return;
+        }
+        if (LmCeilingClient.hanging()) LmCeilingClient.drop(p, false);
         if (a == null) {
             victimTick(p);
             return;
@@ -508,6 +530,17 @@ public final class LmActsClient {
             p.yBodyRotO = a.pileYaw;
             return;
         }
+        if (a != null && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT)) {
+            // arrancando e comendo: virado pra vítima (comendo, ela pode ter fugido: fica como estava)
+            Entity v = p.level().getEntity(a.target);
+            if (v != null && a.kind == LmAttack.ARM_RIP) {
+                float yaw = (float) (Mth.atan2(v.getZ() - p.getZ(), v.getX() - p.getX()) * Mth.RAD_TO_DEG) - 90F;
+                a.pileYaw = yaw;
+            }
+            p.yBodyRot = a.pileYaw;
+            p.yBodyRotO = a.pileYaw;
+            return;
+        }
         if (a != null && a.kind == LmAttack.THROW) {
             // (Become HIM...) o arremesso: o corpo gira junto com a vítima (a cintura faz o resto, no LmModel)
             float yaw = a.throwYaw + LmTongue.bodyAngle(a.age + Minecraft.getInstance().getFrameTime(), a.sweep);
@@ -596,6 +629,20 @@ public final class LmActsClient {
             in.jumping = false;
             return;
         }
+        if (a != null && a.kind == LmAttack.CEILING && p instanceof LocalPlayer lp) {
+            // no teto: pular ou agachar solta; andar não anda
+            if (jumpPressed || in.shiftKeyDown) {
+                LmCeilingClient.drop(lp, true);
+                stopLocal(lp);
+                jumpHeld = true;
+            }
+            in.forwardImpulse = 0F;
+            in.leftImpulse = 0F;
+            in.up = in.down = in.left = in.right = false;
+            in.jumping = false;
+            in.shiftKeyDown = false;
+            return;
+        }
         if (a != null && a.kind == LmAttack.THROW) {
             // o pulo que arremessou não vira pulo
             in.jumping = false;
@@ -659,6 +706,8 @@ public final class LmActsClient {
         event.setCanceled(true);
         event.setSwingHand(false);
         if (event.isAttack() && holding(p)) localShake(p);
+        // no teto: atacar = se joga em cima do bicho da mira
+        if (event.isAttack() && a != null && a.kind == LmAttack.CEILING && a.age > 4) LmCeilingClient.dive(p);
         // na raiva, atacar acaba com ela (de pé de novo)
         if (event.isAttack() && a != null && a.kind == LmAttack.RAGE && a.age > 4) {
             LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.RAGE, -1));
@@ -669,5 +718,6 @@ public final class LmActsClient {
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ACTS.clear();
         jumpHeld = false;
+        armed = null;
     }
 }
