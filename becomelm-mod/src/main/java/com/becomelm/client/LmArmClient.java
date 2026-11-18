@@ -1,5 +1,8 @@
 package com.becomelm.client;
 
+import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.client.renderer.entity.RenderLayerParent;
+import net.minecraft.resources.ResourceLocation;
 import com.becomelm.BecomeLM;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -70,6 +73,62 @@ public final class LmArmClient {
     @SubscribeEvent
     public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
         ARMLESS.clear();
+    }
+
+    // ---------------------------------------------------------------- o toco no ombro
+
+    private static final ResourceLocation WHITE = BecomeLM.id("textures/misc/white.png");
+    /** A carne (as faces de fora um tom mais escuras) e a ponta do osso no meio do corte. */
+    private static final int[] MEAT = {150, 18, 18}, MEAT_DARK = {105, 10, 10}, BONE = {232, 222, 200};
+
+    /** A camada do toco no corpo de jogador (o FroggyDude desenha o dele no LmRenderer). */
+    public static final class StumpLayer extends RenderLayer<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> {
+
+        public StumpLayer(RenderLayerParent<AbstractClientPlayer, PlayerModel<AbstractClientPlayer>> parent) {
+            super(parent);
+        }
+
+        @Override
+        public void render(PoseStack ps, MultiBufferSource buffers, int light, AbstractClientPlayer player, float limbSwing,
+                           float limbSwingAmount, float partialTick, float ageInTicks, float netHeadYaw, float headPitch) {
+            if (player.isInvisible() || !isArmless(player.getId())) return;
+            ps.pushPose();
+            getParentModel().body.translateAndRotate(ps);
+            // o ombro esquerdo do modelo de jogador (pixels): x 4..7,6, y -0,2..3 (pra baixo), z -1,8..1,8; o corte fica
+            // pra baixo (y 3), onde o braço saía
+            stump(ps, buffers, light, 4.0F, 7.6F, -0.2F, 3.0F, -1.8F, 1.8F, 3.0F);
+            ps.popPose();
+        }
+    }
+
+    /**
+     * Um toco (caixa em pixels do modelo): carne vermelha, e na face do corte (y = cut) a ponta do osso no meio.
+     */
+    static void stump(PoseStack ps, MultiBufferSource buffers, int light, float x0, float x1, float y0, float y1,
+                      float z0, float z1, float cut) {
+        VertexConsumer vc = buffers.getBuffer(RenderType.entityCutoutNoCull(WHITE));
+        PoseStack.Pose pose = ps.last();
+        float a = x0 / 16F, b = x1 / 16F, c = y0 / 16F, d = y1 / 16F, e = z0 / 16F, f = z1 / 16F;
+        // as 6 faces
+        quad(vc, pose, light, MEAT_DARK, a, c, e, b, c, e, b, d, e, a, d, e);
+        quad(vc, pose, light, MEAT_DARK, a, c, f, a, d, f, b, d, f, b, c, f);
+        quad(vc, pose, light, MEAT_DARK, a, c, e, a, d, e, a, d, f, a, c, f);
+        quad(vc, pose, light, MEAT, b, c, e, b, c, f, b, d, f, b, d, e);
+        quad(vc, pose, light, MEAT, a, c, e, a, c, f, b, c, f, b, c, e);
+        quad(vc, pose, light, MEAT, a, d, e, b, d, e, b, d, f, a, d, f);
+        // a ponta do osso, um tico pra fora do corte
+        float cx = (a + b) / 2F, cz = (e + f) / 2F, r = Math.min(b - a, f - e) * 0.22F;
+        float y = cut / 16F + (cut >= (y0 + y1) / 2F ? 0.002F : -0.002F);
+        quad(vc, pose, light, BONE, cx - r, y, cz - r, cx + r, y, cz - r, cx + r, y, cz + r, cx - r, y, cz + r);
+    }
+
+    private static void quad(VertexConsumer vc, PoseStack.Pose pose, int light, int[] col, float x1, float y1, float z1,
+                             float x2, float y2, float z2, float x3, float y3, float z3, float x4, float y4, float z4) {
+        float[][] v = {{x1, y1, z1}, {x2, y2, z2}, {x3, y3, z3}, {x4, y4, z4}};
+        for (float[] p : v) {
+            vc.vertex(pose.pose(), p[0], p[1], p[2]).color(col[0], col[1], col[2], 255).uv(0.5F, 0.5F)
+                    .overlayCoords(OverlayTexture.NO_OVERLAY).uv2(light).normal(pose.normal(), 0F, 1F, 0F).endVertex();
+        }
     }
 
     /**

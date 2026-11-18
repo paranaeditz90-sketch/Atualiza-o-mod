@@ -505,9 +505,12 @@ public final class LmAttacks {
         if (t instanceof ServerPlayer tp && a.age % 5 == 0 && a.age < HEAD_WINDOW) {
             // o alerta em cima da barra (vermelho), com quanto falta e o tempo
             int left = Math.max(0, a.data - a.hits);
-            String what = a.data == 1 ? "atire nele" : a.data == 2 ? "bata nele " + left + "x com a arma" : "soque ele " + left + "x";
-            float secs = (HEAD_WINDOW - a.age) / 20F;
-            tp.displayClientMessage(Component.literal(String.format("\u26A0 SE SOLTA! %s (%.1f s)", what, secs))
+            String key = a.data == 1 ? "shoot" : a.data == 2 ? "weapon" : "punch";
+            String secs = String.format(java.util.Locale.ROOT, "%.1f", (HEAD_WINDOW - a.age) / 20F);
+            // com o texto em inglês de reserva (quem não tem o mod veria o nome da chave)
+            String fallback = a.data == 1 ? "\u26A0 BREAK FREE! Shoot him (%2$s s)" : a.data == 2
+                    ? "\u26A0 BREAK FREE! Hit him %1$sx with your weapon (%2$s s)" : "\u26A0 BREAK FREE! Punch him %1$sx (%2$s s)";
+            tp.displayClientMessage(Component.translatableWithFallback("becomelm.head.escape." + key, fallback, left, secs)
                     .withStyle(ChatFormatting.RED, ChatFormatting.BOLD), true);
         }
         if (a.data > 0 && a.hits >= a.data) {
@@ -520,7 +523,7 @@ public final class LmAttacks {
             p.setDeltaMovement(fling);
             p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(p.getId(), fling));
             LmKnock.letGo(t, 4);
-            if (t instanceof ServerPlayer tp) tp.displayClientMessage(Component.literal("Se soltou!")
+            if (t instanceof ServerPlayer tp) tp.displayClientMessage(Component.translatableWithFallback("becomelm.head.escaped", "You broke free!")
                     .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD), true);
             if (DEBUG) System.out.printf("[LMATK] cabeca: se soltou (tiro=%s)%n", a.stuck > 0);
             return;

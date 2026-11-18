@@ -35,6 +35,17 @@ public final class LmClient {
         event.registerEntityRenderer(BecomeHim.TONGUE_HOLD.get(), NoopRenderer::new);
     }
 
+    /** O toco no ombro de quem perdeu o braço, no corpo de jogador (normal e fino). */
+    @SubscribeEvent
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static void onLayers(EntityRenderersEvent.AddLayers event) {
+        for (String skin : event.getSkins()) {
+            if (event.getSkin(skin) instanceof net.minecraft.client.renderer.entity.player.PlayerRenderer pr) {
+                pr.addLayer(new LmArmClient.StumpLayer(pr));
+            }
+        }
+    }
+
     @SubscribeEvent
     public static void onOverlays(RegisterGuiOverlaysEvent event) {
         event.registerAboveAll(LmHud.ID.getPath(), (gui, gfx, partial, w, h) -> LmHud.render(gfx, partial, w, h));

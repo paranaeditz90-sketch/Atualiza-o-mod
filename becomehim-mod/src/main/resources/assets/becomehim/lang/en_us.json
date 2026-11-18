@@ -47,5 +47,9 @@
   "becomehim.armed.pull": "Tongue pull: attack a mob up to 8 blocks away",
   "becomehim.action.head_grab": "Rip\nthe head",
   "becomehim.armed.head_grab": "Rip the head: attack someone close",
-  "becomehim.head.wait": "Head not ready: wait %s s"
+  "becomehim.head.wait": "Head not ready: wait %s s",
+  "becomehim.head.escape.shoot": "⚠ BREAK FREE! Shoot him (%2$s s)",
+  "becomehim.head.escape.weapon": "⚠ BREAK FREE! Hit him %1$sx with your weapon (%2$s s)",
+  "becomehim.head.escape.punch": "⚠ BREAK FREE! Punch him %1$sx (%2$s s)",
+  "becomehim.head.escaped": "You broke free!"
 }

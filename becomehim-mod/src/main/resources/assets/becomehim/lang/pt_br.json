@@ -47,5 +47,9 @@
   "becomehim.armed.pull": "Puxar com a língua: ataque um bicho a até 8 blocos",
   "becomehim.action.head_grab": "Arrancar\na cabeça",
   "becomehim.armed.head_grab": "Arrancar a cabeça: ataque alguém perto",
-  "becomehim.head.wait": "A cabeça ainda não: espera %s s"
+  "becomehim.head.wait": "A cabeça ainda não: espera %s s",
+  "becomehim.head.escape.shoot": "⚠ SE SOLTA! Atire nele (%2$s s)",
+  "becomehim.head.escape.weapon": "⚠ SE SOLTA! Bata nele %1$sx com a arma (%2$s s)",
+  "becomehim.head.escape.punch": "⚠ SE SOLTA! Soque ele %1$sx (%2$s s)",
+  "becomehim.head.escaped": "Se soltou!"
 }

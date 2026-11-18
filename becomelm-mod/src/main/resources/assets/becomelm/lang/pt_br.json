@@ -43,5 +43,9 @@
   "becomelm.action.tired": "Cansado",
   "becomelm.action.head_grab": "Arrancar\na cabeça",
   "becomelm.armed.head_grab": "Arrancar a cabeça: ataque alguém perto",
-  "becomelm.head.wait": "A cabeça ainda não: espera %s s"
+  "becomelm.head.wait": "A cabeça ainda não: espera %s s",
+  "becomelm.head.escape.shoot": "⚠ SE SOLTA! Atire nele (%2$s s)",
+  "becomelm.head.escape.weapon": "⚠ SE SOLTA! Bata nele %1$sx com a arma (%2$s s)",
+  "becomelm.head.escape.punch": "⚠ SE SOLTA! Soque ele %1$sx (%2$s s)",
+  "becomelm.head.escaped": "Se soltou!"
 }

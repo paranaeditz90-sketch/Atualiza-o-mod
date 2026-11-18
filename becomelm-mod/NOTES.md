@@ -4,6 +4,13 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.7.1 — o toco no ombro
+
+Rede a mesma da 0.7.0 ("12").
+- **Toco no ombro**: quem perdeu o braço agora mostra o toco vermelho com a ponta do osso no ombro, no corpo de jogador
+  e no boneco do FroggyDude (antes o braço só sumia). Testado com 2 jogadores.
+- O aviso da cabeça ("SE SOLTA!") agora sai no idioma do jogo (em inglês pra quem joga em inglês).
+
 ## v0.7.0 — cansado e arrancar a cabeça
 
 Rede "12": quem joga junto precisa estar na 0.7.0.

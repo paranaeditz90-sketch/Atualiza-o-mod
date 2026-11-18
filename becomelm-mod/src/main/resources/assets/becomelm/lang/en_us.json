@@ -43,5 +43,9 @@
   "becomelm.action.tired": "Tired",
   "becomelm.action.head_grab": "Rip\nthe head",
   "becomelm.armed.head_grab": "Rip the head: attack someone close",
-  "becomelm.head.wait": "Head not ready: wait %s s"
+  "becomelm.head.wait": "Head not ready: wait %s s",
+  "becomelm.head.escape.shoot": "⚠ BREAK FREE! Shoot him (%2$s s)",
+  "becomelm.head.escape.weapon": "⚠ BREAK FREE! Hit him %1$sx with your weapon (%2$s s)",
+  "becomelm.head.escape.punch": "⚠ BREAK FREE! Punch him %1$sx (%2$s s)",
+  "becomelm.head.escaped": "You broke free!"
 }

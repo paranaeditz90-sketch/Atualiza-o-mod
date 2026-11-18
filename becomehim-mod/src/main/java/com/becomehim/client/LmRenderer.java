@@ -112,6 +112,15 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
             mouthKnown = true;
             poseStack.popPose();
         }
+        if (!isReRender && p != null && "left_arm".equals(bone.getName()) && LmArmClient.isArmless(p.getId())) {
+            // sem o braço: o toco no ombro (o osso do braço está escondido; o toco vai no lugar do ombro dele). O GeckoLib
+            // desenha o x do modelo invertido: o braço (x 4..8 no geo.json) fica em -8..-4 aqui
+            poseStack.pushPose();
+            RenderUtils.prepMatrixForBone(poseStack, bone);
+            LmArmClient.stump(poseStack, bufferSource, packedLight, -8.2F, -3.8F, 20.6F, 24.2F, -2.2F, 2.2F, 20.6F);
+            poseStack.popPose();
+            buffer = bufferSource.getBuffer(renderType);
+        }
         if (!isReRender && p != null && "head".equals(bone.getName())) {
             // o braço arrancado atravessado na boca (arrancando depois do puxão, e comendo até engolir)
             LmActsClient.Act a = LmActsClient.get(p);

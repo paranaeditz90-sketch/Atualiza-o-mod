@@ -11,6 +11,15 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.5.1 — o toco no ombro e o acabamento pra lançar
+
+Rede a mesma da 0.5.0 ("5").
+- **Toco no ombro**: quem perdeu o braço agora mostra o toco vermelho com a ponta do osso no ombro, no corpo de jogador
+  e no boneco do FroggyDude (antes o braço só sumia). Testado com 2 jogadores.
+- O aviso da cabeça ("SE SOLTA!") agora sai no idioma do jogo (em inglês pra quem joga em inglês).
+- **README.md** novo (inglês e português): controles, avisos e a licença (modificar/republicar só com permissão, TikTok
+  @XLMzola). A descrição do mod agora é em inglês e português.
+
 ## v0.5.0 — cansado, arrancar a cabeça, chicote e puxão da língua
 
 Rede "5". Quatro gomos novos (a roda agora tem 9 ações):
