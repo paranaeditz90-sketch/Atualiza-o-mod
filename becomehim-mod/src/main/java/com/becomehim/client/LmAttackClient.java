@@ -234,9 +234,6 @@ public final class LmAttackClient {
      * (roda) O golpe armado: arrancar o braço. Num jogador que ainda tem o braço, arranca; num bicho (ou jogador que
      * não perde nada), derruba e come deitado em cima, na flexão (escolha do LM). Ninguém perto: continua armado.
      */
-    /** (roda) Quando usou a cabeça por último (o servidor também conta os 30 s). */
-    private static int lastHead = Integer.MIN_VALUE;
-
     private static boolean armedAttack(Minecraft mc, LocalPlayer p) {
         if (LmActsClient.armed == LmAttack.WHIP || LmActsClient.armed == LmAttack.PULL) {
             // o chicote / o puxão: quem estiver na mira, até onde a língua vai
@@ -251,15 +248,14 @@ public final class LmAttackClient {
         if (LmActsClient.armed == LmAttack.HEAD_GRAB) {
             LivingEntity t = pickTarget(mc, p, LmAttacks.HEAD_REACH);
             if (t == null || !LmKnock.canKnock(t)) return false;
-            int wait = LmAttacks.HEAD_COOLDOWN - (LmClientEvents.ticks() - lastHead);
-            if (lastHead != Integer.MIN_VALUE && wait > 0) {
+            int wait = LmAttacks.HEAD_COOLDOWN - (LmClientEvents.ticks() - LmActsClient.lastHead);
+            if (LmActsClient.lastHead != Integer.MIN_VALUE && wait > 0) {
                 mc.gui.setOverlayMessage(net.minecraft.network.chat.Component.translatable(
                         "becomehim.head.wait", wait / 20 + 1), false);
                 return true;
             }
-            lastHead = LmClientEvents.ticks();
+            // sem começar aqui: o servidor pode recusar (PvP desligado, alguém já pegou); a espera conta quando ele aceita
             LmActsClient.armed = null;
-            LmActsClient.startLocal(p, LmAttack.HEAD_GRAB, t.getId());
             LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.HEAD_GRAB, t.getId()));
             return true;
         }

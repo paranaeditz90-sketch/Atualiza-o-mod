@@ -1,8 +1,5 @@
 package com.becomehim;
 
-import net.minecraft.world.item.AxeItem;
-import net.minecraft.world.item.SwordItem;
-import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
@@ -226,7 +223,8 @@ public final class LmAttacks {
                 // a vítima deitada: de dentro do corpo dele o golpe do jogo não acerta, então o clique conta aqui
                 for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
                     Act g = en.getValue();
-                    if (g.kind == LmAttack.HEAD_GRAB && g.target == p) countHeadHit(g, targetId == 1);
+                    // o "tiro" só vale com o que atira de verdade na mão (arco com flecha, besta carregada, arma)
+                    if (g.kind == LmAttack.HEAD_GRAB && g.target == p) countHeadHit(g, targetId == 1 && canShoot(p), p);
                 }
             }
             case WHIP, PULL -> startLash(p, kind, targetId);
@@ -490,7 +488,10 @@ public final class LmAttacks {
     private static void startLash(ServerPlayer p, LmAttack kind, int targetId) {
         if (!LmModes.get(p).froggy() || !free(p)) return;
         Entity e = p.level().getEntity(targetId);
-        if (!(e instanceof LivingEntity t) || !canHit(p, t, LmTongue.RANGE + SLACK) || !p.hasLineOfSight(t)) return;
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, LmTongue.RANGE + SLACK) || !p.hasLineOfSight(t) || taken(t)
+                || holder(t) != null || t.isPassenger()) {
+            return;
+        }
         ACTS.put(p.getUUID(), new Act(kind, t));
         p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.FROG_TONGUE, SoundSource.PLAYERS, 1.0F,
                 kind == LmAttack.WHIP ? 1.0F : 0.75F);
@@ -520,6 +521,8 @@ public final class LmAttacks {
     /** Monta e olha; crava a boca na cabeça; o rugido até arrancar (4,2 s, a animação head_grab). */
     public static final int HEAD_BITE = 17;
     public static final int HEAD_WINDOW = 84;
+    /** Quanto a vítima precisa somar pra se soltar (tiro 6, golpe de arma 3, soco 2). */
+    private static final int HEAD_POINTS = 6;
     /** (LM: 30 s) de novo só depois disso. */
     public static final int HEAD_COOLDOWN = 600;
     private static final Map<UUID, Long> HEAD_LAST = new HashMap<>();
@@ -533,10 +536,8 @@ public final class LmAttacks {
         HEAD_LAST.put(p.getUUID(), p.level().getGameTime());
         Act a = new Act(LmAttack.HEAD_GRAB, t);
         // quantos acertos ela precisa: atirar 1, arma de bater 2, mão 3 (bicho não se defende: 0)
-        ItemStack hand = t.getMainHandItem();
-        a.data = !(t instanceof Player) ? 0 : hand.getItem() instanceof ProjectileWeaponItem
-                || LmWeapons.isWeapon(hand) && !(hand.getItem() instanceof SwordItem) && !(hand.getItem() instanceof AxeItem)
-                ? 1 : LmWeapons.isWeapon(hand) ? 2 : 3;
+        // pra se soltar: 6 pontos (um tiro vale 6, um golpe de arma 3, um soco 2: 1 tiro / 2 golpes / 3 socos); bicho 0
+        a.data = t instanceof Player ? HEAD_POINTS : 0;
         ACTS.put(p.getUUID(), a);
         lock(p, true);
         if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HEAD_WINDOW + 20);
@@ -548,7 +549,9 @@ public final class LmAttacks {
 
     private static void tickHeadGrab(ServerPlayer p, Act a) {
         LivingEntity t = a.target;
-        if (t == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || p.distanceToSqr(t) > 25D) {
+        // acabou se ela sumiu ou se ele deixou de ser o FroggyDude (Humano, transformando, derrubado)
+        if (t == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || p.distanceToSqr(t) > 25D
+                || !LmModes.get(p).froggy() || LmTransform.active(p) || LmKnock.lying(p)) {
             end(p, a);
             return;
         }
@@ -563,11 +566,15 @@ public final class LmAttacks {
         }
         if (t instanceof ServerPlayer tp && a.age % 5 == 0 && a.age < HEAD_WINDOW) {
             // o alerta em cima da barra (vermelho), com quanto falta e o tempo
-            int left = Math.max(0, a.data - a.hits);
-            String key = a.data == 1 ? "shoot" : a.data == 2 ? "weapon" : "punch";
+            // o que falta, pelo que ela tem na mão agora
+            ItemStack hand = tp.getMainHandItem();
+            int pts = Math.max(0, a.data - a.hits);
+            boolean gun = LmWeapons.shoots(hand), blade = !gun && LmWeapons.isWeapon(hand);
+            int left = gun ? 1 : blade ? (pts + 2) / 3 : (pts + 1) / 2;
+            String key = gun ? "shoot" : blade ? "weapon" : "punch";
             String secs = String.format(java.util.Locale.ROOT, "%.1f", (HEAD_WINDOW - a.age) / 20F);
             // com o texto em inglês de reserva (quem não tem o mod veria o nome da chave)
-            String fallback = a.data == 1 ? "\u26A0 BREAK FREE! Shoot him (%2$s s)" : a.data == 2
+            String fallback = gun ? "\u26A0 BREAK FREE! Shoot him (%2$s s)" : blade
                     ? "\u26A0 BREAK FREE! Hit him %1$sx with your weapon (%2$s s)" : "\u26A0 BREAK FREE! Punch him %1$sx (%2$s s)";
             tp.displayClientMessage(Component.translatableWithFallback("becomehim.head.escape." + key, fallback, left, secs)
                     .withStyle(ChatFormatting.RED, ChatFormatting.BOLD), true);
@@ -581,7 +588,6 @@ public final class LmAttacks {
             end(p, a);
             p.setDeltaMovement(fling);
             p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(p.getId(), fling));
-            LmKnock.letGo(t, 4);
             if (t instanceof ServerPlayer tp) tp.displayClientMessage(Component.translatableWithFallback("becomehim.head.escaped", "You broke free!")
                     .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD), true);
             if (DEBUG) System.out.printf("[LMATK] cabeca: se soltou (tiro=%s)%n", a.stuck > 0);
@@ -603,11 +609,20 @@ public final class LmAttacks {
         if (!(attacked instanceof ServerPlayer p)) return false;
         Act a = ACTS.get(p.getUUID());
         if (a == null || a.kind != LmAttack.HEAD_GRAB || a.target == null || source.getEntity() != a.target) return false;
-        countHeadHit(a, source.getDirectEntity() != source.getEntity());
+        countHeadHit(a, source.getDirectEntity() != source.getEntity(), a.target);
         return true;
     }
 
-    private static void countHeadHit(Act a, boolean shot) {
+    /** O tiro da vítima vale? (arco com flecha, besta carregada, arma de fogo de mod; no criativo sempre) */
+    private static boolean canShoot(ServerPlayer p) {
+        ItemStack hand = p.getMainHandItem();
+        if (!LmWeapons.shoots(hand)) return false;
+        if (hand.getItem() instanceof net.minecraft.world.item.CrossbowItem) return net.minecraft.world.item.CrossbowItem.isCharged(hand);
+        if (hand.getItem() instanceof net.minecraft.world.item.BowItem) return p.isCreative() || !p.getProjectile(hand).isEmpty();
+        return true;
+    }
+
+    private static void countHeadHit(Act a, boolean shot, LivingEntity victim) {
         // o mesmo golpe pode chegar pelos dois caminhos (o clique e o dano): conta 1 a cada 4 ticks
         if (a.age < 4 || a.age - a.data2 < 4 || a.data <= 0) return;
         a.data2 = a.age;
@@ -615,16 +630,10 @@ public final class LmAttacks {
             a.hits = a.data;
             a.stuck = 1;
         } else {
-            a.hits++;
+            ItemStack hand = victim.getMainHandItem();
+            a.hits += LmWeapons.isWeapon(hand) && !LmWeapons.shoots(hand) ? 3 : 2;
         }
         if (DEBUG) System.out.printf("[LMATK] cabeca: acerto %d/%d tiro=%s%n", a.hits, a.data, shot);
-    }
-
-    /** A vítima deitada só pode bater em quem está arrancando a cabeça dela. */
-    public static boolean grabbedBy(LivingEntity victim, @Nullable Entity attacker) {
-        if (!(attacker instanceof ServerPlayer p)) return false;
-        Act a = ACTS.get(p.getUUID());
-        return a != null && a.kind == LmAttack.HEAD_GRAB && a.target == victim;
     }
 
     /** Pendurado no teto no máximo 1 min. */
@@ -1121,6 +1130,7 @@ public final class LmAttacks {
 
     public static void forget(Player p) {
         FEEDS.remove(p.getUUID());
+        HEAD_LAST.remove(p.getUUID());
         Act gone = ACTS.remove(p.getUUID());
         if (gone != null) release(p, gone);
         LAST.remove(p.getUUID());

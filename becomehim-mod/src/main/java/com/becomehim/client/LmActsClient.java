@@ -105,6 +105,8 @@ public final class LmActsClient {
     private static final double FLIP_BACK = 0.12D;
 
     private static boolean jumpHeld;
+    /** (roda) Quando o servidor aceitou a cabeça por último (a espera de 30 s conta daí). */
+    static int lastHead = Integer.MIN_VALUE;
     /** (roda) O golpe armado: sai no próximo ataque (null = nenhum). */
     @Nullable
     static LmAttack armed;
@@ -164,6 +166,8 @@ public final class LmActsClient {
         }
         Act a = new Act(k, target, age);
         a.confirmed = true;
+        Minecraft mcc = Minecraft.getInstance();
+        if (k == LmAttack.HEAD_GRAB && mcc.player != null && mcc.player.getUUID().equals(player)) lastHead = LmClientEvents.ticks();
         if (k == LmAttack.ARM_EAT && old != null) a.pileYaw = old.pileYaw;
         stealFrom(a, old);
         // no monte o "alvo" é o rumo do corpo deitado (graus x10) junto com a fome de quando deitou
@@ -771,5 +775,10 @@ public final class LmActsClient {
         ACTS.clear();
         jumpHeld = false;
         armed = null;
+        // saiu no meio da cutscene da cabeça: a câmera volta pro que era
+        if (beforeGrab != null) {
+            Minecraft.getInstance().options.setCameraType(beforeGrab);
+            beforeGrab = null;
+        }
     }
 }

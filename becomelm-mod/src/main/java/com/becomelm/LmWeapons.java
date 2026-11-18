@@ -20,7 +20,23 @@ public final class LmWeapons {
             "smg", "sniper", "sword", "blade", "katana", "saber", "sabre", "dagger", "knife", "scythe", "spear", "mace",
             "halberd", "axe", "bow", "crossbow", "launcher");
 
+    private static final java.util.Set<String> GUNS = java.util.Set.of("gun", "rifle", "pistol", "shotgun", "revolver",
+            "smg", "sniper", "launcher");
+
     private LmWeapons() {
+    }
+
+    /** Atira (arco, besta, arma de fogo de mod): na cutscene da cabeça vale como tiro. */
+    public static boolean shoots(ItemStack s) {
+        if (s.isEmpty()) return false;
+        if (s.getItem() instanceof ProjectileWeaponItem) return true;
+        var id = ForgeRegistries.ITEMS.getKey(s.getItem());
+        if (id == null || "minecraft".equals(id.getNamespace())) return false;
+        if (id.getNamespace().equals("tacz")) return true;
+        for (String w : id.getPath().split("[_/]")) {
+            if (GUNS.contains(w)) return true;
+        }
+        return false;
     }
 
     public static boolean isWeapon(ItemStack s) {

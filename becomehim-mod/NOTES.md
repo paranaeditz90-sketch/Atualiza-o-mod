@@ -11,6 +11,23 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.5.2 — correções da 2ª revisão
+
+Rede a mesma ("5"). A 2ª revisão do código (no que entrou depois do 1º pente fino) achou, eu conferi e corrigi:
+- **Cabeça, o mais sério**: deitada, a vítima conseguia USAR ITEM (levantar escudo e sobreviver ao arranque, comer maçã
+  dourada, beber poção). Agora, presa, só o golpe/tiro em quem está em cima conta; o resto não faz nada.
+- **Cabeça**: "atire nele" saía com 1 soco pra quem segurava arco/tridente; e um "tiro" valia até com arco sem flecha ou
+  besta descarregada. Agora é por pontos (precisa de 6): tiro de verdade 6 (arco com flecha, besta carregada, arma de
+  fogo), golpe de arma 3, soco 2 = 1 tiro / 2 golpes / 3 socos, e o aviso mostra o que falta pelo que ela tem na mão
+  AGORA. Testado: mão vazia pede "3x", depois de 1 soco "2x"; espada solta com 2 golpes; sem se soltar, morre.
+- **Cabeça**: a espera de 30 s começava mesmo quando o servidor recusava (PvP desligado, alguém já pegou), e tu
+  escorregava 1 s pra cima da pessoa à toa. Agora só conta se começou de verdade.
+- **Cabeça**: virar Humano/transformar/ser derrubado no meio não parava a cena (ela morria do mesmo jeito). Agora para.
+- **Cabeça**: sair do jogo no meio deixava a câmera da vítima presa em 3ª pessoa. Agora volta.
+- **Chicote/puxão**: dava pra puxar alguém que outro FroggyDude estava segurando/arrancando a cabeça (quebrava a cena
+  dele). Agora não.
+- Limpeza: código morto tirado, um comentário fora do lugar (o "Cansado" estava em cima da cabeça), uma soltura dobrada.
+
 ## v0.5.1 — o toco no ombro e o acabamento pra lançar
 
 Rede a mesma da 0.5.0 ("5").

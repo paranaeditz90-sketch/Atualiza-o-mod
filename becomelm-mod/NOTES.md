@@ -4,6 +4,21 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.7.2 — correções da 2ª revisão
+
+Rede a mesma ("12"). A 2ª revisão do código (no que entrou depois do 1º pente fino) achou, eu conferi e corrigi:
+- **Cabeça, o mais sério**: deitada, a vítima conseguia USAR ITEM (levantar escudo e sobreviver ao arranque, comer maçã
+  dourada, beber poção). Agora, presa, só o golpe/tiro em quem está em cima conta; o resto não faz nada.
+- **Cabeça**: "atire nele" saía com 1 soco pra quem segurava arco/tridente; e um "tiro" valia até com arco sem flecha ou
+  besta descarregada. Agora é por pontos (precisa de 6): tiro de verdade 6 (arco com flecha, besta carregada, arma de
+  fogo), golpe de arma 3, soco 2 = 1 tiro / 2 golpes / 3 socos, e o aviso mostra o que falta pelo que ela tem na mão
+  AGORA. Testado: mão vazia pede "3x", depois de 1 soco "2x"; espada solta com 2 golpes; sem se soltar, morre.
+- **Cabeça**: a espera de 30 s começava mesmo quando o servidor recusava (PvP desligado, alguém já pegou), e tu
+  escorregava 1 s pra cima da pessoa à toa. Agora só conta se começou de verdade.
+- **Cabeça**: virar Humano/transformar/ser derrubado no meio não parava a cena (ela morria do mesmo jeito). Agora para.
+- **Cabeça**: sair do jogo no meio deixava a câmera da vítima presa em 3ª pessoa. Agora volta.
+- Limpeza: código morto tirado, um comentário fora do lugar (o "Cansado" estava em cima da cabeça), uma soltura dobrada.
+
 ## v0.7.1 — o toco no ombro
 
 Rede a mesma da 0.7.0 ("12").

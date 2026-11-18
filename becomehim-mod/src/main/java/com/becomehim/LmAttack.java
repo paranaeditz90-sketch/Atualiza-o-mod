@@ -52,7 +52,6 @@ public enum LmAttack {
     STEAL,
     /** Come a arma roubada: sacode a cabeça e ela vai entrando aos poucos (o mod da IA, Grox 1:24). */
     WEAPON_EAT,
-    /** (roda) Cansado: ofegando curvado, as mãos nos joelhos (o "tired" do mod da IA). Até escolher de novo ou atacar. */
     /**
      * (roda, armado) A cutscene da cabeça (mod da IA 0.7.41): derruba, monta, crava a boca na cabeça e chacoalha durante o
      * rugido (4,2 s). Jogador: se acertar ele (1 tiro / 2 golpes de arma / 3 socos), ele voa pra trás; senão arranca a
@@ -61,6 +60,7 @@ public enum LmAttack {
     HEAD_GRAB,
     /** (pedido da vítima da cabeça) bateu (alvo 0) ou atirou (alvo 1) em quem está em cima. */
     HEAD_HIT,
+    /** (roda) Cansado: ofegando curvado, as mãos nos joelhos (o "tired" do mod da IA). Até escolher de novo ou atacar. */
     TIRED,
     /** (Become HIM..., roda, armado) O chicote da língua: estala no bicho, tira vida e empurra pra longe. */
     WHIP,
