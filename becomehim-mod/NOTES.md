@@ -11,6 +11,17 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.6.1 — o ícone
+
+Rede a mesma da 0.6.0 ("6").
+- **Ícone novo** na lista de mods (e o `icon.png` pra página do mod), da ideia do LM (a versão do ChatGPT: o jogador
+  virando o FroggyDude): uma cabeça só, rachada no meio, metade Herobrine (olho branco) e metade FroggyDude (a cara de
+  verdade dele: coroa, bochecha, olho, lágrima, boca), a rachadura verde brilhando e a pele do Herobrine já esverdeando
+  perto do corte; "BECOME HIM..." em letra de pixel. Pixel art de grade única, 512x512; lê até em 64 px. Refazer:
+  `python3 tools/icone.py`.
+- A licença na lista de mods saía com os acentos quebrados ("sÃ³", "permissÃ£o": o Gradle lê o gradle.properties sem
+  UTF-8): agora em inglês, sem acento, igual à descrição.
+
 ## v0.6.0 — voar longe na explosão
 
 Rede "6".
