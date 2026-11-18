@@ -1,0 +1,53 @@
+{
+  "contort": {
+    "replace": true,
+    "subtitle": "subtitles.becomelm.contort",
+    "sounds": [
+      {
+        "name": "becomelm:fd/osso5_transformacao",
+        "volume": 1.0,
+        "attenuation_distance": 48
+      }
+    ]
+  },
+  "crack_seq": {
+    "replace": true,
+    "sounds": []
+  },
+  "crack": {
+    "replace": true,
+    "subtitle": "subtitles.becomelm.crack",
+    "sounds": [
+      {
+        "name": "becomelm:fd/osso5_estalo1",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "becomelm:fd/osso5_estalo2",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "becomelm:fd/osso5_estalo3",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "becomelm:fd/osso5_estalo4",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "becomelm:fd/osso5_estalo5",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "becomelm:fd/osso5_estalo6",
+        "volume": 1.0,
+        "attenuation_distance": 32
+      }
+    ]
+  }
+}

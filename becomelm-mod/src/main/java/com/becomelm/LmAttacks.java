@@ -1,0 +1,1101 @@
+package com.becomelm;
+
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.ProjectileWeaponItem;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.InteractionHand;
+import com.becomelm.network.LmNetwork;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.food.FoodData;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+
+import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * Os golpes, do lado do servidor. O cliente de quem ataca escolhe o alvo e faz o
+ * movimento (o corpo do jogador é dele); o servidor confere, espera o encontro e dá o
+ * dano como golpe do próprio jogador (conta a morte pra ele, o bicho fica bravo com ele).
+ */
+public final class LmAttacks {
+
+    /** Até onde o bote alcança (blocos). */
+    public static final double POUNCE_RANGE = 7.0D;
+    /** 3,5 corações. */
+    public static final float POUNCE_DAMAGE = 7F;
+    /** Na fase 2 tudo bate mais forte (igual ao Froggydude). */
+    public static final float FRENZY_DAMAGE = 1.6F;
+    /** Tempo pra chegar no bicho depois de pular (o bote leva ~0,4 s). */
+    private static final int POUNCE_TIME = 16;
+    private static final int POUNCE_COOLDOWN = 10;
+    /** A folga da conferência do servidor (o pacote chega com atraso). */
+    private static final double SLACK = 2.0D;
+
+    // Cair do céu + socos (10v1 0:12-0:17, 60 qps): o impacto derruba, 8 socos de 0,25 s
+    // alternando os punhos, e emenda as mordidas no mesmo ritmo (a cabeça mergulha a cada 0,24 s).
+    /** Até onde do bicho ele pode cair pra montar (blocos, na horizontal). */
+    public static final double SMASH_REACH = 2.5D;
+    public static final float SMASH_IMPACT = 4F;
+    public static final float PUNCH_DAMAGE = 2F;
+    /** (v0.3.5, LM) A pancada de marreta às vezes sai mais forte: 1 em cada 5, 1,5x (o som é sempre o de crítico). */
+    private static final float STRONG_CHANCE = 0.2F;
+    private static final float STRONG_MULT = 1.5F;
+    public static final float BITE_DAMAGE = 2F;
+    public static final int SMASH_EVERY = 5;
+    public static final int SMASH_FIRST = 4;
+    public static final int PUNCHES = 8;
+    public static final int BITES = 5;
+    /** As mordidas começam com um respiro depois do último soco. */
+    public static final int BITE_FROM = SMASH_FIRST + PUNCHES * SMASH_EVERY + 2;
+    public static final int SMASH_TICKS = BITE_FROM + BITES * SMASH_EVERY + 2;
+    /**
+     * Martelar em pé (pedido do LM): segurando o atacar, a primeira pancada derruba de costas e
+     * ele fica em cima martelando no ritmo do esmagamento (4 por segundo, 1 coração cada).
+     */
+    public static final double HAMMER_REACH = 3.2D;
+    /** Escorregando de pé até em cima dela. */
+    public static final int HAMMER_MOUNT = 4;
+    /** Mesmo um toque rápido dá a pancada que derruba e mais uma. */
+    private static final int HAMMER_MIN = SMASH_FIRST + SMASH_EVERY;
+    /** Segurando sem soltar nunca: no máximo 20 s. */
+    public static final int HAMMER_MAX = 400;
+    /** Cada pancada segura ela no chão mais um pouco; soltou, fica mais esse tanto e levanta rolando. */
+    private static final int HAMMER_KEEP = SMASH_EVERY + 10;
+    private static final int HAMMER_LET_GO = 12;
+    /** Até quanto tempo depois do pulo alto ainda vale cair em cima. */
+    private static final int SKY_WINDOW = 120;
+
+    // Morder e agarrar: no lugar da língua do Froggydude (o personagem do LM é um cachorro).
+    // Galopando, atacar bem de perto = morde e segura na boca; andando, arrasta; atacar de
+    // novo = sacode; pular = arremessa.
+    public static final double GRAB_RANGE = 2.3D;
+    public static final float GRAB_DAMAGE = 2F;
+    public static final float SHAKE_DAMAGE = 1.5F;
+    /** A sacudida: 0,8 s, uma mordida forte a cada ida e volta da cabeça (0,2 s). */
+    public static final int SHAKE_TICKS = 16;
+    public static final int SHAKE_EVERY = 4;
+    /** Solta sozinho depois de 10 s. */
+    public static final int GRAB_MAX = 200;
+    /** A animação de jogar longe. */
+    public static final int THROW_TICKS = 9;
+    private static final double THROW_SPEED = 0.85D;
+    private static final double THROW_UP = 0.42D;
+    /** A boca de quem segura: na frente e rente ao chão (a pose de segurar abaixa a cara). */
+    public static final double MOUTH = 1.05D;
+    /** Deitado no monte: levanta sozinho depois de 1 min. */
+    public static final int PILE_MAX = 1200;
+    /**
+     * No monte: o tempo de deitar e quando a flexão começa (o cliente anima com os mesmos). A flexão é
+     * a do mod da IA (pile_lie = feed_mob, a cara embaixo no tick 3 de 7); o ritmo e as mordidas de
+     * verdade (3 de cada 8 mergulhos) vêm do LmPileRhythm, pela fome (v0.3.5).
+     */
+    public static final int PILE_DROP = 8;
+    /** O pile_lie começa depois do deitar e dos 3 ticks de mistura do controlador do corpo. */
+    public static final int PILE_LIE_START = PILE_DROP + 3;
+
+    // Comer (LM: "eu como os mobs e não regenero a fome"): só bicho que sangra. O LM escolheu
+    // o "médio": meia coxinha por mordida, até 4 coxinhas no monte, 6 na finalização.
+    /** Uma mordida que tira sangue: meia coxinha (1 ponto da barra de 20). */
+    private static final int BITE_FOOD = 1;
+    private static final float BITE_SATURATION = 0.3F;
+    /** Cada mordida de verdade no monte: meia coxinha (LmPileRhythm.FOOD); no máximo 4 coxinhas por monte. */
+    private static final float PILE_SATURATION = 0.4F;
+    /** Cada uma das 3 mastigadas da finalização: 2 coxinhas. */
+    private static final int FINISH_FOOD = 4;
+    private static final float FINISH_SATURATION = 0.8F;
+    /** O tick de cada mergulho da finalização em que ele mastiga (fin_feed: 1,2 a 1,56 s). */
+    private static final int FINISH_CHEW = 26;
+    /** Segurando alguém na boca anda com 55% da velocidade. */
+    private static final double DRAG_SLOW = -0.45D;
+    private static final UUID DRAG_ID = UUID.fromString("5b2d7e19-0c4a-4f6e-9d83-1a7c2e4b6f05");
+
+    private static final UUID LOCK_ID = UUID.fromString("9a4e1f32-5c7d-4b8e-a0f6-2d3c4b5a6e71");
+    private static final boolean DEBUG = Boolean.getBoolean("becomelm.debug");
+
+    private static final class Act {
+        final LmAttack kind;
+        @Nullable
+        final LivingEntity target;
+        /** Onde a vítima caiu (montado, ela não sai dali). */
+        @Nullable
+        final Vec3 at;
+        int age;
+        /** Agarrado: quando começou a última sacudida, e há quantos ticks a vítima não acompanha. */
+        int shakeAt = -1000;
+        int stuck;
+        /** No monte: o rumo do corpo deitado (graus x10) e a fome na hora de deitar, juntos (LmPileRhythm.pack). */
+        int data;
+        /** No monte: o ritmo da flexão e quanto já comeu (a mesma conta do cliente). */
+        @Nullable
+        LmPileRhythm pile;
+        /** Martelando: soltou o atacar. */
+        boolean stop;
+
+        /** No monte: o bicho vivo embaixo, que está sendo comido na flexão (o golpe armado do braço em bicho). */
+        @Nullable
+        LivingEntity feed;
+        /** A cabeça: quando foi o último acerto da vítima (pra não contar o mesmo golpe 2 vezes) e quantos já deu. */
+        int data2 = -100;
+        int hits;
+        /** Arrancando: o braço saiu (aí ele come). */
+        boolean ripped;
+
+        Act(LmAttack kind, @Nullable LivingEntity target) {
+            this.kind = kind;
+            this.target = target;
+            this.at = target == null ? null : target.position();
+        }
+    }
+
+    private static final Map<UUID, Act> ACTS = new HashMap<>();
+    private static final Map<UUID, Long> LAST = new HashMap<>();
+    private static final Map<UUID, Long> SKY = new HashMap<>();
+    /** /becomelm finisher: o próximo golpe desses vira a finalização com certeza. */
+    private static final Set<UUID> ARMED = new HashSet<>();
+    /** Mata no fim da finalização (o bastante pra qualquer bicho do tamanho de gente). */
+    private static final float FINISH_KILL = 1.0E6F;
+
+    private LmAttacks() {
+    }
+
+    /** O cliente avisou que deu o pulo alto (o pouso dele pode virar queda em cima de alguém). */
+    public static void skyJumped(ServerPlayer p) {
+        SKY.put(p.getUUID(), p.level().getGameTime());
+    }
+
+    /** O cliente pediu um golpe nesse bicho. */
+    public static void request(ServerPlayer p, LmAttack kind, int targetId) {
+        switch (kind) {
+            case POUNCE -> startPounce(p, targetId);
+            case SMASH -> startSmash(p, targetId);
+            case GRAB -> startGrab(p, targetId);
+            case SHAKE -> shake(p);
+            case THROW -> toss(p);
+            case PILE -> startPile(p, targetId);
+            case GET_UP -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.PILE) end(p, a);
+            }
+            case HAMMER -> startHammer(p, targetId);
+            case NECK_CRACK -> startEmote(p, LmAttack.NECK_CRACK);
+            case TIRED -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.TIRED) end(p, a);
+                else if (LmModes.get(p).froggy() && free(p)) {
+                    ACTS.put(p.getUUID(), new Act(LmAttack.TIRED, null));
+                    LmNetwork.sendAct(p, LmAttack.TIRED, -1, 0);
+                }
+            }
+            case ARM_RIP -> startArmRip(p, targetId);
+            case FEED -> {
+                Entity e = p.level().getEntity(targetId);
+                if (e instanceof LivingEntity t && canHit(p, t, RIP_REACH + SLACK) && LmKnock.canKnock(t) && !taken(t)) {
+                    FEEDS.put(p.getUUID(), t);
+                }
+            }
+            case RAGE -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.RAGE) end(p, a);
+                else startEmote(p, LmAttack.RAGE);
+            }
+            case CEILING -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.CEILING) end(p, a);
+                else if (LmModes.get(p).froggy() && free(p)) {
+                    ACTS.put(p.getUUID(), new Act(LmAttack.CEILING, null));
+                    p.setNoGravity(true);
+                    LmNetwork.sendAct(p, LmAttack.CEILING, -1, 0);
+                }
+            }
+            case CEILING_DIVE -> ceilingDive(p, targetId);
+            case STEAL -> startSteal(p, targetId);
+            case HEAD_GRAB -> startHeadGrab(p, targetId);
+            case HEAD_HIT -> {
+                // a vítima deitada: de dentro do corpo dele o golpe do jogo não acerta, então o clique conta aqui
+                for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+                    Act g = en.getValue();
+                    if (g.kind == LmAttack.HEAD_GRAB && g.target == p) countHeadHit(g, targetId == 1);
+                }
+            }
+            case HAMMER_STOP -> {
+                Act a = ACTS.get(p.getUUID());
+                if (a != null && a.kind == LmAttack.HAMMER) a.stop = true;
+            }
+            default -> {
+            }
+        }
+    }
+
+    private static boolean free(ServerPlayer p) {
+        return LmModes.get(p).froggy() && !LmTransform.active(p) && !LmKnock.lying(p) && !ACTS.containsKey(p.getUUID());
+    }
+
+    private static boolean skyRecent(ServerPlayer p) {
+        Long t = SKY.get(p.getUUID());
+        return t != null && p.level().getGameTime() - t < SKY_WINDOW;
+    }
+
+    private static void startPounce(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).fast() || !free(p)) return;
+        long now = p.level().getGameTime();
+        Long last = LAST.get(p.getUUID());
+        if (last != null && now - last < POUNCE_COOLDOWN) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, POUNCE_RANGE + SLACK)) return;
+        ACTS.put(p.getUUID(), new Act(LmAttack.POUNCE, t));
+        LAST.put(p.getUUID(), now);
+    }
+
+    private static void startSmash(ServerPlayer p, int targetId) {
+        if (DEBUG) System.out.printf("[LMATK] pediu esmagar %d livre=%s ceu=%s%n", targetId, free(p), skyRecent(p));
+        if (!free(p) || !skyRecent(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, SMASH_REACH + SLACK + 1.0D)) return;
+        SKY.remove(p.getUUID());
+        if (tryFinish(p, t)) return;
+        Act a = new Act(LmAttack.SMASH, t);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        if (LmKnock.upright(t)) LmKnock.knockBack(t, p, SMASH_TICKS + 6);
+        else LmKnock.knock(t, p, SMASH_TICKS + 6);
+        boolean hurt = hurtInPlace(p, t, SMASH_IMPACT);
+        LmNetwork.sendAct(p, LmAttack.SMASH, t.getId(), 0);
+        LmNetwork.sendHit(p, t, LmAttack.SMASH, hurt, 0);
+    }
+
+    private static void startHammer(ServerPlayer p, int targetId) {
+        if (LmModes.get(p) != LmMode.STAND || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, HAMMER_REACH + SLACK) || !LmKnock.canKnock(t)
+                || holder(t) != null) return;
+        if (tryFinish(p, t)) return;
+        Act a = new Act(LmAttack.HAMMER, t);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        // de costas, a cara pra cima olhando pra ele (bicho de quatro cai de lado)
+        if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HAMMER_KEEP + HAMMER_MIN);
+        else LmKnock.knock(t, p, HAMMER_KEEP + HAMMER_MIN);
+        boolean hurt = hurtInPlace(p, t, punchDamage(p));
+        if (DEBUG) System.out.printf("[LMATK] martelar %s acertou=%s%n", t.getName().getString(), hurt);
+        LmNetwork.sendAct(p, LmAttack.HAMMER, t.getId(), 0);
+        LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, 0);
+    }
+
+    private static void startGrab(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).fast() || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, GRAB_RANGE + SLACK) || !LmKnock.canKnock(t)
+                || holder(t) != null) return;
+        if (tryFinish(p, t)) return;
+        ACTS.put(p.getUUID(), new Act(LmAttack.GRAB, t));
+        drag(p, true);
+        LmKnock.grab(t, p, p.getYRot());
+        boolean hurt = hurtInPlace(p, t, GRAB_DAMAGE);
+        bite(p, t, hurt);
+        LmNetwork.sendAct(p, LmAttack.GRAB, t.getId(), 0);
+        LmNetwork.sendHit(p, t, LmAttack.GRAB, hurt, 0);
+    }
+
+    private static void shake(ServerPlayer p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || a.kind != LmAttack.GRAB || a.target == null || a.age - a.shakeAt < SHAKE_TICKS) return;
+        a.shakeAt = a.age;
+        LmNetwork.sendAct(p, LmAttack.SHAKE, a.target.getId(), a.age);
+    }
+
+    private static void toss(ServerPlayer p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind == LmAttack.GRAB) release(p, a, true);
+    }
+
+    // (roda, armado) Arrancar o braço (mod da IA: FroggyCombatGoal.runArmRip/runArmEat, os mesmos tempos)
+    public static final double RIP_REACH = 3.2D;
+    public static final int RIP_BITE = 8;
+    public static final int RIP_AT = 22;
+    private static final int RIP_RELEASE = 32;
+    public static final int RIP_TICKS = 40;
+    public static final int EAT_TICKS = 90;
+    public static final int EAT_SWALLOW = 80;
+    private static final int[] EAT_BITES = {6, 29, 52};
+    /** Quem o próximo "deitar no monte" vai comer vivo (o cliente manda o FEED logo antes do PILE). */
+    private static final Map<UUID, LivingEntity> FEEDS = new HashMap<>();
+
+    private static void startArmRip(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof ServerPlayer t) || !canHit(p, t, RIP_REACH + SLACK) || !LmArmLoss.canLoseArm(t) || taken(t)) {
+            return;
+        }
+        Act a = new Act(LmAttack.ARM_RIP, t);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        if (LmKnock.upright(t)) LmKnock.knockBack(t, p, RIP_TICKS + 10);
+        else LmKnock.knock(t, p, RIP_TICKS + 10);
+        if (DEBUG) System.out.printf("[LMATK] arrancar o braco de %s%n", t.getName().getString());
+        LmNetwork.sendAct(p, LmAttack.ARM_RIP, t.getId(), 0);
+    }
+
+    private static void tickArmRip(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (a.age < RIP_AT && (t == null || !t.isAlive() || t.level() != p.level() || p.distanceTo(t) > RIP_REACH + 1D)) {
+            if (t != null) LmKnock.letGo(t, 10);
+            end(p, a);
+            return;
+        }
+        if (a.age == RIP_BITE && t != null) {
+            // crava os dentes no ombro
+            boolean hurt = hurtInPlace(p, t, 1F);
+            LmNetwork.sendHit(p, t, LmAttack.BITE, hurt, 0);
+        }
+        if (a.age == RIP_AT && t instanceof ServerPlayer sp && LmArmLoss.canLoseArm(sp)) {
+            LmArmLoss.removeArm(sp);
+            a.ripped = true;
+            boolean hurt = hurtInPlace(p, t, 4F);
+            LmNetwork.sendHit(p, t, LmAttack.BITE, hurt, 1);
+            if (DEBUG) System.out.printf("[LMATK] arrancou o braco de %s%n", t.getName().getString());
+        }
+        if (a.age == RIP_RELEASE && t != null) LmKnock.letGo(t, 10);
+        if (a.age < RIP_TICKS) return;
+        if (!a.ripped || t == null) {
+            end(p, a);
+            return;
+        }
+        Act eat = new Act(LmAttack.ARM_EAT, t);
+        ACTS.put(p.getUUID(), eat);
+        LmNetwork.sendAct(p, LmAttack.ARM_EAT, t.getId(), 0);
+    }
+
+    private static void tickArmEat(ServerPlayer p, Act a) {
+        for (int bite : EAT_BITES) {
+            if (a.age == bite) {
+                p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), BecomeLM.BITE.get(), SoundSource.PLAYERS,
+                        1.0F, 0.85F + p.getRandom().nextFloat() * 0.1F);
+                eat(p, 2, 0.5F);
+            }
+        }
+        if (a.age == EAT_SWALLOW) {
+            p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 1.0F, 0.7F);
+        }
+        if (a.age >= EAT_TICKS) end(p, a);
+    }
+
+    // (roda, armado) Roubar e comer a arma (mod da IA: FroggyStealGoal, WEAPON_EAT 32 ticks, o "glup" no 21)
+    /** Até onde pega (no BecomeLM ele morde a mão: de perto). */
+    public static final double STEAL_REACH = 3.2D;
+    /** A boca chega na mão / arranca a arma. */
+    public static final int STEAL_HIT = 6;
+    public static final int STEAL_TICKS = 12;
+    public static final int EAT_WEAPON_TICKS = 32;
+    public static final int WEAPON_SWALLOW = 21;
+
+    private static void startSteal(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, STEAL_REACH + SLACK) || !LmWeapons.isWeapon(t.getMainHandItem())
+                || !p.hasLineOfSight(t)) {
+            return;
+        }
+        ACTS.put(p.getUUID(), new Act(LmAttack.STEAL, t));
+        lock(p, true);
+        p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), BecomeLM.BITE.get(), SoundSource.PLAYERS, 1.0F, 0.9F);
+        LmNetwork.sendAct(p, LmAttack.STEAL, t.getId(), 0);
+    }
+
+    private static void tickSteal(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (a.age == STEAL_HIT) {
+            ItemStack held = t == null ? ItemStack.EMPTY : t.getMainHandItem();
+            if (t == null || !t.isAlive() || p.distanceTo(t) > STEAL_REACH + SLACK || !LmWeapons.isWeapon(held)) {
+                end(p, a);
+                return;
+            }
+            // tirou da mão (some: ele come)
+            t.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+            a.ripped = true;
+            p.level().playSound(null, t.getX(), t.getEyeY(), t.getZ(), SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 1.0F, 0.6F);
+            if (DEBUG) System.out.printf("[LMATK] roubou %s de %s%n", held, t.getName().getString());
+        }
+        if (a.age < STEAL_TICKS) return;
+        Act eat = new Act(LmAttack.WEAPON_EAT, t);
+        ACTS.put(p.getUUID(), eat);
+        LmNetwork.sendAct(p, LmAttack.WEAPON_EAT, t == null ? -1 : t.getId(), 0);
+    }
+
+    private static void tickWeaponEat(ServerPlayer p, Act a) {
+        if (a.age < WEAPON_SWALLOW && a.age % 4 == 0 && p.level() instanceof net.minecraft.server.level.ServerLevel sl) {
+            // a cabeça sacode e o farelo cinza cai (o mod da IA, 0.7.31)
+            Vec3 m = p.getEyePosition().add(p.getLookAngle().scale(0.4D)).add(0, -0.25D, 0);
+            sl.sendParticles(new net.minecraft.core.particles.BlockParticleOption(net.minecraft.core.particles.ParticleTypes.BLOCK,
+                    net.minecraft.world.level.block.Blocks.LIGHT_GRAY_CONCRETE.defaultBlockState()), m.x, m.y, m.z, 4, 0.1D, 0.05D, 0.1D, 0.05D);
+            p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.GENERIC_EAT, SoundSource.PLAYERS, 0.8F,
+                    0.6F + p.getRandom().nextFloat() * 0.2F);
+        }
+        if (a.age == WEAPON_SWALLOW) {
+            p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), SoundEvents.PLAYER_BURP, SoundSource.PLAYERS, 1.0F, 0.7F);
+        }
+        if (a.age >= EAT_WEAPON_TICKS) end(p, a);
+    }
+
+    // (roda, armado) A cutscene da cabeça (mod da IA: entity.HeadGrab, os mesmos tempos)
+    public static final double HEAD_REACH = 3.2D;
+    /** Monta e olha; crava a boca na cabeça; o rugido até arrancar (4,2 s, a animação head_grab). */
+    public static final int HEAD_BITE = 17;
+    public static final int HEAD_WINDOW = 84;
+    /** (LM: 30 s) de novo só depois disso. */
+    public static final int HEAD_COOLDOWN = 600;
+    private static final Map<UUID, Long> HEAD_LAST = new HashMap<>();
+
+    private static void startHeadGrab(ServerPlayer p, int targetId) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        Long last = HEAD_LAST.get(p.getUUID());
+        if (last != null && p.level().getGameTime() - last < HEAD_COOLDOWN) return;
+        Entity e = p.level().getEntity(targetId);
+        if (!(e instanceof LivingEntity t) || !canHit(p, t, HEAD_REACH + SLACK) || !LmKnock.canKnock(t) || taken(t)) return;
+        HEAD_LAST.put(p.getUUID(), p.level().getGameTime());
+        Act a = new Act(LmAttack.HEAD_GRAB, t);
+        // quantos acertos ela precisa: atirar 1, arma de bater 2, mão 3 (bicho não se defende: 0)
+        ItemStack hand = t.getMainHandItem();
+        a.data = !(t instanceof Player) ? 0 : hand.getItem() instanceof ProjectileWeaponItem
+                || LmWeapons.isWeapon(hand) && !(hand.getItem() instanceof SwordItem) && !(hand.getItem() instanceof AxeItem)
+                ? 1 : LmWeapons.isWeapon(hand) ? 2 : 3;
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HEAD_WINDOW + 20);
+        else LmKnock.knock(t, p, HEAD_WINDOW + 20);
+        p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.RAVAGER_ROAR, SoundSource.PLAYERS, 1.2F, 0.7F);
+        if (DEBUG) System.out.printf("[LMATK] cabeca de %s precisa=%d%n", t.getName().getString(), a.data);
+        LmNetwork.sendAct(p, LmAttack.HEAD_GRAB, t.getId(), 0);
+    }
+
+    private static void tickHeadGrab(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (t == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || p.distanceToSqr(t) > 25D) {
+            end(p, a);
+            return;
+        }
+        Vec3 v = t.getDeltaMovement();
+        t.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
+        if (a.age >= HEAD_BITE && (a.age - HEAD_BITE) % 9 == 0) {
+            // cada tranco estala o pescoço
+            p.level().playSound(null, t.getX(), t.getEyeY(), t.getZ(), BecomeLM.CRACK.get(), SoundSource.PLAYERS, 0.9F,
+                    0.8F + p.getRandom().nextFloat() * 0.3F);
+            LmNetwork.sendHit(p, t, LmAttack.BITE, false, 0);
+        }
+        if (t instanceof ServerPlayer tp && a.age % 5 == 0 && a.age < HEAD_WINDOW) {
+            // o alerta em cima da barra (vermelho), com quanto falta e o tempo
+            int left = Math.max(0, a.data - a.hits);
+            String key = a.data == 1 ? "shoot" : a.data == 2 ? "weapon" : "punch";
+            String secs = String.format(java.util.Locale.ROOT, "%.1f", (HEAD_WINDOW - a.age) / 20F);
+            // com o texto em inglês de reserva (quem não tem o mod veria o nome da chave)
+            String fallback = a.data == 1 ? "\u26A0 BREAK FREE! Shoot him (%2$s s)" : a.data == 2
+                    ? "\u26A0 BREAK FREE! Hit him %1$sx with your weapon (%2$s s)" : "\u26A0 BREAK FREE! Punch him %1$sx (%2$s s)";
+            tp.displayClientMessage(Component.translatableWithFallback("becomelm.head.escape." + key, fallback, left, secs)
+                    .withStyle(ChatFormatting.RED, ChatFormatting.BOLD), true);
+        }
+        if (a.data > 0 && a.hits >= a.data) {
+            // se soltou: ele voa pra trás (com tiro voa mais) e ela levanta
+            Vec3 d = new Vec3(p.getX() - t.getX(), 0D, p.getZ() - t.getZ());
+            d = d.lengthSqr() < 1.0E-4D ? Vec3.directionFromRotation(0F, p.getYRot() + 180F) : d.normalize();
+            double out = a.stuck > 0 ? 1.6D : 0.8D;
+            Vec3 fling = new Vec3(d.x * out, 0.55D, d.z * out);
+            end(p, a);
+            p.setDeltaMovement(fling);
+            p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(p.getId(), fling));
+            LmKnock.letGo(t, 4);
+            if (t instanceof ServerPlayer tp) tp.displayClientMessage(Component.translatableWithFallback("becomelm.head.escaped", "You broke free!")
+                    .withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD), true);
+            if (DEBUG) System.out.printf("[LMATK] cabeca: se soltou (tiro=%s)%n", a.stuck > 0);
+            return;
+        }
+        if (a.age >= HEAD_WINDOW) {
+            // não deu: arranca a cabeça (morre pela mão dele: o corpo quebra embaixo dele)
+            p.level().playSound(null, t.getX(), t.getEyeY(), t.getZ(), SoundEvents.PLAYER_HURT_SWEET_BERRY_BUSH,
+                    SoundSource.PLAYERS, 1.6F, 0.5F);
+            hurtInPlace(p, t, FINISH_KILL);
+            eat(p, 4, 0.8F);
+            if (DEBUG) System.out.printf("[LMATK] cabeca: arrancou, vivo=%s%n", t.isAlive());
+            end(p, a);
+        }
+    }
+
+    /** A vítima da cabeça bateu em quem agarrou: conta (tiro resolve na hora). */
+    public static boolean headHit(LivingEntity attacked, DamageSource source) {
+        if (!(attacked instanceof ServerPlayer p)) return false;
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || a.kind != LmAttack.HEAD_GRAB || a.target == null || source.getEntity() != a.target) return false;
+        countHeadHit(a, source.getDirectEntity() != source.getEntity());
+        return true;
+    }
+
+    private static void countHeadHit(Act a, boolean shot) {
+        // o mesmo golpe pode chegar pelos dois caminhos (o clique e o dano): conta 1 a cada 4 ticks
+        if (a.age < 4 || a.age - a.data2 < 4 || a.data <= 0) return;
+        a.data2 = a.age;
+        if (shot) {
+            a.hits = a.data;
+            a.stuck = 1;
+        } else {
+            a.hits++;
+        }
+        if (DEBUG) System.out.printf("[LMATK] cabeca: acerto %d/%d tiro=%s%n", a.hits, a.data, shot);
+    }
+
+    /** A vítima deitada só pode bater em quem está arrancando a cabeça dela. */
+    public static boolean grabbedBy(LivingEntity victim, @Nullable Entity attacker) {
+        if (!(attacker instanceof ServerPlayer p)) return false;
+        Act a = ACTS.get(p.getUUID());
+        return a != null && a.kind == LmAttack.HEAD_GRAB && a.target == victim;
+    }
+
+    /** Pendurado no teto no máximo 1 min. */
+    public static final int CEILING_MAX = 1200;
+
+    /** Do teto, se joga em cima do bicho: o bote (a mesma pegada e o mesmo dano), com mais tempo pra cair. */
+    private static void ceilingDive(ServerPlayer p, int targetId) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || a.kind != LmAttack.CEILING) return;
+        ACTS.remove(p.getUUID());
+        p.setNoGravity(false);
+        Entity e = p.level().getEntity(targetId);
+        if (e instanceof LivingEntity t && canHit(p, t, 9D + SLACK)) {
+            Act dive = new Act(LmAttack.POUNCE, t);
+            // o bote do chão tem 16 ticks pra chegar; do teto a queda é mais longa
+            dive.age = -14;
+            ACTS.put(p.getUUID(), dive);
+            LAST.put(p.getUUID(), p.level().getGameTime());
+            LmNetwork.sendAct(p, LmAttack.CEILING_DIVE, t.getId(), 0);
+        } else {
+            LmNetwork.sendAct(p, null, -1, 0);
+        }
+    }
+
+    /** (roda) Os gestos: estalar o pescoço e a raiva "()". */
+    public static final int NECK_CRACK_TICKS = 12;
+    public static final int RAGE_MAX = 600;
+
+    private static void startEmote(ServerPlayer p, LmAttack kind) {
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        ACTS.put(p.getUUID(), new Act(kind, null));
+        // o estalo: o osso da transformação (no pacote de sons do LM vira o som dele); a raiva começa com o estalo
+        p.level().playSound(null, p.getX(), p.getEyeY(), p.getZ(), BecomeLM.CRACK.get(), SoundSource.PLAYERS, 1.0F,
+                0.9F + p.getRandom().nextFloat() * 0.2F);
+        LmNetwork.sendAct(p, kind, -1, 0);
+    }
+
+    /** Deita no monte de pedaços na frente (os pedaços são do cliente: o servidor só trava e conta). */
+    private static void startPile(ServerPlayer p, int yawX10) {
+        // o FEED (o bicho do golpe armado) vale só pra este pedido: recusado, ele não sobra pra outro monte depois
+        LivingEntity feed = FEEDS.remove(p.getUUID());
+        if (!LmModes.get(p).froggy() || !free(p)) return;
+        pile(p, yawX10, feed);
+    }
+
+    private static void pile(ServerPlayer p, int yawX10) {
+        pile(p, yawX10, null);
+    }
+
+    private static void pile(ServerPlayer p, int yawX10, @Nullable LivingEntity feed) {
+        Act a = new Act(LmAttack.PILE, null);
+        // a fome de agora decide o ritmo (quem vê faz a mesma conta com ela); no criativo, o extremo
+        int food = LmPileRhythm.foodCode(p);
+        a.data = LmPileRhythm.pack(yawX10, food);
+        a.pile = new LmPileRhythm(food);
+        // o golpe armado em bicho: ele está vivo embaixo e vai sendo comido de verdade
+        if (feed != null && feed.isAlive() && feed.level() == p.level() && p.distanceTo(feed) < RIP_REACH + SLACK) {
+            a.feed = feed;
+            LmKnock.knock(feed, p, PILE_MAX + 20);
+        }
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        LmNetwork.sendAct(p, LmAttack.PILE, a.data, 0);
+    }
+
+    // ------------------------------------------------------------ finalização
+
+    /** /becomelm finisher: o próximo golpe desse jogador que encostar em alguém vira a finalização. */
+    public static void arm(ServerPlayer p) {
+        ARMED.add(p.getUUID());
+    }
+
+    /** O soco normal (em pé) encostou: se virou a finalização, o soco não acontece. */
+    public static boolean melee(ServerPlayer p, LivingEntity t) {
+        if (!LmModes.get(p).froggy() || !free(p) || !canHit(p, t, 6.0D)) return false;
+        return tryFinish(p, t);
+    }
+
+    /**
+     * Um golpe encostou nesse bicho: sorteia a finalização (raríssima: até de vida cheia) ou usa
+     * a armada pelo comando. Começou = true, e o golpe normal não acontece.
+     */
+    private static boolean tryFinish(ServerPlayer p, LivingEntity t) {
+        if (!LmFinish.canFinish(t) || !LmFinish.alive(t) || taken(t)) return false;
+        if (!ARMED.remove(p.getUUID()) && p.getRandom().nextDouble() >= LmConfig.FINISHER_CHANCE.get()) return false;
+        Act a = new Act(LmAttack.FINISH, t);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        // derrubado de lado antes (o bote de outro golpe): deita de costas de novo
+        LmKnock.State ks = LmKnock.get(t);
+        if (ks != null && !ks.back) LmKnock.forget(t);
+        LmKnock.knockBack(t, p, LmFinish.TICKS + 10);
+        LmNetwork.sendAct(p, LmAttack.FINISH, t.getId(), 0);
+        if (DEBUG) System.out.printf("[LMATK] finalização em %s%n", t);
+        return true;
+    }
+
+    /** Alguém já está fazendo um golpe longo nesse bicho. */
+    private static boolean taken(LivingEntity t) {
+        for (Act a : ACTS.values()) {
+            if (a.target == t || a.feed == t) return true;
+        }
+        return false;
+    }
+
+    private static void tickFinish(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (t == null || !LmFinish.alive(t) || t.level() != p.level() || p.distanceToSqr(t) > 25D) {
+            if (DEBUG) System.out.printf("[LMATK] finalização interrompida t=%d%n", a.age);
+            end(p, a);
+            return;
+        }
+        // presa embaixo dele a cena toda (o jogador vítima se segura no cliente dele)
+        Vec3 v = t.getDeltaMovement();
+        t.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
+        int f = a.age - LmFinish.Phase.FEED.from;
+        if (f >= 0 && a.age < LmFinish.Phase.STARE.from && f % LmFinish.FEED_CYCLE == FINISH_CHEW) {
+            eat(p, FINISH_FOOD, FINISH_SATURATION);
+        }
+        if (a.age < LmFinish.TICKS) return;
+        // o fim: morre com o golpe dele (conta a morte pra ele, e o corpo quebra embaixo dele)
+        hurtInPlace(p, t, FINISH_KILL);
+        if (DEBUG) System.out.printf("[LMATK] finalização acabou: vivo=%s%n", t.isAlive());
+        end(p, a);
+    }
+
+    /**
+     * Quanto o corpo de quem ele matou se espalha: montado em cima, pouco (o monte fica
+     * embaixo dele, como no 10v1); na boca, médio; no bote, voa. Na finalização, quase nada
+     * (o corpo já está aberto embaixo dele).
+     */
+    public static float breakPower(ServerPlayer killer) {
+        Act a = ACTS.get(killer.getUUID());
+        if (a == null) return 1.0F;
+        return switch (a.kind) {
+            case SMASH, HAMMER -> 0.35F;
+            case GRAB -> 0.6F;
+            case FINISH -> 0.15F;
+            case HEAD_GRAB -> 0.3F;
+            // comido vivo na flexão: o monte fica embaixo dele
+            case PILE -> 0.25F;
+            default -> 1.0F;
+        };
+    }
+
+    /** Quem está segurando esse na boca (ou null). */
+    @Nullable
+    private static UUID holder(LivingEntity t) {
+        for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+            if (en.getValue().kind == LmAttack.GRAB && en.getValue().target == t) return en.getKey();
+        }
+        return null;
+    }
+
+    /**
+     * Onde fica quem está sendo arrastado: {x, z, rumo do corpo}. A boca fica na frente de quem
+     * segura. De costas: a cabeça da vítima na boca e o corpo esticado pra frente, cara pro céu.
+     * De lado (bicho de quatro): virado pra quem segura, a cabeça na boca. "swing" = o balanço
+     * da sacudida (graus, em volta da boca). Vale pros dois lados (o cliente desenha com isso).
+     */
+    public static double[] dragSpot(double hx, double hz, float holderYaw, float swing, LivingEntity victim,
+                                    boolean back, int side) {
+        float y = holderYaw * Mth.DEG_TO_RAD;
+        double mx = hx - Mth.sin(y) * MOUTH, mz = hz + Mth.cos(y) * MOUTH;
+        float body = holderYaw + swing;
+        float b = body * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(b), fz = Mth.cos(b);
+        if (back) {
+            double eh = victim.getEyeHeight();
+            return new double[] {mx + fx * eh, mz + fz * eh, body};
+        }
+        // de lado: as costas vão pra direita dele ("side") e a cabeça fica na frente do corpo,
+        // meio de lado: os pés ficam pra trás e pro outro lado
+        float vyaw = body + 180F;
+        float v = vyaw * Mth.DEG_TO_RAD;
+        double rx = -Mth.cos(v) * side, rz = -Mth.sin(v) * side;
+        double fwd = victim.getBbWidth() * 0.6D, up = victim.getBbHeight() * 0.6D;
+        return new double[] {mx + fx * fwd - rx * up, mz + fz * fwd - rz * up, vyaw};
+    }
+
+    /** Dá pra bater nesse? (vale pros dois lados: o cliente usa pra escolher o alvo). */
+    public static boolean canTarget(Player p, LivingEntity t) {
+        if (t == p || !t.isAlive() || t.isInvulnerable() || t instanceof ArmorStand) return false;
+        if (t instanceof Player tp && (tp.isSpectator() || tp.isCreative())) return false;
+        return !t.isPassengerOfSameVehicle(p);
+    }
+
+    private static boolean canHit(ServerPlayer p, LivingEntity t, double range) {
+        if (!canTarget(p, t) || t.level() != p.level() || p.distanceToSqr(t) > range * range) return false;
+        return !(t instanceof Player tp) || p.canHarmPlayer(tp);
+    }
+
+    /** Servidor, fim do tick de cada jogador. */
+    public static void tick(ServerPlayer p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null) return;
+        a.age++;
+        if (!p.isAlive()) {
+            end(p, a);
+            return;
+        }
+        switch (a.kind) {
+            case POUNCE -> tickPounce(p, a);
+            case SMASH -> tickSmash(p, a);
+            case GRAB -> tickGrab(p, a);
+            case THROW -> {
+                if (a.age >= THROW_TICKS) end(p, a);
+            }
+            case PILE -> {
+                if (a.age >= PILE_MAX) end(p, a);
+                else pileEat(p, a);
+            }
+            case FINISH -> tickFinish(p, a);
+            case HAMMER -> tickHammer(p, a);
+            case NECK_CRACK -> {
+                if (a.age >= NECK_CRACK_TICKS) end(p, a);
+            }
+            case ARM_RIP -> tickArmRip(p, a);
+            case STEAL -> tickSteal(p, a);
+            case HEAD_GRAB -> tickHeadGrab(p, a);
+            case WEAPON_EAT -> tickWeaponEat(p, a);
+            case ARM_EAT -> tickArmEat(p, a);
+            case TIRED -> {
+                if (a.age >= RAGE_MAX * 2 || !LmModes.get(p).froggy() || LmTransform.active(p) || LmKnock.lying(p)) end(p, a);
+            }
+            case RAGE -> {
+                if (a.age >= RAGE_MAX || !LmModes.get(p).froggy() || LmTransform.active(p) || LmKnock.lying(p)) end(p, a);
+            }
+            case CEILING -> {
+                // parado lá em cima também no servidor (o cliente parado quase não manda posição e a gravidade do
+                // servidor ia descendo ele até o chão)
+                p.setDeltaMovement(Vec3.ZERO);
+                p.fallDistance = 0F;
+                // caiu (soltou, quebraram o teto) ou cansou de esperar
+                if (a.age >= CEILING_MAX || (a.age > 10 && p.onGround()) || !LmModes.get(p).froggy()) end(p, a);
+            }
+            default -> end(p, a);
+        }
+    }
+
+    private static void tickGrab(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        LmKnock.State ks = t == null ? null : LmKnock.get(t);
+        if (t == null || ks == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || a.age > GRAB_MAX
+                || !LmModes.get(p).fast() || LmTransform.active(p) || LmKnock.lying(p)) {
+            release(p, a, false);
+            return;
+        }
+        double[] spot = dragSpot(p.getX(), p.getZ(), p.getYRot(), 0F, t, ks.back, ks.side);
+        LmKnock.steer(t, (float) spot[2], 10);
+        double dx = spot[0] - t.getX(), dz = spot[1] - t.getZ();
+        if (DEBUG && a.age % 20 == 0) {
+            System.out.printf("[LMATK] segurando t=%d quem=%.2f,%.2f rumo=%.0f lugar=%.2f,%.2f vitima=%.2f,%.2f costas=%s%n",
+                    a.age, p.getX(), p.getZ(), p.getYRot(), spot[0], spot[1], t.getX(), t.getZ(), ks.back);
+        }
+        // preso atrás de uma parede (ou o jogador vítima não acompanha): solta
+        if (dx * dx + dz * dz > 9D) {
+            if (++a.stuck > 10) {
+                release(p, a, false);
+                return;
+            }
+        } else {
+            a.stuck = 0;
+        }
+        if (!(t instanceof Player)) {
+            // arrastado com colisão (não atravessa parede nem entra no bloco); o jogador vítima
+            // se arrasta no cliente dele
+            t.move(MoverType.SELF, new Vec3(dx, 0D, dz));
+            Vec3 v = t.getDeltaMovement();
+            t.setDeltaMovement(0D, v.y, 0D);
+        }
+        int k = a.age - a.shakeAt;
+        if (k > 0 && k <= SHAKE_TICKS && k % SHAKE_EVERY == 0) {
+            boolean hurt = hurtInPlace(p, t, SHAKE_DAMAGE);
+            bite(p, t, hurt);
+            LmNetwork.sendHit(p, t, LmAttack.SHAKE, hurt, k / SHAKE_EVERY);
+        }
+    }
+
+    /** Solta quem estava na boca; arremessando, joga pra frente e faz a animação de jogar. */
+    private static void release(ServerPlayer p, Act a, boolean toss) {
+        ACTS.remove(p.getUUID());
+        drag(p, false);
+        LivingEntity t = a.target;
+        if (t != null && t.isAlive() && !t.isRemoved()) {
+            if (toss) {
+                float y = p.getYRot() * Mth.DEG_TO_RAD;
+                t.setDeltaMovement(-Mth.sin(y) * THROW_SPEED, THROW_UP, Mth.cos(y) * THROW_SPEED);
+                t.hurtMarked = true;
+                t.hasImpulse = true;
+            }
+            LmKnock.letGo(t, LmKnock.DOWN);
+        }
+        if (DEBUG) System.out.printf("[LMATK] solta t=%d arremesso=%s%n", a.age, toss);
+        if (toss) {
+            ACTS.put(p.getUUID(), new Act(LmAttack.THROW, null));
+            LmNetwork.sendAct(p, LmAttack.THROW, -1, 0);
+            if (t != null) LmNetwork.sendHit(p, t, LmAttack.THROW, false, 0);
+        } else {
+            LmNetwork.sendAct(p, null, -1, 0);
+        }
+    }
+
+    private static void tickPounce(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (t == null || !t.isAlive() || t.level() != p.level() || a.age > POUNCE_TIME) {
+            ACTS.remove(p.getUUID());
+            return;
+        }
+        AABB reach = p.getBoundingBox().inflate(0.6D, 0.5D, 0.6D);
+        if (!reach.intersects(t.getBoundingBox())) return;
+        ACTS.remove(p.getUUID());
+        if (canHit(p, t, POUNCE_RANGE + SLACK) && tryFinish(p, t)) return;
+        Vec3 d = new Vec3(t.getX() - p.getX(), 0D, t.getZ() - p.getZ());
+        d = d.lengthSqr() < 1.0E-4D ? Vec3.directionFromRotation(0F, p.getYRot()) : d.normalize();
+        boolean hurt = t.hurt(p.damageSources().playerAttack(p), POUNCE_DAMAGE * mul(p));
+        if (hurt) {
+            t.knockback(0.8D, -d.x, -d.z);
+            t.hurtMarked = true;
+            p.setLastHurtMob(t);
+            LmKnock.knock(t, p, LmKnock.DOWN);
+        }
+        LmNetwork.sendHit(p, t, LmAttack.POUNCE, hurt, 0);
+    }
+
+    private static void tickSmash(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (t != null && t.isDeadOrDying() && t.level() == p.level()) {
+            // matou montado: o corpo virou o monte embaixo dele e ele deita em cima (10v1 0:21)
+            double dx = t.getX() - p.getX(), dz = t.getZ() - p.getZ();
+            float yaw = dx * dx + dz * dz < 1.0E-4D ? p.getYRot() : (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90F;
+            pile(p, Math.round(Mth.wrapDegrees(yaw) * 10F));
+            return;
+        }
+        if (t == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || p.distanceToSqr(t) > 25D) {
+            if (DEBUG) System.out.printf("[LMATK] fim do esmagamento t=%d vivo=%s dist=%.2f%n", a.age,
+                    t != null && t.isAlive(), t == null ? -1D : Math.sqrt(p.distanceToSqr(t)));
+            end(p, a);
+            return;
+        }
+        // a vítima fica embaixo dele (o empurrão entre os corpos ia tirar ela de lá); o jogador
+        // vítima se segura no cliente dele
+        Vec3 v = t.getDeltaMovement();
+        t.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
+        int k = a.age - SMASH_FIRST;
+        if (k >= 0 && k % SMASH_EVERY == 0 && k / SMASH_EVERY < PUNCHES) {
+            boolean hurt = hurtInPlace(p, t, punchDamage(p));
+            if (DEBUG) System.out.printf("[LMATK] pancada montado idade=%d jogo=%d dano=%b%n", a.age, p.level().getGameTime(), hurt);
+            LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, k / SMASH_EVERY);
+        }
+        int b = a.age - BITE_FROM;
+        if (b >= 0 && b % SMASH_EVERY == 0 && b / SMASH_EVERY < BITES) {
+            boolean hurt = hurtInPlace(p, t, BITE_DAMAGE);
+            bite(p, t, hurt);
+            LmNetwork.sendHit(p, t, LmAttack.BITE, hurt, b / SMASH_EVERY);
+        }
+        if (a.age >= SMASH_TICKS) end(p, a);
+    }
+
+    private static void tickHammer(ServerPlayer p, Act a) {
+        LivingEntity t = a.target;
+        if (t != null && t.isDeadOrDying() && t.level() == p.level()) {
+            // matou martelando: deita no monte dela, igual no esmagamento
+            double dx = t.getX() - p.getX(), dz = t.getZ() - p.getZ();
+            float yaw = dx * dx + dz * dz < 1.0E-4D ? p.getYRot() : (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90F;
+            pile(p, Math.round(Mth.wrapDegrees(yaw) * 10F));
+            return;
+        }
+        boolean gone = t == null || !t.isAlive() || t.isRemoved() || t.level() != p.level() || p.distanceToSqr(t) > 25D;
+        if (gone || LmModes.get(p) != LmMode.STAND || LmTransform.active(p) || a.age > HAMMER_MAX
+                || (a.stop && a.age >= HAMMER_MIN)) {
+            if (DEBUG) System.out.printf("[LMATK] parou de martelar t=%d soltou=%s%n", a.age, a.stop);
+            if (t != null) LmKnock.letGo(t, HAMMER_LET_GO);
+            end(p, a);
+            return;
+        }
+        // ela fica embaixo dele (o empurrão entre os corpos ia tirar ela de lá)
+        Vec3 v = t.getDeltaMovement();
+        t.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (!(t instanceof Player) && a.at != null) t.setPos(a.at.x, t.getY(), a.at.z);
+        int k = a.age - SMASH_FIRST;
+        if (k >= 0 && k % SMASH_EVERY == 0) {
+            if (LmKnock.upright(t)) LmKnock.knockBack(t, p, HAMMER_KEEP);
+            else LmKnock.knock(t, p, HAMMER_KEEP);
+            boolean hurt = hurtInPlace(p, t, punchDamage(p));
+            if (DEBUG) System.out.printf("[LMATK] pancada marreta idade=%d jogo=%d dano=%b%n", a.age, p.level().getGameTime(), hurt);
+            LmNetwork.sendHit(p, t, LmAttack.PUNCH, hurt, k / SMASH_EVERY + 1);
+        }
+    }
+
+    /** Uma pancada de marreta (em pé ou montado): o dano normal, ou de vez em quando a mais forte. */
+    private static float punchDamage(ServerPlayer p) {
+        boolean strong = p.getRandom().nextFloat() < STRONG_CHANCE;
+        if (DEBUG && strong) System.out.println("[LMATK] pancada forte");
+        return strong ? PUNCH_DAMAGE * STRONG_MULT : PUNCH_DAMAGE;
+    }
+
+    // ------------------------------------------------------------ comer
+
+    /** Uma mordida que tirou sangue de quem sangra: come. */
+    private static void bite(ServerPlayer p, LivingEntity t, boolean hurt) {
+        if (hurt && LmBloodType.of(t).bleeds()) eat(p, BITE_FOOD, BITE_SATURATION);
+    }
+
+    /** Deitado no monte: nas mordidas de verdade da flexão ele come um pedaço (até o monte acabar). */
+    private static void pileEat(ServerPlayer p, Act a) {
+        if (a.age < PILE_LIE_START || a.pile == null) return;
+        a.pile.advanceTo(a.age - PILE_LIE_START);
+        if (DEBUG && a.pile.dipNow()) {
+            System.out.printf("[LMATK] monte mergulho t=%d ritmo=%.2f mordida=%b comeu=%b fome=%d%n", a.age,
+                    a.pile.rate(), a.pile.biteNow(), a.pile.ateNow(), p.getFoodData().getFoodLevel());
+        }
+        if (a.pile.ateNow()) eat(p, LmPileRhythm.FOOD, PILE_SATURATION);
+        if (a.feed != null && (!a.feed.isAlive() || a.feed.level() != p.level() || p.distanceTo(a.feed) > RIP_REACH + SLACK)) {
+            // saiu de baixo dele (morreu e virou o monte, ou foi levado): para de morder ela
+            if (a.feed.isAlive()) LmKnock.letGo(a.feed, 10);
+            a.feed = null;
+        }
+        if (a.feed != null && a.pile.ateNow()) {
+            boolean hurt = hurtInPlace(p, a.feed, BITE_DAMAGE);
+            LmNetwork.sendHit(p, a.feed, LmAttack.BITE, hurt, 0);
+        }
+    }
+
+    /** Enche a fome e a saturação (como comer um item); arrota quando a barra completa. */
+    private static void eat(ServerPlayer p, int food, float saturation) {
+        FoodData fd = p.getFoodData();
+        boolean hungry = fd.needsFood();
+        fd.eat(food, saturation);
+        if (hungry && !fd.needsFood()) {
+            p.level().playSound(null, p.getX(), p.getY(), p.getZ(), SoundEvents.PLAYER_BURP, SoundSource.PLAYERS,
+                    0.6F, p.getRandom().nextFloat() * 0.1F + 0.9F);
+        }
+        if (DEBUG) System.out.printf("[LMATK] comeu +%d fome=%d saturacao=%.1f%n", food, fd.getFoodLevel(),
+                fd.getSaturationLevel());
+    }
+
+    /** Dano sem o empurrão (a vítima está presa embaixo) e sem a pausa de invencibilidade entre golpes. */
+    private static boolean hurtInPlace(ServerPlayer p, LivingEntity t, float dmg) {
+        Vec3 v = t.getDeltaMovement();
+        t.invulnerableTime = 0;
+        boolean hurt = t.hurt(p.damageSources().playerAttack(p), dmg * mul(p));
+        t.setDeltaMovement(v);
+        if (hurt) p.setLastHurtMob(t);
+        return hurt;
+    }
+
+    private static float mul(ServerPlayer p) {
+        return LmModes.get(p) == LmMode.FRENZY ? FRENZY_DAMAGE : 1F;
+    }
+
+    private static void end(ServerPlayer p, Act a) {
+        if (a.kind == LmAttack.GRAB) {
+            release(p, a, false);
+            return;
+        }
+        if (DEBUG) System.out.printf("[LMATK] fim %s t=%d%n", a.kind, a.age);
+        ACTS.remove(p.getUUID());
+        if (a.feed != null && a.feed.isAlive()) LmKnock.letGo(a.feed, 10);
+        if (a.kind == LmAttack.CEILING) p.setNoGravity(false);
+        if (a.kind == LmAttack.HEAD_GRAB && a.target != null && a.target.isAlive()) LmKnock.letGo(a.target, 6);
+        if (a.kind == LmAttack.POUNCE) return;
+        lock(p, false);
+        LmNetwork.sendAct(p, null, -1, 0);
+    }
+
+    /** Alguém passou a ver esse jogador no meio de um golpe: conta qual. */
+    public static void sendTo(ServerPlayer viewer, Entity target) {
+        if (!(target instanceof ServerPlayer p)) return;
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind != LmAttack.POUNCE) {
+            int id = a.kind == LmAttack.PILE ? a.data : a.target == null ? -1 : a.target.getId();
+            LmNetwork.sendActTo(viewer, p, a.kind, id, a.age);
+        }
+    }
+
+    private static void drag(ServerPlayer p, boolean on) {
+        AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        if (speed.getModifier(DRAG_ID) != null) speed.removeModifier(DRAG_ID);
+        if (on) speed.addTransientModifier(new AttributeModifier(DRAG_ID, "BecomeLM arrastando", DRAG_SLOW,
+                AttributeModifier.Operation.MULTIPLY_TOTAL));
+    }
+
+    private static void lock(ServerPlayer p, boolean on) {
+        AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        if (speed.getModifier(LOCK_ID) != null) speed.removeModifier(LOCK_ID);
+        if (on) speed.addTransientModifier(new AttributeModifier(LOCK_ID, "BecomeLM golpe", -1D,
+                AttributeModifier.Operation.MULTIPLY_TOTAL));
+    }
+
+    /**
+     * (v0.3.5) No meio de um golpe: travado (montado, martelando, no monte, finalizando) ou arrastando alguém na
+     * boca. Os dois lados sabem: o modificador de velocidade do servidor chega no cliente junto com os atributos.
+     * Quem usa: o LmWallClimb (no meio de um golpe ele não sobe parede).
+     */
+    public static boolean busy(Player p) {
+        AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
+        return speed != null && (speed.getModifier(LOCK_ID) != null || speed.getModifier(DRAG_ID) != null);
+    }
+
+    public static void forget(Player p) {
+        FEEDS.remove(p.getUUID());
+        Act gone = ACTS.remove(p.getUUID());
+        if (gone != null) release(p, gone);
+        LAST.remove(p.getUUID());
+        SKY.remove(p.getUUID());
+        ARMED.remove(p.getUUID());
+    }
+
+    /** Saiu no meio de um golpe: solta quem estava preso por ele (senão ficava até um minuto caído). */
+    private static void release(Player p, Act a) {
+        if (a.kind == LmAttack.CEILING) p.setNoGravity(false);
+        if (a.feed != null && a.feed.isAlive()) LmKnock.letGo(a.feed, 10);
+        if (a.target != null && a.target.isAlive() && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.HEAD_GRAB
+                || a.kind == LmAttack.SMASH
+                || a.kind == LmAttack.HAMMER || a.kind == LmAttack.FINISH)) {
+            LmKnock.letGo(a.target, 10);
+        }
+    }
+
+    public static void clear() {
+        FEEDS.clear();
+        HEAD_LAST.clear();
+        ACTS.clear();
+        LAST.clear();
+        SKY.clear();
+        ARMED.clear();
+    }
+}

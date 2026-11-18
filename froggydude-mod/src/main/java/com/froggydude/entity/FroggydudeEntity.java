@@ -1,0 +1,4065 @@
+package com.froggydude.entity;
+
+import com.froggydude.brain.Engagement;
+import com.froggydude.brain.FroggyBrain;
+import com.froggydude.brain.PlayerMemory;
+import com.froggydude.brain.Strategy;
+import com.froggydude.brain.Style;
+import com.froggydude.config.AiLevel;
+import com.froggydude.config.FroggyConfig;
+import com.froggydude.entity.ai.FroggyCombatGoal;
+import com.froggydude.entity.ai.FroggyFeastGoal;
+import com.froggydude.entity.ai.FroggyFeedGoal;
+import com.froggydude.entity.ai.FroggyFinisherGoal;
+import com.froggydude.entity.ai.FroggyFrenzyGoal;
+import com.froggydude.entity.ai.FroggyRetreatGoal;
+import com.froggydude.entity.ai.FroggySabotageGoal;
+import com.froggydude.entity.ai.FroggyTrackGoal;
+import com.froggydude.entity.voice.VoiceLine;
+import com.froggydude.entity.voice.VoiceSituation;
+import com.froggydude.init.ModEntityTypes;
+import com.froggydude.init.ModParticles;
+import com.froggydude.init.ModSounds;
+import com.froggydude.player.ArmLoss;
+import com.froggydude.world.FroggyKeeper;
+import com.froggydude.world.FroggyWorldData;
+import com.froggydude.world.Manhunt;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.util.Mth;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.WrappedGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.control.BodyRotationControl;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.pathfinder.BlockPathTypes;
+import net.minecraft.world.phys.Vec3;
+import software.bernie.geckolib.animatable.GeoEntity;
+import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.Animation;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.AnimationState;
+import software.bernie.geckolib.core.animation.RawAnimation;
+import software.bernie.geckolib.core.object.PlayState;
+import software.bernie.geckolib.util.GeckoLibUtil;
+
+
+import javax.annotation.Nullable;
+import java.util.EnumMap;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * O chefe Froggydude: escolhe entre vários ataques de língua e de impacto,
+ * entra na fase 2 quando está machucado, e caça mobs pra devorar quando a
+ * vida está muito baixa.
+ *
+ * A "IA de qual ataque usar" mora nas Goals (pacote entity.ai). Esta classe
+ * guarda o estado sincronizado (pra animação e textura) e executa as ações
+ * que as Goals disparam: sangue, cura ao comer, etc.
+ */
+public class FroggydudeEntity extends Monster implements GeoEntity {
+
+    /** Tamanho do modelo: um jogador (1,8 bloco) e um tiquinho maior. Igual à hitbox. */
+    public static final float MODEL_SCALE = 1.05F;
+
+    private static final EntityDataAccessor<Byte> DATA_STATE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Byte> DATA_GORE_STAGE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Byte> DATA_SKIN_VARIANT =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Boolean> DATA_FRENZY =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> DATA_TIRED =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Float> DATA_TONGUE_LEN =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /**
+     * Caçando (tem vítima ou está na fase 2): fica de quatro, andando OU parado.
+     * Decidido no servidor, com folga, pra animação não ficar piscando.
+     */
+    private static final EntityDataAccessor<Boolean> DATA_RUNNING =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Andando (mesma ideia, pra não alternar parado/andando a cada tick). */
+    private static final EntityDataAccessor<Boolean> DATA_MOVING =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /** Teste: força uma animação em loop (NBT "DebugAnim"). Vazio = normal. */
+    private static final EntityDataAccessor<String> DATA_DEBUG_ANIM =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.STRING);
+    /** De quem é o braço que ele está segurando/comendo (pra desenhar com a skin certa). */
+    private static final EntityDataAccessor<Optional<UUID>> DATA_HELD_ARM =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.OPTIONAL_UUID);
+    /** (v0.7.29) A arma de mod que a língua está trazendo (desenhada na ponta da língua). */
+    private static final EntityDataAccessor<ItemStack> DATA_TONGUE_ITEM =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.ITEM_STACK);
+    /** (v0.7.29) A arma de mod atravessada na boca, enquanto ele mastiga. */
+    private static final EntityDataAccessor<ItemStack> DATA_MOUTH_ITEM =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.ITEM_STACK);
+    /** Subindo uma parede/torre de quatro, igual aranha. */
+    private static final EntityDataAccessor<Boolean> DATA_CLIMBING =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /** A boca suja do que ele comeu: a cor e quanto (0 a 1, vai sumindo). */
+    private static final EntityDataAccessor<Integer> DATA_MOUTH_COLOR =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Float> DATA_MOUTH_STAIN =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /** A mancha da boca some toda em uns 2 minutos sem comer nada. */
+    private static final float MOUTH_FADE_PER_SECOND = 1F / 120F;
+    /** Boca escancarada (skin de grito): língua, grito, mordida, mastigando. */
+    private static final EntityDataAccessor<Boolean> DATA_MOUTH_OPEN =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /**
+     * Pra onde o servidor virou ele no ataque (faceTarget). O cliente põe o corpo
+     * aí na hora - a rotação normal só chega de 3 em 3 ticks e ainda é suavizada,
+     * e a língua saía pra onde ele estava olhando antes (pro lado/pra trás) mesmo
+     * acertando. NaN = andando/parado (o corpo segue o movimento).
+     */
+    private static final EntityDataAccessor<Float> DATA_FACE_YAW =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /** Golpe final sem o braço esquerdo (a língua já tinha arrancado): a animação começa no direito. */
+    private static final EntityDataAccessor<Boolean> DATA_FINISH_SKIPLEFT =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /**
+     * O mob que ele está comendo (-1 = nenhum, ou comendo bloco). O cliente deita o
+     * bicho de lado embaixo dele e troca a animação pela "flexão" (feed_mob).
+     */
+    private static final EntityDataAccessor<Integer> DATA_FEED_ID =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+    /** Agachado como jogador (o shift): na dancinha e fazendo ponte (ai.PlayerMoves). */
+    private static final EntityDataAccessor<Boolean> DATA_CROUCH =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /** O ritmo do banquete (1 = 4 mordidas por segundo): o pitch do loop e a velocidade da flexão. */
+    private static final EntityDataAccessor<Float> DATA_FEAST_RATE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /**
+     * (v0.7.33) Quem a língua está segurando no ar (captura ou arremesso; -1 = ninguém). O cliente desenha a
+     * língua-fita da boca até o peito dela, a volta em pentágono no peito e vira o corpo dela pra ele.
+     */
+    private static final EntityDataAccessor<Integer> DATA_CAPTURE_ID =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+    /**
+     * (v0.7.33) O arremesso: quantos graus a vítima dá de volta em torno dele antes de ser solta (com sinal: + pra
+     * direita dele). O cliente gira o tronco (a cintura) com isso; o corpo quem gira é o servidor.
+     */
+    private static final EntityDataAccessor<Float> DATA_THROW_SWEEP =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.FLOAT);
+    /**
+     * (v0.7.35) O renascer com a língua (entity.Revive): os números da cena (vazio = não está renascendo). O cliente
+     * desenha os pedaços, a língua e o levantar a partir disso (client.pieces.ReviveScene).
+     */
+    private static final EntityDataAccessor<CompoundTag> DATA_REVIVE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /**
+     * (v0.7.40) O ragdoll do tiro (entity.Ragdoll): os números da cena (vazio = não está). O cliente faz o corpo mole a
+     * partir disso (client.pieces.RagdollScene).
+     */
+    private static final EntityDataAccessor<CompoundTag> DATA_RAGDOLL =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /** (v0.7.41) A cutscene da cabeça (entity.HeadGrab): quem está embaixo, quando agarrou, acertos (vazio = não está). */
+    private static final EntityDataAccessor<CompoundTag> DATA_HEADGRAB =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /** (v0.7.40) A fase da raiva (entity.Rage: estalo, avança, parado, estalo parado), pra animação do cliente. */
+    private static final EntityDataAccessor<Byte> DATA_RAGE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
+
+    /**
+     * Comendo em "flexão" (pin_hold, feed_mob; v0.7.17, medido no Taste Testing e no monte do golem): uma
+     * mordida por ciclo de 7 ticks (0,35 s) na velocidade 1. A cabeça chega embaixo aos 42% do ciclo, então a
+     * mordida é no tick 3. O ritmo muda com a fome/raiva ({@link #getFeastRate()}, 0,8-1,4).
+     * (v0.7.18) Servidor e cliente usam o MESMO relógio, contado pela idade do estado ({@link #pushupClock}), que
+     * só anda depois da mistura do controlador; o cliente prende o pin_hold/feed_mob nele (FroggydudeRenderer).
+     * Antes a animação começava 3 ticks depois da mordida e cada volta do loop do GeckoLib perdia um pedacinho:
+     * o som e o sangue caíam fora da cabeça embaixo.
+     */
+    public static final int PUSHUP_TICKS = 7;
+    public static final int PUSHUP_BITE_AT = 3;
+    /** Os ticks de mistura do controlador "main": a animação nova só começa a contar depois deles. */
+    public static final int MAIN_BLEND = 3;
+    /** Onde o relógio da flexão estava na última conta (servidor; NaN = o estado acabou de começar) e as mordidas. */
+    private float pushupPhase = Float.NaN;
+    private int pushupBites = 0;
+
+
+    /**
+     * Fase 2: a corrida desesperada do short (atravessa ~15 blocos em menos de 1 s),
+     * mais rápida que o galope da caçada: 0,28 x 2,37 = 0,66 -> ~0,95 bloco/tick
+     * (~19 blocos/s; a velocidade real cresce ~2,15 x atributo^2).
+     */
+    private static final double FRENZY_SPEED_BONUS = 1.37D;
+    public static final int FRENZY_TICKS = 600; // 30 segundos
+
+    private static final UUID FRENZY_SPEED_ID = UUID.fromString("6f3a2e6a-6b9e-4e9a-8f9a-6b6a1a2f9e11");
+    /** (v0.7.30) A fúria do Avaritia: o triplo da velocidade (+200%). */
+    private static final UUID FURY_SPEED_ID = UUID.fromString("3c9d5e21-7f4a-4b88-9e13-a6d2c0f5b744");
+    private static final double FURY_SPEED_BONUS = 2.0D;
+    /** Arma do Avaritia nele: quase nunca pega; quando pega, é só um arranhão (vida). */
+    private static final float AVARITIA_GRAZE_CHANCE = 0.1F;
+    private static final float AVARITIA_GRAZE = 2.0F;
+    /** (v0.7.32) Tiro de arma de mod: um décimo do dano (ele ama dor). */
+    private static final float GUNSHOT_DAMAGE = 0.1F;
+    private static final UUID FRENZY_TIRED_ID = UUID.fromString("1c1a9b0e-2d3f-4a5b-9c8d-7e6f5a4b3c2d");
+
+    private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
+
+    // --- só no servidor (as Goals rodam só lá) ---
+    private int stateTicks = 0;
+    @Nullable
+    private FroggyState lastAttack = null;
+    private int attackCooldown = 0;
+    private final EnumMap<FroggyState, Integer> cooldowns = new EnumMap<>(FroggyState.class);
+    private int frenzyTicksLeft = 0;
+    private int frenzyTiredTicksLeft = 0;
+    private int frenzyCooldown = 0;
+    private boolean phase2Started = false;
+    private int noFallTicks = 0;
+    @Nullable
+    private LivingEntity feedTarget;
+    private int feedSearchCooldown = 0;
+    /**
+     * Aldeão é a comida favorita (junto com gente): sem ninguém pra caçar ele vai
+     * atrás do aldeão que vir. Depois de comer um, fica um minuto de barriga cheia.
+     */
+    private int villagerAppetite = 0;
+    private static final int VILLAGER_FULL_TICKS = 1200;
+    /**
+     * Sempre com fome (LM): a barriga enche e esvazia rápido. Comeu um bicho: 15 s
+     * satisfeito; aldeão ou gente: 30 s. Depois disso, sem ninguém pra caçar, qualquer
+     * bicho que ele veja vira comida (FroggyFeedGoal) e ele reclama de fome.
+     */
+    private static final int SNACK_FULL_TICKS = 300;
+    private static final int MEAL_FULL_TICKS = 600;
+    private int satiety = 0;
+    private int movingHold = 0;
+    private int pinnedVictimId = -1;
+    private int vocalCooldown = 0;
+    /** Gritando (o grito da fase 2): nenhuma fala entra, nem as que cortam as outras. */
+    private int screamTicks = 0;
+    private int ribbitCooldown = 0;
+    /** (v0.7.40) O gemido de tiro não metralha (ticks até o próximo). */
+    private int shotMoanCooldown = 0;
+    /** Calado (as falas nem entram na fila). */
+    private int muteTicks = 0;
+    /** A fala tocando agora (pra cortar quando precisa falar outra por cima). */
+    @Nullable
+    private VoiceLine speakingLine;
+    /** Fala esperando a vez (ex.: "who's next?" depois de "that was so delicious"). */
+    @Nullable
+    private VoiceSituation pendingSpeech;
+    private int pendingSpeechTicks;
+    /** Quem ele caçava e quando perdeu de vista (pra rir quando acha de novo). */
+    @Nullable
+    private UUID lastPreyId;
+    /** Quem ele matou há pouco (até quando fica de barriga cheia dessa pessoa). */
+    private final java.util.Map<UUID, Integer> fedOn = new java.util.HashMap<>();
+    private static final int FED_TICKS = 900;
+    /** Farejando um rastro (FroggyTrackGoal): anda de quatro, como caçando. */
+    private boolean tracking;
+    /** Há quanto tempo o alvo está fora de vista (ver serverAiStep). */
+    private int unseenTicks;
+    private int preyLostAt = Integer.MIN_VALUE / 2;
+    /** Altura onde começou a subir a parede (NaN = não está subindo). */
+    private double climbStartY = Double.NaN;
+    /** Escalando sem ganhar altura (teto, beiral): larga a parede e não sobe de novo por um tempo. */
+    private double climbBestY = Double.NaN;
+    private int climbStall;
+    private int climbBlockedUntil;
+    private int caughtUpReadyAt = 0;
+    /** A caçada em andamento (o cérebro avalia quando ela acaba). */
+    @Nullable
+    private Engagement engagement;
+    /** (v0.7.42) As vontades (fome, raiva, tédio) e o decisor que escolhe o que fazer com elas (IA dinâmica, só IA Real). */
+    private final com.froggydude.brain.Drives drives = new com.froggydude.brain.Drives();
+    private final com.froggydude.entity.ai.FroggyDecider decider = new com.froggydude.entity.ai.FroggyDecider(this);
+    /** Parado, sem IA (vantagem do manhunt, fim do manhunt). */
+    private int holdTicks = 0;
+    @Nullable
+    private UUID holdLookAt;
+    /** Venceu o manhunt: fica um tempo parado e some (ticks restantes; 0 = não). */
+    private int leaveTicks = 0;
+    private FroggyCombatGoal combatGoal;
+    private FroggyFinisherGoal finisherGoal;
+    /** Quem vai pro golpe final no próximo tick (o golpe que mataria foi cancelado). */
+    @Nullable
+    private LivingEntity pendingFinisher;
+    private boolean finishing;
+    /** Teste: NBT "DebugHunt" faz ele caçar o porco mais perto (pra filmar de lado). */
+    private boolean debugHunt = false;
+    /** Teste: NBT "DebugAttack" (ex.: "HIGH_JUMP") faz ele só usar esse ataque. */
+    @Nullable
+    private FroggyState debugAttack = null;
+    private int runningHold = 0;
+    /** Teste: NBT "DebugHeldArm" faz ele segurar o braço do jogador mais perto (pra ver a animação de comer). */
+    private boolean debugHeldArm = false;
+    /** Teste: NBT "DebugArmless" arranca o braço do jogador mais perto assim que o mundo abre. */
+    private boolean debugArmless = false;
+    /** Teste: NBT "DebugStalk" faz ele sempre começar só olhando (modo apavorar). */
+    private boolean debugStalk = false;
+    /** Teste: NBT "DebugPhase2In" (ticks) - entra na fase 2 depois desse tempo (pra filmar do começo). */
+    private int debugPhase2In = 0;
+    /** Teste: NBT "DebugFar" - o sorteio de longe sempre dá isso (1 = susto, 2 = ataque); 0 = sorteia. */
+    private int debugFar = 0;
+    /** "Apavorar" em vez de "matar": segue de longe, encara, não ataca (ticks restantes). */
+    private int stalkTicks = 0;
+    /** Comeu blaze: entra na fase 2 assim que der. */
+    private boolean phase2Requested = false;
+    /** Irritado do nada: ticks desde o 1º ribbit (-1 = calmo); {@link #irkPending} espera ele parar de falar. */
+    private int irkTicks = -1;
+    private boolean irkPending = false;
+    private int painCooldown = 0;
+    private int mouthOpenTicks = 0;
+    /**
+     * Sangue grudado nele (0 a 3,5). Cada mordida, braço e vítima devorada
+     * suja mais; a skin fica tão ensanguentada quanto o pior entre isso e a
+     * vida perdida. Sai devagar com o tempo e rápido na água ou na chuva.
+     */
+    private float goreSoak = 0F;
+
+    // --- só no cliente ---
+    private double clientGroundSpeed = 0D;
+    private double hopClock = 0D;
+    private boolean hindStride = false;
+    private int clientStateAge = 0;
+    private int lastClientState = -1;
+
+    public FroggydudeEntity(EntityType<? extends Monster> type, Level level) {
+        super(type, level);
+        this.xpReward = 25;
+        // caminho: foge de fogo, lava, neve fofa e espinho (e do que ele aprendeu, ver
+        // FroggyNodeEvaluator); passa por eles só se não tiver outro jeito
+        this.setPathfindingMalus(BlockPathTypes.DANGER_FIRE, 16.0F);
+        this.setPathfindingMalus(BlockPathTypes.DAMAGE_FIRE, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DANGER_OTHER, 16.0F);
+        this.setPathfindingMalus(BlockPathTypes.DAMAGE_OTHER, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.POWDER_SNOW, -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DANGER_POWDER_SNOW, 16.0F);
+    }
+
+    /** Vida (v0.6.2: era 150). */
+    public static final double MAX_HEALTH = 250.0D;
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, MAX_HEALTH)
+                .add(Attributes.MOVEMENT_SPEED, 0.28D)
+                .add(Attributes.ATTACK_DAMAGE, 9.0D)
+                // (v0.6.2, LM: "mais resistente de vida") 150 -> 250 de vida, armadura 6 -> 10
+                .add(Attributes.ARMOR, 10.0D)
+                .add(Attributes.ARMOR_TOUGHNESS, 4.0D)
+                .add(Attributes.KNOCKBACK_RESISTANCE, 0.6D)
+                .add(Attributes.FOLLOW_RANGE, 48.0D);
+    }
+
+    @Override
+    protected void defineSynchedData() {
+        super.defineSynchedData();
+        this.entityData.define(DATA_STATE, (byte) FroggyState.IDLE.ordinal());
+        this.entityData.define(DATA_GORE_STAGE, (byte) 0);
+        this.entityData.define(DATA_SKIN_VARIANT, (byte) SkinVariant.NORMAL.ordinal());
+        this.entityData.define(DATA_FRENZY, false);
+        this.entityData.define(DATA_TIRED, false);
+        this.entityData.define(DATA_TONGUE_LEN, 0.0F);
+        this.entityData.define(DATA_RUNNING, false);
+        this.entityData.define(DATA_MOVING, false);
+        this.entityData.define(DATA_DEBUG_ANIM, "");
+        this.entityData.define(DATA_HELD_ARM, Optional.empty());
+        this.entityData.define(DATA_TONGUE_ITEM, ItemStack.EMPTY);
+        this.entityData.define(DATA_MOUTH_ITEM, ItemStack.EMPTY);
+        this.entityData.define(DATA_MOUTH_OPEN, false);
+        this.entityData.define(DATA_MOUTH_COLOR, BloodType.RED.color);
+        this.entityData.define(DATA_MOUTH_STAIN, 0F);
+        this.entityData.define(DATA_FACE_YAW, Float.NaN);
+        this.entityData.define(DATA_CLIMBING, false);
+        this.entityData.define(DATA_FINISH_SKIPLEFT, false);
+        this.entityData.define(DATA_FEED_ID, -1);
+        this.entityData.define(DATA_CROUCH, false);
+        this.entityData.define(DATA_FEAST_RATE, 1.0F);
+        this.entityData.define(DATA_CAPTURE_ID, -1);
+        this.entityData.define(DATA_THROW_SWEEP, 0F);
+        this.entityData.define(DATA_REVIVE, new CompoundTag());
+        this.entityData.define(DATA_RAGDOLL, new CompoundTag());
+        this.entityData.define(DATA_RAGE, (byte) 0);
+        this.entityData.define(DATA_HEADGRAB, new CompoundTag());
+    }
+
+    @Override
+    protected void registerGoals() {
+        // 0: o golpe final (a cutscene) passa por cima de tudo, e nada interrompe
+        this.finisherGoal = new FroggyFinisherGoal(this);
+        this.goalSelector.addGoal(0, finisherGoal);
+        // 0: IA Real - apanhando demais, foge pra longe da vista antes de ir comer (vem antes do comer)
+        this.goalSelector.addGoal(0, new FroggyRetreatGoal(this));
+        // 0: matou: deita nos pedaços e come (antes de procurar outra comida)
+        this.goalSelector.addGoal(0, new FroggyFeastGoal(this));
+        // 0: comer tem prioridade sobre tudo, inclusive lutar
+        this.goalSelector.addGoal(0, new FroggyFeedGoal(this));
+        // 1: fase 2 (contorção + grito + 30 s correndo mais que um jogador)
+        this.goalSelector.addGoal(1, new FroggyFrenzyGoal(this));
+        // 1: na água, de vitória-régia em vitória-régia (não nada quando tem folha no rumo)
+        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyPadHopGoal(this));
+        // 1: speedrun - longe da vítima, come o portal do Nether que ela está fazendo
+        this.goalSelector.addGoal(1, new FroggySabotageGoal(this));
+        // 1: (v0.7.29) arma de mod na mão/mochila dela ou no chão: a língua arranca e ele come (Extra, Máx, Real)
+        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyStealGoal(this));
+        // 2: cérebro de combate - só ataca quando tem certeza que acerta
+        this.combatGoal = new FroggyCombatGoal(this);
+        this.goalSelector.addGoal(2, combatGoal);
+        // 2: faro - sem ver ninguém, segue o rastro de cheiro e, no fim dele, varre
+        // em volta até achar quem se escondeu (mesma prioridade do combate: um
+        // precisa de alvo, o outro só roda sem alvo)
+        this.goalSelector.addGoal(2, new FroggyTrackGoal(this));
+        // 1: IA Real (v0.6) - longe da presa, vai pro lugar que ela está pra voltar (o baú,
+        // a cama, a mina) e espera lá dentro: no canto do teto ou no breu. Na frente do faro
+        // (às vezes vai atrás pelo cheiro, às vezes espera): na mesma prioridade, o faro
+        // que começasse primeiro não deixava a tocaia sair nunca. Só roda sem alvo, então
+        // não passa na frente do combate.
+        // 1: IA Real (v0.6) - ela mora numa vila e foi minerar: ele vai lá e come os aldeões.
+        // Antes da tocaia (as duas na mesma hora: primeiro a vila, depois espera na cama dela)
+        this.massacreGoal = new com.froggydude.entity.ai.FroggyMassacreGoal(this);
+        this.goalSelector.addGoal(1, massacreGoal);
+        this.stakeoutGoal = new com.froggydude.entity.ai.FroggyStakeoutGoal(this);
+        this.goalSelector.addGoal(1, stakeoutGoal);
+        // abre porta de madeira (quem não trancou a porta... - vs "how many days", 7:18)
+        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyDoorGoal(this));
+        // 3: (v0.7.42) IA Real - entediado, sai andando pelo mapa farejando (quando o decisor escolhe explorar)
+        this.goalSelector.addGoal(3, new com.froggydude.entity.ai.FroggyExploreGoal(this));
+        this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
+        // sem RandomLookAroundGoal: ele virava a cabeça pros lados do nada (parecia tique).
+        // Só encara quem estiver perto.
+        this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 12.0F));
+
+        this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
+        // faro: quem está sem braço sangra e ele sente o cheiro de longe, mesmo sem ver
+        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, false, false,
+                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p) && !underTruce(p) && !hidingFrom(p) && !stakingOut) {
+            {
+                this.targetConditions = this.targetConditions.ignoreLineOfSight();
+            }
+
+            @Override
+            protected double getFollowDistance() {
+                return 64.0D * FroggyConfig.ai().sense;
+            }
+        });
+        this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
+                e -> !isFedOn(e) && !underTruce(e) && !hidingFrom(e) && !stakingOut) {
+            @Override
+            protected double getFollowDistance() {
+                // até onde ele enxerga: do Alto pra cima, a distância de renderização (sightRange)
+                return sightRange();
+            }
+
+            @Override
+            protected void findTarget() {
+                // a distância de renderização muda no meio do jogo: o alcance acompanha
+                this.targetConditions.range(getFollowDistance());
+                super.findTarget();
+            }
+
+            @Override
+            public boolean canContinueToUse() {
+                // o padrão esquece quem ficou 3 s sem ser visto - no meio do arrombamento
+                // (comendo o telhado, a parede na frente) ele largava a vítima. Arrombando
+                // ou colado nela, ele sabe onde está; longe e sem ver, quem cuida é o faro.
+                LivingEntity t = this.mob.getTarget();
+                // IA Real indo pra um ponto de onde vê ela lá em cima (o pulo calculado): sabe onde ela está
+                if (t != null && t.isAlive() && (combatGoal.isBreaking() || combatGoal.holdsTarget()
+                        || this.mob.distanceTo(t) < 6.0F)) {
+                    return true;
+                }
+                return super.canContinueToUse();
+            }
+        });
+    }
+
+    @Override
+    protected SoundEvent getAmbientSound() {
+        return ModSounds.AMBIENT.get();
+    }
+
+    @Override
+    protected SoundEvent getHurtSound(DamageSource source) {
+        return ModSounds.HURT.get();
+    }
+
+    /**
+     * Apanhando: às vezes "I love pain" (se não está falando), às vezes o ribbit de
+     * raiva, no resto grunhe.
+     */
+    @Override
+    protected void playHurtSound(DamageSource source) {
+        float r = this.getRandom().nextFloat();
+        if (com.froggydude.brain.ModWeapons.isGunshot(source)) {
+            // (v0.7.40, LM 16/11) tiro de mod de arma: o gemido curto dele a cada tiro (no máximo um a cada 0,35 s: arma
+            // automática dá ~12 tiros por segundo; o som da arma abafa o resto). A conversa das balas ("I love pain",
+            // "Yeah, shoot me...") é com ele caído, quando o jogador chega perto armado (entity.Ragdoll); caído levando
+            // bala, às vezes um "I love pain" no meio.
+            if (isRagdollDown() && vocalCooldown <= 0 && r < 0.25F && speak(VoiceSituation.PAIN)) return;
+            if (vocalCooldown <= 0 && shotMoanCooldown <= 0) {
+                this.playSound(ModSounds.SHOT_MOAN.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
+                shotMoanCooldown = 7;
+            }
+            return;
+        }
+        float love = 0.35F;
+        if (vocalCooldown <= 0 && r < love && speak(VoiceSituation.PAIN)) return;
+        if (r >= love && r < 0.7F && ribbit(1.8F)) return;
+        super.playHurtSound(source);
+    }
+
+    /**
+     * Ribbit = raiva (LM: "Ribbits = Raiva, na lore original"). Não entra por cima de
+     * uma fala e não metralha (1,5 s entre um e outro).
+     */
+    public boolean ribbit(float volume) {
+        if (this.level().isClientSide || vocalCooldown > 0 || ribbitCooldown > 0) return false;
+        this.playSound(ModSounds.RIBBIT.get(), volume, 0.9F + this.getRandom().nextFloat() * 0.2F);
+        vocalCooldown = 14;
+        ribbitCooldown = 30;
+        return true;
+    }
+
+    /** Morrendo: "no, no, noooo" (corta o que estiver falando). */
+    @Override
+    protected SoundEvent getDeathSound() {
+        if (this.level() instanceof ServerLevel server) {
+            stopSpeaking(server);
+            return ModSounds.VOICE.get(nextLine(server, VoiceSituation.DEATH)).get();
+        }
+        return ModSounds.DEATH.get();
+    }
+
+    /**
+     * Matou alguém: "that was so delicious", e às vezes "I want more food" depois.
+     * (É aqui e não no killedEntity: a morte do jogador, ServerPlayer.die, não
+     * chama o killedEntity de quem matou - só o awardKillScore.)
+     */
+    @Override
+    public void awardKillScore(Entity killed, int score, DamageSource source) {
+        super.awardKillScore(killed, score, source);
+        if (this.level().isClientSide) return;
+        if (engagement != null && killed.getUUID().equals(engagement.player)) endEngagement(FroggyBrain.Outcome.KILLED);
+        if (killed instanceof Player && this.level() instanceof ServerLevel kl) {
+            com.froggydude.world.Hunt.forget(kl.getServer(), killed.getUUID()); // pegou: acabou essa caçada
+        }
+        if (killed instanceof Player) {
+            drives.killedPrey(); // (v0.7.42) pegou: a raiva passa e a barriga enche
+            // barriga cheia: 45 s sem caçar quem ele acabou de matar (antes ele
+            // farejava quem renascia e matava de novo, sem parar)
+            fedOn.put(killed.getUUID(), this.tickCount + FED_TICKS);
+            satiety = MEAL_FULL_TICKS;
+            // deita nos pedaços e come; o "that was so delicious" é no fim
+            if (!startFeast((Player) killed, VoiceSituation.ATE)) {
+                speak(VoiceSituation.ATE, true);
+                if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
+            }
+        } else if (killed instanceof LivingEntity living && !(killed instanceof net.minecraft.world.entity.monster.Blaze)
+                && !killed.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES)) {
+            startFeast(living, afterMeal(living));
+        }
+    }
+
+    @Override
+    public int getAmbientSoundInterval() {
+        return 240; // à toa ele quase não faz barulho (o ribbit é de raiva: ver ribbit())
+    }
+
+    /** O som à toa não entra por cima de uma fala. */
+    @Override
+    public void playAmbientSound() {
+        if (vocalCooldown > 0 || speakingLine != null || muteTicks > 0) return;
+        super.playAmbientSound();
+    }
+
+    /** Quando acha uma vítima nova: som de caça (froggydude.hunt). */
+    @Override
+    public void setTarget(@Nullable LivingEntity target) {
+        // continuou comendo apesar de quem bateu (o sorteio de hurt): não troca de alvo agora
+        if (target != null && target.getId() == ignoreAttackerId && this.tickCount < ignoreAttackerUntil
+                && busyWithPrey()) {
+            return;
+        }
+        // trégua ("Não mexe comigo"): nem o faro, nem o manhunt, nem nada põe esse jogador
+        // na mira - só se ele bater primeiro (hurt() quebra a trégua antes)
+        if (target != null && !this.level().isClientSide && underTruce(target)) target = null;
+        LivingEntity old = this.getTarget();
+        super.setTarget(target);
+        if (this.level().isClientSide) return;
+        if (old instanceof Player && old != target) {
+            lastPreyId = old.getUUID();
+            preyLostAt = this.tickCount;
+            if (engagement != null && engagement.player.equals(old.getUUID())) engagement.lostAt = this.tickCount;
+        }
+        if (target instanceof Player && old != target) {
+            // a mesma presa de antes: se sumiu por uns segundos e ele achou de novo,
+            // dá a risadinha (origem 4:21); se é outra ou faz tempo, é uma caçada nova
+            int lost = this.tickCount - preyLostAt;
+            boolean same = target.getUUID().equals(lastPreyId);
+            if (planPending && FroggyConfig.ai().real) {
+                // curado (ou cansou de esperar): "time for the plan!" - e o plano diz como termina
+                planPending = false;
+                VoiceLine plan = FroggyWorldData.get((ServerLevel) this.level()).voice.peek(VoiceSituation.PLAN);
+                if (speak(VoiceSituation.PLAN, true)) {
+                    forceFinish(plan == VoiceLine.PLAN_SMASH ? FroggyState.SMASH : FroggyState.PIN_HOLD, 1200);
+                    brainLog("o plano contra " + target.getScoreboardName() + ": " + plan.clip);
+                }
+            } else if (same && lost >= 60 && lost < 2400) {
+                speak(VoiceSituation.FOUND);
+            } else if ((!same || lost >= 2400) && !(FroggyConfig.ai().real && target instanceof ServerPlayer sp
+                    && com.froggydude.player.PlayerSight.unseenFor(sp, this) >= 60) && !farScareRoll(target)) {
+                // (na IA Real, chegando sem ser visto, ele não se anuncia: vem o "I see you")
+                speak(VoiceSituation.SPOT);
+            }
+            if (engagement != null && engagement.player.equals(target.getUUID())) {
+                engagement.lostAt = -1; // achou de novo: continua a mesma caçada
+            } else {
+                if (engagement != null) endEngagement(FroggyBrain.Outcome.ONGOING_SWITCH);
+                beginEngagement((Player) target);
+            }
+        }
+    }
+
+    /** O sorteio de longe já feito pra essa caçada (a fala de quem viu vem antes dela começar). */
+    @Nullable
+    private Boolean farRoll;
+
+    /**
+     * O sorteio de quando ele te vê de longe: true = primeiro o barulho sem aparecer (aí
+     * ele não grita "Hey, humans!" - não pode se denunciar). Sorteia uma vez por caçada.
+     * Na IA Real nunca: "viu, vai" (v0.7.15).
+     */
+    private boolean farScareRoll(LivingEntity target) {
+        if (FroggyConfig.ai().real) return false;
+        if (farRoll == null) {
+            farRoll = this.distanceTo(target) > com.froggydude.entity.ai.FroggyCombatGoal.FAR_SPOT
+                    && (debugFar == 1 || debugFar != 2 && this.getRandom().nextBoolean());
+        }
+        return farRoll;
+    }
+
+    // ---------------- cérebro (brain/): escolhe a estratégia e aprende com o resultado ----------------
+
+    /**
+     * Caçada nova: o cérebro escolhe como começar pelo que aprendeu desse
+     * jogador (apavorar, caçar direto ou cercar por trás). Com a vítima lá em
+     * cima de uma torre ele não fica olhando: sobe.
+     */
+    private void beginEngagement(Player target) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        FroggyWorldData data = FroggyWorldData.get(server);
+        PlayerMemory m = data.brain.memory(target.getUUID(), target.getScoreboardName());
+        m.hunts++;
+        float[] bias = target instanceof ServerPlayer sp ? Manhunt.bias(sp) : null;
+        AiLevel ai = FroggyConfig.ai();
+        // MIN: o cérebro não manda, ele chuta a estratégia
+        Strategy s = debugStalk ? Strategy.STALK
+                : ai.brain ? data.brain.choose(m, bias, this.getRandom(), ai.explore)
+                : Strategy.values()[this.getRandom().nextInt(Strategy.values().length)];
+        boolean up = target.getY() - this.getY() > 2.5D;
+        // IA Real é "viu, vai" (v0.7.15, LM: "fica encarando o jogador, demorando agir"): sem o
+        // "apavorar" (seguir de longe encarando); o barulho de longe também não (farScareRoll)
+        if (s == Strategy.STALK && !debugStalk && (up || ai.real || debugAttack != null || this.getLastHurtByMob() == target)) {
+            s = Strategy.RUSH;
+        }
+        // te viu lá de longe (v0.7.5): sorteia - ataca direto ou primeiro o barulho sem aparecer (LM)
+        double far = this.distanceTo(target);
+        if (far > com.froggydude.entity.ai.FroggyCombatGoal.FAR_SPOT && target instanceof ServerPlayer sp && !m.mockDue
+                && debugAttack == null && !debugStalk && !isFrenzyActive()) {
+            boolean scare = farScareRoll(target);
+            farRoll = null;
+            combatGoal.decideFar(sp, scare);
+            if (s == Strategy.STALK) s = Strategy.RUSH;
+            brainLog(String.format(java.util.Locale.ROOT, "vi %s de longe (%.0f blocos): %s", target.getScoreboardName(), far,
+                    scare ? "primeiro o barulho sem aparecer" : "ataca direto"));
+        }
+        engagement = new Engagement(target.getUUID(), m.dominantStyle(), s, this.tickCount);
+        if (s == Strategy.STALK) startStalking(160 + this.getRandom().nextInt(140));
+        if (m.mockDue && debugAttack == null) {
+            // matou demais esse jogador: dessa vez ele só zomba e vai embora
+            mocking = target.getUUID();
+            stopStalking();
+            brainLog("matou " + m.name + " 3 vezes num dia: vai zombar e ir embora");
+        }
+        data.setDirty();
+    }
+
+    /** Acabou a caçada: calcula a recompensa e o cérebro aprende. */
+    private void endEngagement(FroggyBrain.Outcome outcome) {
+        Engagement e = engagement;
+        engagement = null;
+        if (e == null || !(this.level() instanceof ServerLevel server)) return;
+        FroggyWorldData data = FroggyWorldData.get(server);
+        PlayerMemory m = data.brain.find(e.player);
+        if (m == null) return;
+        float reward = FroggyBrain.reward(e.dealt, e.taken, e.pins, outcome, this.tickCount - e.startTick);
+        data.brain.learn(m, e.context, e.strategy, reward);
+        switch (outcome) {
+            case KILLED -> {
+                m.kills++;
+                m.recordKill(server.getGameTime());
+            }
+            case ESCAPED -> {
+                m.escapes++;
+                ribbit(2.5F); // escapou dele: raiva
+                drives.preyEscaped();
+            }
+            case FROGGY_DIED -> m.froggyDeaths++;
+            default -> {
+            }
+        }
+        data.setDirty();
+        // mundo -dev: conta no chat o que aprendeu (pra dar pra ver ele aprendendo)
+        brainLog(String.format(java.util.Locale.ROOT, "caçada contra %s: %s, %s, recompensa %+.1f -> %s vale %+.1f",
+                m.name, e.strategy.label, outcome.name().toLowerCase(java.util.Locale.ROOT), reward, e.strategy.label,
+                m.q[e.context.ordinal()][e.strategy.ordinal()]));
+    }
+
+    @Nullable
+    private PlayerMemory memoryOf(LivingEntity target) {
+        if (!(target instanceof Player) || !(this.level() instanceof ServerLevel server)) return null;
+        return FroggyWorldData.get(server).brain.memory(target.getUUID(), target.getScoreboardName());
+    }
+
+    // ---------------- golpe final (a cutscene) ----------------
+
+    /**
+     * O golpe dele ia matar esse jogador: em vez de morrer na hora, no próximo
+     * tick vem a cutscene (FroggyFinisherGoal). Chamado pelo event.FinisherEvents.
+     * Com aldeão (a outra comida favorita) é a mesma sequência, vista de fora:
+     * chamado pela FroggyFeedGoal depois da flexão.
+     */
+    public void requestFinisher(LivingEntity victim) {
+        requestFinisher(victim, false);
+    }
+
+    /** (v0.7.41) headOnly: só a cabeça, com os braços no lugar (a cutscene da cabeça falhou: entity.HeadGrab). */
+    public void requestFinisher(LivingEntity victim, boolean headOnly) {
+        if (finishing) return;
+        pendingFinisher = victim;
+        pendingFinisherHead = headOnly;
+    }
+
+    private boolean pendingFinisherHead;
+
+    @Nullable
+    public LivingEntity takePendingFinisher() {
+        LivingEntity p = pendingFinisher;
+        pendingFinisher = null;
+        return p;
+    }
+
+    /** O próximo golpe final é só a cabeça? (lê e apaga) */
+    public boolean takePendingFinisherHead() {
+        boolean h = pendingFinisherHead;
+        pendingFinisherHead = false;
+        return h;
+    }
+
+    public boolean isFinishing() {
+        return finishing || pendingFinisher != null;
+    }
+
+    /** Começou: larga tudo (vítima presa, braço na boca, língua) e entra no estado. */
+    public void beginFinisher(LivingEntity victim, boolean skipLeft) {
+        finishing = true;
+        holdTicks = 0;
+        stopStalking();
+        setPinnedVictim(victim);
+        setHeldArm(victim instanceof Player p ? p : null);
+        setTongueLength(0F);
+        this.entityData.set(DATA_FINISH_SKIPLEFT, skipLeft);
+        setFroggyState(FroggyState.FINISHER);
+        mute(0);
+    }
+
+    public void endFinisher(boolean completed) {
+        finishing = false;
+        setPinnedVictim(null);
+        setHeldArm(null);
+        if (getFroggyState() == FroggyState.FINISHER) setFroggyState(FroggyState.CHASE);
+        setAttackCooldown(30);
+        if (completed && !this.level().isClientSide) {
+            // depois de devorar alguém inteiro ele fica de barriga cheia dessa pessoa
+            LivingEntity v = this.getTarget();
+            if (v instanceof Player) fedOn.put(v.getUUID(), this.tickCount + FED_TICKS);
+            this.setTarget(null);
+        }
+    }
+
+    public boolean finisherSkipsLeft() {
+        return this.entityData.get(DATA_FINISH_SKIPLEFT);
+    }
+
+    // ---------------- perigo aprendido (brain/DangerMemory) ----------------
+
+    /** Ele já se machucou nesse bloco? (o caminho desvia; ver FroggyNodeEvaluator) */
+    public boolean remembersDanger(int x, int y, int z) {
+        if (!(this.level() instanceof ServerLevel server)) return false;
+        return FroggyWorldData.get(server).dangers.isDangerous(
+                server.dimension().location().toString(), x, y, z, server.getGameTime());
+    }
+
+    /**
+     * Machucou com algo do mundo (não de quem ele caça): lembra do lugar. Lava,
+     * fogo e chão quente marcam onde ele pisou; explosão, um raio de 3 blocos
+     * em volta dela; flecha sem dono (armadilha de dispensador), em volta dele.
+     */
+    private void learnDanger(DamageSource source) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        BlockPos at = null;
+        int radius = 1;
+        String what;
+        if (source.is(DamageTypes.LAVA) || source.is(DamageTypes.IN_FIRE) || source.is(DamageTypes.HOT_FLOOR)) {
+            at = this.blockPosition();
+            what = "fogo/lava";
+        } else if (source.is(DamageTypeTags.IS_EXPLOSION)) {
+            Vec3 p = source.getSourcePosition();
+            at = p != null ? BlockPos.containing(p) : this.blockPosition();
+            radius = 3;
+            what = "explosão";
+        } else if (source.is(DamageTypes.CACTUS) || source.is(DamageTypes.SWEET_BERRY_BUSH)) {
+            at = this.blockPosition();
+            what = "espinho";
+        } else if (source.is(DamageTypes.FREEZE)) {
+            at = this.blockPosition();
+            what = "neve fofa";
+        } else if (source.is(DamageTypeTags.IS_PROJECTILE) && !(source.getEntity() instanceof Player)) {
+            at = this.blockPosition();
+            radius = 2;
+            what = "armadilha";
+        } else {
+            return;
+        }
+        FroggyWorldData data = FroggyWorldData.get(server);
+        String dim = server.dimension().location().toString();
+        boolean known = data.dangers.isDangerous(dim, at.getX(), at.getY(), at.getZ(), server.getGameTime());
+        data.dangers.mark(dim, at, radius, server.getGameTime());
+        data.setDirty();
+        if (!known) brainLog("aprendi um perigo: " + what + " em " + at.toShortString() + " (o caminho agora desvia)");
+    }
+
+    /** (v0.7.42) As vontades dele (IA dinâmica). */
+    public com.froggydude.brain.Drives drives() {
+        return drives;
+    }
+
+    /** (v0.7.42) O decisor (IA dinâmica; só manda na IA Real). */
+    public com.froggydude.entity.ai.FroggyDecider decider() {
+        return decider;
+    }
+
+    /** Mundo -dev: conta no chat o que o cérebro decidiu/aprendeu. */
+    public void brainLog(String msg) {
+        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] cérebro: " + msg);
+        if (!(this.level() instanceof ServerLevel server) || !FroggyWorldData.isDev(server.getServer())) return;
+        net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("[cérebro] " + msg)
+                .withStyle(net.minecraft.ChatFormatting.DARK_AQUA);
+        for (ServerPlayer p : server.players()) p.sendSystemMessage(line);
+    }
+
+    /** Ele está caçando esse jogador agora (mirando nele, ou perdeu de vista há pouco)? */
+    public boolean isHunting(Player player) {
+        if (this.getTarget() == player) return true;
+        return engagement != null && engagement.player.equals(player.getUUID())
+                && (engagement.lostAt < 0 || this.tickCount - engagement.lostAt < 600);
+    }
+
+    /** A estratégia da caçada de agora (null = sem caçada). */
+    @Nullable
+    public Strategy getStrategy() {
+        return engagement == null ? null : engagement.strategy;
+    }
+
+    /** Taxa de acerto plausível desse ataque contra esse alvo (Thompson; 0,5 = não sabe). */
+    public float attackHitChance(LivingEntity target, FroggyState attack) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null || !FroggyConfig.ai().brain) return 0.5F;
+        return FroggyWorldData.get((ServerLevel) this.level()).brain.sampleHitRate(m, attack.name(), this.getRandom());
+    }
+
+    public void recordAttack(LivingEntity target, FroggyState attack, boolean hit) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return;
+        FroggyWorldData data = FroggyWorldData.get((ServerLevel) this.level());
+        data.brain.recordAttack(m, attack.name(), hit);
+        data.setDirty();
+    }
+
+    /** IA Real: chance plausível de uma tática dar certo contra essa pessoa (Thompson, como os ataques). */
+    public float tacticChance(LivingEntity target, String tactic) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return 0.5F;
+        return FroggyWorldData.get((ServerLevel) this.level()).brain.sampleHitRate(m, tactic, this.getRandom());
+    }
+
+    public void recordTactic(LivingEntity target, String tactic, boolean worked) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return;
+        FroggyWorldData data = FroggyWorldData.get((ServerLevel) this.level());
+        data.brain.recordAttack(m, tactic, worked);
+        data.setDirty();
+    }
+
+    public void observe(LivingEntity target, Style style, float amount) {
+        PlayerMemory m = memoryOf(target);
+        if (m == null) return;
+        m.observe(style, amount);
+        FroggyWorldData.get((ServerLevel) this.level()).setDirty();
+    }
+
+    public void onDealtDamage(LivingEntity target, float amount) {
+        if (engagement != null && target.getUUID().equals(engagement.player)) engagement.dealt += amount;
+    }
+
+    public void onPinnedVictim(LivingEntity target) {
+        if (engagement != null && target.getUUID().equals(engagement.player)) engagement.pins++;
+    }
+
+    // ---------------- Parte 4: parado, fim do manhunt ----------------
+
+    /**
+     * Fica parado, sem IA, encarando {@code lookAt} (a vantagem do manhunt, o
+     * fim do manhunt). 0 = solta.
+     */
+    public void holdStill(int ticks, @Nullable Player lookAt) {
+        holdTicks = Math.max(0, ticks);
+        leaveTicks = 0; // manhunt novo: não vai mais embora
+        holdLookAt = lookAt == null ? null : lookAt.getUUID();
+        if (holdTicks > 0) {
+            this.goalSelector.getRunningGoals().forEach(net.minecraft.world.entity.ai.goal.WrappedGoal::stop);
+            this.getNavigation().stop();
+            this.setTarget(null);
+            stopStalking();
+            setFroggyState(FroggyState.IDLE);
+        }
+    }
+
+    public boolean isHolding() {
+        return holdTicks > 0;
+    }
+
+    @Override
+    public void remove(RemovalReason reason) {
+        // sumiu no meio da refeição (descarregou, /kill): o bicho que estava comendo levanta
+        if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget);
+        // (v0.7.29) sumiu sem morrer (foi embora depois do manhunt, trocado por outro FroggyDude): o que ele roubou
+        // não some junto (descarregar o pedaço do mapa não conta: a barriga vai salva com ele). (v0.7.34) Nem quando o
+        // diretor de tensão tira ele do mundo pra voltar depois (a barriga vai guardada junto: leaveQuietly)
+        if (reason == RemovalReason.DISCARDED && !leavingQuietly) dropStolen();
+        super.remove(reason);
+    }
+
+    @Override
+    protected boolean isImmobile() {
+        return super.isImmobile() || holdTicks > 0;
+    }
+
+    /**
+     * Venceu o manhunt: fica parado ali uns segundos (comendo, se gabando) e vai
+     * embora. Antes ele continuava caçando e matava de novo quem renascia.
+     */
+    public void leaveAfterWin(int ticks) {
+        holdStill(ticks, null);
+        leaveTicks = ticks;
+    }
+
+    /** (v0.7.34) Saindo do mundo pelo diretor de tensão (guardado inteiro, volta o mesmo). */
+    private boolean leavingQuietly;
+
+    /** (v0.7.34) Sai do mundo sem largar nada: o diretor de tensão guardou ele inteiro e põe de volta depois. */
+    public void leaveQuietly() {
+        leavingQuietly = true;
+        this.discard();
+    }
+
+    /**
+     * (v0.7.34) Parado pelo vislumbre do diretor (NoAI). Fica salvo nele: se o diretor parar no meio (manhunt, invasão
+     * desligada na config, pedaço do mapa descarregado), ele mesmo se solta (tick) em vez de ficar congelado pra sempre.
+     */
+    private boolean glimpseFrozen;
+
+    public void freezeForGlimpse(boolean frozen) {
+        if (glimpseFrozen || frozen) this.setNoAi(frozen);
+        glimpseFrozen = frozen;
+    }
+
+    /** (v0.7.34) O diretor desistiu dele guardado (o dragão morreu): devolve o que roubou onde ele está. */
+    public void returnStolen() {
+        dropStolen();
+    }
+
+    /**
+     * (v0.7.34) O falso alívio do diretor de tensão: a caçada acabou, ele larga ela e vai embora andando (a trégua
+     * curta impede de pegar ela de novo no caminho); o diretor tira ele do mundo quando ela não estiver vendo.
+     * Se ela mexer com ele, a trégua quebra e ele briga (breakTruce).
+     */
+    public void retreatFrom(ServerPlayer p) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        PlayerMemory m = FroggyWorldData.get(server).brain.memory(p.getUUID(), p.getScoreboardName());
+        m.truceUntil = server.getGameTime() + PlayerMemory.TRUCE_MIN;
+        FroggyWorldData.get(server).setDirty();
+        if (engagement != null && engagement.player.equals(p.getUUID())) engagement = null;
+        stopStalking();
+        setTarget(null);
+        if (getFroggyState() == FroggyState.CHASE) setFroggyState(FroggyState.IDLE);
+        walkAwayFrom = p.position();
+        walkAwayTicks = 300;
+        walkAwayPlayer = null;
+        brainLog("diretor: a caçada acabou, vai embora (falso alívio)");
+    }
+
+    /**
+     * (v0.7.34) No meio de um golpe ou com alguém preso (não dá pra sumir agora). (v0.7.35) Ou se remontando: o diretor
+     * não manda ele recuar nem tira ele do mundo no meio da cena.
+     */
+    public boolean isFightingNow() {
+        FroggyState s = getFroggyState();
+        return s.isCombatAction() || s == FroggyState.FINISHER || s == FroggyState.CONTORTING || s == FroggyState.ROAR
+                || s == FroggyState.REVIVE || getPinnedVictim() != null;
+    }
+
+    /** (v0.7.34) Comendo alguma coisa (o banquete, um bicho, o braço, a arma roubada). */
+    public boolean isEating() {
+        FroggyState s = getFroggyState();
+        return s == FroggyState.FEAST || s == FroggyState.FEEDING || s == FroggyState.ARM_EAT || s == FroggyState.WEAPON_EAT
+                || getFeedTarget() != null;
+    }
+
+    /** Perdeu o manhunt (dragão morto / dias passaram): "no, no, noooo" e cai. */
+    public void loseManhunt() {
+        holdTicks = 0;
+        this.hurt(this.damageSources().genericKill(), Float.MAX_VALUE);
+    }
+
+    /**
+     * (v0.7.29) Devolve ao mundo o que ele roubou: o que comeu (só a arma; a munição ele comeu junto) e o que estava
+     * na boca/língua (inteiro). É coisa do jogador, não "loot" dele: cai mesmo com o doMobLoot desligado.
+     */
+    private void dropStolen() {
+        if (this.level().isClientSide) return;
+        for (ItemStack s : belly) this.spawnAtLocation(s.copy(), 1.0F);
+        belly.clear();
+        for (ItemStack s : new ItemStack[]{getMouthItem(), getTongueItem()}) {
+            if (!s.isEmpty()) this.spawnAtLocation(s.copy(), 1.0F);
+        }
+        setMouthItem(ItemStack.EMPTY);
+        setTongueItem(ItemStack.EMPTY);
+    }
+
+    // ---------------------------------------------------------------- (v0.7.35) o renascer
+
+    @Nullable
+    private Revive.Params reviveCache;
+    @Nullable
+    private CompoundTag reviveCacheTag;
+
+    public boolean isReviving() {
+        return getFroggyState() == FroggyState.REVIVE && !this.entityData.get(DATA_REVIVE).isEmpty();
+    }
+
+    /** Os números da cena (null se não está renascendo). */
+    @Nullable
+    public Revive.Params reviveParams() {
+        CompoundTag t = this.entityData.get(DATA_REVIVE);
+        if (t.isEmpty()) return null;
+        if (t != reviveCacheTag) {
+            reviveCacheTag = t;
+            reviveCache = Revive.Params.of(t);
+        }
+        return reviveCache;
+    }
+
+    /**
+     * Começa. O que ele estava fazendo acaba aqui, do jeito de cada goal (a cutscene, o bicho preso, a fase 2...): sem
+     * IA eles ficariam congelados no meio e voltariam velhos no fim. Larga o que roubou. Já fica com a vida da volta
+     * (metade): quem guarda a vida dele no meio da cena (a caçada, o manhunt, o diretor) guarda essa. Parado no lugar
+     * dos pés (o corpo deita dali pra frente) e virado pra onde o corpo deita, também no "rosto" sincronizado: sem ele o
+     * cliente punha o corpo pro lado de um ataque velho. Sem IA (isNoAi) e invulnerável (hurt) até o fim.
+     */
+    void beginRevive(Revive.Params p, Vec3 feet) {
+        if (finishing) finisherGoal.stop();
+        if (feedTarget != null) FeedLock.release(feedTarget);
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        this.targetSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        dropStolen();
+        this.setHealth(this.getMaxHealth() * 0.5F);
+        // a skin ensanguentada da metade da vida já nos pedaços (o tick para na cena: sem isso o sangue aparecia de
+        // repente 1,5 s depois de ele levantar)
+        updateGoreStage();
+        this.getNavigation().stop();
+        this.setTarget(null);
+        this.setDeltaMovement(Vec3.ZERO);
+        this.moveTo(feet.x, feet.y, feet.z, p.yaw(), 0F);
+        setFaceYawSynced(p.yaw());
+        this.entityData.set(DATA_REVIVE, p.toTag());
+        setFroggyState(FroggyState.REVIVE);
+    }
+
+    /** Acabou: de pé, metade da vida (ou o que já tinha, se for mais), volta a caçar. */
+    void endRevive() {
+        clearRevive();
+        this.setHealth(Math.max(this.getHealth(), this.getMaxHealth() * 0.5F));
+        Player near = this.level().getNearestPlayer(this, 64D);
+        setFroggyState(FroggyState.IDLE);
+        if (near != null && !near.isCreative() && !near.isSpectator()) setTarget(near);
+    }
+
+    private void clearRevive() {
+        this.entityData.set(DATA_REVIVE, new CompoundTag());
+        if (getFroggyState() == FroggyState.REVIVE) setFroggyState(FroggyState.IDLE);
+    }
+
+    // ---------------------------------------------------------------- (v0.7.40) o ragdoll do tiro (entity.Ragdoll)
+
+    /** As Goals com essas marcas param enquanto ele está mole (e nenhuma começa). */
+    private static final net.minecraft.world.entity.ai.goal.Goal.Flag[] RAGDOLL_FLAGS = {
+            net.minecraft.world.entity.ai.goal.Goal.Flag.MOVE, net.minecraft.world.entity.ai.goal.Goal.Flag.LOOK,
+            net.minecraft.world.entity.ai.goal.Goal.Flag.JUMP};
+    /** Deitado: a caixa baixa e larga (dá pra acertar o corpo caído, em qualquer direção que ele caiu). */
+    private static final net.minecraft.world.entity.EntityDimensions RAGDOLL_FLAT =
+            net.minecraft.world.entity.EntityDimensions.scalable(1.6F, 0.6F);
+    @Nullable
+    private Ragdoll.Run ragdollRun;
+    private int ragdollCooldownUntil;
+    /** Onde levou o tiro (o log de teste mede o voo). */
+    Vec3 ragdollFrom = Vec3.ZERO;
+    @Nullable
+    private Ragdoll.Params ragdollCache;
+    @Nullable
+    private CompoundTag ragdollCacheTag;
+
+    /** Os números do ragdoll (null se não está). */
+    @Nullable
+    public Ragdoll.Params ragdollParams() {
+        CompoundTag t = this.entityData.get(DATA_RAGDOLL);
+        if (t.isEmpty()) return null;
+        if (t != ragdollCacheTag) {
+            ragdollCacheTag = t;
+            ragdollCache = Ragdoll.Params.of(t);
+        }
+        return ragdollCache;
+    }
+
+    void setRagdollParams(Ragdoll.Params p) {
+        this.entityData.set(DATA_RAGDOLL, p.toTag());
+    }
+
+    @Nullable
+    Ragdoll.Run ragdollRun() {
+        return ragdollRun;
+    }
+
+    int ragdollCooldownUntil() {
+        return ragdollCooldownUntil;
+    }
+
+    int vocalCooldown() {
+        return vocalCooldown;
+    }
+
+    /** Caído depois do tiro (deitado, ainda sem levantar): a bala faz metade do dano. */
+    public boolean isRagdollDown() {
+        if (getFroggyState() != FroggyState.RAGDOLL) return false;
+        Ragdoll.Params p = ragdollParams();
+        return p != null && p.lying() && !p.rising();
+    }
+
+    /** Deitado até o fim do levantar: a caixa baixa. */
+    private boolean ragdollFlat() {
+        if (getFroggyState() != FroggyState.RAGDOLL) return false;
+        Ragdoll.Params p = ragdollParams();
+        return p != null && p.lying();
+    }
+
+    /**
+     * Voa: o que estava fazendo para (as Goals pelas marcas de controle; sem IsNoAi, que congelaria a física), o empurrão
+     * na direção da bala, sem dano de queda.
+     */
+    void beginRagdoll(Ragdoll.Params p, @Nullable UUID shooter) {
+        if (finishing) finisherGoal.stop();
+        if (feedTarget != null) FeedLock.release(feedTarget);
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        this.getNavigation().stop();
+        ragdollRun = new Ragdoll.Run();
+        ragdollRun.shooter = shooter;
+        ragdollFrom = this.position();
+        this.setDeltaMovement(p.dx() * p.speed(), p.up(), p.dz() * p.speed());
+        // já no ar: senão o 1º tick aplica o atrito do chão (x0,55) e ele voava só ~8 blocos
+        this.setOnGround(false);
+        this.hurtMarked = true;
+        this.hasImpulse = true;
+        setNoFallTicks(120);
+        this.entityData.set(DATA_RAGDOLL, p.toTag());
+        setFroggyState(FroggyState.RAGDOLL);
+        brainLog("tomei um tiro parado: voei longe");
+    }
+
+    /** Acabou (levantou, ou alguém trocou o estado): a IA volta; levantou com raiva = caça quem atirou. */
+    void endRagdoll(boolean angry) {
+        Ragdoll.Run run = ragdollRun;
+        ragdollRun = null;
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        if (!this.entityData.get(DATA_RAGDOLL).isEmpty()) this.entityData.set(DATA_RAGDOLL, new CompoundTag());
+        if (getFroggyState() == FroggyState.RAGDOLL) setFroggyState(FroggyState.CHASE);
+        if (!angry || run == null) return;
+        ragdollCooldownUntil = this.tickCount + Ragdoll.COOLDOWN;
+        enragedUntil = Math.max(enragedUntil, this.tickCount + 300 + 30 * Math.min(run.shots, 10));
+        Player p = Ragdoll.shooter(this, run);
+        if (p != null) setTarget(p);
+        // levou bala caído (tentaram matar ele com bala): MUITA raiva - o "()" e o estalo do pescoço (entity.Rage)
+        if (run.shots > 0 && Rage.begin(this, p)) return;
+        brainLog("levantei" + (run.shots > 0 ? " com " + run.shots + " balas no corpo" : "") + ": agora é pessoal");
+    }
+
+    // ---------------------------------------------------------------- (v0.7.40) a raiva (entity.Rage)
+
+    @Nullable
+    private Rage.Run rageRun;
+
+    void beginRage(Rage.Run run) {
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        rageRun = run;
+        this.entityData.set(DATA_RAGE, Rage.CRACK);
+        setFroggyState(FroggyState.RAGE);
+        setTarget(run.target);
+    }
+
+    void setRagePhase(byte phase) {
+        this.entityData.set(DATA_RAGE, phase);
+    }
+
+    public byte getRagePhase() {
+        return this.entityData.get(DATA_RAGE);
+    }
+
+    /** Acabou a raiva: parte pra cima (as Goals voltam, com o alvo dela) - ou, se dá, o bote na cabeça (HeadGrab). */
+    void endRage() {
+        endRage(true);
+    }
+
+    private void endRage(boolean attack) {
+        Rage.Run run = rageRun;
+        rageRun = null;
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        this.getNavigation().stop();
+        if (getFroggyState() == FroggyState.RAGE) setFroggyState(FroggyState.CHASE);
+        if (run != null && run.target.isAlive()) {
+            setTarget(run.target);
+            // (v0.7.41) o fim da raiva é o bote na cabeça (a cutscene jogável)
+            if (attack && HeadGrab.begin(this, run.target)) return;
+        }
+    }
+
+    // ---------------------------------------------------------------- (v0.7.41) a cutscene da cabeça (entity.HeadGrab)
+
+    @Nullable
+    private HeadGrab.Run headGrabRun;
+    private int headGrabCooldownUntil;
+
+    int headGrabCooldownUntil() {
+        return headGrabCooldownUntil;
+    }
+
+    void clearHeadGrabCooldown() {
+        headGrabCooldownUntil = 0;
+    }
+
+    /** O comando de teste: larga o que estiver fazendo (raiva, ragdoll) antes do bote. */
+    void forceIdleForHeadGrab() {
+        if (rageRun != null) {
+            rageRun = null;
+            for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        }
+        if (ragdollRun != null) endRagdoll(false);
+        if (getFroggyState() != FroggyState.HEAD_GRAB) setFroggyState(FroggyState.CHASE);
+    }
+
+    void beginHeadGrab(HeadGrab.Run run) {
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        this.getNavigation().stop();
+        headGrabRun = run;
+        headGrabCooldownUntil = this.tickCount + HeadGrab.COOLDOWN;
+        this.entityData.set(DATA_HEADGRAB, new CompoundTag());
+        setFroggyState(FroggyState.HEAD_GRAB);
+        setTarget(run.victim);
+    }
+
+    void setHeadGrabState(CompoundTag t) {
+        this.entityData.set(DATA_HEADGRAB, t);
+    }
+
+    /** O que o cliente lê (o alerta, a animação): vazio enquanto pula ou se não está agarrando. */
+    public CompoundTag headGrabState() {
+        return this.entityData.get(DATA_HEADGRAB);
+    }
+
+    @Nullable
+    HeadGrab.Run headGrabRun() {
+        return headGrabRun;
+    }
+
+    /** Acabou (se soltou, arrancou, ela sumiu): a IA volta. */
+    void endHeadGrab() {
+        HeadGrab.release(this, headGrabRun);
+        headGrabRun = null;
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        if (!this.entityData.get(DATA_HEADGRAB).isEmpty()) this.entityData.set(DATA_HEADGRAB, new CompoundTag());
+        setPinnedVictim(null);
+        if (getFroggyState() == FroggyState.HEAD_GRAB) setFroggyState(FroggyState.CHASE);
+    }
+
+    /**
+     * O jogo religa as marcas de controle das Goals a cada 5 ticks (Mob.tick): mole (ragdoll) ou na raiva, elas
+     * continuam desligadas (sem isso o bote do combate voltava no meio do voo).
+     */
+    @Override
+    protected void updateControlFlags() {
+        super.updateControlFlags();
+        if (ragdollRun != null || rageRun != null || headGrabRun != null) {
+            for (var fl : RAGDOLL_FLAGS) this.goalSelector.disableControlFlag(fl);
+        }
+    }
+
+    @Override
+    public net.minecraft.world.entity.EntityDimensions getDimensions(net.minecraft.world.entity.Pose pose) {
+        return ragdollFlat() ? RAGDOLL_FLAT : super.getDimensions(pose);
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        if (DATA_RAGDOLL.equals(key) || DATA_STATE.equals(key)) this.refreshDimensions();
+    }
+
+    /** (cliente) Bala nele caído: o corpo mole dá o tranco (client.pieces.RagdollScene). */
+    @Override
+    public void handleDamageEvent(DamageSource source) {
+        super.handleDamageEvent(source);
+        if (this.level().isClientSide && getFroggyState() == FroggyState.RAGDOLL) {
+            Entity from = source.getEntity();
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> () -> com.froggydude.client.pieces.RagdollScene.hit(this, from));
+        }
+    }
+
+    /**
+     * Remontando, a IA não roda, nem se alguém ligar ela de volta no meio da cena (o diretor solta o NoAI quando acorda
+     * ele). E o NoAI de quem invocou ele parado fica como estava depois.
+     */
+    @Override
+    public boolean isNoAi() {
+        return super.isNoAi() || isReviving();
+    }
+
+    /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
+    @Override
+    public boolean isPushable() {
+        return !isReviving() && getFroggyState() != FroggyState.RAGDOLL && super.isPushable();
+    }
+
+    @Override
+    public boolean isPickable() {
+        return !isReviving() && super.isPickable();
+    }
+
+    @Override
+    public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
+        // os pedaços se espalham uns blocos em volta: não some da tela por causa da caixa dele
+        if (isReviving()) return super.getBoundingBoxForCulling().inflate(5.0D);
+        // (v0.7.40) mole, o corpo passa da caixa (braço, cabeça pra fora)
+        if (getFroggyState() == FroggyState.RAGDOLL) return super.getBoundingBoxForCulling().inflate(2.0D);
+        return super.getBoundingBoxForCulling();
+    }
+
+    @Override
+    public void die(DamageSource source) {
+        if (!this.level().isClientSide && finishing) finisherGoal.stop(); // morto não roda Goal: acaba aqui
+        if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget); // o bicho levanta
+        if (!this.level().isClientSide && isReviving()) clearRevive(); // /kill no meio do renascer: morre de vez
+        if (!this.level().isClientSide && Revive.tryStart(this, source)) {
+            // (v0.7.35) despedaçou mas vai voltar (o que roubou já caiu no beginRevive): o cérebro anota que "morreu",
+            // que é o que o jogador viu
+            endEngagement(FroggyBrain.Outcome.FROGGY_DIED);
+            return;
+        }
+        super.die(source);
+        if (!this.level().isClientSide) {
+            dropStolen();
+            endEngagement(FroggyBrain.Outcome.FROGGY_DIED);
+            FroggyKeeper.onDeath(this);
+        }
+    }
+
+    /**
+     * Escala igual aranha ("POV: você vê uma aranha grande, vai pegar o
+     * inseticida e ela sumiu" - comentário no vs Grox, 1:10): não importa a
+     * altura da torre, se a vítima está lá em cima ele vai de quatro parede acima.
+     */
+    @Override
+    protected PathNavigation createNavigation(Level level) {
+        return new FroggyNavigation(this, level);
+    }
+
+    /** O corpo aponta pra onde ele vai/olha de verdade (ver FroggyBodyControl). */
+    @Override
+    protected BodyRotationControl createBodyControl() {
+        return new FroggyBodyControl(this);
+    }
+
+    @Override
+    public boolean onClimbable() {
+        return isClimbing();
+    }
+
+    public boolean isClimbing() {
+        return this.entityData.get(DATA_CLIMBING);
+    }
+
+    /**
+     * Sobe mais rápido que a aranha (0,2): 0,3 bloco por tick, 0,42 na fase 2.
+     * Parado na parede (mordendo lá de cima), fica grudado em vez de escorregar.
+     */
+    @Override
+    public Vec3 handleRelativeFrictionAndCalculateMovement(Vec3 input, float friction) {
+        Vec3 v = super.handleRelativeFrictionAndCalculateMovement(input, friction);
+        if (isClimbing() && this.horizontalCollision) {
+            return new Vec3(v.x, isFrenzyActive() ? 0.42D : 0.3D, v.z);
+        }
+        if (isClimbing() && getFroggyState() == FroggyState.BITE) {
+            return new Vec3(v.x, Math.max(v.y, 0.0D), v.z);
+        }
+        return v;
+    }
+
+    /** Encostado num bloco pelos lados. */
+    /**
+     * Sobe parede só de propósito (v0.5.1 - LM: "ele não vê a entrada e fica escalando
+     * feito a aranha"): quando NÃO tem caminho andando até ela e ela está lá em cima perto,
+     * ou o caminho acabou e o jeito é subir (FroggyNavigation: torre, muro). Com caminho
+     * (porta, escada), passeando ou no faro, encostar na parede não é motivo pra subir -
+     * antes qualquer encostada virava escalada.
+     */
+    private boolean wantsToClimb() {
+        if (this.tickCount < climbBlockedUntil) return false;
+        if (isClimbing() && !this.onGround()) {
+            // já na parede: continua, a não ser que pare de subir (teto em cima)
+            if (Double.isNaN(climbBestY) || this.getY() > climbBestY + 0.2D) {
+                climbBestY = this.getY();
+                climbStall = 0;
+            } else if (++climbStall > 60) {
+                climbBlockedUntil = this.tickCount + 100;
+                climbBestY = Double.NaN;
+                climbStall = 0;
+                return false;
+            }
+            return true;
+        }
+        climbBestY = Double.NaN;
+        climbStall = 0;
+        // seguindo um caminho que chega nela (pela porta, pela escada): anda - a parede não é
+        // atalho. No teste da torre (ela no 2º andar, escada por dentro) ele chegava na porta,
+        // raspava na parede do lado e subia por fora até o telhado
+        net.minecraft.world.level.pathfinder.Path path = this.getNavigation().getPath();
+        if (path != null && !path.isDone() && path.canReach()) return false;
+        if (this.getNavigation() instanceof FroggyNavigation nav && nav.climbingStraight()) return true;
+        LivingEntity t = this.getTarget();
+        if (t == null || t.getY() - this.getY() <= 1.5D) return false;
+        double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+        return dx * dx + dz * dz < 36.0D;
+    }
+
+    /**
+     * Dá pra ir pela parede até ela agora: tem parede de verdade (uma coluna inteira do
+     * chão dele até o pé dela, embaixo dela ou do lado - muro, pilar, casa), ela não está
+     * longe demais e ele não travou num teto/beirada há pouco (climbBlockedUntil). A IA
+     * Real sobe na hora em vez de procurar de onde pular (v0.7.15, LM: "ele demora subir
+     * uma simples parede"). Plataforma no ar (sem parede até o chão) continua com o pulo.
+     */
+    public boolean canClimbTo(LivingEntity t) {
+        if (this.tickCount < climbBlockedUntil) return false;
+        double dx = t.getX() - this.getX(), dz = t.getZ() - this.getZ();
+        if (dx * dx + dz * dz >= 144.0D) return false;
+        BlockPos feet = t.blockPosition();
+        int top = feet.getY() - 1, bottom = Mth.floor(this.getY());
+        if (top <= bottom) return false;
+        for (BlockPos c : new BlockPos[]{feet, feet.north(), feet.south(), feet.east(), feet.west()}) {
+            if (solidColumn(c.getX(), c.getZ(), top, bottom)) return true;
+        }
+        return false;
+    }
+
+    private boolean solidColumn(int x, int z, int top, int bottom) {
+        Level level = this.level();
+        for (int y = top; y >= bottom; y--) {
+            BlockPos p = new BlockPos(x, y, z);
+            if (level.getBlockState(p).getCollisionShape(level, p).isEmpty()) return false;
+        }
+        return true;
+    }
+
+    private boolean touchingWall() {
+        return !this.level().noCollision(this, this.getBoundingBox().inflate(0.08D, -0.1D, 0.08D));
+    }
+
+    @Override
+    public boolean removeWhenFarAway(double distanceToClosestPlayer) {
+        return false; // é um chefe, não some sozinho
+    }
+
+    // ---------------- estado sincronizado (animação e textura) ----------------
+
+    public FroggyState getFroggyState() {
+        return FroggyState.values()[this.entityData.get(DATA_STATE)];
+    }
+
+    public void setFroggyState(FroggyState state) {
+        this.entityData.set(DATA_STATE, (byte) state.ordinal());
+        this.stateTicks = 0;
+        this.pushupPhase = Float.NaN;
+        this.pushupBites = 0;
+        if (!this.level().isClientSide && (state == FroggyState.PIN_HOLD || state == FroggyState.FEEDING)) {
+            // a flexão anda no ritmo da fome/raiva (o mesmo do banquete); o cliente lê pra velocidade da animação
+            this.entityData.set(DATA_FEAST_RATE, feastRate());
+        }
+        if (state == FroggyState.IDLE || state == FroggyState.CHASE) {
+            this.entityData.set(DATA_FACE_YAW, Float.NaN);
+        }
+        // (v0.7.33) saiu da captura/arremesso por qualquer motivo: a língua solta (o gancho se desfaz sozinho)
+        if (!this.level().isClientSide && !state.isCapture()) this.entityData.set(DATA_CAPTURE_ID, -1);
+    }
+
+    /** (v0.7.33) Quem a língua segura no ar agora (-1 = ninguém). Ver DATA_CAPTURE_ID. */
+    public int getCaptureId() {
+        return this.entityData.get(DATA_CAPTURE_ID);
+    }
+
+    public void setCaptureId(int id) {
+        this.entityData.set(DATA_CAPTURE_ID, id);
+    }
+
+    /** (v0.7.33) Graus que a vítima do arremesso roda em volta dele (com sinal). Ver DATA_THROW_SWEEP. */
+    public float getThrowSweep() {
+        return this.entityData.get(DATA_THROW_SWEEP);
+    }
+
+    public void setThrowSweep(float degrees) {
+        this.entityData.set(DATA_THROW_SWEEP, degrees);
+    }
+
+    /** (v0.7.33) O servidor gira o corpo dele (o arremesso) sem mexer no resto do faceTarget. */
+    public void setFaceYawSynced(float yaw) {
+        this.setYRot(yaw);
+        this.yBodyRot = yaw;
+        this.yHeadRot = yaw;
+        this.entityData.set(DATA_FACE_YAW, yaw);
+    }
+
+    /** Yaw do ataque em andamento (NaN se não está atacando). Ver DATA_FACE_YAW. */
+    public float getFaceYaw() {
+        return this.entityData.get(DATA_FACE_YAW);
+    }
+
+    /** Ticks desde que o estado atual começou (só é confiável no servidor). */
+    public int getStateTicks() {
+        return stateTicks;
+    }
+
+    public boolean isVulnerableState() {
+        FroggyState s = getFroggyState();
+        return s == FroggyState.FEEDING || s == FroggyState.CONTORTING || s == FroggyState.FEAST;
+    }
+
+    public boolean isRunning() {
+        return this.entityData.get(DATA_RUNNING);
+    }
+
+    // ---------------- jeito de jogador (ai.PlayerMoves) ----------------
+
+    public void setCrouchingPose(boolean crouch) {
+        if (crouch != this.entityData.get(DATA_CROUCH)) this.entityData.set(DATA_CROUCH, crouch);
+    }
+
+    public boolean isCrouchingPose() {
+        return this.entityData.get(DATA_CROUCH);
+    }
+
+    /** O jogador que ele vai zombar agora (matou 3 vezes num dia), ou null. */
+    @Nullable
+    private UUID mocking;
+    private int walkAwayTicks;
+    @Nullable
+    private Vec3 walkAwayFrom;
+
+    public boolean isMocking(LivingEntity target) {
+        return mocking != null && mocking.equals(target.getUUID());
+    }
+
+    /** (v0.7.26) Quanto tempo, no máximo, ele espera ela tirar o olho dele pra sumir (ticks). */
+    private static final int VANISH_WAIT = 1200;
+    /** De quem ele está indo embora (pra sumir de vista dela), ou null. */
+    @Nullable
+    private UUID walkAwayPlayer;
+    private int vanishWait;
+
+    /**
+     * Zombou e disse "Não mexe comigo": vai embora andando (10 s) e, fora da vista dela, some. De 1 a 2 min depois
+     * (a trégua) ele volta pra caçada pelas costas (Hunt.ambush) - alívio, depois o susto.
+     */
+    public void finishMock(LivingEntity target) {
+        mocking = null;
+        int truce = PlayerMemory.TRUCE_MIN + this.getRandom().nextInt(PlayerMemory.TRUCE_RANDOM);
+        if (this.level() instanceof ServerLevel server) {
+            PlayerMemory m = FroggyWorldData.get(server).brain.find(target.getUUID());
+            if (m != null) {
+                m.mockDue = false;
+                m.truceUntil = server.getGameTime() + truce;
+                FroggyWorldData.get(server).setDirty();
+                com.froggydude.world.Hunt.ambush(server.getServer(), target.getUUID(), m.truceUntil);
+            }
+        }
+        if (engagement != null && engagement.player.equals(target.getUUID())) engagement = null;
+        walkAwayFrom = target.position();
+        walkAwayTicks = 200;
+        walkAwayPlayer = target instanceof Player ? target.getUUID() : null;
+        vanishWait = 0;
+        setTarget(null);
+        setFroggyState(FroggyState.IDLE);
+        brainLog("zombou e foi embora: some e volta em " + truce / 20 + " s");
+    }
+
+    /**
+     * (v0.7.26) Terminou de ir embora andando: quando ela tirar o olho dele, ele some de verdade (vai pra longe, num
+     * lugar que ela não vê) e espera a trégua acabar. Devolve false pra andar mais 1 s (ela ainda está vendo).
+     */
+    private boolean vanishAfterMock() {
+        if (!(this.level() instanceof ServerLevel level) || walkAwayPlayer == null) return true;
+        if (!(level.getPlayerByUUID(walkAwayPlayer) instanceof ServerPlayer p) || !underTruce(p)) {
+            walkAwayPlayer = null; // ela saiu, mudou de dimensão ou a trégua acabou
+            return true;
+        }
+        vanishWait += 20;
+        if (vanishWait > VANISH_WAIT) {
+            walkAwayPlayer = null; // ficou olhando pra ele o tempo todo: fica por aqui
+            return true;
+        }
+        walkAwayFrom = p.position(); // se andar mais, é pra longe de onde ela está agora (ela pode ter vindo atrás)
+        if (this.distanceTo(p) < 64.0F && FroggyKeeper.visible(level, p, this.blockPosition())) return false;
+        BlockPos spot = FroggyKeeper.findSpot(level, p, 48.0D, 80.0D, FroggyKeeper.Sight.HIDDEN, this.getRandom());
+        if (spot == null || FroggyKeeper.visible(level, p, spot)) return false; // sem lugar escondido agora
+        this.getNavigation().stop();
+        this.teleportTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
+        walkAwayPlayer = null;
+        brainLog("sumiu da vista de " + p.getScoreboardName() + ": espera a trégua longe");
+        return true;
+    }
+
+    /** Comando de teste: zomba desse jogador agora. */
+    public void mockNow(Player p) {
+        if (this.level() instanceof ServerLevel server) {
+            PlayerMemory m = FroggyWorldData.get(server).brain.memory(p.getUUID(), p.getScoreboardName());
+            m.truceUntil = 0L;
+            m.mockDue = false;
+        }
+        walkAwayTicks = 0;
+        walkAwayPlayer = null;
+        mocking = p.getUUID();
+        stopStalking();
+        setTarget(p);
+    }
+
+    /** Comando de teste: a dancinha agora, olhando pra esse jogador. */
+    public void danceNow(Player p) {
+        setTarget(p);
+        combatGoal.danceNow();
+    }
+
+    /** Em trégua com esse jogador (zombou dele e foi embora). */
+    public boolean underTruce(LivingEntity e) {
+        if (!(e instanceof Player) || !(this.level() instanceof ServerLevel server)) return false;
+        PlayerMemory m = FroggyWorldData.get(server).brain.find(e.getUUID());
+        return m != null && m.underTruce(server.getGameTime());
+    }
+
+    private void breakTruce(Player attacker) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        PlayerMemory m = FroggyWorldData.get(server).brain.find(attacker.getUUID());
+        if (m != null && m.underTruce(server.getGameTime())) {
+            m.truceUntil = 0L;
+            walkAwayTicks = 0;
+            walkAwayPlayer = null;
+            FroggyWorldData.get(server).setDirty();
+            com.froggydude.world.Hunt.cancelAmbush(server.getServer(), attacker.getUUID()); // já está brigando aqui
+            brainLog(m.name + " mexeu com ele: acabou a trégua");
+        }
+    }
+
+    public boolean isMovingSynced() {
+        return this.entityData.get(DATA_MOVING);
+    }
+
+    @Nullable
+    public FroggyState getDebugAttack() {
+        return debugAttack;
+    }
+
+    public String getDebugAnim() {
+        return this.entityData.get(DATA_DEBUG_ANIM);
+    }
+
+    /** 0 a 3 - quanto maior, mais sangue na skin (pela vida perdida). */
+    public int getGoreStage() {
+        return this.entityData.get(DATA_GORE_STAGE);
+    }
+
+    public SkinVariant getSkinVariant() {
+        return SkinVariant.byOrdinal(this.entityData.get(DATA_SKIN_VARIANT));
+    }
+
+    public void setSkinVariant(SkinVariant variant) {
+        this.entityData.set(DATA_SKIN_VARIANT, (byte) variant.ordinal());
+    }
+
+    public boolean isFrenzyActive() {
+        return this.entityData.get(DATA_FRENZY);
+    }
+
+    public boolean isFrenzyTired() {
+        return this.entityData.get(DATA_TIRED);
+    }
+
+    /** Comprimento da língua em blocos (o modelo estica a língua até aqui). */
+    public float getTongueLength() {
+        return this.entityData.get(DATA_TONGUE_LEN);
+    }
+
+    public void setTongueLength(float blocks) {
+        this.entityData.set(DATA_TONGUE_LEN, blocks);
+    }
+
+    /**
+     * Onde está o rosto dele de verdade (no modelo), pra câmera de quem está
+     * preso mirar ali. Montado, ele fica agachado: a cara fica baixa e à frente.
+     */
+    public Vec3 getFacePosition(float partialTick) {
+        Vec3 pos = this.getPosition(partialTick);
+        float yaw = Mth.rotLerp(partialTick, this.yBodyRotO, this.yBodyRot) * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw);
+        double fz = Mth.cos(yaw);
+        FroggyState state = getFroggyState();
+        if (state == FroggyState.ARM_RIP && clientStateAge >= 22) {
+            // depois do tranco ele fica em pé com o braço na boca: olha pra cara dele lá em cima
+            return this.getEyePosition(partialTick);
+        }
+        if (state == FroggyState.PIN_HOLD || state == FroggyState.ARM_RIP) {
+            // agachado em cima: a cara fica baixa e à frente (centro da cabeça na pose
+            // PIN_POSE, medido com tools/anim/check_poses.py)
+            return pos.add(fx * 0.86D, 0.94D, fz * 0.86D);
+        }
+        if (state == FroggyState.SMASH) {
+            // de joelhos na frente (v0.5.2): um ponto fixo entre o peito e o rosto, pra
+            // câmera não pular a cada soco (a cabeça fica entre 1,55 e 1,4 de altura)
+            return pos.add(fx * 0.4D, 1.15D, fz * 0.4D);
+        }
+        return this.getEyePosition(partialTick);
+    }
+
+    /** A vítima derrubada embaixo dele (ou null). */
+    @Nullable
+    public LivingEntity getPinnedVictim() {
+        if (pinnedVictimId < 0) return null;
+        Entity e = this.level().getEntity(pinnedVictimId);
+        return e instanceof LivingEntity living ? living : null;
+    }
+
+    public void setPinnedVictim(@Nullable LivingEntity victim) {
+        this.pinnedVictimId = victim == null ? -1 : victim.getId();
+    }
+
+    /** De quem é o braço na mão dele (vazio = não está segurando nada). */
+    public Optional<UUID> getHeldArmOwner() {
+        return this.entityData.get(DATA_HELD_ARM);
+    }
+
+    /** O cliente desenha o braço com a skin (e o tipo de braço, fino ou normal) desse jogador. */
+    public void setHeldArm(@Nullable Player owner) {
+        this.entityData.set(DATA_HELD_ARM, owner == null ? Optional.empty() : Optional.of(owner.getUUID()));
+    }
+
+    // ---------------- (v0.7.30) a fúria do Avaritia (event.AvaritiaFury)
+
+    /** Contra quem ele está correndo com a fúria do Avaritia agora (o triplo da velocidade), ou null. */
+    @Nullable
+    private UUID furyTarget;
+    /** O "croac" bravo de quando a arma do Avaritia não faz nada (um por segundo, não um por clique). */
+    private int avaritiaCroakAt;
+
+    /**
+     * (LM, 10/11) Fúria contra essa pessoa: a proteção do Avaritia some e ele bate o triplo. Vale na hora (não espera
+     * a checagem de meio segundo): IA Extra, Máx ou Real e a pessoa com qualquer item do Avaritia. Assim o fim da
+     * cutscene do golpe final (o alvo já pode ter sido largado) também passa pela armadura infinita.
+     */
+    public boolean furyAgainst(@Nullable Entity e) {
+        return e instanceof Player p && FroggyConfig.ai().stealsWeapons() && p.isAlive() && !p.isCreative()
+                && !p.isSpectator() && com.froggydude.brain.ModWeapons.hasAvaritia(p);
+    }
+
+    /** A cada meio segundo: o alvo tem coisa do Avaritia? Então corre o triplo (só na IA Extra, Máx e Real). */
+    private void updateFury() {
+        UUID now = this.getTarget() instanceof Player p && furyAgainst(p) ? p.getUUID() : null;
+        if (java.util.Objects.equals(now, furyTarget)) return;
+        furyTarget = now;
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) {
+            speed.removeModifier(FURY_SPEED_ID);
+            if (now != null) {
+                speed.addTransientModifier(new AttributeModifier(FURY_SPEED_ID, "froggy_avaritia_fury", FURY_SPEED_BONUS,
+                        AttributeModifier.Operation.MULTIPLY_TOTAL));
+            }
+        }
+        if (now != null) {
+            ribbit(2.5F); // muito bravo
+            brainLog(this.getTarget().getScoreboardName() + " tem coisa do Avaritia: fúria (o triplo de velocidade e força,"
+                    + " a proteção do Avaritia não vale contra mim)");
+        } else {
+            brainLog("acabou a fúria do Avaritia");
+        }
+    }
+
+    /**
+     * O golpe veio de coisa do Avaritia? Só o que é do Avaritia mesmo: o tipo de dano dele (o golpe em área da espada
+     * infinita), um projétil dele (flecha, corte, buraco negro) ou o golpe na mão com o item dele. Espinho, flecha de
+     * arco comum na outra mão, TNT de quem segura um lingote do Avaritia: isso machuca normal.
+     */
+    private static boolean fromAvaritia(DamageSource source) {
+        if (com.froggydude.brain.ModWeapons.isAvaritiaDamage(source)) return true;
+        Entity direct = source.getDirectEntity();
+        if (direct instanceof Player p) {
+            return source.is(net.minecraft.world.damagesource.DamageTypes.PLAYER_ATTACK) && source.getEntity() == p
+                    && com.froggydude.brain.ModWeapons.isAvaritia(p.getMainHandItem());
+        }
+        return com.froggydude.brain.ModWeapons.isAvaritiaEntity(direct);
+    }
+
+    /**
+     * Bateram nele com coisa do Avaritia (event.AvaritiaFury já cancelou o ataque antes da espada infinita matar
+     * direto): passa pelo hurt() como um golpe comum, e lá ele quase sempre não sente nada ("clang"); às vezes um
+     * arranhão leve (LM: "o froggydude não recebe dano nenhum, apenas raro tomar um dano leve").
+     */
+    public void avaritiaHit(Player attacker) {
+        if (!this.hurt(this.damageSources().playerAttack(attacker), AVARITIA_GRAZE) && this.tickCount >= avaritiaCroakAt) {
+            avaritiaCroakAt = this.tickCount + 20;
+            ribbit(2.0F);
+        }
+    }
+
+    // ---------------- (v0.7.29) roubo de arma de mod (ai.FroggyStealGoal)
+
+    /** O que ele comeu de arma de mod: cai quando ele morre (sem a munição, que ele comeu junto). */
+    private final java.util.List<ItemStack> belly = new java.util.ArrayList<>();
+
+    public ItemStack getTongueItem() {
+        return this.entityData.get(DATA_TONGUE_ITEM);
+    }
+
+    public void setTongueItem(ItemStack stack) {
+        this.entityData.set(DATA_TONGUE_ITEM, stack.copy());
+    }
+
+    public ItemStack getMouthItem() {
+        return this.entityData.get(DATA_MOUTH_ITEM);
+    }
+
+    public void setMouthItem(ItemStack stack) {
+        this.entityData.set(DATA_MOUTH_ITEM, stack.copy());
+    }
+
+    /** Engoliu: vai pra barriga já sem a munição de dentro (LM: "as munições são perdidas"). */
+    public void swallow(ItemStack stack) {
+        if (!stack.isEmpty()) belly.add(com.froggydude.brain.ModWeapons.unload(stack));
+    }
+
+    /** Apanhou mastigando: cospe a arma inteira (com munição) na frente dele, pra quem quiser pegar de volta. */
+    public void spitMouthItem() {
+        ItemStack held = getMouthItem();
+        if (held.isEmpty() || this.level().isClientSide) return;
+        setMouthItem(ItemStack.EMPTY);
+        Vec3 front = this.position().add(this.getLookAngle().multiply(1, 0, 1).normalize().scale(0.8D)).add(0, 1.4D, 0);
+        net.minecraft.world.entity.item.ItemEntity drop = new net.minecraft.world.entity.item.ItemEntity(this.level(),
+                front.x, front.y, front.z, held.copy());
+        drop.setDefaultPickUpDelay();
+        markSpat(drop);
+        this.level().addFreshEntity(drop);
+        this.playSound(SoundEvents.PLAYER_ATTACK_STRONG, 1.0F, 0.6F);
+        brainLog("me bateram mastigando: cuspi " + held.getHoverName().getString());
+    }
+
+    /** O que ele cuspiu/largou faz pouco (o item e onde caiu): a pessoa tem 30 s pra pegar de volta. */
+    private record Spat(net.minecraft.world.item.Item item, Vec3 pos, long at) {
+    }
+
+    private final java.util.ArrayDeque<Spat> spat = new java.util.ArrayDeque<>();
+
+    /**
+     * Marca o item que ele cuspiu/largou. A marca no próprio item some quando o jogo troca a entidade (o item do
+     * Avaritia vira outra, a "imortal", assim que cai): por isso ele também lembra o item e o lugar.
+     */
+    public void markSpat(net.minecraft.world.entity.item.ItemEntity drop) {
+        long now = this.level().getGameTime();
+        drop.getPersistentData().putLong(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG, now);
+        if (spat.size() >= 6) spat.pollFirst();
+        spat.addLast(new Spat(drop.getItem().getItem(), drop.position(), now));
+    }
+
+    /** Ele mesmo cuspiu/largou isso faz menos de 30 s? */
+    public boolean spatRecently(net.minecraft.world.entity.item.ItemEntity e, long now) {
+        long grace = com.froggydude.entity.ai.FroggyStealGoal.SPAT_GRACE;
+        if (e.getPersistentData().contains(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG)
+                && now - e.getPersistentData().getLong(com.froggydude.entity.ai.FroggyStealGoal.SPAT_TAG) < grace) {
+            return true;
+        }
+        spat.removeIf(s -> now - s.at() >= grace);
+        for (Spat s : spat) {
+            if (e.getItem().is(s.item()) && e.position().distanceToSqr(s.pos()) < 36.0D) return true;
+        }
+        return false;
+    }
+
+    /** Fala no chat como se fosse um jogador: "<FroggyDude> ..." (pra quem está perto e pra vítima). */
+    public void chat(@Nullable LivingEntity target, String key) {
+        net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("<FroggyDude> ")
+                .append(net.minecraft.network.chat.Component.translatable(key));
+        for (Player p : this.level().players()) {
+            if (p instanceof ServerPlayer sp && (p == target || p.distanceTo(this) < 64.0F)) sp.sendSystemMessage(line);
+        }
+    }
+
+    public boolean isStalking() {
+        return stalkTicks > 0;
+    }
+
+    public void startStalking(int ticks) {
+        this.stalkTicks = ticks;
+    }
+
+    public void stopStalking() {
+        this.stalkTicks = 0;
+    }
+
+    // ---------------- boca ----------------
+
+    /**
+     * Escancara a boca (troca o rosto pela skin de grito, a mesma do NameMC)
+     * por alguns ticks. Nos vídeos é assim: abre pra gritar e pra soltar a
+     * língua, e fecha logo depois.
+     */
+    public void openMouth(int ticks) {
+        if (ticks > mouthOpenTicks) mouthOpenTicks = ticks;
+        if (!this.entityData.get(DATA_MOUTH_OPEN)) this.entityData.set(DATA_MOUTH_OPEN, true);
+    }
+
+    /** Comeu um pedaço: a boca fica da cor dele (mistura com o que já tinha). */
+    public void stainMouth(int color, float amount) {
+        float old = getMouthStain();
+        float now = Math.min(1F, old + amount);
+        if (now <= 0F) return;
+        int c = getMouthColor();
+        float k = old <= 0.02F ? 1F : amount / now;
+        int r = (int) Mth.lerp(k, (c >> 16) & 255, (color >> 16) & 255);
+        int g = (int) Mth.lerp(k, (c >> 8) & 255, (color >> 8) & 255);
+        int b = (int) Mth.lerp(k, c & 255, color & 255);
+        this.entityData.set(DATA_MOUTH_COLOR, (r << 16) | (g << 8) | b);
+        this.entityData.set(DATA_MOUTH_STAIN, now);
+    }
+
+    public void stainMouth(LivingEntity eaten, float amount) {
+        stainMouth(BloodType.residue(eaten), amount);
+    }
+
+    public int getMouthColor() {
+        return this.entityData.get(DATA_MOUTH_COLOR);
+    }
+
+    public float getMouthStain() {
+        return this.entityData.get(DATA_MOUTH_STAIN);
+    }
+
+    /**
+     * Pro renderer: a skin de boca aberta. Só na língua (e no "vai usar a língua"), e arrancando
+     * um membro (LM, v0.7.6: "ele fica abrindo a boca toda hora" - antes abria em toda fala,
+     * ribbit, pancada, mordida, no grito e a fase 2 inteira).
+     */
+    public boolean isMouthOpen() {
+        if (this.entityData.get(DATA_MOUTH_OPEN)) return true;
+        String debug = getDebugAnim();
+        return debug.startsWith("tongue_") || debug.equals("roar") || debug.startsWith("dbg_roar");
+    }
+
+    /** Só no cliente: quantos ticks desde que o estado mudou (pra animar coisas fora do GeckoLib). */
+    public int getClientStateAge() {
+        return clientStateAge;
+    }
+
+    // ---------------- sons dos golpes (chamados pelas Goals) ----------------
+
+    /**
+     * Grunhe/geme (som de categoria), mas não por cima de outra fala (evita encavalar a voz).
+     * De boca fechada: a boca aberta é só da língua e de arrancar membro (LM, v0.7.6).
+     */
+    public void vocalize(SoundEvent sound, float volume) {
+        if (vocalCooldown > 0) return;
+        this.playSound(sound, volume, 0.95F + this.getRandom().nextFloat() * 0.1F);
+        vocalCooldown = 30;
+        speakingLine = null;
+    }
+
+    // ---------------- falas (na ordem dos vídeos, ver entity/voice) ----------------
+
+    public boolean speak(VoiceSituation situation) {
+        return speak(situation, false);
+    }
+
+    /**
+     * Diz a PRÓXIMA fala dessa situação na sequência dos vídeos (a fila fica no
+     * mundo, então continua de onde parou mesmo depois dele morrer e voltar).
+     * Não fala por cima de outra; com {@code interrupt}, corta a que está tocando
+     * (derrubou alguém: o "give me your body" não espera o "I'm hungry" acabar).
+     */
+    public boolean speak(VoiceSituation situation, boolean interrupt) {
+        if (!(this.level() instanceof ServerLevel server)) return false;
+        if (muteTicks > 0 || screamTicks > 0) return false;
+        if (vocalCooldown > 0) {
+            if (!interrupt) return false;
+            stopSpeaking(server);
+        }
+        VoiceLine line = nextLine(server, situation);
+        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] fala " + situation + ": " + line.clip);
+        this.playSound(ModSounds.VOICE.get(line).get(), situation.volume(), 1.0F);
+        speakingLine = line;
+        vocalCooldown = line.ticks + 10;
+        return true;
+    }
+
+    /** Matou essa pessoa há menos de 45 s? (não caça ela de novo ainda) */
+    public boolean isFedOn(Entity e) {
+        Integer until = fedOn.get(e.getUUID());
+        if (until == null) return false;
+        if (this.tickCount < until) return true;
+        fedOn.remove(e.getUUID());
+        return false;
+    }
+
+    /**
+     * Até onde ele enxerga (v0.7.5, LM: "ver mobs ou players na mesma distância que o
+     * jogador"): do Alto pra cima, a distância de renderização do mundo - no single player,
+     * a do jogador; no Mín e no Médio, como sempre (48 blocos x o faro do nível).
+     */
+    public double sightRange() {
+        AiLevel ai = FroggyConfig.ai();
+        double base = this.getAttributeValue(Attributes.FOLLOW_RANGE) * ai.sense;
+        if (ai.ordinal() < AiLevel.ALTO.ordinal() || this.getServer() == null) return base;
+        return Math.max(base, this.getServer().getPlayerList().getViewDistance() * 16.0D);
+    }
+
+    /** A linha de visão do jogo corta em 128 blocos: ele enxerga até o sightRange. */
+    @Override
+    public boolean hasLineOfSight(Entity e) {
+        if (e.level() != this.level()) return false;
+        Vec3 eye = new Vec3(this.getX(), this.getEyeY(), this.getZ());
+        Vec3 to = new Vec3(e.getX(), e.getEyeY(), e.getZ());
+        double d = to.distanceTo(eye);
+        if (d <= 128.0D) return super.hasLineOfSight(e);
+        if (d > sightRange()) return false;
+        return this.level().clip(new net.minecraft.world.level.ClipContext(eye, to, net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE, this)).getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+    }
+
+    /** O faro está seguindo um rastro (anda de quatro). */
+    public void setTracking(boolean tracking) {
+        this.tracking = tracking;
+    }
+
+    /** A presa que sumiu há menos de 1 minuto (o faro procura ela primeiro). */
+    @Nullable
+    public UUID getRecentlyLostPrey() {
+        return lastPreyId != null && this.tickCount - preyLostAt < 1200 ? lastPreyId : null;
+    }
+
+    /** Fica calado por um tempo (as falas nem entram na fila). */
+    public void mute(int ticks) {
+        muteTicks = Math.max(muteTicks, ticks);
+        pendingSpeech = null;
+    }
+
+    /** Calado (de mansinho): não faz barulho nenhum, nem arromba porta (FroggyDoorGoal). */
+    public boolean isMuted() {
+        return muteTicks > 0;
+    }
+
+    /** Fala depois que terminar a de agora (espera até ~6 s; depois desiste). */
+    public void speakAfter(VoiceSituation situation, int delayTicks) {
+        pendingSpeech = situation;
+        pendingSpeechTicks = delayTicks;
+    }
+
+    public boolean isSpeaking() {
+        return vocalCooldown > 0;
+    }
+
+    private static VoiceLine nextLine(ServerLevel server, VoiceSituation situation) {
+        FroggyWorldData data = FroggyWorldData.get(server);
+        VoiceLine line = data.voice.peek(situation);
+        data.voice.advance(situation);
+        data.setDirty();
+        return line;
+    }
+
+    /** Cala a fala que está tocando (o jumpscare corta o "I see you" quando aparece). */
+    public void stopSpeaking() {
+        if (this.level() instanceof ServerLevel server) stopSpeaking(server);
+    }
+
+    /** Teste/comando: o jumpscare na próxima chance, sem esperar os 3 dias. */
+    private boolean forcedJumpscare;
+
+    public void forceJumpscare() {
+        forcedJumpscare = true;
+    }
+
+    public boolean takeForcedJumpscare() {
+        boolean f = forcedJumpscare;
+        forcedJumpscare = false;
+        return f;
+    }
+
+    /** Cala a fala que está tocando, pra quem está por perto. */
+    private void stopSpeaking(ServerLevel server) {
+        if (speakingLine == null) return;
+        ClientboundStopSoundPacket stop = new ClientboundStopSoundPacket(
+                new ResourceLocation(ModEntityTypes.MOD_ID, speakingLine.soundName()), this.getSoundSource());
+        for (ServerPlayer p : server.players()) {
+            if (p.distanceToSqr(this) < 96.0D * 96.0D) p.connection.send(stop);
+        }
+        speakingLine = null;
+        vocalCooldown = 0;
+    }
+
+    public void onBiteHit() {
+        this.playSound(ModSounds.BITE.get(), 1.0F, 0.9F + this.getRandom().nextFloat() * 0.2F);
+    }
+
+    /** O estalo da língua saindo (nos vídeos parece um tiro). */
+    public void onTongueOut() {
+        this.playSound(ModSounds.TONGUE.get(), 1.3F, 0.9F + this.getRandom().nextFloat() * 0.2F);
+    }
+
+    /** A língua pegou: "I like the way you taste". */
+    public void onTongueTaste() {
+        if (this.getRandom().nextBoolean()) speak(VoiceSituation.TONGUE_HIT);
+    }
+
+    /** Desviaram da língua: "you're scared of my tongue, aren't you?" (worthy 5:44). */
+    public void onTongueMiss() {
+        if (this.getRandom().nextInt(3) == 0) speak(VoiceSituation.TONGUE_DODGED);
+    }
+
+    public void onLeapLaunch() {
+        if (this.getRandom().nextInt(3) == 0) vocalize(ModSounds.LEAP.get(), 1.0F);
+    }
+
+    /** Derrubou: "give me your body!" na hora, cortando o que estivesse falando. */
+    public void onPinStart() {
+        speak(VoiceSituation.PIN, true);
+    }
+
+    /** Cada soco do esmagamento. */
+    public void onSmashHit() {
+        this.playSound(ModSounds.SMASH.get(), 1.3F, 0.8F + this.getRandom().nextFloat() * 0.25F);
+        // a cada soco ele solta um "tai!" (nos vídeos: "tai tai tai tai tai"); gritando, soca calado
+        if (screamTicks <= 0) this.playSound(ModSounds.SMASH_TAI.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
+    }
+
+    /** O baque do pulo altíssimo no chão. */
+    public void onSkyLand() {
+        this.playSound(ModSounds.SKY_LAND.get(), 2.0F, 0.85F + this.getRandom().nextFloat() * 0.1F);
+    }
+
+    /** Mastigando o braço. */
+    public void onChew() {
+        this.playSound(ModSounds.CHEW.get(), 1.0F, 0.85F + this.getRandom().nextFloat() * 0.3F);
+    }
+
+    /**
+     * Mastigada de coisa pesada (o braço na cutscene): grave e alta, a boca abre e
+     * fecha (3 ticks) e, com {@code bone}, o osso estala junto.
+     */
+    public void onHeavyChew(boolean bone) {
+        this.playSound(ModSounds.CHEW.get(), 1.4F, 0.55F + this.getRandom().nextFloat() * 0.15F);
+        if (bone) this.playSound(ModSounds.CRACK.get(), 0.8F, 1.1F + this.getRandom().nextFloat() * 0.3F);
+    }
+
+    /** Engoliu o pedaço (o "glup"). */
+    public void onGulp() {
+        this.playSound(SoundEvents.GENERIC_DRINK, 1.2F, 0.45F);
+        this.playSound(ModSounds.CHEW.get(), 0.8F, 0.5F);
+    }
+
+    // ---------------- usado só pelas Goals ----------------
+
+    @Nullable
+    public FroggyState getLastAttack() {
+        return lastAttack;
+    }
+
+    public void setLastAttack(FroggyState state) {
+        this.lastAttack = state;
+    }
+
+    public int getAttackCooldown() {
+        return attackCooldown;
+    }
+
+    public void setAttackCooldown(int ticks) {
+        this.attackCooldown = ticks;
+    }
+
+    /** Cada ataque tem seu próprio tempo de recarga. */
+    public boolean isReady(FroggyState attack) {
+        return cooldowns.getOrDefault(attack, 0) <= 0;
+    }
+
+    public void setCooldown(FroggyState attack, int ticks) {
+        cooldowns.put(attack, ticks);
+    }
+
+    @Nullable
+    public LivingEntity getFeedTarget() {
+        return feedTarget;
+    }
+
+    public void setFeedTarget(@Nullable LivingEntity target) {
+        this.feedTarget = target;
+        this.entityData.set(DATA_FEED_ID, target == null ? -1 : target.getId());
+    }
+
+    /** No cliente: o id do mob que ele come (deitado embaixo dele), ou -1. */
+    public int getFeedVictimId() {
+        return this.entityData.get(DATA_FEED_ID);
+    }
+
+    /** A velocidade da flexão no estado de agora (a mesma da animação), ou 0 se não está comendo em flexão. */
+    private float pushupSpeed() {
+        FroggyState s = getFroggyState();
+        if (s == FroggyState.FEAST) return getFeastRate() * PUSHUP_TICKS * (float) FEAST_BITES_PER_TICK;
+        if (s == FroggyState.PIN_HOLD || s == FroggyState.FEEDING) return getFeastRate();
+        return 0F;
+    }
+
+    /** O relógio da flexão (em ticks da animação) com o estado nessa idade; anda só depois da mistura. */
+    private float pushupClock(float age) {
+        return pushupSpeed() * (age - MAIN_BLEND);
+    }
+
+    /**
+     * A flexão até agora, no ritmo da fome/raiva (PIN_HOLD, FEEDING e FEAST). Pode chamar todo tick ou de 2 em
+     * 2 (a Goal de comer bicho): conta pela idade do estado, então não escorrega.
+     * @return true quando a cabeça bateu embaixo desde a última chamada (a mordida)
+     */
+    public boolean pushupStep() {
+        float before = pushupPhase;
+        float now = pushupClock(stateTicks);
+        pushupPhase = now;
+        if (Float.isNaN(before) || pushupSpeed() <= 0F) return false;
+        if (Mth.floor((now - PUSHUP_BITE_AT) / PUSHUP_TICKS) > Mth.floor((before - PUSHUP_BITE_AT) / PUSHUP_TICKS)) {
+            pushupBites++;
+            if (FLEX_DEBUG) System.out.printf("[FLEX] servidor mordida %s t=%d jogo=%d%n", getFroggyState(), stateTicks,
+                    this.level().getGameTime());
+            return true;
+        }
+        return false;
+    }
+
+    private static final boolean FLEX_DEBUG = Boolean.getBoolean("froggydude.debug");
+
+    /**
+     * No cliente: o tempo do pin_hold/feed_mob (em ticks, 0 a 7) no relógio da mordida, ou negativo se não está
+     * comendo em flexão (ou ainda misturando com a animação de antes). Quem usa é o relógio de fora do controlador.
+     */
+    public double pushupAnimTicks(float partial) {
+        if (!getDebugAnim().isEmpty() || clientStateAge < MAIN_BLEND) return -1D;
+        if (pushupSpeed() <= 0F || getFroggyState() == FroggyState.FEEDING && getFeedVictimId() < 0) return -1D;
+        return Mth.positiveModulo(pushupClock(clientStateAge + partial), (float) PUSHUP_TICKS);
+    }
+
+    /** O "smash" tem 0,5 s (10 ticks) com o impacto aos 0,25 s (build_anims.py). */
+    private static final float SMASH_LOOP_TICKS = 10F;
+    private static final float SMASH_IMPACT_TICKS = 5F;
+
+    /**
+     * (v0.7.18) No cliente: o tempo do "smash" (em ticks, 0 a 10) no relógio dos socos do servidor (FroggyCombatGoal:
+     * o 1º no tick SMASH_FIRST do estado, depois um a cada SMASH_EVERY): o punho bate na hora do soco e do "tai", sem
+     * escorregar a cada volta do loop. Negativo fora do esmagamento (ou ainda misturando com a animação de antes).
+     */
+    public double smashAnimTicks(float partial) {
+        if (!getDebugAnim().isEmpty() || getFroggyState() != FroggyState.SMASH || clientStateAge < MAIN_BLEND) return -1D;
+        float perTick = SMASH_LOOP_TICKS / FroggyCombatGoal.SMASH_EVERY;
+        float k = (clientStateAge + partial - FroggyCombatGoal.SMASH_FIRST) * perTick;
+        return Mth.positiveModulo(k + SMASH_IMPACT_TICKS, SMASH_LOOP_TICKS);
+    }
+
+    /**
+     * (v0.7.35) O levantar do renascer começa uns ticks antes de o modelo aparecer (ainda são os pedaços): a mistura
+     * do controlador (MAIN_BLEND) acaba escondida, entre duas poses iguais (deitado de bruços).
+     */
+    private static final int REVIVE_PRESWITCH = MAIN_BLEND + 2;
+
+    /**
+     * (v0.7.35) No cliente: o tempo do revive_flip/revive_shake (em ticks) no relógio do servidor, o mesmo dos pedaços
+     * (ReviveScene), dos sons e da virada pro jogador. O relógio do GeckoLib (tickCount do cliente) escorrega quando o
+     * cliente fica pra trás: no teste, a mistura de 3 ticks levou 4,5, e o mortal ia atrasando em relação aos sons.
+     */
+    public double reviveStandAnimTicks(float partial) {
+        Revive.Params rp = reviveParams();
+        if (!getDebugAnim().isEmpty() || getFroggyState() != FroggyState.REVIVE || rp == null) return -1D;
+        double t = Math.max(0D, this.level().getGameTime() - rp.t0() + partial - rp.standStart());
+        // a hora do cliente às vezes volta um tico (o servidor acerta a cada 1 s): segura em vez de voltar
+        if (t < reviveStandLast && reviveStandLast - t < 4D) t = reviveStandLast;
+        reviveStandLast = t;
+        return t;
+    }
+
+    private double reviveStandLast = -1D;
+
+    /** (v0.7.40) O relógio do "ragdoll_getup": ticks desde o fim da ida pra pose de bruços (-1 = não está levantando). */
+    public double ragdollGetupAnimTicks(float partial) {
+        Ragdoll.Params p = ragdollParams();
+        if (!getDebugAnim().isEmpty() || getFroggyState() != FroggyState.RAGDOLL || p == null || !p.rising()) return -1D;
+        double t = Math.max(0D, this.level().getGameTime() - p.upAt() + partial - Ragdoll.BLEND);
+        if (t < ragdollGetupLast && ragdollGetupLast - t < 4D) t = ragdollGetupLast;
+        ragdollGetupLast = t;
+        return t;
+    }
+
+    private double ragdollGetupLast = -1D;
+
+    /** Quantas mordidas da flexão já foram neste estado (a 1ª é 1). */
+    public int getPushupBites() {
+        return pushupBites;
+    }
+
+    /** Cada mordida da flexão: uma estala os dentes, a outra mastiga (não vira metralhadora de som). */
+    public void onPushupBite() {
+        if (pushupBites % 2 == 1) {
+            this.playSound(ModSounds.BITE.get(), 0.85F, 0.9F + this.getRandom().nextFloat() * 0.25F);
+        } else {
+            this.playSound(ModSounds.CHEW.get(), 0.7F, 0.95F + this.getRandom().nextFloat() * 0.3F);
+        }
+    }
+
+    /** Pode ir atrás de aldeão agora (não acabou de comer um)? */
+    public boolean wantsVillager() {
+        return villagerAppetite <= 0;
+    }
+
+    public void villagerEaten() {
+        villagerAppetite = VILLAGER_FULL_TICKS;
+        satiety = MEAL_FULL_TICKS;
+        drives.ate(0.5F);
+    }
+
+    /** Barriga vazia (quase sempre): qualquer bicho que ele vê vira comida. */
+    public boolean isHungry() {
+        return satiety <= 0;
+    }
+
+    public int getFeedSearchCooldown() {
+        return feedSearchCooldown;
+    }
+
+    public void setFeedSearchCooldown(int cooldown) {
+        this.feedSearchCooldown = cooldown;
+    }
+
+    public boolean isLowHealth() {
+        return this.getHealth() < this.getMaxHealth() * 0.3F;
+    }
+
+    /** Ferido, comendo pra se curar (ver {@link #wantsToHeal}). */
+    private boolean healing;
+
+    /**
+     * Ferido: mata e come o que tiver por perto pra recuperar vida. Começa abaixo de
+     * 50% e só para quando chega a 90% (LM: "ele come só uma vez e para" - antes era
+     * abaixo de 30%, e uma refeição, +20%, já tirava ele dali).
+     */
+    public boolean wantsToHeal() {
+        float f = this.getHealth() / this.getMaxHealth();
+        if (f < 0.5F) healing = true;
+        else if (f >= 0.9F) healing = false;
+        return healing;
+    }
+
+    // ----- bicho que briga com ele (golem, warden, lobo...) -----
+
+    /** Levou o boom do warden: corre o dobro até pegar ele. */
+    private int enragedUntil;
+
+    public boolean isEnraged() {
+        return this.tickCount < enragedUntil;
+    }
+
+    /**
+     * Bicho que briga com ele vira comida, igual aos outros (LM): ele não troca soco
+     * com golem nem com warden - dá o bote, prende no chão e come vivo
+     * (FroggyFeedGoal). Chefe (dragão, wither) e creeper não.
+     */
+    public boolean isFightPrey(@Nullable LivingEntity e) {
+        return e instanceof Mob m && e.isAlive() && !(e instanceof Player) && !(e instanceof FroggydudeEntity)
+                && !debugHunt // teste: o porco é caçado como um jogador (perseguição, não briga)
+                && !(e instanceof net.minecraft.world.entity.monster.Creeper)
+                && !m.getType().is(net.minecraftforge.common.Tags.EntityTypes.BOSSES);
+    }
+
+    /**
+     * A cada meio segundo: quem está caçando ELE por perto. Golem (que ataca todo
+     * monstro) vira o alvo dele antes de bater. Warden: sente ele chegando e muda
+     * o jeito de brigar - em vez das mãos, o boom (pra jogar ele longe); ele levanta
+     * e vem com o dobro da velocidade comer o warden vivo (Grox, cidade antiga).
+     */
+    private void tickPredators() {
+        if (this.level().isClientSide || !this.isAlive()) return;
+        boolean busyWithPlayer = this.getTarget() instanceof Player p && this.distanceTo(p) < 16.0F;
+        for (Mob m : this.level().getEntitiesOfClass(Mob.class, this.getBoundingBox().inflate(24.0D, 10.0D, 24.0D),
+                e -> e.isAlive() && isFightPrey(e))) {
+            boolean huntsMe = m.getTarget() == this;
+            if (m instanceof net.minecraft.world.entity.monster.warden.Warden w) {
+                var brain = w.getBrain();
+                huntsMe = brain.getMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_TARGET)
+                        .filter(t -> t == this).isPresent();
+                // o warden sabe que ele está ali (o cheiro, a vibração): fica bravo com ele
+                if (!huntsMe && this.distanceTo(w) < 20.0F && w.getEntityAngryAt().filter(t -> t == this).isEmpty()) {
+                    w.increaseAngerAt(this, 40, false);
+                }
+                if (huntsMe) {
+                    // as mãos não: só o boom, assim que der
+                    brain.setMemoryWithExpiry(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_COOLING_DOWN, true, 20L);
+                    if (!w.getPersistentData().getBoolean("froggydude_boomed")) {
+                        brain.eraseMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.SONIC_BOOM_COOLDOWN);
+                        w.getPersistentData().putBoolean("froggydude_boomed", true);
+                    }
+                }
+            }
+            // o warden à vista (v0.7.9, LM: "o froggydude não tenta atacar o warden"): vai pra cima.
+            // O warden, bravo com ele, solta o boom antes dele chegar - e é o boom que deixa ele
+            // com raiva de verdade (ver hurt): volta com o dobro da velocidade
+            if (m instanceof net.minecraft.world.entity.monster.warden.Warden w && !busyWithPlayer
+                    && !(this.getTarget() instanceof Player) && this.getTarget() != w && this.getFeedTarget() == null
+                    && !isFinishing() && this.distanceTo(w) < 24.0F && this.hasLineOfSight(w)) {
+                setTarget(w);
+                brainLog("um warden: vou pra cima dele");
+            }
+            // vindo pra cima dele: vira a comida (se não estiver no meio de uma caçada de gente).
+            // O warden não: primeiro vem o boom, e é o boom que deixa ele com raiva (ver hurt)
+            if (huntsMe && !busyWithPlayer && this.getTarget() == null && !(m instanceof net.minecraft.world.entity.monster.warden.Warden)) {
+                setTarget(m);
+                brainLog(m.getName().getString() + " veio brigar: vira comida");
+            }
+        }
+    }
+
+    // ----- apanhando no meio da refeição: larga ou continua (v0.7.9) -----
+
+    /** De qual presa é a decisão (o id; -2 = os pedaços do banquete), e qual foi (0 nada, 1 larga, 2 continua). */
+    private int preyDecisionFor = -1;
+    private int preyDecision;
+    private float preyHealthAtStart;
+    /** Continuou comendo: quem bateu não vira o alvo até acabar (ou 10 s). */
+    private int ignoreAttackerId = -1;
+    private int ignoreAttackerUntil;
+
+    /** Comendo (bicho, os pedaços, o aldeão) ou com gente presa embaixo dele. */
+    private boolean busyWithPrey() {
+        FroggyState s = getFroggyState();
+        return s == FroggyState.FEEDING || s == FroggyState.FEAST || s == FroggyState.PIN_HOLD
+                || s == FroggyState.SMASH || s == FroggyState.ARM_RIP
+                || s == FroggyState.FINISHER && finisherGoal.mobVictim() != null;
+    }
+
+    @Nullable
+    private LivingEntity busyPrey() {
+        return switch (getFroggyState()) {
+            case FEEDING -> getFeedTarget();
+            case FINISHER -> finisherGoal.mobVictim();
+            case PIN_HOLD, SMASH, ARM_RIP -> getPinnedVictim();
+            default -> null;
+        };
+    }
+
+    /**
+     * Sorteio meio a meio na primeira pancada de cada refeição: larga a presa e vai pra
+     * cima de quem bateu, ou continua comendo (com raiva). Continuando, se apanhar mais
+     * de 25% da vida durante a refeição, larga de qualquer jeito.
+     */
+    private void reactWhileBusy(LivingEntity attacker, @Nullable LivingEntity prey, float healthBefore) {
+        int preyId = prey == null ? -2 : prey.getId();
+        if (preyDecisionFor != preyId) {
+            preyDecisionFor = preyId;
+            preyDecision = 0;
+            preyHealthAtStart = healthBefore;
+        }
+        if (preyDecision == 0) {
+            preyDecision = this.getRandom().nextBoolean() ? 1 : 2;
+            if (preyDecision == 2) brainLog(attacker.getName().getString() + " me bateu: continuo comendo");
+        } else if (preyDecision == 2 && preyHealthAtStart - this.getHealth() > this.getMaxHealth() * 0.25F) {
+            preyDecision = 1;
+        }
+        ribbit(2.0F);
+        if (preyDecision == 2) {
+            ignoreAttackerId = attacker.getId();
+            ignoreAttackerUntil = this.tickCount + 200;
+            return;
+        }
+        // larga
+        ignoreAttackerId = -1;
+        FroggyState s = getFroggyState();
+        if (s == FroggyState.FINISHER) {
+            finisherGoal.interrupt();
+        } else if (s == FroggyState.FEEDING || s == FroggyState.FEAST) {
+            setFeedTarget(null);
+            if (s == FroggyState.FEAST) endFeast(false);
+        } else {
+            if (getPinnedVictim() instanceof ServerPlayer player) PinTracker.release(player);
+            setPinnedVictim(null);
+            setHeldArm(null);
+            setAttackCooldown(10);
+        }
+        setFroggyState(FroggyState.CHASE);
+        setTarget(attacker);
+        brainLog("larguei " + (prey == null ? "a comida" : prey.getName().getString()) + ": "
+                + attacker.getName().getString() + " me bateu");
+    }
+
+    /**
+     * No fim de uma rodada comendo o warden vivo, o warden se solta e solta o boom à queima-
+     * roupa (a animação, o som, o raio): ele voa longe e volta com tudo (hurt, SONIC_BOOM).
+     */
+    public void wardenThrow(net.minecraft.world.entity.monster.warden.Warden w) {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        setFroggyState(FroggyState.CHASE);
+        server.broadcastEntityEvent(w, (byte) 62);
+        w.playSound(SoundEvents.WARDEN_SONIC_BOOM, 3.0F, 1.0F);
+        Vec3 from = w.position().add(0, 1.6D, 0);
+        Vec3 d = this.position().add(0, 1.0D, 0).subtract(from);
+        int n = Math.max(1, Mth.floor(d.length()));
+        for (int i = 1; i <= n; i++) {
+            Vec3 at = from.add(d.scale(i / (double) n));
+            server.sendParticles(ParticleTypes.SONIC_BOOM, at.x, at.y, at.z, 1, 0, 0, 0, 0);
+        }
+        this.hurt(this.damageSources().sonicBoom(w), 10.0F);
+        brainLog(String.format(java.util.Locale.ROOT, "o warden (%.0f de vida) se soltou e me jogou longe", w.getHealth()));
+    }
+
+    // ----- IA Real (entity/ai/RealTactics, FroggyRetreatGoal) -----
+
+    /** Atravessando lava porque não tinha outro caminho: anda por cima dela sem queimar. */
+    private boolean lavaWalking;
+    private int lavaWalkUntil;
+    /** Uns segundos depois de sair da lava o fogo ainda não pega. */
+    private int fireShieldTicks;
+    /** O próximo bote termina assim (esmagar ou devorar): o "I see you", o plano. */
+    @Nullable
+    private FroggyState forcedFinish;
+    private int forcedFinishUntil;
+    /** Fugiu desse jogador pra se curar: só volta curado (ou cansado de esperar). */
+    @Nullable
+    private UUID retreatedFrom;
+    private int hideUntil;
+    /** Curou: no próximo encontro, "time for the plan!". */
+    private boolean planPending;
+    /** Cercando alguém trancado: o que comer lá fora antes (FroggyFeedGoal). */
+    @Nullable
+    private LivingEntity siegeMeal;
+
+    public boolean isLavaWalking() {
+        return lavaWalking;
+    }
+
+    /**
+     * Liga/desliga o caminho pela lava: o mapa de caminhos passa a aceitar lava e
+     * fogo (com custo, só quando não tem outro) e ele fica em pé em cima dela.
+     */
+    public void setLavaWalking(boolean on) {
+        if (on == lavaWalking) return;
+        lavaWalking = on;
+        lavaWalkUntil = this.tickCount + 900;
+        this.setPathfindingMalus(BlockPathTypes.LAVA, on ? 8.0F : -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DAMAGE_FIRE, on ? 8.0F : -1.0F);
+        this.setPathfindingMalus(BlockPathTypes.DANGER_FIRE, on ? 2.0F : 16.0F);
+        if (!on) fireShieldTicks = 60;
+        // o caminho guardado foi feito com a regra antiga (com ou sem lava): joga fora. O
+        // recomputePath() não serve - dentro de 1 s ele só agenda, e o jogo ainda reaproveita o
+        // caminho velho enquanto o alvo não sai do bloco (ele entrava na lava andando)
+        this.getNavigation().stop();
+    }
+
+    @Override
+    public boolean canStandOnFluid(FluidState fluid) {
+        return lavaWalking && fluid.is(FluidTags.LAVA) || super.canStandOnFluid(fluid);
+    }
+
+    @Override
+    public void lavaHurt() {
+        if (lavaWalking || fireShieldTicks > 0) {
+            this.clearFire();
+            return;
+        }
+        super.lavaHurt();
+    }
+
+    public void forceFinish(FroggyState finish, int ticks) {
+        forcedFinish = finish;
+        forcedFinishUntil = this.tickCount + ticks;
+    }
+
+    /** Como o bote tem que terminar (e esquece: vale uma vez). */
+    @Nullable
+    public FroggyState takeForcedFinish() {
+        FroggyState f = this.tickCount <= forcedFinishUntil ? forcedFinish : null;
+        forcedFinish = null;
+        return f;
+    }
+
+    /** Fugiu desse jogador pra se curar (FroggyRetreatGoal). Espera curado até 1 minuto. */
+    public void retreatedFrom(Player p) {
+        retreatedFrom = p.getUUID();
+        hideUntil = this.tickCount + 1200;
+        // foi ele que saiu (pra se curar): pro cérebro não é "a presa escapou"
+        if (engagement != null && engagement.player.equals(p.getUUID())) endEngagement(FroggyBrain.Outcome.ONGOING_SWITCH);
+    }
+
+    /** Fugiu pra se curar e ainda está escondido (até 1 min). */
+    public boolean isHiding() {
+        return retreatedFrom != null && this.tickCount < hideUntil;
+    }
+
+    /** Escondido se curando: ela só vira alvo de novo se chegar bem perto. */
+    public boolean hidingFrom(Entity e) {
+        return retreatedFrom != null && e.getUUID().equals(retreatedFrom) && this.tickCount < hideUntil
+                && healing && this.distanceTo(e) > 10.0F;
+    }
+
+    /** IA Real (v0.6): de tocaia esperando a presa (FroggyStakeoutGoal). Ver ela não vira alvo: ele espera a hora. */
+    private boolean stakingOut;
+    @Nullable
+    private com.froggydude.entity.ai.FroggyStakeoutGoal stakeoutGoal;
+    private com.froggydude.entity.ai.FroggyMassacreGoal massacreGoal;
+    /** No meio do massacre da vila (FroggyMassacreGoal): arromba porta sem dó. */
+    private boolean massacring;
+
+    /** Comando de teste (/froggydude estudo massacre). */
+    public void forceMassacre() {
+        if (massacreGoal != null) massacreGoal.forceNext();
+    }
+
+    public boolean isMassacring() {
+        return massacring;
+    }
+
+    public void setMassacring(boolean on) {
+        massacring = on;
+    }
+
+    /** O massacre da vila: a fome de aldeão não passa depois de cada um. */
+    public void craveVillagers() {
+        villagerAppetite = 0;
+    }
+
+    /** IA Real (v0.6): da tocaia no teto, o bote em cima dela (FroggyCombatGoal.ceilingDive). */
+    public void ceilingDive(LivingEntity target) {
+        combatGoal.ceilingDive(target);
+    }
+
+    /** Comando de teste (/froggydude estudo tocaia). */
+    public void forceStakeout() {
+        if (stakeoutGoal != null) stakeoutGoal.forceNext();
+    }
+
+    public boolean isStakingOut() {
+        return stakingOut;
+    }
+
+    public void setStakingOut(boolean on) {
+        stakingOut = on;
+    }
+
+    public void setSiegeMeal(@Nullable LivingEntity meal) {
+        siegeMeal = meal;
+    }
+
+    /** O que comer lá fora do cerco (vale uma vez). */
+    @Nullable
+    public LivingEntity pollSiegeMeal() {
+        LivingEntity m = siegeMeal;
+        siegeMeal = null;
+        return m != null && m.isAlive() ? m : null;
+    }
+
+    private static final java.util.UUID LAVA_SLOW_ID = java.util.UUID.fromString("5b0e7f3c-9a21-4d6e-8f47-2c1a9b3d6e05");
+
+    /** (v0.7.22, LM: "a da lava, que é a mesma de correr, levemente mais lento, sem queimar") ~15% mais lento em cima dela. */
+    private void tickLavaPace() {
+        boolean onLava = lavaWalking && (this.isInLava()
+                || this.level().getFluidState(BlockPos.containing(this.getX(), this.getY() - 0.05D, this.getZ())).is(FluidTags.LAVA));
+        var speed = this.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        boolean has = speed.getModifier(LAVA_SLOW_ID) != null;
+        if (onLava && !has) {
+            speed.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(LAVA_SLOW_ID,
+                    "froggydude lava", -0.15D, net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL));
+        } else if (!onLava && has) {
+            speed.removeModifier(LAVA_SLOW_ID);
+        }
+    }
+
+    private void tickReal() {
+        if (fireShieldTicks > 0) fireShieldTicks--;
+        if (lavaWalking || fireShieldTicks > 0) this.clearFire();
+        tickLavaPace();
+        // atravessou (ou desistiu): fora da lava, volta ao normal
+        if (lavaWalking && !this.isInLava() && (this.tickCount > lavaWalkUntil || this.getTarget() == null)) {
+            setLavaWalking(false);
+        }
+        if (retreatedFrom != null && (!wantsToHeal() || this.tickCount >= hideUntil)) {
+            boolean healed = !wantsToHeal();
+            if (healed) speak(VoiceSituation.HEALED, true); // "back to full health!"
+            brainLog(healed ? "curado: volta com um plano" : "cansou de esperar a cura: volta com um plano");
+            planPending = true;
+            // o faro vai atrás de quem ele fugiu
+            lastPreyId = retreatedFrom;
+            preyLostAt = this.tickCount;
+            retreatedFrom = null;
+        }
+    }
+
+    // ----- fase 2 -----
+
+    /**
+     * A fase 2 começa quando ele come um blaze (como no manhunt) ou, uma vez,
+     * quando a vida cai abaixo de 55%.
+     */
+    public boolean shouldStartPhase2() {
+        return phase2Requested || (!phase2Started && this.getHealth() < this.getMaxHealth() * 0.55F);
+    }
+
+    /** Comeu blaze: "freaking spicy". Entra na fase 2 na primeira chance. */
+    public void requestPhase2() {
+        this.phase2Requested = true;
+        setSkinVariant(SkinVariant.BURNED);
+    }
+
+    // Irritado do nada (v0.6.4, LM: "às vezes froggydude fica irritado (os ribbits que ele
+    // tem), ou seja, não só quando ele tá com pouca vida, mas quando quer atacar alguém"):
+    // partindo pra cima de alguém, os ribbits de raiva vêm cada vez mais altos e colados,
+    // sem ele parar de correr, e no último ele se transforma (a fase 2 inteira: contorção,
+    // grito, 30 s feroz). Sorteado pelo FroggyCombatGoal (config irritado_chance).
+    private static final int[] IRK_RIBBITS = {0, 16, 28, 37, 43};
+    private static final int IRK_TICKS = 48;
+
+    /**
+     * Começa a se irritar (espera terminar a fala de agora). Devolve false se não dá
+     * agora: já transformado, cansado, a transformação ainda recarregando ou já vindo.
+     */
+    public boolean irk() {
+        if (isFrenzyActive() || isFrenzyTired() || frenzyCooldown > 0 || phase2Requested
+                || irkPending || irkTicks >= 0 || getFroggyState() == FroggyState.CONTORTING) return false;
+        irkPending = true;
+        return true;
+    }
+
+    /** Irritado (os ribbits subindo) ou com a transformação já pedida: segura o ataque. */
+    public boolean isIrked() {
+        return irkPending || irkTicks >= 0 || phase2Requested && !isFrenzyActive();
+    }
+
+    private void tickIrk() {
+        LivingEntity t = this.getTarget();
+        if (t == null || !t.isAlive() || isFrenzyActive() || getFroggyState() == FroggyState.FLUNG) {
+            irkPending = false;
+            irkTicks = -1;
+            return;
+        }
+        if (irkPending) {
+            if (vocalCooldown > 0) return;
+            irkPending = false;
+            irkTicks = 0;
+            mute(IRK_TICKS + 4); // nada de "I'm hungry" no meio dos ribbits
+        }
+        for (int i = 0; i < IRK_RIBBITS.length; i++) {
+            if (irkTicks != IRK_RIBBITS[i]) continue;
+            float k = i / (float) (IRK_RIBBITS.length - 1);
+            // cada vez mais alto e mais grave
+            this.playSound(ModSounds.RIBBIT.get(), 1.6F + 1.4F * k, 1.0F - 0.18F * k + this.getRandom().nextFloat() * 0.06F);
+            if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] ribbit irritado " + (i + 1) + "/" + IRK_RIBBITS.length);
+        }
+        if (++irkTicks > IRK_TICKS) {
+            irkTicks = -1;
+            phase2Requested = true; // a FroggyFrenzyGoal pega entre um ataque e outro
+        }
+    }
+
+    public void markPhase2Started() {
+        this.phase2Started = true;
+        this.phase2Requested = false;
+    }
+
+    public boolean isInPhase2() {
+        return phase2Started;
+    }
+
+    public int getFrenzyCooldown() {
+        return frenzyCooldown;
+    }
+
+    public void setFrenzyCooldown(int ticks) {
+        this.frenzyCooldown = ticks;
+    }
+
+    /** Chamado pela FroggyFrenzyGoal assim que a contorção termina. */
+    public void startFrenzy(int durationTicks) {
+        this.frenzyTicksLeft = durationTicks;
+        this.entityData.set(DATA_FRENZY, true);
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null && speed.getModifier(FRENZY_SPEED_ID) == null) {
+            speed.addTransientModifier(new AttributeModifier(
+                    FRENZY_SPEED_ID, "froggy_frenzy_speed", FRENZY_SPEED_BONUS, AttributeModifier.Operation.MULTIPLY_TOTAL));
+        }
+        stopStalking();
+        painCooldown = 40;
+    }
+
+    /** O grito da fase 2: volume 8 é ouvido de bem longe. */
+    public void playScream() {
+        playScream(50);
+    }
+
+    /** {@code quietTicks}: quanto tempo ele não fala nem grunhe por cima (o grito do pacote de voz tem 13,6 s). */
+    public void playScream(int quietTicks) {
+        // preso nele (o grito do pacote dura 13,6 s e ele sai correndo no meio: no vídeo o grito
+        // vem junto com ele, não fica lá onde começou)
+        this.level().playSound(null, this, ModSounds.SCREAM.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
+        vocalCooldown = Math.max(vocalCooldown, quietTicks); // não fala por cima do grito
+        screamTicks = Math.max(screamTicks, quietTicks);     // nem o "give me your body" que corta
+    }
+
+    // ----- pulos -----
+
+    /** Durante um pulo de ataque ele não toma dano de queda. */
+    public void setNoFallTicks(int ticks) {
+        this.noFallTicks = ticks;
+    }
+
+    @Override
+    public boolean causeFallDamage(float fallDistance, float multiplier, DamageSource source) {
+        if (noFallTicks > 0) return false;
+        return super.causeFallDamage(fallDistance, multiplier, source);
+    }
+
+    /** Vira o corpo, a cabeça e o modelo de uma vez pra direção do alvo. */
+    public void faceTarget(LivingEntity target) {
+        faceDirection(target.getX() - this.getX(), target.getZ() - this.getZ());
+    }
+
+    public void faceDirection(double dx, double dz) {
+        float yaw = (float) (Mth.atan2(dz, dx) * (180.0D / Math.PI)) - 90.0F;
+        this.setYRot(yaw);
+        this.yRotO = yaw;
+        this.yBodyRot = yaw;
+        this.yBodyRotO = yaw;
+        this.yHeadRot = yaw;
+        this.yHeadRotO = yaw;
+        if (!this.level().isClientSide) this.entityData.set(DATA_FACE_YAW, yaw);
+    }
+
+    // ---------------- tick ----------------
+
+    // ----- Nado (v0.7.22, LM 03/11: "fazer nadar de verdade, em velocidade levemente superior") -----
+    /** Quantos ticks o nado ainda manda no movimento (o FroggyCombatGoal renova a cada tick em que nada atrás dela). */
+    private int swimDriveTicks;
+    /** Cliente: 0 = em pé, 1 = deitado nadando; e a inclinação pra onde ele nada (graus, + = de cabeça pra baixo). */
+    private float swimAmount, swimAmountO, swimPitch, swimPitchO;
+
+    /** Dentro d'água funda e fora do chão: nadando (a animação e o deitar). */
+    public boolean isSwimmingVisual() {
+        return this.isInWater() && !this.onGround() && this.getFluidHeight(FluidTags.WATER) > 0.5D;
+    }
+
+    /** Servidor: nada com essa velocidade (blocos/tick) neste tick; sem isso ele afunda e anda no fundo, como antes. */
+    public void driveSwim(Vec3 velocity) {
+        this.setDeltaMovement(velocity);
+        this.swimDriveTicks = 2;
+    }
+
+    public boolean isSwimDriven() {
+        return this.swimDriveTicks > 0 && this.isInWater();
+    }
+
+    @Override
+    public void travel(Vec3 input) {
+        if (this.isEffectiveAi() && isSwimDriven()) {
+            // nadando atrás dela: a velocidade vem do FroggyCombatGoal (sem a gravidade e o arrasto da água do jogo)
+            this.swimDriveTicks--;
+            this.move(net.minecraft.world.entity.MoverType.SELF, this.getDeltaMovement());
+            this.setDeltaMovement(this.getDeltaMovement().scale(0.92D));
+            return;
+        }
+        super.travel(input);
+    }
+
+    public float getSwimAmount(float partial) {
+        return Mth.lerp(partial, swimAmountO, swimAmount);
+    }
+
+    public float getSwimPitch(float partial) {
+        return Mth.lerp(partial, swimPitchO, swimPitch);
+    }
+
+    private void swimClientTick() {
+        swimAmountO = swimAmount;
+        swimPitchO = swimPitch;
+        // mordendo (ou outro golpe) ele fica em pé na água; nadando, deita
+        boolean swim = isSwimmingVisual() && !getFroggyState().isAttack();
+        swimAmount = Mth.approach(swimAmount, swim ? 1F : 0F, 0.15F);
+        double dy = this.getY() - this.yo, h = Math.sqrt(Mth.square(this.getX() - this.xo) + Mth.square(this.getZ() - this.zo));
+        // inclina pra onde vai (até 50°, como no vídeo); quase sem andar pra frente, volta a nadar reto
+        float want = swim && h > 0.03D ? (float) (Mth.atan2(-dy, h) * Mth.RAD_TO_DEG) : 0F;
+        swimPitch += (Mth.clamp(want, -50F, 50F) - swimPitch) * 0.2F;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.level().isClientSide) {
+            swimClientTick();
+            clientTick();
+            return;
+        }
+
+        stateTicks++;
+        if (isReviving()) {
+            Revive.Params rp = reviveParams();
+            if (rp != null) Revive.tick(this, rp);
+            else endRevive();
+            return;
+        }
+        // (v0.7.42) a IA dinâmica: o decisor escolhe o que fazer; as vontades andam a cada 1 s
+        decider.tick();
+        if (this.tickCount % 20 == 0) {
+            com.froggydude.brain.Intent it = decider.intent();
+            boolean busy = this.getTarget() != null || hasFeast() || getFroggyState() == FroggyState.FEEDING
+                    || it != com.froggydude.brain.Intent.EXPLORE && it != com.froggydude.brain.Intent.REST;
+            boolean running = (this.getTarget() != null || it == com.froggydude.brain.Intent.HEAL)
+                    && this.getDeltaMovement().horizontalDistanceSqr() > 0.02D;
+            drives.tickSecond(running, busy, it == com.froggydude.brain.Intent.EXPLORE);
+        }
+        if (glimpseFrozen && this.tickCount % 20 == 0 && this.level() instanceof ServerLevel gs
+                && !com.froggydude.world.TensionDirector.glimpsing(gs.getServer())) {
+            freezeForGlimpse(false); // o vislumbre acabou sem o diretor (manhunt, invasão desligada): solta
+        }
+        if (getFroggyState() == FroggyState.RAGDOLL) {
+            Ragdoll.tick(this);
+        } else if (ragdollRun != null) {
+            endRagdoll(false); // alguém trocou o estado no meio (comando, diretor): solta a IA e a caixa
+        }
+        if (getFroggyState() == FroggyState.RAGE && rageRun != null) {
+            Rage.tick(this, rageRun);
+        } else if (rageRun != null || getFroggyState() == FroggyState.RAGE) {
+            endRage(false); // alguém trocou o estado no meio: sem bote
+        }
+        if (getFroggyState() == FroggyState.HEAD_GRAB && headGrabRun != null) {
+            HeadGrab.tick(this, headGrabRun);
+        } else if (headGrabRun != null || getFroggyState() == FroggyState.HEAD_GRAB) {
+            endHeadGrab();
+        }
+        if (getFroggyState() == FroggyState.FLUNG) {
+            // arremessado: só a física manda; levanta quando cai e a animação acaba
+            this.getNavigation().stop();
+            if ((stateTicks >= FroggyState.FLUNG.durationTicks && this.onGround()) || stateTicks > 80) {
+                setFroggyState(FroggyState.CHASE);
+            }
+        }
+        if (stalkTicks > 0) stalkTicks--;
+        // os aldeões em volta entram em pânico e fogem correndo
+        VillagerFear.tick(this);
+        if (this.tickCount % 20 == 0) {
+            float m = getMouthStain();
+            if (m > 0F) this.entityData.set(DATA_MOUTH_STAIN, Math.max(0F, m - MOUTH_FADE_PER_SECOND));
+        }
+        if (leaveTicks > 0 && --leaveTicks == 0) {
+            if (this.level() instanceof ServerLevel server) {
+                server.sendParticles(ParticleTypes.POOF, this.getX(), this.getY() + 1.0D, this.getZ(), 30, 0.4D, 0.8D, 0.4D, 0.02D);
+                FroggyWorldData data = FroggyWorldData.get(server);
+                if (this.getUUID().equals(data.froggyId)) {
+                    data.froggyAlive = false;
+                    data.setDirty();
+                }
+            }
+            this.discard();
+            return;
+        }
+        if (walkAwayTicks > 0 && (this.getTarget() != null || getFeedTarget() != null)) {
+            // achou outra coisa pra fazer (outro alvo, comida): para de ir embora e não some no meio disso
+            walkAwayTicks = 0;
+            walkAwayPlayer = null;
+        }
+        if (walkAwayTicks > 0) {
+            walkAwayTicks--;
+            if (walkAwayFrom != null && walkAwayTicks % 20 == 0) {
+                Vec3 away = this.position().subtract(walkAwayFrom).multiply(1, 0, 1);
+                away = away.lengthSqr() < 1.0E-4D ? new Vec3(1, 0, 0) : away.normalize();
+                Vec3 to = this.position().add(away.scale(16.0D));
+                this.getNavigation().moveTo(to.x, this.getY(), to.z, 0.9D);
+            }
+            // terminou de ir embora: some quando ela não estiver olhando (senão anda mais 1 s e confere de novo)
+            if (walkAwayTicks == 0 && walkAwayPlayer != null && !vanishAfterMock()) walkAwayTicks = 20;
+        }
+        if (holdTicks > 0) {
+            holdTicks--;
+            if (getFroggyState() != FroggyState.IDLE && !isFrenzyActive()) setFroggyState(FroggyState.IDLE);
+            this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
+            Player look = holdLookAt == null ? null : this.level().getPlayerByUUID(holdLookAt);
+            if (look != null) faceTarget(look);
+        }
+        // Sumiu de vista (escondeu, dobrou a esquina) por 8 s: ele larga o alvo e
+        // passa a usar o FARO (FroggyTrackGoal) - antes, alvo posto sem ser por
+        // um TargetGoal (faro, mordida) ele seguia pra sempre sabendo onde estava.
+        // No manhunt ele está sempre no teu rastro (Manhunt.keepOnTrail).
+        if (this.getTarget() instanceof Player tp && !isHolding() && !getFroggyState().isOnVictim()
+                && !combatGoal.isBreaking() && this.level() instanceof ServerLevel sl
+                && !FroggyWorldData.get(sl).manhuntActive) {
+            if (this.getSensing().hasLineOfSight(tp) || this.distanceTo(tp) < 6.0F || combatGoal.holdsTarget()) {
+                unseenTicks = 0;
+            } else if (++unseenTicks > 160) {
+                unseenTicks = 0;
+                brainLog("perdi " + tp.getScoreboardName() + " de vista: no faro agora");
+                this.setTarget(null);
+            }
+        } else {
+            unseenTicks = 0;
+        }
+        if (engagement != null && engagement.lostAt >= 0 && this.tickCount - engagement.lostAt > 1200) {
+            endEngagement(FroggyBrain.Outcome.ESCAPED); // sumiu por 1 minuto: escapou
+        }
+        if (mouthOpenTicks > 0 && --mouthOpenTicks == 0) this.entityData.set(DATA_MOUTH_OPEN, false);
+        if (goreSoak > 0F) {
+            // a água lava rápido; fora dela o sangue vai secando e saindo devagar (~6 min por nível)
+            goreSoak = Math.max(0F, goreSoak - (this.isInWaterRainOrBubble() ? 0.01F : 1F / 7200F));
+        }
+        if (attackCooldown > 0) attackCooldown--;
+        if (feedSearchCooldown > 0) feedSearchCooldown--;
+        if (villagerAppetite > 0) villagerAppetite--;
+        if (satiety > 0) satiety--;
+        // de barriga vazia e à toa: "I'm hungry", "I'm very hungry"... (uns 30 s entre uma e outra)
+        FroggyState idleNow = getFroggyState();
+        if (satiety <= 0 && this.getTarget() == null && (idleNow == FroggyState.IDLE || idleNow == FroggyState.CHASE)
+                && this.tickCount % 20 == 0 && this.getRandom().nextInt(30) == 0) {
+            speak(VoiceSituation.HUNGRY);
+        }
+        if (frenzyCooldown > 0) frenzyCooldown--;
+        if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
+        if (noFallTicks > 0) noFallTicks--;
+        if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
+        if (screamTicks > 0) screamTicks--;
+        tickReal();
+        if (this.tickCount % 10 == 0) tickPredators();
+        if (ribbitCooldown > 0) ribbitCooldown--;
+        if (shotMoanCooldown > 0) shotMoanCooldown--;
+        // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
+        if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
+        if (irkPending || irkTicks >= 0) tickIrk();
+        if (muteTicks > 0) muteTicks--;
+        if (pendingSpeech != null) {
+            if (--pendingSpeechTicks <= 0 && vocalCooldown <= 0) {
+                speak(pendingSpeech);
+                pendingSpeech = null;
+            } else if (pendingSpeechTicks < -120) {
+                pendingSpeech = null;
+            }
+        }
+        if (debugHunt && this.getTarget() == null && this.tickCount > 80 && this.tickCount % 10 == 0) {
+            this.level().getEntitiesOfClass(net.minecraft.world.entity.animal.Pig.class,
+                    this.getBoundingBox().inflate(48.0D)).stream().findFirst().ifPresent(this::setTarget);
+        }
+        cooldowns.replaceAll((k, v) -> Math.max(0, v - 1));
+        if ((debugHeldArm || debugArmless) && this.tickCount > 40 && this.tickCount % 10 == 0) {
+            Player near = this.level().getNearestPlayer(this, 32.0D);
+            if (near instanceof ServerPlayer sp) {
+                if (debugHeldArm && getHeldArmOwner().isEmpty()) setHeldArm(sp);
+                if (debugArmless && ArmLoss.canLoseArm(sp)) ArmLoss.removeArm(sp);
+            }
+        }
+
+        // (v0.7.30) a fúria do Avaritia (o alvo tem coisa do Avaritia)
+        if (!this.level().isClientSide && this.tickCount % 10 == 0) updateFury();
+        // a vida também muda sem dano (cura, /summon, mundo recarregado)
+        if (this.tickCount % 20 == 0) {
+            updateGoreStage();
+            // (v0.7.25) caçando e vendo a pessoa: o mundo lembra da caçada (Hunt), que não acaba se ela for longe
+            if (this.getTarget() instanceof ServerPlayer hp && !hp.isCreative() && !hp.isSpectator()
+                    && this.level() instanceof ServerLevel hl && this.hasLineOfSight(hp)) {
+                com.froggydude.world.Hunt.saw(hl.getServer(), hp);
+            }
+        }
+        updateLocomotion();
+        // encostou numa parede andando atrás de alguém (ou passeando): sobe
+        FroggyState now = getFroggyState();
+        // (já grudado e parado - mordendo lá de cima, por exemplo - continua grudado)
+        boolean wall = this.horizontalCollision || (isClimbing() && !this.onGround() && touchingWall());
+        boolean climb = wall && (now == FroggyState.CHASE || now == FroggyState.IDLE || now == FroggyState.BITE) && wantsToClimb();
+        if (climb != isClimbing()) this.entityData.set(DATA_CLIMBING, climb);
+        if (climb && Double.isNaN(climbStartY)) climbStartY = this.getY();
+        if (!climb && !Double.isNaN(climbStartY) && this.onGround()) {
+            // subiu atrás de quem achou que estava a salvo lá em cima (vs Grox, 3:24)
+            if (this.getY() - climbStartY >= 3.0D && this.getTarget() instanceof Player p && this.distanceTo(p) < 5.0F
+                    && this.hasLineOfSight(p) && this.tickCount >= caughtUpReadyAt) {
+                speak(VoiceSituation.CAUGHT_UP, true);
+                caughtUpReadyAt = this.tickCount + 600; // uma vez a cada 30 s, no máximo
+            }
+            climbStartY = Double.NaN;
+        }
+        if (climb) noFallTicks = Math.max(noFallTicks, 40); // se soltar da parede, cai em pé
+
+        if (frenzyTicksLeft > 0) {
+            frenzyTicksLeft--;
+            // fase 2 dói: grita e reclama de dor enquanto corre
+            if (--painCooldown <= 0) {
+                vocalize(ModSounds.PAIN.get(), 2.5F);
+                painCooldown = 50 + this.getRandom().nextInt(50);
+            }
+            if (frenzyTicksLeft == 0) {
+                endFrenzy();
+            }
+        } else if (frenzyTiredTicksLeft > 0) {
+            frenzyTiredTicksLeft--;
+            if (frenzyTiredTicksLeft == 0) {
+                AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+                if (speed != null) speed.removeModifier(FRENZY_TIRED_ID);
+                this.entityData.set(DATA_TIRED, false);
+            }
+        }
+    }
+
+    /** Só no cliente: velocidade real (pra animação acompanhar) e poeira das patadas. */
+    private void clientTick() {
+        int st = this.entityData.get(DATA_STATE);
+        if (st != lastClientState) {
+            lastClientState = st;
+            clientStateAge = 0;
+        } else {
+            clientStateAge++;
+        }
+        // banquete: a mordida deste tick (os pedaços embaixo pulam - client.pieces.BodyPieces)
+        // (v0.7.18) no mesmo relógio da animação e da mordida do servidor
+        boolean bottom = false;
+        if (clientStateAge > 0 && pushupSpeed() > 0F) {
+            float before = pushupClock(clientStateAge - 1), now = pushupClock(clientStateAge);
+            bottom = Mth.floor((now - PUSHUP_BITE_AT) / PUSHUP_TICKS) > Mth.floor((before - PUSHUP_BITE_AT) / PUSHUP_TICKS);
+            if (bottom && FLEX_DEBUG) {
+                System.out.printf("[FLEX] cliente cabeça embaixo %s idade=%d jogo=%d%n", getFroggyState(), clientStateAge,
+                        this.level().getGameTime());
+            }
+        }
+        clientFeastBite = bottom && st == FroggyState.FEAST.ordinal();
+        // (v0.7.30) comendo a arma roubada: o farelo de cada mordida (no mesmo tick do barulho do servidor)
+        if (st == FroggyState.WEAPON_EAT.ordinal() && com.froggydude.entity.ai.FroggyStealGoal.isBite(clientStateAge + 1)) {
+            ItemStack bitten = getMouthItem();
+            boolean first = clientStateAge + 1 == com.froggydude.entity.ai.FroggyStealGoal.FIRST_BITE;
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> () -> com.froggydude.client.StolenItemFx.crunch(this, bitten, first));
+        }
+        // (v0.7.33) a língua segurando alguém no ar: o cliente vira o corpo dela pra ele (CaptureRender)
+        int held = getCaptureId();
+        if (held >= 0) {
+            int me = this.getId();
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT,
+                    () -> () -> com.froggydude.client.CaptureRender.markHeld(held, me));
+        }
+        if (FLEX_DEBUG && st == FroggyState.SMASH.ordinal() && clientStateAge >= FroggyCombatGoal.SMASH_FIRST
+                && (clientStateAge - FroggyCombatGoal.SMASH_FIRST) % FroggyCombatGoal.SMASH_EVERY == 0) {
+            System.out.printf("[SMASH] cliente punho embaixo idade=%d jogo=%d%n", clientStateAge, this.level().getGameTime());
+        }
+
+        double dx = this.getX() - this.xo;
+        double dz = this.getZ() - this.zo;
+        double v = Math.sqrt(dx * dx + dz * dz);
+        clientGroundSpeed += (v - clientGroundSpeed) * 0.35D;
+        if (Boolean.getBoolean("froggydude.debug") && this.tickCount % 10 == 0) {
+            System.out.println("[FROGGYDEBUG] cliente: estado=" + getFroggyState() + " idade=" + clientStateAge
+                    + " vel=" + String.format("%.3f", clientGroundSpeed) + " anim=" + String.format("%.2f", mainAnimSpeed())
+                    + " correndo=" + isRunning() + " pos=" + String.format("%.1f %.1f %.1f", getX(), getY(), getZ()));
+        }
+        if (Boolean.getBoolean("froggydude.debug") && (this.tickCount % 5 == 0 || clientStateAge == 1)) {
+            Player p = this.level().getNearestPlayer(this, 64.0D);
+            String rel = "";
+            if (p != null) {
+                double ddx = p.getX() - getX(), ddz = p.getZ() - getZ();
+                float toP = (float) (Mth.atan2(ddz, ddx) * Mth.RAD_TO_DEG) - 90F;
+                rel = String.format(" paraJogador=%.0f corpoErro=%.0f cabecaErro=%.0f dist=%.2f",
+                        Mth.wrapDegrees(toP), Mth.wrapDegrees(this.yBodyRot - toP), Mth.wrapDegrees(this.yHeadRot - toP),
+                        Math.sqrt(ddx * ddx + ddz * ddz));
+            }
+            System.out.println("[FROGGYDEBUG] giro: estado=" + getFroggyState() + " idade=" + clientStateAge
+                    + String.format(" yRot=%.0f corpo=%.0f cabeca=%.0f", Mth.wrapDegrees(getYRot()),
+                    Mth.wrapDegrees(this.yBodyRot), Mth.wrapDegrees(this.yHeadRot))
+                    + rel + " chao=" + this.onGround() + " subindo=" + isClimbing()
+                    + String.format(" y=%.2f", getY()));
+        }
+
+        // galope: cada patada levanta uma nuvem de poeira e faz barulho
+        // (vs AJ, 0:34 e 7:45 - a poeira fica pra trás dele)
+        // (sumido no jumpscare: nada de poeira entregando onde ele está)
+        if (isRunning() && isMovingSynced() && this.onGround() && !isClimbing() && !this.isInvisible()
+                && getFroggyState() == FroggyState.CHASE) {
+            // duas patadas por passada: galope = 5 ticks por passada, corrida da fase 2 = 6
+            double step = isFrenzyActive() ? 3.0D : 2.5D;
+            hopClock += mainAnimSpeed();
+            if (hopClock >= step) {
+                hopClock -= step;
+                hindStride = !hindStride;
+                strideEffects(hindStride);
+            }
+        }
+    }
+
+    /** Uma patada do galope: poeira, terra e (nas patas de trás) o barulho. */
+    private void strideEffects(boolean hind) {
+        float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
+        double fx = -Mth.sin(yaw);
+        double fz = Mth.cos(yaw);
+        // patas de trás ficam atrás do corpo, as da frente na frente
+        double off = hind ? -0.45D : 0.55D;
+        double px = this.getX() + fx * off;
+        double pz = this.getZ() + fz * off;
+        boolean frenzy = isFrenzyActive();
+        // a "fumaça" de terra (vídeo "never kill my dog", 10,0-10,4 s): a cada patada um
+        // bolo de nuvenzinhas claras rente ao chão, abrindo pros lados e ficando pra trás
+        int puffs = frenzy ? 9 : 6;
+        for (int i = 0; i < puffs; i++) {
+            double side = (this.random.nextDouble() - 0.5D) * 0.12D;
+            this.level().addParticle(ModParticles.DUST_PUFF.get(),
+                    px + (this.random.nextDouble() - 0.5D) * 0.7D, this.getY() + 0.08D,
+                    pz + (this.random.nextDouble() - 0.5D) * 0.7D,
+                    -fx * (0.02D + this.random.nextDouble() * 0.05D) + fz * side,
+                    0.004D + this.random.nextDouble() * 0.012D,
+                    -fz * (0.02D + this.random.nextDouble() * 0.05D) - fx * side);
+        }
+        BlockState below = this.getBlockStateOn();
+        if (below.isAir()) return;
+        BlockParticleOption crumbs = new BlockParticleOption(ParticleTypes.BLOCK, below);
+        for (int i = 0; i < 3; i++) {
+            this.level().addParticle(crumbs,
+                    px + (this.random.nextDouble() - 0.5D) * 0.5D, this.getY() + 0.1D,
+                    pz + (this.random.nextDouble() - 0.5D) * 0.5D,
+                    -fx * 0.15D + (this.random.nextDouble() - 0.5D) * 0.15D, 0.18D,
+                    -fz * 0.15D + (this.random.nextDouble() - 0.5D) * 0.15D);
+        }
+        if (hind) {
+            // uma pancada por passada: o galope + o passo do bloco do chão
+            float pitch = 0.9F + this.random.nextFloat() * 0.2F;
+            this.level().playLocalSound(px, this.getY(), pz, ModSounds.GALLOP.get(), SoundSource.HOSTILE,
+                    frenzy ? 0.9F : 0.6F, pitch, false);
+            SoundType type = below.getSoundType();
+            this.level().playLocalSound(px, this.getY(), pz, type.getStepSound(), SoundSource.HOSTILE,
+                    type.getVolume() * 0.35F, type.getPitch() * 0.75F, false);
+        }
+    }
+
+    /**
+     * Velocidade da animação principal. Correndo e andando, ela acompanha a
+     * velocidade de verdade: caçando pra matar ele galopa rápido; seguindo de
+     * longe pra apavorar, devagar; na fase 2, mais rápido que tudo.
+     */
+    public double mainAnimSpeed() {
+        FroggyState s = getFroggyState();
+        // esmagamento: um soco a cada 6 ticks (o ciclo "smash" tem 0,5 s = 10 ticks)
+        if (s == FroggyState.SMASH && getDebugAnim().isEmpty()) return 10.0D / FroggyCombatGoal.SMASH_EVERY;
+        // banquete: a flexão (PUSHUP_TICKS por mordida) no ritmo do nhum nhum (5 ticks na velocidade 1)
+        if (s == FroggyState.FEAST && getDebugAnim().isEmpty()) return getFeastRate() * PUSHUP_TICKS * FEAST_BITES_PER_TICK;
+        // comendo em flexão (jogador ou bicho caído): o ritmo da fome/raiva, na mesma fase do servidor
+        if ((s == FroggyState.PIN_HOLD || s == FroggyState.FEEDING && getFeedVictimId() >= 0) && getDebugAnim().isEmpty()) {
+            return getFeastRate();
+        }
+        if (isClimbing() && !this.onGround() && getDebugAnim().isEmpty()) {
+            // na parede é o galope (0,25 s por passada), na cadência do chão
+            return isFrenzyActive() ? 1.3D : 1.0D;
+        }
+        if ((s != FroggyState.CHASE && s != FroggyState.IDLE) || !isMovingSynced()
+                || isFrenzyTired() || !getDebugAnim().isEmpty()) {
+            return 1.0D;
+        }
+        if (isRunning()) {
+            // galope (0,25 s por passada) e corrida da fase 2 (0,3 s por ciclo) na velocidade 1.
+            // A cadência quase não muda com a velocidade (cachorro/guepardo galopando: o que
+            // cresce é o tamanho da passada) - assim a passada fica longa como na referência
+            // (a 0,75 b/t o galope fica em ~1,0: passada de ~3,7 blocos, a do guepardo;
+            // a 0,95 b/t da fase 2, ciclo de ~4,8 ticks e passada de ~4,5)
+            if (isFrenzyActive()) return Mth.clamp(0.5D + clientGroundSpeed * 0.8D, 0.5D, 1.4D);
+            return Mth.clamp(0.3D + clientGroundSpeed * 0.95D, 0.45D, 1.3D);
+        }
+        return Mth.clamp(clientGroundSpeed * 12.5D, 0.5D, 1.6D);
+    }
+
+    /**
+     * Andando em pé ou de quatro: quem decide é a INTENÇÃO, não a velocidade.
+     * Com uma vítima na mira (caçando ou só seguindo pra apavorar) ele anda
+     * sempre de quatro - rápido ou devagar, a animação acompanha. Em pé, só
+     * passeando sem alvo. Antes era pela velocidade e, no celular, a velocidade
+     * oscilava e ele ficava trocando de pose várias vezes por segundo.
+     */
+    private void updateLocomotion() {
+        double dx = this.getX() - this.xo;
+        double dz = this.getZ() - this.zo;
+        double speed = Math.sqrt(dx * dx + dz * dz);
+        boolean chasing = this.getTarget() != null || isFrenzyActive() || tracking;
+
+        if (speed > 0.02D) movingHold = 8;
+        else if (movingHold > 0) movingHold--;
+        if (chasing) runningHold = 20;
+        else if (runningHold > 0) runningHold--;
+
+        boolean moving = movingHold > 0;
+        // a intenção vale parado também: antes "correndo" exigia estar andando, então
+        // bastava ele parar meio segundo (esperando o próximo bote) que levantava em pé
+        boolean running = runningHold > 0;
+        // andando em pé, à toa, como jogador: de vez em quando um pulo sem motivo
+        if (!running && speed > 0.05D && this.onGround() && getFroggyState() == FroggyState.IDLE
+                && this.getRandom().nextInt(80) == 0) {
+            this.getJumpControl().jump();
+        }
+        if (moving != this.entityData.get(DATA_MOVING)) this.entityData.set(DATA_MOVING, moving);
+        if (running != this.entityData.get(DATA_RUNNING)) this.entityData.set(DATA_RUNNING, running);
+    }
+
+    private void endFrenzy() {
+        this.entityData.set(DATA_FRENZY, false);
+        this.frenzyCooldown = 1200 + this.getRandom().nextInt(600); // 60 a 90 s até a próxima
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed == null) return;
+        speed.removeModifier(FRENZY_SPEED_ID);
+        this.frenzyTiredTicksLeft = 60;
+        this.entityData.set(DATA_TIRED, true);
+        speed.addTransientModifier(new AttributeModifier(
+                FRENZY_TIRED_ID, "froggy_frenzy_tired", -0.3D, AttributeModifier.Operation.MULTIPLY_TOTAL));
+    }
+
+    // ---------------- dano / estágio de sangue / tipo de estrago ----------------
+
+    /**
+     * Contorcendo e gritando (fase 2) ele fica plantado: antes cada golpe empurrava
+     * o corpo com a pose torta congelada e ele "patinava" pra trás e pra frente
+     * (teste do LM, v0.3.5) - a contorção parecia outra a cada vez.
+     */
+    @Override
+    public void knockback(double strength, double x, double z) {
+        FroggyState s = getFroggyState();
+        if (s == FroggyState.CONTORTING || s == FroggyState.ROAR || s == FroggyState.FINISHER) return;
+        super.knockback(strength, x, z);
+    }
+
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        // (v0.7.35) remontando: "é cinema", nada machuca (só o /kill e o fundo do mundo)
+        if (isReviving() && !Revive.final_(source)) return false;
+        // (v0.7.30) a fúria do Avaritia: arma/flecha/área do Avaritia não machuca ele (raramente um arranhão)
+        if (!this.level().isClientSide && FroggyConfig.ai().stealsWeapons() && fromAvaritia(source)) {
+            if (this.getRandom().nextFloat() >= AVARITIA_GRAZE_CHANCE) {
+                this.playSound(SoundEvents.ANVIL_LAND, 0.6F, 1.7F);
+                return false;
+            }
+            amount = Math.min(amount, AVARITIA_GRAZE);
+        }
+        FroggyState state = getFroggyState();
+        boolean wasFeeding = state == FroggyState.FEEDING || state == FroggyState.FEAST;
+        if (wasFeeding || state == FroggyState.ARM_EAT || state == FroggyState.WEAPON_EAT) {
+            amount *= 1.5F; // mais vulnerável enquanto come
+        }
+        if ((lavaWalking || fireShieldTicks > 0) && source.is(DamageTypeTags.IS_FIRE)) {
+            // IA Real atravessando a lava: não queima (sem poção - só quando ele quer)
+            this.clearFire();
+            return false;
+        }
+        boolean gunshot = com.froggydude.brain.ModWeapons.isGunshot(source);
+        if (isFrenzyActive() && (source.is(DamageTypeTags.IS_PROJECTILE) || gunshot)) {
+            // "nah bro's bulletproof now" (vs Grox, 5:30): flecha e bala não fazem nada na fase 2 (a bala do TaCZ não
+            // tem a marca de projétil do jogo: até a v0.7.31 ela passava)
+            this.playSound(SoundEvents.SHIELD_BLOCK, 0.8F, 0.6F);
+            return false;
+        }
+        if (gunshot) {
+            // (v0.7.32) ele AMA dor (LM: "tiros de armas são praticamente insignificantes"): bala de arma de mod faz
+            // um décimo do dano (a AK do TaCZ: 9 -> 0,9; antes um pente matava ele). (v0.7.40) Caído depois do tiro
+            // (ragdoll): metade (LM: "da meio dano nele, mas ele fica mais bravo")
+            amount *= isRagdollDown() ? Ragdoll.DOWN_DAMAGE : GUNSHOT_DAMAGE;
+        }
+
+        float before = this.getHealth();
+        boolean hurt = super.hurt(source, amount);
+        if (hurt && !this.level().isClientSide) learnDanger(source);
+        // (v0.7.42) apanhou: a raiva sobe (bala de arma de mod, mais)
+        if (hurt && !this.level().isClientSide && source.getEntity() instanceof LivingEntity) {
+            drives.hurt((before - this.getHealth()) / this.getMaxHealth(), gunshot);
+        }
+        // (v0.7.40) o ragdoll: bala nele parado no chão joga ele longe; caído, conta as balas (e o golpe de perto levanta)
+        if (hurt && !this.level().isClientSide) Ragdoll.onHurt(this, source, gunshot);
+        // (v0.7.40) bateram nele no meio da raiva: acabou a paciência
+        if (hurt && rageRun != null && source.getEntity() instanceof Player) rageRun.hit = true;
+        // (v0.7.41) a cutscene da cabeça: conta o que veio de quem está embaixo
+        if (hurt && headGrabRun != null) HeadGrab.onHurt(this, headGrabRun, source);
+        if (hurt && this.level() instanceof ServerLevel sl && source.getEntity() instanceof Player hitter) {
+            // (v0.7.29) aprende pelo que dói: item de mod que machucou ele vira alvo da língua - só golpe na mão mais
+            // forte que um soco, ou tiro de projétil de mod (a bala de uma arma de mod)
+            ItemStack weapon = hitter.getMainHandItem();
+            float lost = before - this.getHealth();
+            net.minecraft.world.entity.Entity direct = source.getDirectEntity();
+            net.minecraft.resources.ResourceLocation shot = direct == null ? null
+                    : net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getKey(direct.getType());
+            boolean melee = direct == hitter && lost >= 3.0F;
+            boolean modShot = direct != null && direct != hitter && shot != null && !"minecraft".equals(shot.getNamespace());
+            if ((melee || modShot) && com.froggydude.brain.ModWeapons.feel(FroggyWorldData.get(sl), weapon, lost)) {
+                brainLog("aprendi: " + weapon.getHoverName().getString() + " dói - vou tirar isso de " + hitter.getScoreboardName());
+            }
+            // apanhou com a arma roubada na boca: cospe
+            if (getFroggyState() == FroggyState.WEAPON_EAT && !getMouthItem().isEmpty()) spitMouthItem();
+        }
+        if (hurt && source.is(net.minecraft.world.damagesource.DamageTypes.SONIC_BOOM)
+                && source.getEntity() instanceof net.minecraft.world.entity.monster.warden.Warden warden) {
+            // o boom do warden jogou ele longe: levanta e vai com o dobro da velocidade (Grox, cidade antiga)
+            enragedUntil = this.tickCount + 300;
+            // voa longe de verdade (a resistência a empurrão dele segurava no chão), dando
+            // cambalhota pra trás, cai de costas e levanta (o estado FLUNG cuida disso)
+            Vec3 away = this.position().subtract(warden.position()).multiply(1, 0, 1);
+            if (away.lengthSqr() > 1.0E-4D) {
+                away = away.normalize();
+                this.setDeltaMovement(away.x * 0.95D, 0.6D, away.z * 0.95D);
+                this.hurtMarked = true;
+                this.setYRot((float) (Mth.atan2(-away.z, -away.x) * (180D / Math.PI)) - 90.0F);
+                this.yBodyRot = this.getYRot();
+                this.yHeadRot = this.getYRot();
+            }
+            this.getNavigation().stop();
+            setFroggyState(FroggyState.FLUNG);
+            setNoFallTicks(80);
+            setTarget(warden);
+            ribbit(2.5F);
+            brainLog("o warden me jogou longe: vou comer ele vivo");
+        }
+        if (hurt && source.getEntity() instanceof Player attacker) {
+            stopStalking(); // mexeu com ele: acabou o "só olhando"
+            breakTruce(attacker); // "não mexe comigo" - e mexeu
+            if (engagement != null && attacker.getUUID().equals(engagement.player)) {
+                engagement.taken += Math.max(0F, before - this.getHealth());
+            }
+            // de perto (espada, machado, soco) ou de longe (arco, besta, tridente)
+            observe(attacker, source.getDirectEntity() == attacker ? Style.MELEE : Style.RANGED, 2.0F);
+        }
+        boolean beforeRip = state != FroggyState.ARM_RIP || stateTicks < 22;
+        if (hurt && state.isOnVictim() && state != FroggyState.FINISHER && beforeRip && amount >= 5.0F
+                && source.getEntity() != null && source.getEntity() == getPinnedVictim()) {
+            // pancada forte de quem está embaixo: ele é jogado pra trás e solta
+            if (getPinnedVictim() instanceof ServerPlayer player) PinTracker.release(player);
+            setPinnedVictim(null);
+            setHeldArm(null);
+            setFroggyState(FroggyState.CHASE);
+            setAttackCooldown(20);
+        }
+        if (hurt) {
+            updateGoreStage();
+            if (source.is(DamageTypeTags.IS_FIRE)) {
+                setSkinVariant(SkinVariant.BURNED);
+            } else if (source.is(DamageTypeTags.IS_FALL) || source.is(DamageTypeTags.IS_EXPLOSION)) {
+                setSkinVariant(SkinVariant.SMASHED);
+            }
+            LivingEntity prey = busyPrey();
+            if (source.getEntity() instanceof LivingEntity attacker && attacker != this && attacker != prey
+                    && busyWithPrey() && !source.is(net.minecraft.world.damagesource.DamageTypes.SONIC_BOOM)) {
+                // alguém bateu nele no meio da refeição (ou com gente presa embaixo): larga e briga,
+                // ou continua (LM: "de vez em quando largar a presa e atacar quem está atacando
+                // ele - não tão raro, mas mediano - às vezes continua")
+                reactWhileBusy(attacker, prey, before);
+            } else if (wasFeeding && !(source.getEntity() instanceof LivingEntity)) {
+                // queimando, caindo...: larga a refeição
+                setFeedTarget(null);
+                if (state == FroggyState.FEAST) endFeast(false);
+                setFroggyState(FroggyState.CHASE);
+            }
+        }
+        return hurt;
+    }
+
+    @Override
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        tag.putInt("MouthColor", getMouthColor());
+        tag.putFloat("MouthStain", getMouthStain());
+        tag.putString("SkinVariant", getSkinVariant().id);
+        if (goreSoak > 0F) tag.putFloat("GoreSoak", goreSoak);
+        // a fase 2 "uma vez" vale pro mundo: saindo e voltando ele não se transforma de novo
+        if (phase2Started) tag.putBoolean("Phase2Started", true);
+        if (!getDebugAnim().isEmpty()) tag.putString("DebugAnim", getDebugAnim());
+        if (debugHunt) tag.putBoolean("DebugHunt", true);
+        tag.put("Drives", drives.save());
+        if (debugAttack != null) tag.putString("DebugAttack", debugAttack.name());
+        if (debugHeldArm) tag.putBoolean("DebugHeldArm", true);
+        if (debugArmless) tag.putBoolean("DebugArmless", true);
+        if (debugStalk) tag.putBoolean("DebugStalk", true);
+        if (isReviving()) {
+            tag.putBoolean("Reviving", true);
+            // o Mob grava o NoAI pelo isNoAi(), que remontando é sempre true: grava o de verdade
+            if (!super.isNoAi()) tag.remove("NoAI");
+        }
+        if (glimpseFrozen) tag.putBoolean("GlimpseFrozen", true);
+        if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
+        if (debugFar > 0) tag.putInt("DebugFar", debugFar);
+        // a barriga, e o que estiver na boca/língua agora (salvou no meio da mastigada: conta como engolido)
+        net.minecraft.nbt.ListTag list = new net.minecraft.nbt.ListTag();
+        for (ItemStack s : belly) list.add(s.save(new CompoundTag()));
+        for (ItemStack s : new ItemStack[]{getMouthItem(), getTongueItem()}) {
+            if (!s.isEmpty()) list.add(com.froggydude.brain.ModWeapons.unload(s).save(new CompoundTag()));
+        }
+        if (!list.isEmpty()) tag.put("Belly", list);
+    }
+
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        super.readAdditionalSaveData(tag);
+        if (tag.contains("Drives")) drives.load(tag.getCompound("Drives"));
+        // mundo de antes da v0.6.2: a vida máxima salva era 150 - sobe pra nova, na mesma proporção
+        var maxHp = this.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHp != null && maxHp.getBaseValue() < MAX_HEALTH) {
+            float pct = this.getHealth() / (float) maxHp.getBaseValue();
+            maxHp.setBaseValue(MAX_HEALTH);
+            this.setHealth(pct * (float) MAX_HEALTH);
+        }
+        var armor = this.getAttribute(Attributes.ARMOR);
+        if (armor != null && armor.getBaseValue() < 10.0D) armor.setBaseValue(10.0D);
+        // salvou pendurado no teto (sem gravidade): volta ao normal, o estado não é salvo
+        this.setNoGravity(false);
+        if (tag.contains("MouthColor")) this.entityData.set(DATA_MOUTH_COLOR, tag.getInt("MouthColor"));
+        this.entityData.set(DATA_MOUTH_STAIN, tag.getFloat("MouthStain"));
+        String id = tag.getString("SkinVariant");
+        for (SkinVariant v : SkinVariant.values()) {
+            if (v.id.equals(id)) setSkinVariant(v);
+        }
+        this.goreSoak = tag.getFloat("GoreSoak");
+        this.phase2Started = tag.getBoolean("Phase2Started");
+        updateGoreStage();
+        this.entityData.set(DATA_DEBUG_ANIM, tag.getString("DebugAnim"));
+        this.debugHunt = tag.getBoolean("DebugHunt");
+        this.debugHeldArm = tag.getBoolean("DebugHeldArm");
+        this.debugArmless = tag.getBoolean("DebugArmless");
+        this.debugStalk = tag.getBoolean("DebugStalk");
+        if (tag.getBoolean("Reviving")) {
+            // (v0.7.35) salvou no meio do renascer: volta já de pé, com metade da vida
+            this.setHealth(Math.max(this.getHealth(), this.getMaxHealth() * 0.5F));
+        }
+        this.glimpseFrozen = tag.getBoolean("GlimpseFrozen");
+        this.debugPhase2In = tag.getInt("DebugPhase2In");
+        this.debugFar = tag.getInt("DebugFar");
+        belly.clear();
+        net.minecraft.nbt.ListTag list = tag.getList("Belly", net.minecraft.nbt.Tag.TAG_COMPOUND);
+        for (int i = 0; i < list.size(); i++) {
+            ItemStack s = ItemStack.of(list.getCompound(i));
+            if (!s.isEmpty()) belly.add(s);
+        }
+        this.debugAttack = null;
+        for (FroggyState st : FroggyState.values()) {
+            if (st.name().equals(tag.getString("DebugAttack"))) this.debugAttack = st;
+        }
+    }
+
+    /** Mais sangue grudado nele (mordidas, braço, vítima devorada). */
+    public void addGore(float amount) {
+        goreSoak = Math.min(3.5F, goreSoak + amount);
+        updateGoreStage();
+    }
+
+    private void updateGoreStage() {
+        float pct = this.getHealth() / this.getMaxHealth();
+        byte stage;
+        if (pct > 0.75F) stage = 0;
+        else if (pct > 0.5F) stage = 1;
+        else if (pct > 0.25F) stage = 2;
+        else stage = 3;
+        stage = (byte) Math.max(stage, Math.min(3, (int) goreSoak));
+        if (stage != this.entityData.get(DATA_GORE_STAGE)) {
+            this.entityData.set(DATA_GORE_STAGE, stage);
+        }
+    }
+
+    // ---------------- GeckoLib: animações ----------------
+    // Os nomes abaixo precisam bater com as animações do arquivo
+    // assets/froggydude/animations/froggydude.animation.json
+
+    private static final RawAnimation ANIM_IDLE = RawAnimation.begin().thenLoop("idle");
+    private static final RawAnimation ANIM_REVIVE_LIE = RawAnimation.begin().thenLoop("revive_lie");
+    private static final RawAnimation ANIM_REVIVE_FLIP = RawAnimation.begin().thenPlayAndHold("revive_flip");
+    private static final RawAnimation ANIM_REVIVE_SHAKE = RawAnimation.begin().thenPlayAndHold("revive_shake");
+    private static final RawAnimation ANIM_RAGDOLL_GETUP = RawAnimation.begin().thenPlayAndHold("ragdoll_getup");
+    private static final RawAnimation ANIM_RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
+    private static final RawAnimation ANIM_RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
+    private static final RawAnimation ANIM_HEAD_GRAB = RawAnimation.begin().thenPlayAndHold("head_grab");
+    private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
+    private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
+    private static final RawAnimation ANIM_RUN_FRENZY = RawAnimation.begin().thenLoop("run_frenzy");
+    private static final RawAnimation ANIM_FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
+    private static final RawAnimation ANIM_TIRED = RawAnimation.begin().thenLoop("tired");
+    private static final RawAnimation ANIM_CLIMB = RawAnimation.begin().thenLoop("climb");
+    private static final RawAnimation ANIM_CROUCH_IDLE = RawAnimation.begin().thenLoop("crouch_idle");
+    private static final RawAnimation ANIM_SWIM = RawAnimation.begin().thenLoop("swim");
+    private static final RawAnimation ANIM_FEED = RawAnimation.begin().thenLoop("feed");
+    private static final RawAnimation ANIM_FEED_MOB = RawAnimation.begin().thenLoop("feed_mob");
+    private static final RawAnimation ANIM_BITE =
+            RawAnimation.begin().then("bite", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_WHIP =
+            RawAnimation.begin().then("tongue_whip", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_GRAB =
+            RawAnimation.begin().then("tongue_grab", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_CAPTURE =
+            RawAnimation.begin().then("tongue_capture", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_THROW =
+            RawAnimation.begin().then("tongue_throw", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_JUMP_PIN =
+            RawAnimation.begin().then("jump_pin", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_HIGH_JUMP =
+            RawAnimation.begin().then("high_jump", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_PIN_HOLD = RawAnimation.begin().thenLoop("pin_hold");
+    // fase 2: dobra (contort) e fica curvado com a cabeça girando (contort_hold) até o servidor mandar gritar.
+    // São duas animações separadas (e não uma fila "then...thenLoop"): na fila o GeckoLib
+    // mostrava um quadro dele em pé na troca de uma pra outra.
+    private static final RawAnimation ANIM_CONTORT =
+            RawAnimation.begin().then("contort", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_CONTORT_HOLD = RawAnimation.begin().thenLoop("contort_hold");
+    private static final RawAnimation ANIM_ROAR =
+            RawAnimation.begin().then("roar", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_SMASH = RawAnimation.begin().thenLoop("smash");
+    private static final RawAnimation ANIM_SKY_DROP =
+            RawAnimation.begin().then("sky_drop", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_ARM_RIP =
+            RawAnimation.begin().then("arm_rip", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_ARM_EAT =
+            RawAnimation.begin().then("arm_eat", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    // (v0.7.30) a arma roubada atravessada na boca: sacode a cabeça rápido e engole (vídeo do Grox, 1:24)
+    private static final RawAnimation ANIM_WEAPON_EAT =
+            RawAnimation.begin().then("weapon_eat", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    // o golpe final (a cutscene) - a "_r" é a mesma a partir do braço direito (sem o esquerdo)
+    private static final RawAnimation ANIM_FINISHER =
+            RawAnimation.begin().then("finisher", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_FINISHER_R =
+            RawAnimation.begin().then("finisher_r", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_PAD_HOP = RawAnimation.begin().thenLoop("pad_hop");
+    private static final RawAnimation ANIM_CEILING_HANG = RawAnimation.begin().thenLoop("ceiling_hang");
+    private static final RawAnimation ANIM_FLUNG =
+            RawAnimation.begin().then("flung", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation ANIM_CEILING_DIVE =
+            RawAnimation.begin().then("ceiling_dive", Animation.LoopType.HOLD_ON_LAST_FRAME);
+
+    // controlador separado só pro osso da língua (some quando não está atacando com ela)
+    private static final RawAnimation TONGUE_HIDDEN = RawAnimation.begin().thenLoop("tongue_hidden");
+    private static final RawAnimation TONGUE_WHIP =
+            RawAnimation.begin().then("tongue_whip_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation TONGUE_GRAB =
+            RawAnimation.begin().then("tongue_grab_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation TONGUE_CAPTURE =
+            RawAnimation.begin().then("tongue_capture_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
+    private static final RawAnimation TONGUE_THROW_EXT =
+            RawAnimation.begin().then("tongue_throw_ext", Animation.LoopType.HOLD_ON_LAST_FRAME);
+
+    /** Câmera lenta só pra gravar a animação quadro a quadro (froggydude.animSlow; 1 = normal). */
+    private static final double DEBUG_ANIM_SLOW = Double.parseDouble(System.getProperty("froggydude.animSlow", "1"));
+
+    @Override
+    public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
+        controllers.add(new PacedAnimationController<>(this, "main", MAIN_BLEND, this::mainPredicate)
+                .setAnimationSpeedHandler(e -> e.mainAnimSpeed() * DEBUG_ANIM_SLOW));
+        controllers.add(new AnimationController<>(this, "tongue", 0, this::tonguePredicate));
+    }
+
+    private PlayState mainPredicate(AnimationState<FroggydudeEntity> state) {
+        String debug = getDebugAnim();
+        if (!debug.isEmpty()) {
+            return state.setAndContinue(RawAnimation.begin().thenLoop(debug));
+        }
+        switch (getFroggyState()) {
+            case REVIVE: {
+                Revive.Params rp = reviveParams();
+                if (rp != null && this.level().getGameTime() - rp.t0() >= rp.standStart() - REVIVE_PRESWITCH) {
+                    return state.setAndContinue(rp.flip() ? ANIM_REVIVE_FLIP : ANIM_REVIVE_SHAKE);
+                }
+                return state.setAndContinue(ANIM_REVIVE_LIE);
+            }
+            case HEAD_GRAB:
+                // (v0.7.41) o bote (o mesmo pulo baixo que derruba) e, montado, puxando a cabeça em trancos
+                return state.setAndContinue(headGrabState().isEmpty() ? ANIM_JUMP_PIN : ANIM_HEAD_GRAB);
+            case RAGE: {
+                // (v0.7.40) a raiva: o estalo do pescoço, avança agachado (o galope da fase 2), parado em "()"
+                byte ph = getRagePhase();
+                if (ph == Rage.RUSH) return state.setAndContinue(ANIM_RUN_FRENZY);
+                if (ph == Rage.STAND) return state.setAndContinue(ANIM_RAGE_IDLE);
+                return state.setAndContinue(ANIM_RAGE_CRACK);
+            }
+            case RAGDOLL: {
+                // (v0.7.40) mole, o modelo não aparece (são as partes do RagdollScene); por baixo fica de bruços, pra
+                // emendar no levantar sem pulo. A troca vem antes, pra mistura do controlador acabar antes de aparecer.
+                Ragdoll.Params rd = ragdollParams();
+                if (rd != null && rd.rising() && this.level().getGameTime() - rd.upAt() >= Ragdoll.BLEND - REVIVE_PRESWITCH) {
+                    return state.setAndContinue(ANIM_RAGDOLL_GETUP);
+                }
+                return state.setAndContinue(ANIM_REVIVE_LIE);
+            }
+            case BITE:
+                return state.setAndContinue(ANIM_BITE);
+            case TONGUE_WHIP:
+                return state.setAndContinue(ANIM_WHIP);
+            case TONGUE_GRAB:
+                return state.setAndContinue(ANIM_GRAB);
+            case TONGUE_CAPTURE:
+                return state.setAndContinue(ANIM_CAPTURE);
+            case TONGUE_THROW:
+                return state.setAndContinue(ANIM_THROW);
+            case JUMP_PIN:
+                return state.setAndContinue(ANIM_JUMP_PIN);
+            case HIGH_JUMP:
+                return state.setAndContinue(ANIM_HIGH_JUMP);
+            case FEEDING:
+                // bicho caído embaixo: a flexão; bloco (portal, parede): a mordida de pé
+                return state.setAndContinue(getFeedVictimId() >= 0 ? ANIM_FEED_MOB : ANIM_FEED);
+            case CONTORTING:
+                return state.setAndContinue(clientStateAge < FroggyState.CONTORTING.durationTicks
+                        ? ANIM_CONTORT : ANIM_CONTORT_HOLD);
+            case ROAR:
+                return state.setAndContinue(ANIM_ROAR);
+            case PIN_HOLD:
+                return state.setAndContinue(ANIM_PIN_HOLD);
+            case SMASH:
+                return state.setAndContinue(ANIM_SMASH);
+            case SKY_DROP:
+                return state.setAndContinue(ANIM_SKY_DROP);
+            case ARM_RIP:
+                return state.setAndContinue(ANIM_ARM_RIP);
+            case ARM_EAT:
+                return state.setAndContinue(ANIM_ARM_EAT);
+            case WEAPON_EAT:
+                return state.setAndContinue(ANIM_WEAPON_EAT);
+            case FINISHER:
+                return state.setAndContinue(finisherSkipsLeft() ? ANIM_FINISHER_R : ANIM_FINISHER);
+            case PAD_HOP:
+                return state.setAndContinue(ANIM_PAD_HOP);
+            case CEILING_HANG:
+                return state.setAndContinue(ANIM_CEILING_HANG);
+            case CEILING_DIVE:
+                return state.setAndContinue(ANIM_CEILING_DIVE);
+            case FLUNG:
+                return state.setAndContinue(ANIM_FLUNG);
+            case FEAST:
+                return state.setAndContinue(ANIM_FEED_MOB);
+            case BUILD:
+            case TAUNT:
+                // em pé, como jogador (o agachar e o soco vêm por cima, no modelo)
+                return state.setAndContinue(isMovingSynced() ? ANIM_WALK : ANIM_IDLE);
+            default:
+                break;
+        }
+        if (isSwimmingVisual()) {
+            // (v0.7.22) nadando: o dardo do vídeo (o deitar e a inclinação vêm do FroggydudeRenderer)
+            return state.setAndContinue(ANIM_SWIM);
+        }
+        if (isClimbing() && !this.onGround()) {
+            return state.setAndContinue(ANIM_CLIMB);
+        }
+        if (isFrenzyTired()) {
+            return state.setAndContinue(ANIM_TIRED);
+        }
+        if (isMovingSynced()) {
+            // caçando = de quatro (run); passeando sem alvo = walk (em pé)
+            if (!isRunning()) return state.setAndContinue(ANIM_WALK);
+            return state.setAndContinue(isFrenzyActive() ? ANIM_RUN_FRENZY : ANIM_RUN);
+        }
+        if (isRunning()) {
+            // parado no meio da caçada: continua de quatro, respirando (não levanta);
+            // na fase 2, em pé curvado, ofegando
+            return state.setAndContinue(isFrenzyActive() ? ANIM_FRENZY_IDLE : ANIM_CROUCH_IDLE);
+        }
+        return state.setAndContinue(ANIM_IDLE);
+    }
+
+    private PlayState tonguePredicate(AnimationState<FroggydudeEntity> state) {
+        String debug = getDebugAnim();
+        if (debug.startsWith("tongue_")) {
+            // teste: DebugAnim "tongue_whip" também estica a língua, em loop
+            return state.setAndContinue(RawAnimation.begin().thenLoop(debug + "_ext"));
+        }
+        switch (getFroggyState()) {
+            case TONGUE_WHIP:
+                return state.setAndContinue(TONGUE_WHIP);
+            case TONGUE_GRAB:
+                return state.setAndContinue(TONGUE_GRAB);
+            case TONGUE_CAPTURE:
+                return state.setAndContinue(TONGUE_CAPTURE);
+            case TONGUE_THROW:
+                return state.setAndContinue(TONGUE_THROW_EXT);
+            default:
+                return state.setAndContinue(TONGUE_HIDDEN);
+        }
+    }
+
+    @Override
+    public AnimatableInstanceCache getAnimatableInstanceCache() {
+        return this.cache;
+    }
+
+    // ---------------- ações usadas pelas Goals ----------------
+
+    /**
+     * Sangue de verdade: respingos vermelhos e pedacinhos, no ponto da mordida
+     * (entre a boca dele e a vítima). Nada de partícula em cima da câmera de
+     * quem apanhou, senão tampa a visão.
+     */
+    public void spawnBlood(LivingEntity target, int amount) {
+        if (this.level() instanceof ServerLevel) {
+            BloodType type = BloodType.of(target);
+            if (!type.bleeds()) return;
+            int color = type.color;
+            Vec3 from = target.position().add(0, target.getBbHeight() * 0.5D, 0);
+            Vec3 to = this.position().add(0, this.getBbHeight() * 0.45D, 0);
+            // jogador: o sangue sai mais perto do Froggy e voa por cima dele, pra
+            // não tampar a câmera de quem está preso embaixo
+            boolean player = target instanceof Player;
+            Vec3 at = from.add(to.subtract(from).scale(player ? 0.8D : 0.55D));
+            if (player) {
+                Vec3 over = to.subtract(from).multiply(1, 0, 1);
+                BloodFx.spray(this.level(), at, over.normalize().add(0, 1.4D, 0), amount * 2, 0.16F + amount * 0.012F, color);
+            } else {
+                // o jato sai da ferida pra cima e pros lados, pra longe da boca dele
+                Vec3 away = from.subtract(to).multiply(1, 0, 1);
+                BloodFx.spray(this.level(), at, away.normalize().add(0, 1.3D, 0), amount * 3, 0.16F + amount * 0.012F, color);
+            }
+            BloodFx.pool(this.level(), target.position(), 0.35F + amount * 0.05F, color);
+            // a vítima fica manchada onde levou, a tela dela respinga (e engrossa a cada soco)
+            BloodFx.hit(target, this, from, from.subtract(to), amount * 0.5F, color, BloodFx.HIT_MARKS);
+            addGore(amount * 0.02F);
+        }
+    }
+
+    /** Explosão de sangue (braço arrancado, vítima devorada): jato forte e poça grande. */
+    public void bloodBurst(Vec3 at, Vec3 dir, int count, float power, float poolSize) {
+        bloodBurst(at, dir, count, power, poolSize, BloodFx.RED);
+    }
+
+    public void bloodBurst(Vec3 at, Vec3 dir, int count, float power, float poolSize, int color) {
+        BloodFx.burst(this.level(), at, dir, count, power, color, this);
+        BloodFx.pool(this.level(), at, poolSize, color);
+    }
+
+    /** Terminou de comer o braço: cura e fica com a boca suja. */
+    public void finishEatingArm() {
+        this.heal((float) (this.getMaxHealth() * 0.15D));
+        addGore(0.5F);
+        setSkinVariant(SkinVariant.FED);
+        setHeldArm(null);
+        updateGoreStage();
+    }
+
+    /**
+     * Sangue saindo da boca enquanto sacode/mastiga ("Eating a Zebra"): um jorro de
+     * cubinhos vermelhos que espirra pra frente e despenca do queixo até o chão.
+     */
+    public void spawnMouthBlood(int amount) {
+        spawnMouthBlood(amount, BloodFx.RED, true);
+    }
+
+    /**
+     * Da cor do que ele está comendo: golem, esqueleto, blaze não sangram - sai
+     * lasca da cor do bicho, sem poça e sem sujar ele de sangue.
+     */
+    public void spawnMouthBlood(int amount, int color, boolean bleeds) {
+        if (this.level() instanceof ServerLevel) {
+            float yaw = this.yBodyRot * Mth.DEG_TO_RAD;
+            Vec3 fwd = new Vec3(-Mth.sin(yaw), 0, Mth.cos(yaw));
+            Vec3 at = this.position().add(fwd.scale(0.35D)).add(0, this.getBbHeight() * 0.8D, 0);
+            BloodFx.spray(this.level(), at, fwd.add(0, 0.5D, 0), amount * 2, 0.2F, color);
+            BloodFx.spray(this.level(), at, new Vec3(0, -1, 0), amount * 2, 0.06F, color);
+            if (!bleeds) return;
+            BloodFx.pool(this.level(), this.position().add(fwd.scale(0.45D)), 0.3F + amount * 0.03F, color);
+            addGore(amount * 0.02F);
+        }
+    }
+
+    // ----- o banquete em cima dos pedaços (v0.7) -----
+
+    /** Na velocidade 1: uma mordida a cada 5 ticks (4 por segundo, o ritmo do vídeo). */
+    public static final double FEAST_BITES_PER_TICK = 0.2D;
+    /** Onde estão os pedaços (null = nada pra comer). */
+    @Nullable
+    private Vec3 feastSpot;
+    /** O corpo deitado não fica na posição da vítima (o golpe final): quem matou avisa onde. */
+    @Nullable
+    private Vec3 presetFeastSpot;
+    private int feastTicksLeft;
+    @Nullable
+    private VoiceSituation feastSpeech;
+    private int feastColor = BloodType.RED.color;
+    private boolean clientFeastBite;
+
+    /** O golpe final avisa onde o corpo está deitado (a vítima de pé fica em outro lugar). */
+    public void presetFeastSpot(Vec3 spot) {
+        this.presetFeastSpot = spot;
+    }
+
+    /**
+     * Matou: deita em cima dos pedaços e "come" por 3 a 7 s (FroggyFeastGoal). A fala
+     * de depois ("that was so delicious") fica pro fim. Devolve false se não vai comer.
+     */
+    public boolean startFeast(LivingEntity victim, @Nullable VoiceSituation speech) {
+        if (!this.isAlive() || victim instanceof FroggydudeEntity) return false;
+        feastSpot = presetFeastSpot != null ? presetFeastSpot : victim.position();
+        presetFeastSpot = null;
+        feastTicksLeft = 60 + this.getRandom().nextInt(81);
+        feastSpeech = speech;
+        BloodType type = BloodType.of(victim);
+        feastColor = type.bleeds() ? type.color : BloodType.residue(victim);
+        this.entityData.set(DATA_FEAST_RATE, feastRate());
+        return true;
+    }
+
+    /**
+     * O ritmo: com raiva (fase 2, o boom do warden, irritado, apanhou agora há pouco) e
+     * com fome (ferido, barriga vazia) come mais rápido; de barriga cheia, devagar.
+     */
+    private float feastRate() {
+        float rage = 0F;
+        if (isFrenzyActive()) rage += 0.3F;
+        if (isEnraged()) rage += 0.2F;
+        if (isIrked()) rage += 0.15F;
+        if (this.getLastHurtByMob() != null && this.tickCount - this.getLastHurtByMobTimestamp() < 200) rage += 0.1F;
+        float hunger = wantsToHeal() ? 0.2F : satiety <= SNACK_FULL_TICKS ? 0.06F : -0.1F;
+        return Mth.clamp(0.95F + rage + hunger + (float) this.getRandom().nextGaussian() * 0.04F, 0.8F, 1.4F);
+    }
+
+    public boolean hasFeast() {
+        return feastSpot != null && feastTicksLeft > 0;
+    }
+
+    @Nullable
+    public Vec3 getFeastSpot() {
+        return feastSpot;
+    }
+
+    public int getFeastColor() {
+        return feastColor;
+    }
+
+    public float getFeastRate() {
+        return this.entityData.get(DATA_FEAST_RATE);
+    }
+
+    /** Um tick de banquete; false quando acabou o tempo. */
+    public boolean tickFeast() {
+        return --feastTicksLeft > 0;
+    }
+
+    /** No cliente: a cabeça desceu mordendo neste tick? */
+    public boolean feastBiteNow() {
+        return clientFeastBite;
+    }
+
+    /** Acabou de comer (ou largou): a fala de depois, se terminou. */
+    public void endFeast(boolean finished) {
+        if (finished && feastSpeech != null) {
+            speak(feastSpeech, true);
+            if (this.getRandom().nextBoolean()) speakAfter(VoiceSituation.WANTS_MORE, 10);
+        }
+        feastSpot = null;
+        feastTicksLeft = 0;
+        feastSpeech = null;
+    }
+
+    public void eatVictim(LivingEntity victim) {
+        satiety = Math.max(satiety, SNACK_FULL_TICKS);
+        drives.ate(0.3F);
+        spawnBlood(victim, 25);
+        BloodType type = BloodType.of(victim);
+        if (type.bleeds()) {
+            bloodBurst(victim.position().add(0, victim.getBbHeight() * 0.5D, 0), new Vec3(0, 1, 0), 70, 0.45F, 2.2F, type.color);
+            addGore(1.2F);
+        } else {
+            // golem/esqueleto: não sangra - sobra a boca branca (MouthStainLayer), não a cara de sangue
+            BloodFx.spray(this.level(), victim.position().add(0, Math.min(0.6D, victim.getBbWidth() * 0.5D), 0),
+                    new Vec3(0, 1, 0), 30, 0.3F, BloodType.residue(victim));
+            stainMouth(victim, 0.5F);
+        }
+        this.playSound(ModSounds.CHEW.get(), 1.4F, 1.0F);
+        victim.hurt(this.damageSources().mobAttack(this), Float.MAX_VALUE / 2F);
+        this.heal((float) (this.getMaxHealth() * 0.20D));
+        if (victim instanceof net.minecraft.world.entity.monster.Blaze) {
+            speak(VoiceSituation.SPICY, true);
+            requestPhase2(); // "freaking spicy"
+        } else if (type.bleeds()) {
+            // a fala de depois ("that was delicious") vem no fim do banquete (awardKillScore)
+            setSkinVariant(SkinVariant.FED);
+        }
+    }
+
+    /**
+     * O que ele diz depois de comer: o panda tem a fala dele (1:51), bicho
+     * esquisito é "exotic meat"; gente e bicho de fazenda, "that was so delicious".
+     */
+    private static VoiceSituation afterMeal(LivingEntity victim) {
+        if (victim instanceof net.minecraft.world.entity.animal.Panda) return VoiceSituation.ATE_PANDA;
+        if (victim instanceof net.minecraft.world.entity.npc.AbstractVillager
+                || victim instanceof net.minecraft.world.entity.monster.AbstractIllager
+                || victim instanceof net.minecraft.world.entity.monster.Witch
+                || victim instanceof net.minecraft.world.entity.animal.Cow
+                || victim instanceof net.minecraft.world.entity.animal.Pig
+                || victim instanceof net.minecraft.world.entity.animal.Sheep
+                || victim instanceof net.minecraft.world.entity.animal.Chicken
+                || victim instanceof net.minecraft.world.entity.animal.Rabbit) {
+            return VoiceSituation.ATE;
+        }
+        return VoiceSituation.ATE_ODD;
+    }
+}

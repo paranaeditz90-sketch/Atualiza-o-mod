@@ -1,0 +1,264 @@
+# Onde paramos (pra retomar numa conversa nova)
+
+Atualizado em 16/11/2026. Se a conversa acabar ou ficar comprida demais, abre uma sessão nova
+neste repositório, na branch `claude/froggydude-mod-research-pxrwch`, e escreve:
+**"lê o PROGRESSO.md e continua de onde parou"**.
+
+O que está no GitHub não se perde. O que fica só na sessão (vídeos, gravações, sons baixados)
+some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTES.md`.
+
+---
+
+## Os dois mods
+
+| mod | pasta | versão | estado |
+|---|---|---|---|
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.43 | 17/11: a morte do anti-trapaça com tela própria, por cima de mod de tela de morte (o "Death screen FNAF" do LM fazia o chiado ficar em loop sem a mensagem). Antes, 0.7.42: o anti-trapaça ("Trapaças?" na tela de criar mundo, Não por padrão: quem entra no criativo/espectador vê o vídeo do FroggyDude em 60 qps com som e morre com "Eu odeio TRAPAÇAS", sem renascer nunca mais; o vídeo vai no jar pelo pacote da voz) e a IA dinâmica, etapa 1 (só na IA Real: as vontades fome, raiva e tédio e o decisor que escolhe a cada 0,5 s entre caçar, tocaia, comer, a vila, fugir pra curar e explorar; comando `/froggydude vontades`). Antes, 0.7.41: a cutscene jogável da cabeça (no fim da raiva ele monta em ti e puxa a cabeça com o rugido; o alerta vermelho em cima da hotbar pede 1 tiro, 2 golpes de espada ou 3 socos; se soltou, ele voa no ragdoll; não deu, ele arranca a cabeça com a cena da zebra só da cabeça). A 0.7.40 (o ragdoll do tiro, a raiva "()" e as falas novas) e as anteriores estão no `NOTES.md` |
+| BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.7.1 (rede "12") | 18/11: 0.7.1 toco no ombro, aviso da cabeça traduzido. 0.7.0 cansado e arrancar a cabeça (cutscene jogável). 0.6.1 correções do pente fino (lava só transformado, mergulho do teto, braço, comer vivo, sair no meio, raiva, arma). 0.6.0 roubar e comer a arma (mordendo a mão). 0.5.0 arrancar o braço (jogador) / comer vivo na flexão (bicho) e o teto (pendurar e mergulhar). 17/11 0.4.0: a roda de ações (estalar o pescoço, raiva "()"), igual ao Become HIM.... 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8); nado do vídeo, galope por cima da lava sem fogo e a tremida de quem bate em 1ª pessoa (0.3.9) |
+| Become HIM... (público: tu vira o Froggy, com a língua) | `becomehim-mod/` | 0.5.1 (rede "5") | 18/11: 0.5.1 toco no ombro, aviso da cabeça traduzido, README (EN/PT) e descrição pra lançar. 0.5.0 cansado, arrancar a cabeça (cutscene jogável), chicote e puxão da língua. 0.4.1 correções do pente fino (lava só transformado, mergulho do teto, braço, comer vivo, sair no meio, raiva, arma). 0.4.0 roubar e comer a arma (língua). 0.3.0 arrancar o braço (jogador) / comer vivo na flexão (bicho) e o teto (pendurar e mergulhar). 0.2.0 a roda de ações (estalar o pescoço, raiva "()"). 0.1.0: nasceu da cópia do BecomeLM 0.3.9 com ID/pacote/canal próprios (instala junto com o BecomeLM); no lugar da mordida que segura, a língua do FroggyDude: pega e ergue, puxa e morde, arremesso de 40 blocos (testado no jogo). Sem sons do FroggyDude. Próximo: gomos de ação na roda e as animações que faltam (nos dois mods) |
+
+Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
+O plano grande da IA: `PLANO.md`.
+
+## Regras do LM (valem sempre)
+
+- Perguntar antes de aplicar mudança no mod. Uma coisa por vez.
+- Perguntar sempre que tiver a menor dúvida. Pode decidir sozinho, mas avisando e dando atualização constante.
+- Push só na branch `claude/froggydude-mod-research-pxrwch`. PR só se o LM pedir.
+- **O repositório é público.** A voz e os sons originais do FroggyDude e os sons do LM (Voicemod, o do vídeo que ele editou no CapCut) **nunca** entram aqui. Vão só no pacote de sons pessoal dele. Som livre (CC0) pode ir dentro do mod.
+
+---
+
+## Pedido grande do LM (29/10): animações bem mais próximas da original
+
+O LM quer que o FroggyDude do mod tenha animações **bem mais próximas das do FroggyDude original**.
+Exemplo dele: **ele comendo os restos de um player** (o monte de pedaços).
+
+- É complexo, então **o LM vai ajudar** (vídeos, tempos, tela do celular) e quer que eu **pergunte, peça e
+  tire todas as dúvidas** antes de mexer. Uma coisa por vez, com OK dele.
+- **02/11: a 1ª ficou pronta, o comer em "flexão"** (0.7.17 e BecomeLM 0.3.4). O jeito que funcionou:
+  1. medir o vídeo quadro a quadro (cabeça, costas, braços e pés separados, com grade);
+  2. ajustar o esqueleto até a réplica bater com o vídeo sobreposto;
+  3. o LM aprova a réplica em vídeo **antes** de ir pro jogo;
+  4. testar no jogo e comparar de novo.
+  Os números ficam em `FLEX` no `froggydude-mod/tools/anim/build_anims.py`. Pra medir vídeo: skill `process-video`.
+- **Próximas (pedido do LM, 02/11):** ~~corrigir a animação de **pulo**~~ (feito 03/11, abaixo) e a de **uso da língua** com o mesmo jeito.
+  Também: **nadar** na água, **correr de 4 por cima da lava** e a **marreta com os dois braços** (VS Grox 2:27-2:33).
+  Uma de cada vez, na ordem que o LM escolher. (03/11: pulo, parado de 4, martelo visto pela vítima, NADAR e LAVA
+  feitos; falta a língua.)
+- **Nadar + lava: FEITO 03/11** (IA 0.7.22 + BecomeLM 0.3.9). Nado medido a 60 qps com grade no How many days
+  1:52,95-1:53,57 (só o FroggyDude): o "dardo" do LM, pernas juntas batendo pra cima e pra baixo, o corpo gangorrando
+  no quadril, braços retos à frente na altura da cabeça, 0,62 s; o outro jogador nada no ritmo do jogo (1,2 s), então o
+  vídeo não é acelerado. IA: nada em 3D atrás da vítima (~12% mais rápido, acelera com a distância e com o tempo),
+  barco (língua / quebra / pula em cima e afunda). Lava: a IA já ia pela lava (IA Real); agora ~15% mais lenta. No
+  BecomeLM: deita nadando; pisa e galopa por cima da lava, imune a fogo só ali (o pé do "em pé na lava" fica dentro
+  dela e o jogo põe fogo no servidor e no cliente), ~15% mais lento.
+- **Tremida de quem bate no BecomeLM em 1ª pessoa: FEITO 03/11** (0.3.9, o LM escolheu "1ª treme, F5 igual"): o
+  mesmo chacoalhão da 3ª pessoa; medido no jogo (parado ~0 px/quadro, martelando 10,6, some depois).
+- **Marreta: FEITA 02/11** (BecomeLM 0.3.5 + IA 0.7.18). Medida no VS Grox MANHUNT 2:27-2:33, réplica aprovada pelo LM,
+  pose nova no `sky_smash` (`becomelm-mod/tools/make_anims.py`). No BecomeLM: som de crítico em cada pancada (em pé e
+  montado; o empurrão que derruba não), 1 em 5 pancadas 1,5x, tremidinha em 1ª pessoa em quem bate e em quem apanha.
+  Na IA: o "tai" de cada soco no mesmo tick do punho (24 de 24 no teste). Testado no jogo: crítico no mesmo quadro do
+  punho ou até 1 tick depois; a tremidinha de quem apanha precisa de 2 jogadores (o LM confere).
+  ~~Em aberto: a pose em "V invertido"~~: resolvido em 03/11, era o pulo do céu (o "/\\" do LM era o "\\ /" do braço
+  de zumbi; o app dele esconde a barra invertida).
+- **Pulo do céu: FEITO 03/11** (IA 0.7.19 + BecomeLM 0.3.6, aprovado pelo LM: "tá ótimo já"). Réplica do VS AJTHEBOLD
+  (Every Opponent 29:48 de frente e 29:51 de baixo) medida por **sobreposição**: o boneco do `preview.py` desenhado por
+  cima do quadro do original e os ângulos ajustados até a silhueta cobrir a dele (queda 77-89%). Ameaça (braços pelos
+  lados até um V, grito), agachada com as pernas retas e em pé "||" (andam pra frente com `leg_pos`; o `rig.py` agora
+  lê a posição da perna), um braço antes do outro, decola de braço de zumbi "\\ /", cai com a perna direita pra frente
+  e a cabeça balançando de leve. Testado no jogo no mod da IA (ele parado, `DebugAnim` + `-PanimSlow=0.1 -Pcapture=1`,
+  de frente e de baixo). Lições: com o braço pra frente o giro Z só torce o braço, quem abre pro lado é o Y (`arm_ry`);
+  numa vista só, braço de zumbi e braço meio levantado (e perna pra frente ou pra trás) dão o mesmo contorno, então
+  perguntar ao LM. **Falta testar no jogo:** o pulo no BecomeLM, o dano de cada soco do esmagamento da IA e a tremida
+  da marreta (quem bate, em 3ª pessoa).
+- **Martelo visto pela vítima: FEITO 03/11** (IA 0.7.21 + BecomeLM 0.3.8; o LM viu a gravação no jogo: "Perfeito!").
+  Vídeo do LM (Screenrecorder de 03/11, 7,9-10,6 s): ele de joelhos na frente, a câmera parada olhando pra cima.
+  - IA: preso, a câmera fica parada 31° pra cima (o horizonte do vídeo) e ele a 1,5 bloco. O martelo foi encaixado pelos
+    PONTOS e TAMANHOS medidos na grade (mãos, punhos, cabeça, ombros) + silhueta, câmera única pros 2 quadros: em cima,
+    braços pra cima um de cada lado da cabeça; na pancada, tronco ~50°, a cabeça dobrada e os braços FECHADOS, o punho
+    no canto da tela só pela perspectiva. Lição: só a silhueta dava pose sem sentido (cobre a mancha com as partes erradas).
+  - BecomeLM: a câmera "Da vítima" martelando fica parada no chão a 1,7 bloco, olhando 33° pra cima. O martelo é o de sempre.
+  - Teste: `DebugAttack:"SMASH"`, `doMobSpawning false`, `irritado_chance = 0` só no `run/config` durante o teste e o
+    jogador a 5 blocos na frente dele (`/execute at @e[...] rotated ~ 0 run tp @s ^ ^ ^5`). Começar com o jogador EM
+    CIMA do chão: 0,1 bloco dentro dele, preso, ele afunda pela terra e a tela vira a textura da terra por dentro.
+- 02/11: o LM liberou o commit "na próxima atualização" - a 0.7.18 e a 0.3.5 (parede + marreta) foram juntas pro GitHub.
+- **Subir parede de 4 no BecomeLM (02/11, pedido do LM):** galopando reto pra parede ele sobe a 10 b/s (Grox 3:29) e
+  passa por cima da beirada (`LmWallClimb` + o mixin do `onClimbable`/`travel`). Testado no jogo: pousa no meio de um
+  pilar 1x1 e fica; soltou no meio, para e escorrega; agachado, segura; as câmeras de cinema não entram mais na parede.
+  Lição: o `zza` lido no evento do tick do jogador é o do tick anterior (o jogo lê os botões depois, no `aiStep`);
+  pra reagir ao botão no mesmo tick, entrar no começo do `travel`.
+- Lição do 02/11 (vale pra qualquer animação em loop com som/dano marcado): o GeckoLib perde um pedacinho a cada
+  volta do loop e começa a contar depois da mistura (3 ticks). Pra som e animação andarem juntos, o servidor e o
+  cliente contam o MESMO relógio pela idade do estado e o cliente prende a animação nele (relógio de fora do
+  controlador: `FroggydudeEntity.pushupAnimTicks`, `LmPileRhythm` no BecomeLM). Goal sem `requiresUpdateEveryTick`
+  só roda de 2 em 2 ticks.
+
+## Próximo passo (27/10): "in your world" - tudo decidido em `TAREFA.md`
+
+O LM respondeu as caixinhas em 27/10 e o plano está em **`TAREFA.md`** (chegada entre o dia 4 e o 10,
+sinais 1-2 dias antes fora da vista, LAN falsa, caça direto, some e volta quando mata, o "EU QUERO SEU
+CORPO! Sniff sniff sniff..." no chat quando o jogador se esconde, e o "NAO! MERDA! Ah... Vá se ferrar"
+quando o dragão morre). Junto: transformação do nada rara e na hora certa, menos língua e mais bote.
+Depois: BecomeLM. Pra continuar: `/implementar continua`.
+**27/10 (noite), v0.7.16:** a chegada já está feita e testada no jogo (opção, dia sorteado, LAN falsa, "entrou
+no jogo", caça, some 4 min, fim no dragão). Faltam os sinais antes da chegada e as falas no chat pelo lugar
+onde o jogador está (o cheiro) - ver "Registro da implementação" no `TAREFA.md`.
+
+A 0.7.15 (no GitHub, commit b9f47b5) foi medida no jogo antes x depois - números no `froggydude-mod/NOTES.md`.
+
+## Som dos ossos (#160): o LM escolheu o 5
+
+Em 26/10 o LM ouviu os 6 candidatos e escolheu o **5**: o meu misto (CC0) + os ossos do
+"MINECRAFT BUT I'M THE HORROR MOD" no pente fino, meio estourado.
+- Dentro do mod vai só a parte livre (o misto CC0, meio estourado).
+- A versão completa (com o horror mod, que é do FroggyDude) vai no pacote pessoal BecomeLM-Sons.
+- Usar na transformação (`crack_seq`/`crack`) e nas costelas da finalização (o estalo 6 é o modelo).
+- **No pacote pessoal desde 26/10** (`BecomeLM-Sons.zip`, mandado pro LM):
+  - `contort` = o 5 inteiro com 0,1 s de silêncio na frente. O mod toca no tick 8 e o 5 foi montado pra começar no tick 10.
+  - `crack_seq` vazio.
+  - `crack` = 6 estalos de 0,28 s no estilo do 5. Compridos (0,9 s) viravam um crec-crec sem parar no "torto", porque tocam a cada 0,4 a 1 s.
+  - Testado no jogo: o som gravado bate com o 5 (correlação 0,85).
+- Dentro do mod (a versão CC0) ainda não: entra junto com a parte 2 da finalização.
+
+Descobertas:
+- O crec-crec do horror mod é a voz dele (gemido de dor rangido). O removedor de voz (Demucs) jogou tudo pra "voz", então o pente fino separa tom (gemido) de batida (estalo). O gemido cai 66 dB.
+
+Pra refazer os 6 sons e o pacote `BecomeLM-Sons.zip` do zero: `becomelm-mod/tools/som/refazer_ossos.sh pasta_entrada pasta_saida`.
+A pasta de entrada precisa de 3 arquivos que o LM tem (estão no zip LM_SALVAR_26-10, pasta 3):
+`horror.mp4` (Screenrecorder-2026-09-30-16-01-56, 5,6 s), `voicemod.mp3`, `video.mp4` (lv_0_20261025230010).
+Os sons CC0 o script baixa sozinho:
+- "Deep bone crack/break SFX", Zane Little Music, https://opengameart.org/content/deep-bone-crackbreak-sfx
+- "Bones cracking" #0596, Joseph Sardin, https://bigsoundbank.com/bones-cracking-s0596.html
+
+O que cada script faz está no começo de cada `.py` em `becomelm-mod/tools/som/`.
+
+---
+
+## Golpe de finalização com cutscene (#162)
+
+**Parte 1 feita (26/10), esperando o LM aprovar o vídeo** (`BecomeLM_finalizacao_parte1.mp4`):
+- `LmFinish` (linha do tempo), `LmAttack.FINISH`, `LmAttacks.tryFinish/tickFinish` (servidor),
+  `LmConfig` (`becomelm-common.toml`, chance 0,01), `/becomelm finisher [jogadores]`, rede "5".
+- Gatilho: soco normal (AttackEntityEvent), bote, agarrar e queda do céu.
+- Cliente: senta nas coxas (0,45), escorrega montando; animações `fin_mount/dig/open/feed/stare`
+  (make_anims.py); `LmFinishClient` = câmera em 8 planos + plano do fim (1,5 s) + sem HUD + sem nome;
+  vítima jogador vê dos próprios olhos (LmKnockClient.onCamera), FOV maior, sem HUD.
+- Testado: aldeão (sozinho) e amigo (2 clientes + servidor dedicado).
+
+**Parte 2 (próxima):** o gore — ferida crescendo, sangue espirrando, costelas (som 5), órgãos,
+a tripa até a boca, a cara suja, a vítima se debatendo; sons da cena.
+**Parte 3:** bicho de quatro patas (ovelha, vaca...).
+
+Respostas do LM:
+- **Gatilho:** é um evento raríssimo, pode acontecer até com o bicho de vida cheia ("ovelha com vida cheia, ataco e começa uma cutscene").
+- **Câmera:** automática, com planos.
+- **Amigo que é a vítima:** vê pelos próprios olhos, deitado, sem se mexer, e morre no fim.
+
+Decisões minhas (avisar o LM, ele pode mudar):
+- Chance de ~1% por ataque, ajustável num config novo `becomelm-common.toml`.
+- Comando `/becomelm finisher` (op) faz o próximo ataque virar cutscene, pra testar e gravar.
+- Bebês não. Chefes (dragão, wither, warden) não. Só bicho que sangra (`LmBloodType`) e que pode ser derrubado; PvP respeitado.
+- Primeiro os que ficam em pé (jogador, aldeão, zumbi...). Os de quatro patas (ovelha, vaca...) vêm logo depois, porque a barriga fica embaixo e precisa de outra pose.
+- ~11,5 s. No fim o corpo quebra em pedaços (com pouca força, ~0,15).
+
+Como montar (em cima do que já existe):
+- Novo ato `LmAttack.FINISH` (no fim do enum). Começa no servidor: `AttackEntityEvent`, ou o acerto do bote, ou o comando.
+- Vítima de costas e presa (`LmKnock.knockBack` + `steer`), mob ancorado no lugar. LM travado, sentado no quadril da vítima (~0,35 ao longo de `headDir`), olhando pra cabeça.
+- Sem dano até o fim. No fim: dano gigante com a fonte do ataque do jogador, depois `BreakBody`.
+- Linha do tempo (~230 ticks):
+  1. 0-8: monta.
+  2. 8-68: cava. Patas alternadas feito cachorro, sangue espirrando, ferida crescendo.
+  3. 68-86: abre. Puxa pros lados, costelas estalam (o som escolhido), órgãos aparecem.
+  4. 86-196: come. 3 ciclos: enfia a cara, puxa a tripa até a boca, sacode, mastiga. A cara suja, os órgãos somem um por um.
+  5. 196-230: encara a câmera com a cara ensanguentada e rosna.
+- Cliente (`LmFinishClient`): sons e sangue no tempo certo. A vítima se debate com o truque da `WalkAnimationState` do mod da IA (`f_267358_`, `f_267371_`, `f_267406_` + cabeça tremendo, `jitter(t,s) = sin(t*s)*0.7 + sin(t*s*2.27+1.3)*0.3`).
+- Tripas desenhadas no ponto da barriga: `P + d*0.9 + up*(lift + bbWidth*0.21)` (0,35 pra corpo de aldeão). Ferida, caixas de órgão (tripa, estômago, fígado, coração pulsando, costelas quebradas) e a corda da tripa até a boca (pega a cabeça do osso salvo no `LmRenderer`).
+- Câmera do LM: planos automáticos, HUD escondido (o `LmCamera` já faz isso). Câmera da vítima: olhando pros pés/barriga, pitch ~ −35°.
+- Animações novas no `make_anims.py`: `fin_mount`, `fin_dig`, `fin_open`, `fin_feed`, `fin_stare`.
+- Fazer de um jeito que o editor de keyframes (#157) depois consiga criar estilos novos de finalização.
+
+Referência no mod da IA: `FroggyFinisherGoal`, `CinematicCamera`, `VictimRender`.
+
+---
+
+## Feito na 0.3.1 (26/10, pedido do LM)
+
+- **Mortal**: deitado no monte comendo, pular = mortal pra trás e pousa de braços abertos ("tcharam").
+  O LM escolheu: só deitado no monte comendo, só com o pular.
+- Código:
+  - `LmMove.FLIP`, `LmMoves` (`FLIPS`/`LANDED`, `flipTurn`, `flipAir`, `tada`).
+  - `LmActsClient.flip`: pulo 0,5 pra cima e 0,12 pra trás.
+  - `LmClientEvents.flip`: o corpo gira em volta da cintura, 0,95.
+  - Animações `flip`/`tada` no `make_anims.py`.
+  - Câmera em primeira pessoa dando a volta.
+- Bug achado no teste com amigo: o "levantar" (RISE) que o cliente cria quando o servidor acaba o
+  monte tapava o mortal pra quem vê. Agora não cria se o jogador está num mortal.
+- Testado com 2 clientes + servidor dedicado.
+
+## Feito na 0.3.0 (26/10, pedidos do LM)
+
+- Comer os bichos enche a fome e a saturação (o LM escolheu o "médio"): mordida que tira sangue
+  = 1 ponto; afundar a cara no monte = 1 ponto, até 8 por monte; finalização = 3 x 4 pontos;
+  arroto quando enche. Só bicho que sangra. Código: `LmAttacks` (bite, pileEat, eat).
+- O galope (e a fase 2) gasta fome igual um jogador correndo normal: mixin
+  `PlayerGallopHungerMixin` limita a cobrança de correr no chão a 0,028 por tick.
+- Bug: correndo e pausando, o corpo continuava correndo atrás do menu. Causa: o relógio da
+  animação usava `mc.getFrameTime()`, que gira de 0 a 1 com o jogo pausado. Agora usa o pedaço
+  de tick do desenho (congela na pausa).
+
+## Fila (pedidos do LM em 26/10, à tarde), nessa ordem
+
+1. **Pancadas com os dois braços: FEITO na 0.3.2** (testado com 2 clientes + servidor: toque rápido, segurar 3 s, segurar até matar e deitar no monte). Respostas do LM:
+   - Segurar o atacar = martela sem parar, 4 por segundo (soltou, para).
+   - A 1ª pancada derruba o bicho de costas, olhando pra cima pro jogador, e ele fica em cima martelando.
+   - Só em pé (de 4 continua o bote e o agarrar). Dano: 1 coração por pancada (igual a queda do céu).
+   - Código: `LmAttack.HAMMER`/`HAMMER_STOP`, `LmAttacks.startHammer/tickHammer`, `LmAttackClient.hammerTarget/hammerTick`;
+     montado igual o esmagamento (`riding`), animação `sky_smash`, escorrega 0,2 s até em cima; rede "7".
+2. **Comer no monte em flexão: FEITO na 0.3.3** (o LM mandou o vídeo: 10v1 "Manhunt but I have RABIES" ~1:50-1:56 + print circulado):
+   - Medido a 60 qps: How many days 0:44 (de frente), 10v1 0:22 (deserto) e 1:55 (de pertinho). Uma mergulhada a cada
+     0,25-0,4 s (usei 0,3 s); o topo da cabeça desce ~5-6 px (de olhar pra frente a olhar pra baixo); os ombros quase
+     não mexem e ficam na altura do meio da cabeça (de frente); a cabeça tomba ~25 graus pros lados, devagar.
+   - 1ª tentativa (braços abertos em "A", fincados do lado) o LM barrou: "ele não abre os braços". Mandei 3 jeitos de
+     braço pra frente (esfinge, abraçando a comida, V aberto) e o LM escolheu a **esfinge**.
+   - `pile_lie` novo (`make_anims.py`, `_push`): quadril e pernas deitados, peito empinado 24 graus que desce pra 12 a
+     cada mergulho, braços retos pra frente por cima do monte (ângulos tirados do esqueleto: a mão fica nos cacos, ~2
+     blocos na frente dos pés, escorrega ~0,1 bloco no mergulho), ombros encolhidos 2 px, 8 mergulhos em 2,4 s com o
+     tombo da cabeça variando. `PILE_CENTER` 1,4 (era o `PILE_CHEST` 1,0): o meio do monte fica embaixo dos ombros.
+   - `pile_drop` sem a pose em pé no começo (de 4 ele ficava em pé um instante antes de cair).
+   - Servidor: `PILE_DIPS` = os 8 mergulhos, `PILE_BITES` = 3 deles (come no mesmo ritmo de antes), contando do
+     `PILE_LIE_START` (deitar + 3 ticks de mistura do controlador). Cliente: os cacos mexem em todo mergulho, o
+     barulho só nas mordidas; o olho em primeira pessoa fica em cima do peito e desce um pouco junto.
+   - Testado com 2 clientes + servidor (de frente, de lado, na diagonal, deitar de 4 e o mortal saindo).
+3. **Finalização parte 2** (o gore): o LM aprovou seguir.
+
+## Outras pendências
+
+- **/watch instalado (26/10, pedido do LM)**: o plugin `watch@claude-video` (github.com/bradautomates/claude-video)
+  tira quadros e legenda de um vídeo (link ou arquivo) pra eu estudar. Fica gravado em `.claude/settings.json`,
+  então carrega sozinho em toda sessão nova. Escolhas do LM: motor local (sem chave, nada sai daqui), detalhe
+  balanced; vídeo sem legenda: **transcrição local com WhisperX** (o LM trocou em 26/10; instalar com
+  `bash .claude/scripts/install-whisperx.sh`, ~3 min, nunca com o setup.py do plugin, que quebra no Linux).
+  YouTube: metadados e legenda sim, o vídeo em si o YouTube recusa (403); TikTok funciona.
+- **Configuração do Claude Code na nuvem (26/10, pedido do LM; sem commit até o OK dele)**: `CLAUDE.md` com as
+  regras; 5 skills novas (`forge-expert`, `zalith-compat`, `video-motion-analysis`, `frontend-design`,
+  `quality-review`) + 3 do Superpowers (MIT); gancho de início de sessão; `.mcp.json` com Context7, Playwright e
+  Serena (aprovar na sessão; Context7 precisa de `CONTEXT7_API_KEY`); testes em `.claude/tests` (27, verdes).
+- **Halo na cabeça: CONSERTADO e entregue (26/10, BecomeLM 0.3.2 + Froggydude 0.7.13)**:
+  - Causa: o sangue ia na camada de fora da skin (meio pixel pra fora do corpo), e onde a skin não tem nada ali ele ficava boiando.
+  - Agora o sangue fica na camada de fora só onde a skin tem pixel. No resto vai colado na pele.
+  - A skin é lida do PNG (`SkinAlpha` no mod da IA, `LmSkinAlpha` no BecomeLM), nunca da placa de vídeo, porque no celular é arriscado.
+  - A cara suja do BecomeLM (`LmBloodFace`) virou pingos colados, igual o sangue do mod da IA.
+  - Testado com antes e depois (2 clientes + servidor, a câmera do amigo do lado da cabeça).
+- #154 pacote de sons pessoal do BecomeLM: falta a patada do galope e o impacto do bote.
+- #155 teste completo, notas e versão.
+- #156 câmera ajustável (ângulo livre) + como gravar a tela no celular.
+- #157 editor de keyframes (o LM fazer as próprias animações).
+- Do mod da IA: #92 ritmo de dias do "Froggy's in your world", #133 fome igual aos vídeos (creeper voando com a língua), #134 skin some no celular, #144 baixar os vídeos que faltam (o YouTube bloqueia download daqui; os TikToks funcionam).
+
+## Como testar aqui (pra quem retomar)
+
+- Tela virtual: `Xvfb :99 -screen 0 1280x720x24 -nolisten tcp`.
+- Os dois mods juntos: rodar o BecomeLM com `-PwithFroggy=<jar do froggydude>` e copiar o `froggydude-client.toml` pro `run/config` dele.
+- Mirar com pitch 35 acerta um porco a 2 blocos (com pitch 15 erra).
+- Câmera de cinema: tecla `v` (OFF → atrás baixa → lado → cara → vítima).

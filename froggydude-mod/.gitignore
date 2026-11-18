@@ -1,0 +1,35 @@
+# eclipse
+bin
+*.launch
+.settings
+.metadata
+.classpath
+.project
+
+# idea
+out
+*.ipr
+*.iws
+*.iml
+.idea
+
+# gradle
+build
+.gradle
+
+# other
+eclipse
+run
+run-data
+
+# Files from Forge MDK
+forge*changelog.txt
+
+# poses de teste geradas localmente
+src/main/resources/assets/froggydude/animations/froggydude_debug.animation.json
+
+# python (tools/anim)
+__pycache__/
+
+# (v0.7.38) voz original do FroggyDude: vai DENTRO do jar, nunca no Git (repo público). Ver CLAUDE.md
+voz-privada/

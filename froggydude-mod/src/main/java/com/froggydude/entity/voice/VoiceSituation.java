@@ -1,0 +1,95 @@
+package com.froggydude.entity.voice;
+
+import static com.froggydude.entity.voice.VoiceLine.*;
+
+/**
+ * Em que situação ele fala e EM QUE ORDEM, tirado das legendas dos vídeos do
+ * arco da raiva (scratchpad/falas: "Minecraft Manhunt but I have RABIES",
+ * "WHAT HAPPENED TO ME???", "FroggyDude VS AJTHEBOLD", "Finally, a worthy
+ * opponent", "My Next Opponent Is... Me"):
+ *
+ * - avista: "I'm hungry" e "I want to eat you" (AJ 0:00, Grox 0:11, worthy 0:49-1:01);
+ * - persegue: "get back here" (Grox 0:00, AJ 4:51), "you can run but you can't
+ *   hide" (origem 1:09), "you will become my dinner" (worthy 2:53);
+ * - subiu/se trancou e ele chegou: "you thought you could escape me?" (Grox 3:24);
+ *   achou escondido: risadinha (origem 4:21);
+ * - língua: "I like the way you taste" (AJ 0:28); fugindo da língua: "you're
+ *   scared of my tongue, aren't you?" (worthy 5:44);
+ * - apanhando: "I love pain" (AJ 0:10, worthy 2:39);
+ * - derrubou: "give me your body" (Grox 0:38, worthy 1:33);
+ *   montado: "stay on the ground" (worthy 3:08), "I want to eat you";
+ *   a última mordida: "I want your flesh".
+ *
+ * IA Real (v0.5.0, vs Every Opponent e o manhunt do Grox): "I see you" chegando sem
+ * ser visto; "I can smell him" no faro; "I can smell the fear in you" encarando;
+ * "I gotta get out of there", "I'm very low on health, I need food and a plan" fugindo
+ * pra se curar; "back to full health" e "time for the plan" voltando.
+ *
+ * Fora (v0.4.3): as falas cortadas do "My Next Opponent Is... Me" ("I want to
+ * digest you", "you are mine", "I'm going to bite your balls" e o "God damn it,
+ * I love pain") são do FroggyDoom, outro personagem com outra voz, e o
+ * "last thing you see" tinha sido cortado no lugar errado.
+ * - comeu: "that was so delicious" (Grox 1:37, AJ 2:31), "very delicious"
+ *   (worthy 1:12, AJ 7:12), "I want more food" (origem 0:19), "who's next?".
+ *
+ * A fila de cada situação anda uma fala por vez e fica salva no mundo, então
+ * a sequência continua de onde parou. {@code loopFrom}: de onde recomeça depois
+ * da última fala (as de abertura, tipo "hey humans", só saem uma vez).
+ */
+public enum VoiceSituation {
+    SPOT(1, HEY_HUMANS, IM_HUNGRY, WANNA_EAT_YOU, VERY_HUNGRY, WANT_YOUR_FLESH),
+    CHASE(0, GET_BACK_HERE, CANT_RUN_CANT_HIDE, BECOME_FOOD, NEVER_LOSE_PREY),
+    CAUGHT_UP(0, YOU_THINK_ESCAPE),
+    FOUND(0, LAUGH),
+    /** O rastro acabou e ele varre em volta: sabe que tu está ali perto. */
+    SEARCH(0, CANT_RUN_CANT_HIDE, YOU_THINK_ESCAPE, NEVER_LOSE_PREY),
+    TONGUE_HIT(0, LIKE_THE_WAY_YOU_TASTE),
+    TONGUE_DODGED(0, SCARED_OF_MY_TONGUE),
+    PAIN(0, LOVE_PAIN_1, LOVE_PAIN_2, LOVE_PAIN_3, LOVE_PAIN_4),
+    PIN(0, GIVE_ME_YOUR_BODY_1, GIVE_ME_YOUR_BODY_2, GIVE_ME_YOUR_BODY_3),
+    ON_TOP(0, STAY_ON_GROUND, WANNA_EAT_YOU),
+    LAST_BITE(0, WANT_YOUR_FLESH),
+    CHEWING(0, MMMM),
+    ATE(0, THAT_WAS_DELICIOUS, VERY_DELICIOUS, SO_FREAKING_DELICIOUS, TASTE_SO_GOOD, REALLY_GOOD),
+    WANTS_MORE(0, WANT_MORE, WHOS_NEXT),
+    /** À toa e de barriga vazia (ele está sempre com fome). */
+    HUNGRY(0, IM_HUNGRY, VERY_HUNGRY, WANT_YOUR_FLESH, WANT_MORE),
+    ATE_ARM(0, LOVE_TASTE_HUMANS),
+    ATE_ODD(0, EXOTIC_MEAT),
+    ATE_PANDA(0, PANDA_DELICIOUS),
+    SPICY(0, FREAKING_SPICY),
+    DEATH(0, NO_NO_NOOO, NOOOOO),
+    // só na IA Real (entity/ai/RealTactics)
+    SEE_YOU(0, I_SEE_YOU),
+    SMELL(0, SMELL_HIM, SNIFF_NEARBY, SMELL_MILE_AWAY),
+    STANDOFF(0, SMELL_FEAR),
+    RETREAT(0, GET_OUT),
+    HIDING(0, LOW_HEALTH),
+    HEALED(0, BACK_TO_FULL),
+    PLAN(0, PLAN_SMASH, PLAN_ATTACK),
+    /** (v0.7.40) O rugido do bote na cabeça. */
+    ROAR(0, ROAR_RIP),
+    /**
+     * (v0.7.40) Caído depois do tiro (entity.Ragdoll), o jogador chega perto com arma de mod (LM: "se o jogador se
+     * aproximar com uma arma, ele fala 'Yes shoot me...' E o restante do diálogo"; a ordem do vídeo 1 dele).
+     */
+    DOWN_LOVE_PAIN(0, LOVE_PAIN_4),
+    DOWN_SHOOT_ME(0, SHOOT_ME);
+
+    final VoiceLine[] lines;
+    final int loopFrom;
+
+    VoiceSituation(int loopFrom, VoiceLine... lines) {
+        this.lines = lines;
+        this.loopFrom = loopFrom;
+    }
+
+    /** Caçando ele berra de longe (ouve-se a ~32 blocos); em cima da vítima fala de perto. */
+    public float volume() {
+        return switch (this) {
+            case SPOT, CHASE, CAUGHT_UP, FOUND, SEARCH, SEE_YOU, SMELL, STANDOFF, PLAN -> 2.0F;
+            case DEATH -> 1.6F;
+            default -> 1.4F;
+        };
+    }
+}
