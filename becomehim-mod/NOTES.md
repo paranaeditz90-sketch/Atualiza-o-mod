@@ -11,6 +11,14 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.6.0 — voar longe na explosão
+
+Rede "6".
+- Transformado, levou uma **explosão** (creeper, TNT, cama no Nether, cristal...) ou o **grito do warden**: voa pra
+  longe dela dando **cambalhota pra trás**, cai de costas e levanta (o "flung" do mod da IA, o boom do warden do Grox).
+  Enquanto voa e levanta não dá pra andar; sem dano de queda. Se estava no meio de um golpe, larga (quem estava preso
+  levanta). Testado: TNT a 2 blocos jogou uns 5 blocos pra trás e 2,5 pra cima.
+
 ## v0.5.2 — correções da 2ª revisão
 
 Rede a mesma ("5"). A 2ª revisão do código (no que entrou depois do 1º pente fino) achou, eu conferi e corrigi:

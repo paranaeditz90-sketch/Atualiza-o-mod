@@ -60,6 +60,11 @@ public enum LmAttack {
     HEAD_GRAB,
     /** (pedido da vítima da cabeça) bateu (alvo 0) ou atirou (alvo 1) em quem está em cima. */
     HEAD_HIT,
+    /**
+     * Levou uma explosão (creeper, TNT...) ou o grito do warden: voa longe dando cambalhota pra trás, cai de costas e
+     * levanta (o FLUNG do mod da IA, a animação "flung"). O "alvo" leva o rumo do corpo (graus x10, virado pro estouro).
+     */
+    FLUNG,
     /** (roda) Cansado: ofegando curvado, as mãos nos joelhos (o "tired" do mod da IA). Até escolher de novo ou atacar. */
     TIRED,
     /** (Become HIM..., roda, armado) O chicote da língua: estala no bicho, tira vida e empurra pra longe. */

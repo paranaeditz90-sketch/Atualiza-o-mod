@@ -67,6 +67,8 @@ final class LmAnims {
     static final RawAnimation RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
     static final RawAnimation RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
     static final RawAnimation TIRED = RawAnimation.begin().thenLoop("tired");
+    /** A explosão: voa de costas dando cambalhota, cai e levanta (o "flung" do mod da IA, 1,7 s). */
+    static final RawAnimation FLUNG = RawAnimation.begin().thenPlayAndHold("flung");
     /** (roda) A cutscene da cabeça: olha, crava a boca e chacoalha (head_grab, 4,2 s). */
     static final RawAnimation HEAD_GRAB = RawAnimation.begin().thenPlayAndHold("head_grab");
     /** (roda, armado) Arranca o braço (2 s) e come (4,5 s), as do mod da IA. */
@@ -112,6 +114,7 @@ final class LmAnims {
             if (act.kind == LmAttack.ARM_RIP) return ARM_RIP;
             if (act.kind == LmAttack.CEILING) return CEILING_HANG;
             if (act.kind == LmAttack.HEAD_GRAB) return HEAD_GRAB;
+            if (act.kind == LmAttack.FLUNG) return FLUNG;
             if (act.kind == LmAttack.STEAL) return STEAL;
             if (act.kind == LmAttack.WHIP) return WHIP;
             if (act.kind == LmAttack.PULL) return STEAL;

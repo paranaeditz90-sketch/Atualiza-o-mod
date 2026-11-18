@@ -574,6 +574,39 @@ public final class LmAttacks {
         if (DEBUG) System.out.printf("[LMATK] cabeca: acerto %d/%d tiro=%s%n", a.hits, a.data, shot);
     }
 
+    // Voar longe na explosão (mod da IA: o boom do warden, Grox cidade antiga: 0,95 pra fora e 0,6 pra cima, FLUNG 34)
+    public static final int FLUNG_MIN = 34;
+    public static final int FLUNG_MAX = 80;
+    private static final double FLUNG_OUT = 0.95D;
+    private static final double FLUNG_UP = 0.6D;
+
+    /** Servidor: o FroggyDude levou uma explosão (ou o grito do warden): voa pra longe dela. */
+    public static void blast(ServerPlayer p, DamageSource source) {
+        if (!LmModes.get(p).froggy() || LmTransform.active(p) || p.isSpectator() || p.isPassenger()) return;
+        Vec3 from = source.getSourcePosition();
+        if (from == null && source.getEntity() != null) from = source.getEntity().position();
+        if (from == null) return;
+        Vec3 away = p.position().subtract(from).multiply(1, 0, 1);
+        away = away.lengthSqr() < 1.0E-4D ? Vec3.directionFromRotation(0F, p.getYRot() + 180F) : away.normalize();
+        // no meio de um golpe: larga (quem estava preso levanta)
+        Act cur = ACTS.get(p.getUUID());
+        if (cur != null && cur.kind != LmAttack.FLUNG) {
+            if (cur.kind == LmAttack.GRAB) release(p, cur, false);
+            else end(p, cur);
+        }
+        Vec3 fling = new Vec3(away.x * FLUNG_OUT, FLUNG_UP, away.z * FLUNG_OUT);
+        p.setDeltaMovement(fling);
+        p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(p.getId(), fling));
+        // virado pro estouro (voa de costas)
+        float yaw = (float) (Mth.atan2(-away.z, -away.x) * Mth.RAD_TO_DEG) - 90F;
+        Act a = new Act(LmAttack.FLUNG, null);
+        a.data = Math.round(Mth.wrapDegrees(yaw) * 10F);
+        ACTS.put(p.getUUID(), a);
+        lock(p, true);
+        if (DEBUG) System.out.printf("[LMATK] voou longe (%s)%n", source.getMsgId());
+        LmNetwork.sendAct(p, LmAttack.FLUNG, a.data, 0);
+    }
+
     /** Pendurado no teto no máximo 1 min. */
     public static final int CEILING_MAX = 1200;
 
@@ -792,6 +825,10 @@ public final class LmAttacks {
             }
             case ARM_RIP -> tickArmRip(p, a);
             case STEAL -> tickSteal(p, a);
+            case FLUNG -> {
+                p.fallDistance = 0F;
+                if ((a.age >= FLUNG_MIN && p.onGround()) || a.age > FLUNG_MAX) end(p, a);
+            }
             case HEAD_GRAB -> tickHeadGrab(p, a);
             case WEAPON_EAT -> tickWeaponEat(p, a);
             case ARM_EAT -> tickArmEat(p, a);
@@ -1045,7 +1082,7 @@ public final class LmAttacks {
         if (!(target instanceof ServerPlayer p)) return;
         Act a = ACTS.get(p.getUUID());
         if (a != null && a.kind != LmAttack.POUNCE) {
-            int id = a.kind == LmAttack.PILE ? a.data : a.target == null ? -1 : a.target.getId();
+            int id = a.kind == LmAttack.PILE || a.kind == LmAttack.FLUNG ? a.data : a.target == null ? -1 : a.target.getId();
             LmNetwork.sendActTo(viewer, p, a.kind, id, a.age);
         }
     }

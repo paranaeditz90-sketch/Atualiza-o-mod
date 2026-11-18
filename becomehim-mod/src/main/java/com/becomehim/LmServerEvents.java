@@ -1,5 +1,7 @@
 package com.becomehim;
 
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import com.becomehim.network.LmNetwork;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -142,6 +144,15 @@ public final class LmServerEvents {
         if (event.getSource().getEntity() instanceof LivingEntity attacker && LmKnock.lying(attacker)
                 && event.getSource().getDirectEntity() == attacker) {
             event.setCanceled(true);
+        }
+    }
+
+    /** Explosão ou o grito do warden no FroggyDude: voa longe dando cambalhota (LmAttacks.blast). */
+    @SubscribeEvent
+    public static void onHurt(LivingHurtEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p && (event.getSource().is(DamageTypeTags.IS_EXPLOSION)
+                || event.getSource().is(DamageTypes.SONIC_BOOM))) {
+            LmAttacks.blast(p, event.getSource());
         }
     }
 

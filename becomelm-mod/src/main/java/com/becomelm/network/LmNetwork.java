@@ -35,8 +35,9 @@ public final class LmNetwork {
      * "10" (v0.5.0): arrancar o braço (ArmSync) e comer vivo na flexão.
      * "11" (v0.6.0): roubar e comer a arma.
      * "12" (v0.7.0): cansado.
+     * "13" (v0.8.0): voar longe na explosão.
      */
-    private static final String VERSION = "12";
+    private static final String VERSION = "13";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(BecomeLM.id("main"),
             () -> VERSION, NetworkRegistry.acceptMissingOr(VERSION), NetworkRegistry.acceptMissingOr(VERSION));
 

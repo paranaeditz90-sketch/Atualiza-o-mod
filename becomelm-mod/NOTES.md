@@ -4,6 +4,14 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.8.0 — voar longe na explosão
+
+Rede "13": quem joga junto precisa estar na 0.8.0.
+- Transformado, levou uma **explosão** (creeper, TNT, cama no Nether, cristal...) ou o **grito do warden**: voa pra
+  longe dela dando **cambalhota pra trás**, cai de costas e levanta (o "flung" do mod da IA, o boom do warden do Grox).
+  Enquanto voa e levanta não dá pra andar; sem dano de queda. Se estava no meio de um golpe, larga (quem estava preso
+  levanta). Testado: TNT a 2 blocos jogou uns 5 blocos pra trás e 2,5 pra cima.
+
 ## v0.7.2 — correções da 2ª revisão
 
 Rede a mesma ("12"). A 2ª revisão do código (no que entrou depois do 1º pente fino) achou, eu conferi e corrigi:

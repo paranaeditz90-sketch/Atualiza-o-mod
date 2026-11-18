@@ -171,6 +171,7 @@ public final class LmActsClient {
         if (k == LmAttack.ARM_EAT && old != null) a.pileYaw = old.pileYaw;
         stealFrom(a, old);
         // no monte o "alvo" é o rumo do corpo deitado (graus x10) junto com a fome de quando deitou
+        if (k == LmAttack.FLUNG) a.pileYaw = target / 10F;
         if (k == LmAttack.PILE) {
             a.pileYaw = LmPileRhythm.yawX10(target) / 10F;
             a.pile = new LmPileRhythm(LmPileRhythm.food(target));
@@ -353,7 +354,7 @@ public final class LmActsClient {
         Act a = ACTS.get(p.getUUID());
         return a != null && (riding(a) || a.kind == LmAttack.PILE || a.kind == LmAttack.THROW
                 || a.kind == LmAttack.NECK_CRACK || a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT
-                || a.kind == LmAttack.STEAL || a.kind == LmAttack.WEAPON_EAT);
+                || a.kind == LmAttack.STEAL || a.kind == LmAttack.WEAPON_EAT || a.kind == LmAttack.FLUNG);
     }
 
     /** Montado em cima de alguém (socando, martelando ou finalizando). */
@@ -463,6 +464,7 @@ public final class LmActsClient {
             case ARM_RIP -> LmAttacks.RIP_TICKS + 20;
             case CEILING -> LmAttacks.CEILING_MAX + 40;
             case STEAL -> LmAttacks.STEAL_TICKS + 20;
+            case FLUNG -> LmAttacks.FLUNG_MAX + 20;
             case HEAD_GRAB -> LmAttacks.HEAD_WINDOW + 20;
             case WHIP -> LmAttacks.WHIP_TICKS + 10;
             case PULL -> LmAttacks.PULL_TICKS + 10;
@@ -578,7 +580,7 @@ public final class LmActsClient {
     /** Montado: o corpo virado pra vítima no desenho (o jogo vira o corpo pro olhar a cada tick). */
     static void faceBody(Player p) {
         Act a = ACTS.get(p.getUUID());
-        if (a != null && (a.kind == LmAttack.PILE || a.kind == LmAttack.RISE)) {
+        if (a != null && (a.kind == LmAttack.PILE || a.kind == LmAttack.RISE || a.kind == LmAttack.FLUNG)) {
             p.yBodyRot = a.pileYaw;
             p.yBodyRotO = a.pileYaw;
             return;
