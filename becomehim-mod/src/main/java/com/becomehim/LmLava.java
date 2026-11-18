@@ -31,7 +31,7 @@ public final class LmLava {
 
     /** Servidor, todo tick: sem fogo e mais devagar em cima da lava. */
     public static void tick(Player p) {
-        boolean on = !p.isSpectator() && onLava(p);
+        boolean on = !p.isSpectator() && LmModes.get(p).froggy() && onLava(p);
         if (on) p.clearFire();
         AttributeInstance speed = p.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speed == null) return;

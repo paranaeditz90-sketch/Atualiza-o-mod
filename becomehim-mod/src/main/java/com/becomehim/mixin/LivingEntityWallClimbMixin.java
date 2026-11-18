@@ -1,5 +1,6 @@
 package com.becomehim.mixin;
 
+import com.becomehim.LmModes;
 import com.becomehim.LmWallClimb;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.entity.LivingEntity;
@@ -30,7 +31,10 @@ public abstract class LivingEntityWallClimbMixin {
     /** (v0.3.9) Em cima da lava: o pé fica na superfície (como o strider), pra galopar por cima dela (LmLava). */
     @Inject(method = "canStandOnFluid", at = @At("HEAD"), cancellable = true)
     private void becomehim$lavaWalk(FluidState fluid, CallbackInfoReturnable<Boolean> cir) {
-        if ((Object) this instanceof Player p && !p.isSpectator() && fluid.is(FluidTags.LAVA)) cir.setReturnValue(true);
+        // só transformado (antes valia pra qualquer jogador com o mod, até no modo Humano)
+        if ((Object) this instanceof Player p && !p.isSpectator() && LmModes.get(p).froggy() && fluid.is(FluidTags.LAVA)) {
+            cir.setReturnValue(true);
+        }
     }
 
     /** Quem move o jogador é o cliente dele: a subida e a beirada só no próprio jogador. */

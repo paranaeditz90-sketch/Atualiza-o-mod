@@ -489,18 +489,23 @@ public final class LmAttacks {
 
     /** Deita no monte de pedaços na frente (os pedaços são do cliente: o servidor só trava e conta). */
     private static void startPile(ServerPlayer p, int yawX10) {
+        // o FEED (o bicho do golpe armado) vale só pra este pedido: recusado, ele não sobra pra outro monte depois
+        LivingEntity feed = FEEDS.remove(p.getUUID());
         if (!LmModes.get(p).froggy() || !free(p)) return;
-        pile(p, yawX10);
+        pile(p, yawX10, feed);
     }
 
     private static void pile(ServerPlayer p, int yawX10) {
+        pile(p, yawX10, null);
+    }
+
+    private static void pile(ServerPlayer p, int yawX10, @Nullable LivingEntity feed) {
         Act a = new Act(LmAttack.PILE, null);
         // a fome de agora decide o ritmo (quem vê faz a mesma conta com ela); no criativo, o extremo
         int food = LmPileRhythm.foodCode(p);
         a.data = LmPileRhythm.pack(yawX10, food);
         a.pile = new LmPileRhythm(food);
         // o golpe armado em bicho: ele está vivo embaixo e vai sendo comido de verdade
-        LivingEntity feed = FEEDS.remove(p.getUUID());
         if (feed != null && feed.isAlive() && feed.level() == p.level() && p.distanceTo(feed) < RIP_REACH + SLACK) {
             a.feed = feed;
             LmKnock.knock(feed, p, PILE_MAX + 20);
@@ -545,7 +550,7 @@ public final class LmAttacks {
     /** Alguém já está fazendo um golpe longo nesse bicho. */
     private static boolean taken(LivingEntity t) {
         for (Act a : ACTS.values()) {
-            if (a.target == t) return true;
+            if (a.target == t || a.feed == t) return true;
         }
         return false;
     }
@@ -842,7 +847,12 @@ public final class LmAttacks {
                     a.pile.rate(), a.pile.biteNow(), a.pile.ateNow(), p.getFoodData().getFoodLevel());
         }
         if (a.pile.ateNow()) eat(p, LmPileRhythm.FOOD, PILE_SATURATION);
-        if (a.feed != null && a.pile.ateNow() && a.feed.isAlive()) {
+        if (a.feed != null && (!a.feed.isAlive() || a.feed.level() != p.level() || p.distanceTo(a.feed) > RIP_REACH + SLACK)) {
+            // saiu de baixo dele (morreu e virou o monte, ou foi levado): para de morder ela
+            if (a.feed.isAlive()) LmKnock.letGo(a.feed, 10);
+            a.feed = null;
+        }
+        if (a.feed != null && a.pile.ateNow()) {
             boolean hurt = hurtInPlace(p, a.feed, BITE_DAMAGE);
             LmNetwork.sendHit(p, a.feed, LmAttack.BITE, hurt, 0);
         }
@@ -929,15 +939,26 @@ public final class LmAttacks {
 
     public static void forget(Player p) {
         FEEDS.remove(p.getUUID());
-        Act a = ACTS.remove(p.getUUID());
-        if (a != null && a.kind == LmAttack.CEILING) p.setNoGravity(false);
-        if (a != null && a.tongue != null) a.tongue.release();
+        Act gone = ACTS.remove(p.getUUID());
+        if (gone != null) release(p, gone);
         LAST.remove(p.getUUID());
         SKY.remove(p.getUUID());
         ARMED.remove(p.getUUID());
     }
 
+    /** Saiu no meio de um golpe: solta quem estava preso por ele (senão ficava até um minuto caído). */
+    private static void release(Player p, Act a) {
+        if (a.kind == LmAttack.CEILING) p.setNoGravity(false);
+        if (a.feed != null && a.feed.isAlive()) LmKnock.letGo(a.feed, 10);
+        if (a.target != null && a.target.isAlive() && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.SMASH
+                || a.kind == LmAttack.HAMMER || a.kind == LmAttack.FINISH)) {
+            LmKnock.letGo(a.target, 10);
+        }
+        if (a.tongue != null) a.tongue.release();
+    }
+
     public static void clear() {
+        FEEDS.clear();
         for (Act a : ACTS.values()) {
             if (a.tongue != null) a.tongue.release();
         }

@@ -54,7 +54,8 @@ public final class LmServerEvents {
         if (!(event.getEntity() instanceof ServerPlayer viewer)) return;
         if (event.getTarget() instanceof ServerPlayer target) {
             LmNetwork.sendModeTo(viewer, target, LmModes.get(target));
-            if (LmArmLoss.isArmless(target)) LmNetwork.sendArmTo(viewer, target, true);
+            // sempre o estado de verdade: quem viu ele sem braço e não viu ele renascer ficava com o braço sumido
+            LmNetwork.sendArmTo(viewer, target, LmArmLoss.isArmless(target));
         }
         LmKnock.sendTo(viewer, event.getTarget());
         LmTransform.sendTo(viewer, event.getTarget());
@@ -64,6 +65,7 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onClone(PlayerEvent.Clone event) {
         LmModes.copy(event.getOriginal(), event.getEntity());
+        LmArmLoss.cloned(event.getOriginal(), event.getEntity(), event.isWasDeath());
     }
 
     @SubscribeEvent

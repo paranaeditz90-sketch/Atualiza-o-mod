@@ -73,6 +73,14 @@ public final class LmArmLoss {
         bleed(player);
     }
 
+    /**
+     * O jogo troca o objeto do jogador (morreu, ou saiu do End pelo portal). Só a morte devolve o braço: saindo do End a
+     * marca passa pro jogador novo (o Forge não copia os dados soltos sozinho).
+     */
+    public static void cloned(Player from, Player to, boolean death) {
+        if (!death && isArmless(from)) to.getPersistentData().putBoolean(KEY, true);
+    }
+
     /** Morreu: o jogador novo nasce com os dois braços (quem vê fica sabendo). */
     public static void respawned(ServerPlayer player) {
         LmNetwork.sendArm(player, isArmless(player));

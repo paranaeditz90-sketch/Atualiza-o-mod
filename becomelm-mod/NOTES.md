@@ -4,6 +4,23 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.6.1 — correções do pente fino (revisão do código)
+
+Rede a mesma da 0.6.0 ("11"). O que mudou (a revisão achou, eu conferi no código e corrigi):
+- **Lava**: andar em cima da lava sem queimar valia pra QUALQUER jogador com o mod, até no modo Humano (bug desde o
+  BecomeLM 0.3.9). Agora só transformado. Testado: Humano afunda e pega fogo; no galope anda em cima sem fogo.
+- **Teto**: o mergulho não achava o bicho se o teto fosse alto ou se tu olhasse reto pra baixo (só caía). Agora procura
+  em 3D pra onde tu olha. Testado: teto a 3,2 blocos, olhando reto pra baixo, derrubou o zumbi.
+- **Braço**: quem viu alguém sem braço e não estava perto quando ele renasceu continuava vendo ele sem braço. E sair do
+  End pelo portal devolvia o braço sem morrer. Os dois corrigidos (não deu pra testar sozinho: precisa de 2 jogadores).
+- **Comer vivo**: o bicho do golpe armado podia "sobrar" e ser comido num monte depois, sem nada a ver; outro jogador
+  podia pegar o mesmo bicho; e ele seguia mordendo o bicho mesmo longe. Corrigidos.
+- **Sair do jogo no meio de um golpe** (arrancando o braço, martelando, comendo vivo, montado): quem estava preso ficava
+  até 1 min caído. Agora solta na hora.
+- **Raiva**: clicar 2 vezes rápido pra sair dela às vezes começava outra raiva. Corrigido.
+- **Roubar arma**: picareta/pá de mod que bate forte contava como arma, e "gunpowder" (pólvora) também (tinha "gun" no
+  nome). Agora só nome de arma inteiro e ferramenta não conta.
+
 ## v0.6.0 — roubar e comer a arma
 
 Rede "11": quem joga junto precisa estar na 0.6.0.

@@ -1,5 +1,6 @@
 package com.becomelm.client;
 
+import com.becomelm.LmAttacks;
 import com.becomelm.LmAttack;
 import com.becomelm.network.LmNetwork;
 import net.minecraft.client.Minecraft;
@@ -84,10 +85,37 @@ final class LmCeilingClient {
         if (tell) LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.CEILING, -1));
     }
 
+    /**
+     * O bicho lá embaixo pro mergulho: o mais no meio do olhar (em 3D, olhando pra baixo vale) e mais perto. O alvo
+     * normal (pickTarget) ignora quem está mais de 3,5 blocos abaixo e não acha nada olhando reto pra baixo.
+     */
+    @javax.annotation.Nullable
+    private static LivingEntity diveTarget(LocalPlayer p) {
+        Vec3 eye = p.getEyePosition();
+        Vec3 look = p.getViewVector(1F);
+        LivingEntity best = null;
+        double bestScore = -1.0E9D;
+        for (var e : p.level().getEntities(p, p.getBoundingBox().inflate(DIVE_RANGE), x -> x instanceof LivingEntity)) {
+            LivingEntity le = (LivingEntity) e;
+            if (!LmAttacks.canTarget(p, le)) continue;
+            Vec3 to = le.position().add(0D, le.getBbHeight() * 0.5D, 0D).subtract(eye);
+            double dist = to.length();
+            if (dist > DIVE_RANGE || dist < 0.05D) continue;
+            double dot = to.scale(1D / dist).dot(look);
+            if (dot < 0.75D || !p.hasLineOfSight(le)) continue;
+            double score = dot * 2D - dist / DIVE_RANGE;
+            if (score > bestScore) {
+                bestScore = score;
+                best = le;
+            }
+        }
+        return best;
+    }
+
     /** Atacou pendurado: se joga no bicho da mira (sem bicho, só solta). */
     static void dive(LocalPlayer p) {
         Minecraft mc = Minecraft.getInstance();
-        LivingEntity t = LmAttackClient.pickTarget(mc, p, DIVE_RANGE);
+        LivingEntity t = diveTarget(p);
         hangY = Double.NaN;
         p.setNoGravity(false);
         if (t == null) {

@@ -11,6 +11,23 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.4.1 — correções do pente fino (revisão do código)
+
+Rede a mesma da 0.4.0 ("4"). O que mudou (a revisão achou, eu conferi no código e corrigi):
+- **Lava**: andar em cima da lava sem queimar valia pra QUALQUER jogador com o mod, até no modo Humano (bug desde o
+  BecomeLM 0.3.9). Agora só transformado. Testado: Humano afunda e pega fogo; no galope anda em cima sem fogo.
+- **Teto**: o mergulho não achava o bicho se o teto fosse alto ou se tu olhasse reto pra baixo (só caía). Agora procura
+  em 3D pra onde tu olha. Testado: teto a 3,2 blocos, olhando reto pra baixo, derrubou o zumbi.
+- **Braço**: quem viu alguém sem braço e não estava perto quando ele renasceu continuava vendo ele sem braço. E sair do
+  End pelo portal devolvia o braço sem morrer. Os dois corrigidos (não deu pra testar sozinho: precisa de 2 jogadores).
+- **Comer vivo**: o bicho do golpe armado podia "sobrar" e ser comido num monte depois, sem nada a ver; outro jogador
+  podia pegar o mesmo bicho; e ele seguia mordendo o bicho mesmo longe. Corrigidos.
+- **Sair do jogo no meio de um golpe** (arrancando o braço, martelando, comendo vivo, montado): quem estava preso ficava
+  até 1 min caído. Agora solta na hora.
+- **Raiva**: clicar 2 vezes rápido pra sair dela às vezes começava outra raiva. Corrigido.
+- **Roubar arma**: picareta/pá de mod que bate forte contava como arma, e "gunpowder" (pólvora) também (tinha "gun" no
+  nome). Agora só nome de arma inteiro e ferramenta não conta.
+
 ## v0.4.0 — roubar e comer a arma
 
 Rede "4".

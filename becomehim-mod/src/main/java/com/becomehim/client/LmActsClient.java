@@ -732,6 +732,8 @@ public final class LmActsClient {
         // na raiva, atacar acaba com ela (de pé de novo)
         if (event.isAttack() && a != null && a.kind == LmAttack.RAGE && a.age > 4) {
             LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.RAGE, -1));
+            // já larga aqui: um 2º clique antes da resposta do servidor começava outra raiva
+            stopLocal(p);
         }
     }
 
