@@ -39,5 +39,13 @@
   "becomehim.ceiling.none": "No ceiling above (up to 4 blocks)",
   "becomehim.action.steal": "Steal\nthe weapon",
   "becomehim.armed.steal": "Steal the weapon: attack someone armed",
-  "becomehim.steal.none": "No weapon in their hand"
+  "becomehim.steal.none": "No weapon in their hand",
+  "becomehim.action.tired": "Tired",
+  "becomehim.action.whip": "Tongue\nwhip",
+  "becomehim.action.pull": "Tongue\npull",
+  "becomehim.armed.whip": "Tongue whip: attack a mob up to 8 blocks away",
+  "becomehim.armed.pull": "Tongue pull: attack a mob up to 8 blocks away",
+  "becomehim.action.head_grab": "Rip\nthe head",
+  "becomehim.armed.head_grab": "Rip the head: attack someone close",
+  "becomehim.head.wait": "Head not ready: wait %s s"
 }

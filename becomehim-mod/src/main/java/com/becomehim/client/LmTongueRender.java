@@ -128,6 +128,8 @@ public final class LmTongueRender {
         if (a == null) return false;
         if (a.kind == LmAttack.GRAB) return true;
         if (a.kind == LmAttack.STEAL) return a.age < LmAttacks.STEAL_TICKS;
+        if (a.kind == LmAttack.WHIP) return a.age < LmAttacks.WHIP_TICKS;
+        if (a.kind == LmAttack.PULL) return a.age < LmAttacks.PULL_TICKS;
         return a.kind == LmAttack.THROW && a.age < LmTongue.T_REL + 8;
     }
 
@@ -141,11 +143,14 @@ public final class LmTongueRender {
         Entity e = holder.level().getEntity(a.target);
         LivingEntity victim = e instanceof LivingEntity le ? le : null;
         float age = a.age + partial;
-        if (a.kind == LmAttack.STEAL) {
-            // o roubo: a língua vai até a mão e volta com a arma
+        if (a.kind == LmAttack.STEAL || a.kind == LmAttack.WHIP || a.kind == LmAttack.PULL) {
+            // o roubo, o chicote e o puxão: a língua vai até o bicho e volta
             if (victim == null) return;
-            float k = age < LmAttacks.STEAL_HIT ? age / LmAttacks.STEAL_HIT
-                    : 1F - (age - LmAttacks.STEAL_HIT) / (LmAttacks.STEAL_TICKS - LmAttacks.STEAL_HIT);
+            int hit = a.kind == LmAttack.STEAL ? LmAttacks.STEAL_HIT : a.kind == LmAttack.WHIP ? LmAttacks.WHIP_HIT
+                    : LmAttacks.PULL_HIT;
+            int all = a.kind == LmAttack.STEAL ? LmAttacks.STEAL_TICKS : a.kind == LmAttack.WHIP ? LmAttacks.WHIP_TICKS
+                    : LmAttacks.PULL_TICKS;
+            float k = age < hit ? age / hit : 1F - (age - hit) / (float) (all - hit);
             drawShot(poseStack, buffers, holder, victim, mouth, k, partial, light);
             return;
         }

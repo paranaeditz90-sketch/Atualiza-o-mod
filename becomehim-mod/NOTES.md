@@ -11,6 +11,26 @@ A diferença pro BecomeLM: no lugar da mordida que segura e sacode (o LM é um c
 O resto (galope, em pé, fase 2, pulo alto, pulo do céu, marreta, monte, finalização, nado, lava, parede, câmeras) é
 o mesmo do BecomeLM 0.3.9 (ver `../becomelm-mod/NOTES.md`).
 
+## v0.5.0 — cansado, arrancar a cabeça, chicote e puxão da língua
+
+Rede "5". Quatro gomos novos (a roda agora tem 9 ações):
+- **Cansado**: curvado, ofegando (o "tired" do mod da IA). Andando, anda normal e volta a ofegar quando para. Acaba
+  quando tu ataca, escolhe de novo, ou em 1 min.
+- **Arrancar a cabeça** (gomo armado; sai no próximo ataque em alguém a até 3,2 blocos; 30 s de espera entre um uso e
+  outro, tu escolheu): derruba de costas, monta, olha, crava a boca na cabeça e chacoalha durante o rugido (4,2 s, a
+  cutscene do mod da IA 0.7.41).
+  - **Jogador** se defende: aparece em cima da barra, em vermelho, "SE SOLTA! atire nele / bata nele 2x com a arma /
+    soque ele 3x" e o tempo que falta, e a câmera dele vai pra 3ª pessoa durante a cena (volta sozinha). Deitado, cada
+    clique de atacar conta como golpe em ti (de dentro do teu corpo o golpe do jogo não acertava); usar arco/besta/arma
+    de fogo conta como tiro. Conseguiu: tu voa pra trás (com tiro voa mais) e ele levanta. Não conseguiu: tu arranca a
+    cabeça e ele morre (e vira o monte).
+  - **Bicho** não se defende: arranca e morre.
+  - Testado: zumbi morre em 4,2 s; jogador com espada que acertou 2x (por comando) te jogou pra trás e ficou vivo. O
+    clique da vítima não deu pra testar aqui (o 2º jogador do teste não recebe teclado/mouse): confere com um amigo.
+- **Chicote da língua** (armado, até 8 blocos): estala no bicho, tira 2 corações e joga ele pra longe. Testado: zumbi
+  foi de 6,5 pra 12,5 blocos.
+- **Puxar com a língua** (armado, até 8 blocos): gruda e puxa ele pra perto. Testado: zumbi veio de 6,5 pra 3 blocos.
+
 ## v0.4.1 — correções do pente fino (revisão do código)
 
 Rede a mesma da 0.4.0 ("4"). O que mudou (a revisão achou, eu conferi no código e corrigi):

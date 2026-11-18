@@ -132,10 +132,13 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onAttack(LivingAttackEvent event) {
         // (v0.3.9) em cima da lava não queima (LmLava)
-        if (event.getEntity() instanceof Player p && event.getSource().is(DamageTypeTags.IS_FIRE) && LmLava.onLava(p)) {
+        if (event.getEntity() instanceof Player p && event.getSource().is(DamageTypeTags.IS_FIRE) && LmModes.get(p).froggy()
+                && LmLava.onLava(p)) {
             event.setCanceled(true);
             return;
         }
+        // a cutscene da cabeça: quem está embaixo bate (ou atira) em quem agarrou pra se soltar
+        if (!event.getEntity().level().isClientSide() && LmAttacks.headHit(event.getEntity(), event.getSource())) return;
         if (event.getSource().getEntity() instanceof LivingEntity attacker && LmKnock.lying(attacker)
                 && event.getSource().getDirectEntity() == attacker) {
             event.setCanceled(true);

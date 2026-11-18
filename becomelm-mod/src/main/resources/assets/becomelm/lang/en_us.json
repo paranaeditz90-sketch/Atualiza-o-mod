@@ -39,5 +39,9 @@
   "becomelm.ceiling.none": "No ceiling above (up to 4 blocks)",
   "becomelm.action.steal": "Steal\nthe weapon",
   "becomelm.armed.steal": "Steal the weapon: bite the hand of someone armed",
-  "becomelm.steal.none": "No weapon in their hand"
+  "becomelm.steal.none": "No weapon in their hand",
+  "becomelm.action.tired": "Tired",
+  "becomelm.action.head_grab": "Rip\nthe head",
+  "becomelm.armed.head_grab": "Rip the head: attack someone close",
+  "becomelm.head.wait": "Head not ready: wait %s s"
 }

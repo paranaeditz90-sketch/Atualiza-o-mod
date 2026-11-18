@@ -39,5 +39,9 @@
   "becomelm.ceiling.none": "Sem teto aqui em cima (até 4 blocos)",
   "becomelm.action.steal": "Roubar\na arma",
   "becomelm.armed.steal": "Roubar a arma: morda a mão de quem estiver armado",
-  "becomelm.steal.none": "Ele não tem arma na mão"
+  "becomelm.steal.none": "Ele não tem arma na mão",
+  "becomelm.action.tired": "Cansado",
+  "becomelm.action.head_grab": "Arrancar\na cabeça",
+  "becomelm.armed.head_grab": "Arrancar a cabeça: ataque alguém perto",
+  "becomelm.head.wait": "A cabeça ainda não: espera %s s"
 }

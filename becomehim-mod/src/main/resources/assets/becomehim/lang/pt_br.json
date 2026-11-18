@@ -39,5 +39,13 @@
   "becomehim.ceiling.none": "Sem teto aqui em cima (até 4 blocos)",
   "becomehim.action.steal": "Roubar\na arma",
   "becomehim.armed.steal": "Roubar a arma: ataque quem estiver armado",
-  "becomehim.steal.none": "Ele não tem arma na mão"
+  "becomehim.steal.none": "Ele não tem arma na mão",
+  "becomehim.action.tired": "Cansado",
+  "becomehim.action.whip": "Chicote\nda língua",
+  "becomehim.action.pull": "Puxar\ncom a língua",
+  "becomehim.armed.whip": "Chicote da língua: ataque um bicho a até 8 blocos",
+  "becomehim.armed.pull": "Puxar com a língua: ataque um bicho a até 8 blocos",
+  "becomehim.action.head_grab": "Arrancar\na cabeça",
+  "becomehim.armed.head_grab": "Arrancar a cabeça: ataque alguém perto",
+  "becomehim.head.wait": "A cabeça ainda não: espera %s s"
 }

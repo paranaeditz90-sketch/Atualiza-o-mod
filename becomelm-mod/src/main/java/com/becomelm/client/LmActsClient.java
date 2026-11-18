@@ -1,5 +1,6 @@
 package com.becomelm.client;
 
+import net.minecraft.client.CameraType;
 import net.minecraft.world.item.ItemStack;
 import com.becomelm.BecomeLM;
 import com.becomelm.LmAttack;
@@ -337,7 +338,8 @@ public final class LmActsClient {
 
     /** Montado em cima de alguém (socando, martelando ou finalizando). */
     private static boolean riding(Act a) {
-        return a.kind == LmAttack.SMASH || a.kind == LmAttack.HAMMER || a.kind == LmAttack.FINISH;
+        return a.kind == LmAttack.SMASH || a.kind == LmAttack.HAMMER || a.kind == LmAttack.FINISH
+                || a.kind == LmAttack.HEAD_GRAB;
     }
 
     /** O próprio jogador está finalizando alguém agora (a câmera vira a da cena). */
@@ -361,16 +363,38 @@ public final class LmActsClient {
         return null;
     }
 
+    /** (roda) Alguém está arrancando a minha cabeça? (aí eu posso bater deitado) */
+    static boolean headGrabbed(Entity me) {
+        for (Act a : ACTS.values()) {
+            if (a.kind == LmAttack.HEAD_GRAB && a.target == me.getId()) return true;
+        }
+        return false;
+    }
+
     /** Alguém na boca (anda arrastando). */
     static boolean holding(Player p) {
         Act a = ACTS.get(p.getUUID());
         return a != null && a.kind == LmAttack.GRAB;
     }
 
+    /** A câmera de antes da cutscene da cabeça (a vítima vê de 3ª pessoa enquanto dura; null = não está nela). */
+    @Nullable
+    private static CameraType beforeGrab;
+
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
         Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            boolean grabbed = headGrabbed(mc.player);
+            if (grabbed && beforeGrab == null) {
+                beforeGrab = mc.options.getCameraType();
+                mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            } else if (!grabbed && beforeGrab != null) {
+                mc.options.setCameraType(beforeGrab);
+                beforeGrab = null;
+            }
+        }
         if (mc.level == null) {
             ACTS.clear();
             return;
@@ -398,9 +422,11 @@ public final class LmActsClient {
             case FINISH -> LmFinish.TICKS + 30;
             case HAMMER -> LmAttacks.HAMMER_MAX + 20;
             case NECK_CRACK -> LmAttacks.NECK_CRACK_TICKS + 10;
+            case TIRED -> LmAttacks.RAGE_MAX * 2 + 20;
             case ARM_RIP -> LmAttacks.RIP_TICKS + 20;
             case CEILING -> LmAttacks.CEILING_MAX + 40;
             case STEAL -> LmAttacks.STEAL_TICKS + 20;
+            case HEAD_GRAB -> LmAttacks.HEAD_WINDOW + 20;
             case WEAPON_EAT -> LmAttacks.EAT_WEAPON_TICKS + 20;
             case CEILING_DIVE -> 14;
             case ARM_EAT -> LmAttacks.EAT_TICKS + 20;
@@ -433,7 +459,8 @@ public final class LmActsClient {
         }
         double[] s = seat(p, a);
         if (s == null) return;
-        int mount = a.kind == LmAttack.FINISH ? LmFinish.Phase.DIG.from : a.kind == LmAttack.HAMMER ? LmAttacks.HAMMER_MOUNT : 0;
+        int mount = a.kind == LmAttack.FINISH ? LmFinish.Phase.DIG.from : a.kind == LmAttack.HAMMER ? LmAttacks.HAMMER_MOUNT
+                : a.kind == LmAttack.HEAD_GRAB ? 6 : 0;
         if (a.age < mount) {
             // montando: escorrega de onde estava até em cima dela
             if (a.from == null) a.from = p.position();
@@ -690,8 +717,8 @@ public final class LmActsClient {
         // no teto: atacar = se joga em cima do bicho da mira
         if (event.isAttack() && a != null && a.kind == LmAttack.CEILING && a.age > 4) LmCeilingClient.dive(p);
         // na raiva, atacar acaba com ela (de pé de novo)
-        if (event.isAttack() && a != null && a.kind == LmAttack.RAGE && a.age > 4) {
-            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.RAGE, -1));
+        if (event.isAttack() && a != null && (a.kind == LmAttack.RAGE || a.kind == LmAttack.TIRED) && a.age > 4) {
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(a.kind, -1));
             // já larga aqui: um 2º clique antes da resposta do servidor começava outra raiva
             stopLocal(p);
         }

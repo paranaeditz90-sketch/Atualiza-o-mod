@@ -4,6 +4,24 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.7.0 — cansado e arrancar a cabeça
+
+Rede "12": quem joga junto precisa estar na 0.7.0.
+- Gomo novo **Cansado**: curvado, ofegando (o "tired" do mod da IA). Andando, anda normal e volta a ofegar quando para.
+  Acaba quando tu ataca, escolhe de novo, ou em 1 min. (O chicote e o puxão da língua são só do Become HIM...: aqui a
+  boca já faz isso.)
+- **Arrancar a cabeça** (gomo armado; sai no próximo ataque em alguém a até 3,2 blocos; 30 s de espera entre um uso e
+  outro, tu escolheu): derruba de costas, monta, olha, crava a boca na cabeça e chacoalha durante o rugido (4,2 s, a
+  cutscene do mod da IA 0.7.41).
+  - **Jogador** se defende: aparece em cima da barra, em vermelho, "SE SOLTA! atire nele / bata nele 2x com a arma /
+    soque ele 3x" e o tempo que falta, e a câmera dele vai pra 3ª pessoa durante a cena (volta sozinha). Deitado, cada
+    clique de atacar conta como golpe em ti (de dentro do teu corpo o golpe do jogo não acertava); usar arco/besta/arma
+    de fogo conta como tiro. Conseguiu: tu voa pra trás (com tiro voa mais) e ele levanta. Não conseguiu: tu arranca a
+    cabeça e ele morre (e vira o monte).
+  - **Bicho** não se defende: arranca e morre.
+  - Testado: zumbi morre em 4,2 s; jogador com espada que acertou 2x (por comando) te jogou pra trás e ficou vivo. O
+    clique da vítima não deu pra testar aqui (o 2º jogador do teste não recebe teclado/mouse): confere com um amigo.
+
 ## v0.6.1 — correções do pente fino (revisão do código)
 
 Rede a mesma da 0.6.0 ("11"). O que mudou (a revisão achou, eu conferi no código e corrigi):

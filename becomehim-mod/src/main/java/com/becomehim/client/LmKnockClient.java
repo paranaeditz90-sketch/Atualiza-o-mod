@@ -1,5 +1,12 @@
 package com.becomehim.client;
 
+import com.becomehim.network.LmNetwork;
+import com.becomehim.LmAttack;
+import com.becomehim.LmWeapons;
+import net.minecraft.world.item.AxeItem;
+import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.ProjectileWeaponItem;
+import net.minecraft.world.item.ItemStack;
 import com.becomehim.BecomeHim;
 import com.becomehim.LmKnock;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -239,6 +246,17 @@ public final class LmKnockClient {
     @SubscribeEvent
     public static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
         LocalPlayer p = Minecraft.getInstance().player;
+        // (roda) a cutscene da cabeça: deitado, bater ou atirar conta (de dentro do corpo dele o golpe do jogo não
+        // acerta, então o clique vai direto pro servidor)
+        if (p != null && lying(p) && LmActsClient.headGrabbed(p)) {
+            ItemStack hand = p.getMainHandItem();
+            boolean shoots = hand.getItem() instanceof ProjectileWeaponItem
+                    || LmWeapons.isWeapon(hand) && !(hand.getItem() instanceof SwordItem) && !(hand.getItem() instanceof AxeItem);
+            if (event.isAttack() || event.isUseItem() && shoots) {
+                LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.HEAD_HIT, event.isUseItem() ? 1 : 0));
+            }
+            return;
+        }
         if (p != null && lying(p)) {
             event.setCanceled(true);
             event.setSwingHand(false);
