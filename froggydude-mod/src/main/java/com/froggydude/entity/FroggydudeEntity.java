@@ -930,8 +930,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     // ---------------------------------------------------------------- (v0.7.47) a raiva 2
 
-    /** A troca de poses (1,7 s = tools/anim/build_anims.py RAGE2_GLITCH) e o tempo parado na pose final (25 s, LM). */
-    public static final int RAGE2_GLITCH = 34, RAGE2_HOLD = 500;
+    /**
+     * A troca de poses (1,6 s = tools/anim/build_anims.py RAGE2_GLITCH = a duração do som dele se contorcendo, ModSounds
+     * RAGE2) e o tempo parado na pose final (25 s, LM).
+     */
+    public static final int RAGE2_GLITCH = 32, RAGE2_HOLD = 500;
     /** Quando pode ter a raiva 2 de novo (tickCount). */
     private int rage2ReadyAt = 2400;
     @Nullable
@@ -960,7 +963,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         rage2ReadyAt = this.tickCount + 18000;
         setFroggyState(FroggyState.RAGE2);
         faceDirection(p.getX() - this.getX(), p.getZ() - this.getZ());
-        this.playSound(ModSounds.RIBBIT.get(), 3.0F, 0.7F);
+        // (v0.7.49) o som original dele se contorcendo toca em cada cliente, junto com o começo das trocas
+        // (client.cutscene.Rage2Blur); sem fala por cima: o mute do rage2Tick segura as falas
         brainLog("raiva 2: louco, depois parado 25 s (" + p.getScoreboardName() + " foge)");
         return true;
     }
@@ -972,11 +976,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         mute(10);
         Player p = rage2Prey == null ? null : this.level().getPlayerByUUID(rage2Prey);
         if (p != null) faceDirection(p.getX() - this.getX(), p.getZ() - this.getZ());
-        // os ossos estalando enquanto troca de pose (a cada 2-4 ticks, como as trocas do vídeo)
-        if (t < RAGE2_GLITCH && t % (2 + this.getRandom().nextInt(3)) == 0) {
-            this.playSound(ModSounds.CONTORT_CRACK.get(), 1.6F, 0.7F + this.getRandom().nextFloat() * 0.6F);
-        }
-        if (t == RAGE2_GLITCH) this.playSound(ModSounds.RIBBIT.get(), 2.5F, 0.6F); // travou na pose final
         if (t >= RAGE2_GLITCH + RAGE2_HOLD || p == null || !p.isAlive()) {
             rage2Prey = null;
             setFroggyState(FroggyState.CHASE);

@@ -1104,5 +1104,16 @@
       }
     ],
     "subtitle": "subtitles.froggydude.shot_moan"
+  },
+  "froggydude.rage2": {
+    "subtitle": "subtitles.froggydude.rage2",
+    "sounds": [
+      {
+        "name": "minecraft:mob/endermen/scream1",
+        "volume": 1.0,
+        "pitch": 0.75,
+        "attenuation_distance": 48
+      }
+    ]
   }
 }

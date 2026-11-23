@@ -719,7 +719,8 @@ _R2_ORDEM = ["normal", "T", "curva_lado", "Y", "tomba", "torce_braco", "T_agacha
              "cocoras", "reverencia", "bracos_tortos", "chute", "curva_funda", "Y", "tomba", "curva_funda",
              "agacha_bracos", "no_ar", "frente_lado", "curva_torta", "Y", "Y", "tomba", "meia_torcida",
              "agacha_bracos", "T_um_pe", "em_pe_torto", "frente_lado", "meia_torcida", "dobra_lado"]
-RAGE2_GLITCH = 1.7     # FroggydudeEntity.RAGE2_GLITCH (34 ticks; LM 23/11: "cerca de 1,7s essas trocas")
+RAGE2_GLITCH = 1.6     # FroggydudeEntity.RAGE2_GLITCH (32 ticks) = a duração do som (LM 23/11: "cerca de 1,7s";
+                       # "veja se suas animações batem com a mesma duração do áudio")
 
 # (v0.7.48) A pose em que ele trava (LM 23/11: "ele para nessa mesma pose que temos no artefato"): a contort_nova da
 # Bancada de Animações aos 2,65 s (tick 53), copiada osso por osso do json da bancada (ela não existe no mod: era a
@@ -735,19 +736,26 @@ RAGE2_FINAL = {
 }
 
 
+# (v0.7.49, LM 23/11: "essa parte precisa ser extremamente detalhada, porque ele troca muito rápido mesmo") as poses
+# agora são MEDIDAS quadro a quadro no vídeo 9ed81736 (5,697-6,892 s, os 30 quadros da gravação, um por pose): câmera
+# calibrada no quadro dele parado, cada pose ajustada osso por osso até o desenho do modelo cobrir o quadro (pele verde,
+# terno/sangue e coroa separados por cor), partindo das poses de cima. Os números ficam em rage2_poses.json (só os
+# ângulos; o vídeo e os quadros ficam fora do repo). As trocas duram o som dele se contorcendo (ModSounds RAGE2, 1,6 s).
+_R2_MEDIDAS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rage2_poses.json")
+
+
 def _rage2_keys():
-    """Uma pose por tick do jogo (0,05 s), entrando de uma vez (o mesmo valor até 1 ms antes da troca): as poses do
-    vídeo em ordem e, se sobrar tempo, repete do começo (sem a "normal"), até cair na RAGE2_FINAL aos 1,7 s."""
-    n = round(RAGE2_GLITCH / 0.05)
-    ordem = list(_R2_ORDEM)
-    while len(ordem) < n:
-        ordem.append(_R2_ORDEM[1 + (len(ordem) - len(_R2_ORDEM)) % (len(_R2_ORDEM) - 1)])
-    ordem = ordem[:n]
+    """Uma pose medida por quadro do vídeo, entrando de uma vez (o mesmo valor até 1 ms antes da troca), espalhadas
+    igualmente nos RAGE2_GLITCH s; e trava na RAGE2_FINAL."""
+    with open(_R2_MEDIDAS) as fh:
+        medidas = json.load(fh)["poses"]
+    n = len(medidas)
+    dt = RAGE2_GLITCH / n
     keys = []
-    for i, name in enumerate(ordem):
-        t0, t1 = round(i * 0.05, 3), round((i + 1) * 0.05, 3)
-        keys.append((t0, copy.deepcopy(_R2[name])))
-        keys.append((round(t1 - 0.001, 3), copy.deepcopy(_R2[name])))
+    for i, m in enumerate(medidas):
+        t0, t1 = round(i * dt, 4), round((i + 1) * dt, 4)
+        keys.append((t0, copy.deepcopy(m["pose"])))
+        keys.append((round(t1 - 0.001, 4), copy.deepcopy(m["pose"])))
     keys.append((RAGE2_GLITCH, copy.deepcopy(RAGE2_FINAL)))   # e trava nela
     return keys
 

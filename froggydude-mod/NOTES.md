@@ -1,4 +1,4 @@
-# Froggydude - v0.7.48: raiva 2 na pose da bancada + bote com ragdoll (sobre a v0.7.47)
+# Froggydude - v0.7.49: raiva 2 quadro a quadro, com borrão e o som original (sobre a v0.7.48)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,25 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.48):
+O que testar agora (v0.7.49):
+- **Raiva 2 v3** (LM 23/11: "precisa ser extremamente detalhada", "precisa de um blur", "não tem o som dele se
+  contorcendo", "veja se suas animações batem com a mesma duração do áudio"):
+  - **as poses foram MEDIDAS**, uma por quadro do vídeo (os 30 quadros de 5,70 a 6,89 s do 9ed81736): a câmera do
+    desenho do modelo foi calibrada no quadro dele parado e cada pose ajustada osso por osso até o desenho cobrir o
+    quadro (pele verde, terno/sangue e coroa separados por cor). Algumas das antigas estavam bem erradas: os braços em
+    "Y" iam pra trás do corpo e sumiam de frente; as curvas pra frente deitavam ele no chão. Acerto médio 76%, os
+    piores (as curvas com o topo da cabeça pra câmera) ~66-72%;
+  - **o som original dele** se contorcendo (o grito/glitch de 5,78 a 7,40 s do vídeo, só ele; no pacote de voz; sem o
+    pacote, o grito do enderman grave). Os estalos de osso e o ribbit que eu tinha posto saíram (eram por cima);
+  - **as trocas duram o som**: 1,6 s (32 ticks), uma pose a cada ~0,05 s, e trava na pose da bancada quando o som acaba;
+  - **borrão nas trocas** (o mesmo da cena de morte: só ele borra, o cenário fica nítido), mais forte (60% do quadro
+    anterior), pra cada pose deixar rastro e esconder o que não bate. Desliga quando ele trava na pose. Sai junto com
+    "cena.borrao" da config;
+  - **som e animação juntos**: carregar o borrão trava a tela um instante (aqui ~0,6 s) e a animação só começa depois;
+    o som agora toca no teu jogo logo depois disso, então os dois começam juntos (testado: diferença < 0,05 s).
+  - Pra testar: `/froggydude raiva2` perto dele, de frente. Diz se o borrão ficou forte ou fraco demais.
+
+O que tinha pra testar na v0.7.48:
 - **Raiva 2 corrigida** (LM 23/11: "ele para nessa mesma pose que temos no artefato. E precisa durar cerca de 1,7s essas
   trocas"): as trocas agora duram **1,7 s, uma pose por tick** (as poses do vídeo e, quando acabam, repetem), e ele
   **trava na pose da Bancada de Animações** (a contorção nova aos 2,65 s: cabeça caída pro lado, ombro direito

@@ -361,7 +361,9 @@ public final class CinematicCamera {
     @SubscribeEvent
     public static void onBlurStage(RenderLevelStageEvent event) {
         // (v0.7.41) a cutscene da cabeça também usa (GrabCamera, mais fraco)
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY || (entry == null && !GrabCamera.active())) return;
+        // (v0.7.49) e as trocas de pose da raiva 2 (Rage2Blur, mais forte)
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY
+                || (entry == null && !GrabCamera.active() && !Rage2Blur.active())) return;
         Minecraft mc = Minecraft.getInstance();
         PostChain chain = mc.gameRenderer.currentEffect();
         if (chain == null || !BLUR.toString().equals(chain.getName())) {
@@ -375,7 +377,7 @@ public final class CinematicCamera {
         int w = mc.getMainRenderTarget().width, h = mc.getMainRenderTarget().height;
         boolean fresh = prevCam == null || chain != prevChain || w != prevW || h != prevH
                 || prevCam.distanceToSqr(camPos) > BLUR_CUT_DIST * BLUR_CUT_DIST || look.dot(prevLook) < BLUR_CUT_DOT;
-        float mix = fresh ? 0F : entry != null ? BLUR_MIX : GrabCamera.BLUR_MIX;
+        float mix = fresh ? 0F : entry != null ? BLUR_MIX : GrabCamera.active() ? GrabCamera.BLUR_MIX : Rage2Blur.BLUR_MIX;
         Vec3 delta = fresh ? Vec3.ZERO : camPos.subtract(prevCam);
         Matrix4f inv = new Matrix4f(viewProj).invert();
         for (PostPass pass : passes(chain)) {
