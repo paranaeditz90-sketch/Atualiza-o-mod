@@ -136,6 +136,20 @@ public final class TackleCamera {
         cam.xRotO = pitch;
     }
 
+    /**
+     * (v0.7.52) Com a câmera da cena, o jogo para de mandar a posição de quem joga pro servidor (o LocalPlayer só manda
+     * quando a câmera é ele): o servidor achava que ela continuava lá onde o bote pegou (no topo do pilar) e a marreta
+     * não vinha. Aqui manda a posição a cada tick enquanto voa.
+     */
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || !active()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.getConnection() == null || mc.getCameraEntity() == mc.player) return;
+        mc.getConnection().send(new net.minecraft.network.protocol.game.ServerboundMovePlayerPacket.PosRot(mc.player.getX(),
+                mc.player.getY(), mc.player.getZ(), mc.player.getYRot(), mc.player.getXRot(), mc.player.onGround()));
+    }
+
     /** Quem voa no bote: o corpo mole (PlayerRagdollScene) no lugar do desenho normal, pra todo mundo que vê. */
     @SubscribeEvent
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {

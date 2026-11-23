@@ -340,6 +340,8 @@ public class FroggyCombatGoal extends Goal {
             default -> {
             }
         }
+        // (v0.7.52) quem subiu num pilar e quebrou a base: varredura, recua e o pulão que derruba (com ragdoll)
+        if (state == FroggyState.CHASE && runPillar(target)) return;
         // derrubando o que tapa o caminho (porta, parede, telhado de quem se trancou).
         // Vem antes dos ataques: o tiro de língua no bloco usa o estado TONGUE_WHIP.
         if (eating != null) {
@@ -1738,7 +1740,7 @@ public class FroggyCombatGoal extends Goal {
         boolean always = Boolean.getBoolean("froggydude.tackleAlways");
         if ((smash || always) && (dbg == null || always) && target instanceof ServerPlayer p
                 && (always || froggy.getRandom().nextInt(3) == 0)) {
-            startTackle(p);
+            startTackle(p, FroggyState.JUMP_PIN, null);
             return;
         }
         if (smash) beginSmash(state, target, 1.4F);
@@ -1754,6 +1756,178 @@ public class FroggyCombatGoal extends Goal {
     private static final double TACKLE_SPEED = 0.8D, TACKLE_UP = 0.55D;
     /** Ele voa do lado de quem leva o bote (blocos), pra cair do lado dela (a marreta é de joelhos do lado). */
     private static final double TACKLE_SIDE = 0.75D;
+    /** No máximo isso no ar (caindo de um pilar bem alto). */
+    private static final int TACKLE_MAX = 120;
+    /** De que lado dela ele voa (horizontal, unitário). */
+    @javax.annotation.Nullable
+    private Vec3 tackleSide;
+
+    // ---------------------------------------------------------------- (v0.7.52) o pilar
+
+    /** A varredura (ticks) e o máximo recuando até o ponto do pulão. */
+    private static final int PILLAR_SCAN = 32, PILLAR_BACK_MAX = 100;
+    /** 0 = nada; 1 = varredura; 2 = recuando. */
+    private int pillarPhase;
+    private int pillarT, pillarCheckAt, pillarReadyAt;
+    @javax.annotation.Nullable
+    private Vec3 pillarSpot;
+    /** O pulo do céu de agora é o pulão do pilar (encostou nela = bote com ragdoll). */
+    private boolean pillarStrike;
+
+    /**
+     * (v0.7.52, LM 23/11: "quando um jogador sobe um pilar e quebra os blocos de baixo, o froggydude não consegue pegar o
+     * jogador"; "ele sabe que o jogador tá alto, faz uma varredura pra saber onde ele tá em específico, daí ele derruba
+     * (sempre com ragdoll)") quem está no topo de um pilar (lá em cima, sem chão em volta dos pés e sem caminho até lá):
+     * <ol>
+     * <li>varredura (~1,6 s): para embaixo, olha pra cima e varre de um lado pro outro farejando, e acha ela;</li>
+     * <li>recua até um ponto de onde o pulão passa limpo até ela (4-7 blocos do pilar), se de onde está não dá;</li>
+     * <li>o pulão (o pulo do céu calculado, mirando em cima dela, seguindo ela se andar lá em cima);</li>
+     * <li>encostou nela: o bote com ragdoll, os dois caem moles lá de cima, e a marreta no chão.</li>
+     * </ol>
+     * Nos dois modos de IA. Devolve true enquanto isso manda nele (o resto da caça espera).
+     */
+    private boolean runPillar(LivingEntity target) {
+        if (!(target instanceof ServerPlayer p) || froggy.isInWater() || froggy.getDebugAttack() != null) {
+            pillarPhase = 0;
+            return false;
+        }
+        if (pillarPhase == 0) {
+            if (froggy.tickCount < pillarCheckAt || froggy.tickCount < pillarReadyAt || !froggy.onGround()) return false;
+            pillarCheckAt = froggy.tickCount + 10;
+            if (!onPillar(p)) return false;
+            pillarPhase = 1;
+            pillarT = 0;
+            pillarSpot = null;
+            froggy.brainLog(p.getScoreboardName() + " no alto de um pilar: varredura");
+        }
+        pillarT++;
+        // desceu/caiu do pilar no meio: a caça normal volta
+        if (pillarT % 10 == 0 && !onPillar(p)) {
+            pillarPhase = 0;
+            return false;
+        }
+        if (pillarPhase == 1) {
+            froggy.getNavigation().stop();
+            // olha pra cima e varre de um lado pro outro (cada vez mais perto dela), farejando
+            double a = Math.sin(pillarT * 0.32D) * (1.0D - pillarT / (double) PILLAR_SCAN) * 4.0D;
+            Vec3 to = p.position().subtract(froggy.position()).multiply(1, 0, 1);
+            Vec3 side = to.lengthSqr() < 1.0E-4D ? new Vec3(1, 0, 0) : new Vec3(-to.z, 0, to.x).normalize();
+            Vec3 look = p.getEyePosition().add(side.scale(a)).add(0, 1.0D - pillarT / (double) PILLAR_SCAN, 0);
+            froggy.getLookControl().setLookAt(look.x, look.y, look.z, 40.0F, 40.0F);
+            if (pillarT == 4 || pillarT == 16) froggy.playSound(com.froggydude.init.ModSounds.SNIFF.get(), 1.6F, 0.9F);
+            if (pillarT < PILLAR_SCAN) return true;
+            // achou: de onde está o pulão passa? senão, recua pra um ponto bom
+            froggy.faceTarget(p);
+            froggy.ribbit(2.0F);
+            Vec3 top = p.position();
+            double h = horizontal(froggy.position(), top);
+            if (h >= 3.0D && RealTactics.solveArc(froggy, froggy.position(), top) != null) {
+                launchPillar(p, top);
+                return true;
+            }
+            pillarSpot = pillarSpot(p, top);
+            if (pillarSpot == null) {
+                froggy.brainLog("sem de onde dar o pulão até " + p.getScoreboardName() + ": outro jeito");
+                pillarPhase = 0;
+                pillarReadyAt = froggy.tickCount + 400;
+                return false;
+            }
+            pillarPhase = 2;
+            pillarT = 0;
+            return true;
+        }
+        // recuando até o ponto do pulão, de olho nela
+        Vec3 spot = pillarSpot;
+        if (spot == null || pillarT > PILLAR_BACK_MAX) {
+            pillarPhase = 0;
+            pillarReadyAt = froggy.tickCount + 200;
+            return false;
+        }
+        froggy.getLookControl().setLookAt(p, 30.0F, 30.0F);
+        if (horizontal(froggy.position(), spot) < 0.9D && froggy.onGround()) {
+            froggy.getNavigation().stop();
+            Vec3 top = p.position();
+            if (RealTactics.solveArc(froggy, froggy.position(), top) != null) {
+                launchPillar(p, top);
+                return true;
+            }
+            pillarSpot = pillarSpot(p, top); // ela andou lá em cima: outro ponto
+            pillarT = 0;
+            return true;
+        }
+        if (pillarT % 10 == 1) froggy.getNavigation().moveTo(spot.x, spot.y, spot.z, huntSpeed());
+        return true;
+    }
+
+    private void launchPillar(ServerPlayer p, Vec3 top) {
+        pillarPhase = 0;
+        pillarReadyAt = froggy.tickCount + 200;
+        pillarStrike = true;
+        froggy.brainLog("pulão no pilar de " + p.getScoreboardName());
+        beginArc(p, top);
+    }
+
+    /**
+     * No topo de um pilar: no chão, 3+ blocos acima dele, perto (16 blocos), sem chão em volta dos pés dela (nos 8 do
+     * lado, embaixo, é ar: não é plataforma nem telhado) e sem caminho andando até lá.
+     */
+    private boolean onPillar(ServerPlayer p) {
+        if (!p.onGround() || p.isPassenger() || p.getAbilities().flying || p.isInWater()) return false;
+        if (p.getY() - froggy.getY() < 3.0D || horizontal(froggy.position(), p.position()) > 16.0D) return false;
+        Level level = froggy.level();
+        BlockPos feet = BlockPos.containing(p.getX(), p.getY() + 0.01D, p.getZ());
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) continue;
+                BlockPos under = feet.offset(dx, -1, dz);
+                if (!level.getBlockState(under).getCollisionShape(level, under).isEmpty()) return false;
+            }
+        }
+        return !real.pathTo(p);
+    }
+
+    /** Um ponto no chão a 4-7 blocos do pilar de onde o pulão passa limpo até ela e que ele alcança andando. */
+    @javax.annotation.Nullable
+    private Vec3 pillarSpot(ServerPlayer p, Vec3 top) {
+        Level level = froggy.level();
+        List<Vec3> spots = new ArrayList<>();
+        for (double r : new double[]{4.5D, 6.0D, 7.5D}) {
+            for (int i = 0; i < 12; i++) {
+                double ang = Math.PI * 2 * i / 12;
+                double x = p.getX() + Math.cos(ang) * r, z = p.getZ() + Math.sin(ang) * r;
+                for (int y = (int) Math.floor(froggy.getY()) + 3; y >= (int) Math.floor(froggy.getY()) - 4; y--) {
+                    BlockPos at = BlockPos.containing(x, y, z);
+                    if (RealTactics.free(level, at) && RealTactics.free(level, at.above()) && !RealTactics.free(level, at.below())
+                            && level.getFluidState(at.below()).isEmpty()) {
+                        Vec3 v = Vec3.atBottomCenterOf(at);
+                        if (RealTactics.solveArc(froggy, v, top) != null) spots.add(v);
+                        break;
+                    }
+                }
+            }
+        }
+        spots.sort(java.util.Comparator.comparingDouble(v -> v.distanceToSqr(froggy.position())));
+        int tried = 0;
+        for (Vec3 v : spots) {
+            if (tried++ >= 6) break;
+            var path = froggy.getNavigation().createPath(BlockPos.containing(v), 0);
+            if (path != null && path.canReach()) return v;
+        }
+        return null;
+    }
+
+    /**
+     * No chão de verdade: a marca do jogo OU um bloco logo embaixo da caixa (a marca do jogador vem do cliente e, caído
+     * no bote, às vezes não chega).
+     */
+    private static boolean grounded(LivingEntity e) {
+        return e.onGround() || !e.level().noCollision(e, e.getBoundingBox().move(0, -0.08D, 0));
+    }
+
+    private static double horizontal(Vec3 a, Vec3 b) {
+        double dx = a.x - b.x, dz = a.z - b.z;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
 
     /**
      * O bote pegou em cheio (v0.7.51, LM 23/11: "o jogador ter realmente ragdoll junto com o FroggyDude", "o froggydude
@@ -1761,17 +1935,19 @@ public class FroggyCombatGoal extends Goal {
      * dois saem com o mesmo empurrão, ele um passo do lado dela, e voam de verdade (cada um com a própria física);
      * no cliente os dois corpos ficam moles (client.pieces.RagdollScene e PlayerRagdollScene).
      */
-    private void startTackle(ServerPlayer p) {
-        finishAttack(FroggyState.JUMP_PIN);
-        Vec3 d = p.position().subtract(froggy.position()).multiply(1, 0, 1);
+    private void startTackle(ServerPlayer p, FroggyState from, @javax.annotation.Nullable Vec3 push0) {
+        finishAttack(from);
+        Vec3 d = push0 != null && push0.lengthSqr() > 1.0E-3D ? push0 : p.position().subtract(froggy.position()).multiply(1, 0, 1);
         if (d.lengthSqr() < 1.0E-4D) d = froggy.getLookAngle().multiply(1, 0, 1);
         if (d.lengthSqr() < 1.0E-4D) d = new Vec3(0, 0, 1);
         tackleDir = d.normalize();
         Vec3 side = new Vec3(-tackleDir.z, 0, tackleDir.x);
+        tackleSide = side;
         // o lado que tem espaço (sem bloco onde ele ficaria)
         Vec3 at = p.position().add(side.scale(TACKLE_SIDE)).subtract(tackleDir.scale(0.2D));
         if (!froggy.level().noCollision(froggy, froggy.getBoundingBox().move(at.subtract(froggy.position())))) {
             side = side.scale(-1D);
+            tackleSide = side;
             at = p.position().add(side.scale(TACKLE_SIDE)).subtract(tackleDir.scale(0.2D));
             if (!froggy.level().noCollision(froggy, froggy.getBoundingBox().move(at.subtract(froggy.position())))) {
                 at = froggy.position();
@@ -1806,8 +1982,32 @@ public class FroggyCombatGoal extends Goal {
         froggy.setXxa(0F);
         target.fallDistance = 0F;
         froggy.fallDistance = 0F;
-        // caíram e ficaram um tico moles no chão (o "1,5-2 s" do LM), ou acabou o tempo
-        if (t >= FroggyState.TACKLE.durationTicks || (t >= 28 && target.onGround() && froggy.onGround())) {
+        // bem colado, mas não como cola: a cada tick o voo dele é puxado um tico pra um passo do lado dela (cada um tem a
+        // própria física; sem isso, ela saindo do topo de um pilar com menos força, caíam longe um do outro)
+        if (tackleSide != null && !(grounded(froggy) && grounded(target))) {
+            Vec3 want = target.position().add(tackleSide.scale(TACKLE_SIDE));
+            Vec3 off = want.subtract(froggy.position()).multiply(1, 0, 1);
+            if (off.lengthSqr() > 0.09D) {
+                Vec3 v = froggy.getDeltaMovement();
+                Vec3 pull = off.scale(0.4D);
+                if (pull.length() > 0.5D) pull = pull.normalize().scale(0.5D);
+                froggy.setDeltaMovement(v.x * 0.6D + pull.x, v.y, v.z * 0.6D + pull.z);
+                froggy.hurtMarked = true;
+            }
+        }
+        // caíram e ficaram um tico moles no chão (o "1,5-2 s" do LM); do alto de um pilar a queda é mais longa. Os dois no
+        // chão e na mesma altura (ela enroscada na quina do pilar não conta)
+        boolean down = grounded(target) && grounded(froggy) && Math.abs(target.getY() - froggy.getY()) < 1.5D;
+        if (t >= TACKLE_MAX && !down) {
+            // ficaram separados (ela presa lá em cima, ele embaixo): acaba o bote, a caça segue
+            froggy.setTackleVictim(-1);
+            froggy.setTackleRagdoll(null);
+            tackleDir = null;
+            debug("bote com ragdoll: separados, sem marreta");
+            froggy.setFroggyState(FroggyState.CHASE);
+            return;
+        }
+        if (t >= 28 && down) {
             froggy.setTackleVictim(-1);
             froggy.setTackleRagdoll(null);
             tackleDir = null;
@@ -1914,6 +2114,21 @@ public class FroggyCombatGoal extends Goal {
             return false;
         }
         if (launched && !fired1) {
+            // (v0.7.52) o pulão do pilar: encostou nela (no ar ou ao pousar do lado dela lá em cima) = o bote com ragdoll,
+            // os dois caem moles do pilar
+            if (pillarStrike && t > SKY_LAUNCH + 2 && target instanceof ServerPlayer sp && sp.isAlive()
+                    && (froggy.getBoundingBox().inflate(0.5D).intersects(sp.getBoundingBox())
+                    || (froggy.onGround() && froggy.distanceTo(sp) <= 2.6D))) {
+                pillarStrike = false;
+                fired1 = true;
+                arcLand = null;
+                attackHit = true;
+                hurtNoKnockback(sp, 5.0F);
+                froggy.spawnBlood(sp, 5);
+                // empurra no rumo do pulo dele: ela sai pelo outro lado do pilar (não volta por cima dele)
+                startTackle(sp, FroggyState.SKY_DROP, froggy.getDeltaMovement().multiply(1, 0, 1));
+                return true;
+            }
             if (t > SKY_LAUNCH + 1) {
                 if (arcLand != null) real.steerArc(target, arcLand);
                 else steerSkyDrop(target);
@@ -1921,6 +2136,7 @@ public class FroggyCombatGoal extends Goal {
             if (froggy.onGround() && t >= SKY_LAUNCH + 6) {
                 fired1 = true;
                 arcLand = null;
+                pillarStrike = false;
                 landSkyDrop(target);
                 return true;
             }

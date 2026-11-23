@@ -1,4 +1,4 @@
-# Froggydude - v0.7.51: bote com ragdoll mole de verdade (sobre a v0.7.50)
+# Froggydude - v0.7.52: o pulão no pilar (sobre a v0.7.51)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,22 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.51):
+O que testar agora (v0.7.52):
+- **Pilar de blocos** (LM 23/11: "quando um jogador sobe um pilar e quebra os blocos de baixo, o froggydude não consegue
+  pegar o jogador"; "faz uma varredura pra saber onde ele tá em específico, daí ele derruba (sempre com ragdoll)"):
+  tu no topo de um pilar (3+ blocos acima dele, sem chão em volta dos teus pés, sem caminho até lá):
+  1. **varredura** (~1,6 s): ele para embaixo, olha pra cima varrendo de um lado pro outro e fareja, e te acha;
+  2. se de onde está o pulo não passa, **recua** pra um ponto a 4-7 blocos do pilar de onde passa;
+  3. **o pulão** (o pulo do céu calculado), mirando em ti lá em cima (segue se tu andar);
+  4. encostou: **o bote com ragdoll**, empurrando no rumo do pulo (tu sai pelo outro lado do pilar), os dois caem
+     moles lá de cima juntos, e a marreta do lado do pilar.
+  Nos dois modos de IA. Sem ponto de onde pular (pilar alto demais, cercado): ele tenta outro jeito e volta em ~20 s.
+- **Conserto do bote com ragdoll** (valia também no chão): com a câmera do bote, o teu jogo parava de mandar a tua
+  posição pro servidor (o Minecraft só manda quando a câmera é tu); o servidor achava que tu tinha ficado onde o bote
+  pegou. Agora manda a cada tick enquanto voa. E a marreta só vem com os dois no chão na mesma altura; se ficarem
+  separados (tu presa na quina, ele embaixo), o bote acaba sem marreta e a caça segue.
+
+O que tinha pra testar na v0.7.51:
 - **Bote com ragdoll v2** (LM 23/11: "o boneco todo duro", "câmera atrás do froggydude, 3 blocos, se tiver bloco
   tapando ela se corrige", "os dois caem juntos, bem colado", "sempre cair do lado do jogador por causa do martelo"):
   - **tu fica mole de verdade**: a mesma física do ragdoll do tiro dele (juntas com peso, tronco rígido, cabeça e
