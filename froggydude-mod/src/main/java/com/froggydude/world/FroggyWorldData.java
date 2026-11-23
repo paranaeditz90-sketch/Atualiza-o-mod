@@ -53,6 +53,8 @@ public class FroggyWorldData extends SavedData {
 
     // ----- manhunt
     public boolean manhuntActive;
+    /** (v0.7.44) A cutscene de entrada já passou neste mundo (é uma vez só). */
+    public boolean introDone;
     public ManhuntMode manhuntMode = ManhuntMode.SPEEDRUN;
     public int manhuntDays = 5;
     public long manhuntStart;
@@ -136,6 +138,8 @@ public class FroggyWorldData extends SavedData {
         d.huntAmbush = tag.getBoolean("HuntAmbush");
         CompoundTag painTag = tag.getCompound("Pain");
         for (String k : painTag.getAllKeys()) d.pain.put(k, painTag.getFloat(k));
+        // mundo de antes da 0.7.44 em que ele já esteve: sem a entrada (só em mundo onde ele nunca apareceu)
+        d.introDone = tag.contains("IntroDone") ? tag.getBoolean("IntroDone") : d.froggyId != null;
         CompoundTag mh = tag.getCompound("Manhunt");
         d.manhuntActive = mh.getBoolean("Active");
         try {
@@ -185,6 +189,7 @@ public class FroggyWorldData extends SavedData {
         CompoundTag painTag = new CompoundTag();
         pain.forEach(painTag::putFloat);
         tag.put("Pain", painTag);
+        tag.putBoolean("IntroDone", introDone);
         CompoundTag mh = new CompoundTag();
         mh.putBoolean("Active", manhuntActive);
         mh.putString("Mode", manhuntMode.name());

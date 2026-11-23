@@ -628,6 +628,7 @@ public final class TensionDirector {
      */
     private static boolean edible(Animal a) {
         if (!a.isAlive() || a.hasCustomName() || a.isLeashed() || a.isVehicle() || a.isPassenger()) return false;
+        if (com.froggydude.entity.GoreSafe.spared(a)) return false; // (v0.7.44) maid do Touhou Little Maid
         if (a instanceof TamableAnimal t && t.isTame()) return false;
         if (a instanceof AbstractHorse h && h.isTamed()) return false;
         return !(a instanceof Saddleable s && s.isSaddled());

@@ -110,7 +110,12 @@ public enum FroggyState {
      * (v0.7.41) A cutscene jogável da cabeça (entity.HeadGrab): o bote, em cima de quem está caído, olha, morde a cabeça
      * e chacoalha dando trancos durante o rugido; tiro/golpes o bastante = ele voa; não = arranca a cabeça.
      */
-    HEAD_GRAB(0);
+    HEAD_GRAB(0),
+    /**
+     * (v0.7.44) A entrada (vídeo do LM 23/11, 1 vez por mundo): ele surge parado na pose de pulo olhando pra quem joga
+     * ("FroggyDudeMC entrou no jogo"), corta pra câmera baixa atrás dele e ele uiva pro céu. Sem IA e sem dano.
+     */
+    INTRO(0);
 
     public final int durationTicks;
 

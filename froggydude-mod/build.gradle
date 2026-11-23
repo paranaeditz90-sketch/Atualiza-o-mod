@@ -43,6 +43,10 @@ minecraft {
             if (project.hasProperty('froggyDebug')) {
                 property 'froggydude.debug', 'true'
             }
+            // Entrar com outro nome (ex.: -PplayerName=FroggyDudeMC pro easter egg, ver client.EasterEgg)
+            if (project.hasProperty('playerName')) {
+                args '--username', project.property('playerName')
+            }
             // Gravar animação quadro a quadro (comparar com vídeo): -PwinW=720 -PwinH=1280
             // -PanimSlow=0.05 -Pcapture=1 (ver client.AnimCapture)
             if (project.hasProperty('winW')) {
@@ -111,6 +115,8 @@ dependencies {
     if (project.hasProperty('testMods')) {
         runtimeOnly fg.deobf('maven.modrinth:re-avaritia:1.20.1-1.4.2-release')
         runtimeOnly fg.deobf('maven.modrinth:timeless-and-classics-zero:1.1.8-hotfix2')
+        // as maids sem gore (v0.7.44, pedido do time do Touhou Little Maid): a mesma versão do vídeo deles
+        runtimeOnly fg.deobf('maven.modrinth:touhou-little-maid:1.5.3-forge+mc1.20.1')
     }
 }
 

@@ -1,5 +1,5 @@
 {
-  "entity.froggydude.froggydude": "Froggydude",
+  "entity.froggydude.froggydude": "FroggyDudeMC",
   "subtitles.froggydude.ambient": "FroggyDude croaks",
   "subtitles.froggydude.ribbit": "FroggyDude ribbits in rage",
   "subtitles.froggydude.finisher": "FroggyDude devours",
@@ -95,6 +95,8 @@
   "froggydude.settings.gore": "Graphic violence",
   "froggydude.settings.caution": "⚠ May be disturbing",
   "froggydude.settings.warning": "Show the warning again...",
+  "froggydude.settings.tlm": "Touhou Little Maid: gore",
+  "froggydude.easter.impostor": "Let's see which one of us makes it out alive... Impostor.",
   "froggydude.settings.ai": "FroggyDude AI",
   "froggydude.settings.invasion": "Froggy's in your world",
   "froggydude.ai.min": "Min",

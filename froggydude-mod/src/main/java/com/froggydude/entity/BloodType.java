@@ -89,6 +89,8 @@ public enum BloodType {
     }
 
     public static BloodType of(LivingEntity e) {
+        // (v0.7.44) maid do Touhou Little Maid, com a opção ligada: sem sangue nenhum
+        if (GoreSafe.spared(e)) return NONE;
         if (e instanceof ArmorStand || e instanceof AbstractSkeleton || e instanceof SkeletonHorse
                 || e instanceof Slime || e instanceof IronGolem || e instanceof SnowGolem || e instanceof Blaze
                 || e instanceof Vex || e instanceof Allay || e instanceof WitherBoss || e instanceof Ghast) {

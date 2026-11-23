@@ -25,7 +25,7 @@ import java.util.List;
  */
 public final class Invasion {
 
-    static final String NAME = "FroggyDude";
+    public static final String NAME = "FroggyDudeMC";
     private static final int FIRST_DAY = 4;
     private static final int LAST_DAY = 10;
     /** Te pegou: some esse tempo (LM: "uns 4 minutos"). */

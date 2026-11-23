@@ -84,6 +84,7 @@ public final class FroggyKeeper {
         data.froggyHealth = froggy.getHealth();
         data.respawnAt = -1;
         data.setDirty();
+        if (!data.introDone) froggy.queueIntro(); // (v0.7.44) a 1ª vez dele neste mundo: a cutscene de entrada
         return true;
     }
 

@@ -19,6 +19,7 @@ public final class FroggyConfig {
     public static final ForgeConfigSpec.DoubleValue CACA_BLOCOS_POR_SEGUNDO;
     public static final ForgeConfigSpec.IntValue IRRITADO_CHANCE;
     public static final ForgeConfigSpec.EnumValue<AiLevel> IA;
+    public static final ForgeConfigSpec.BooleanValue TLM_GORE;
 
     static {
         ForgeConfigSpec.Builder b = new ForgeConfigSpec.Builder();
@@ -55,6 +56,13 @@ public final class FroggyConfig {
                 .defineEnum("ia", AiLevel.ALTO);
         b.pop();
 
+        b.comment("Compatibilidade com outros mods").push("compatibilidade");
+        TLM_GORE = b.comment("Touhou Little Maid (pedido do time do TLM). false (padrão) = protege o mod deles: ele não ataca",
+                        "nem come as maids, e nada de sangue nem pedaços nelas. true = ele ataca normal, com sangue normal.",
+                        "Também pela tela do mod (Mods > Froggydude > Configurar > Gore).")
+                .define("touhou_little_maid_gore", false);
+        b.pop();
+
         SPEC = b.build();
     }
 
@@ -81,6 +89,17 @@ public final class FroggyConfig {
     public static void setInvasion(boolean on) {
         if (!SPEC.isLoaded()) return;
         INVASAO.set(on);
+        SPEC.save();
+    }
+
+    /** Gore (e ataque) nas entidades do Touhou Little Maid; desligado = protegidas (GoreSafe). */
+    public static boolean tlmGore() {
+        return get(TLM_GORE);
+    }
+
+    public static void setTlmGore(boolean on) {
+        if (!SPEC.isLoaded()) return;
+        TLM_GORE.set(on);
         SPEC.save();
     }
 

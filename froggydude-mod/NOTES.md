@@ -1,4 +1,4 @@
-# Froggydude - v0.7.43: a tela de morte do anti-trapaça por cima de mod de tela de morte (sobre a v0.7.42)
+# Froggydude - v0.7.44: maids do TLM protegidas, portas, barco, destravador, nome FroggyDudeMC, entrada e easter egg (sobre a v0.7.43)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,53 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.43):
+O que testar agora (v0.7.44):
+- **Touhou Little Maid** (pedido do time do TLM, com o vídeo deles: as maids viravam pedaços com a roupa delas, numa
+  poça de sangue). Opção nova **"Touhou Little Maid: gore"** (Mods > Froggydude > Configurar > Gore; só aparece com o
+  TLM instalado; no arquivo: `[compatibilidade] touhou_little_maid_gore` em `froggydude-common.toml`).
+  - **Desligada (o padrão): protege o mod deles.** Ele não ataca, não revida nem come as maids (e nada do mod deles),
+    e não sai sangue nem pedaço delas, nem de briga com outro mob ou com o jogador.
+  - **Ligada:** tudo normal, como antes.
+  - Jogador continua igual, com ou sem Yes Steve Model.
+  - Pra testar: põe uma maid perto dele com ele com fome (`/froggydude vontade fome 100`): ele não vai nela. Bate nela
+    com espada: sem sangue. Liga a opção: volta tudo.
+- **A armadilha de portas soltas** (prints do LM: portas de madeira em pé no campo, ele enroscado dentro de uma e o
+  jogador cercando com mais portas). Antes ele só sabia lidar com porta fechada na frente. Agora, se ele quer andar
+  (tem alvo ou caminho) e fica **meio segundo parado encostado ou dentro de uma porta** (aberta ou fechada), ele
+  **arromba** a porta na hora (som de zumbi quebrando porta, sem soltar item). Com `mobGriefing` desligado (o mundo
+  não deixa quebrar bloco), ele **pula pra fora** da porta em vez de quebrar.
+  - Pra testar: põe umas portas soltas em volta dele, como nos prints. Ele não pode ficar preso nelas.
+- **"Fica quieto e nem teleporta mais"** (relato de jogadores, sem log nem jeito de repetir; a causa não foi achada
+  lendo o código). Entrou um **destravador**: com um jogador em sobrevivência a até 48 blocos, se ele ficar **30 s sem
+  sair do lugar e no mesmo estado, sem motivo pra estar parado**, ele larga tudo (comida, vítima, o que estiver fazendo)
+  e volta pra cima de quem está perto. Não conta como travado: tocaia, vislumbre, renascendo, ragdoll, raiva, cena da
+  cabeça, trégua, escondido se curando, espreitando, segurado, comendo de verdade, banquete, indo embora, ou com NoAI
+  posto por comando.
+  - Quando destrava, **sempre** escreve no `latest.log` uma linha `[FROGGYDEBUG] destravei: ...` com o estado, o alvo,
+    as metas que estavam rodando, a comida, a vítima e a intenção. **Se alguém reclamar de novo, pede o `latest.log`**
+    e procura essa linha: ela diz o que prendia ele, e aí dá pra consertar a causa de verdade.
+  - Teste aqui: compilou e rodou no jogo sem erro, mas não consegui fazer ele travar de verdade pra ver disparar (preso
+    numa caixa de bedrock ele escapou e me pegou em 2 min, que é o certo). Então o disparo não foi visto rodando.
+- **Cutscene de entrada** (vídeo do LM, 23/11; **uma vez por mundo**, só em mundo onde ele nunca apareceu): na 1ª vez
+  que ele surge no mundo (invasão, manhunt, ovo, comando), com alguém em sobrevivência a até 64 blocos, ele aparece a
+  5-7 blocos na tua frente **parado na pose de pulo, te olhando** (~2,5 s, com "FroggyDudeMC entrou no jogo" no chat),
+  e **corta pra câmera baixa atrás dele** olhando pro céu: ele **uiva pra cima** (o grito dele, ~1,7 s). Aí solta e vem.
+  Sem a fala do vídeo ("Where's the monkey?" saiu). Durante a cena: sem mão, sem mira, sem andar; ele não toma dano.
+  Testado aqui: os dois planos certos, nada de corpo do jogador na frente.
+  - Pra testar: mundo novo, chama ele (ovo ou `/summon froggydude:froggydude`) longe de ti.
+- **Preso no barco** (relato: "FroggyDude não pode perseguir porque ele está em um barco"). O jogo põe mob sozinho
+  no barco ou carrinho de mina que encosta nele, e aí ele não andava mais. Agora, se ele estiver dentro de um, **arrebenta
+  na hora** (som de madeira quebrando, o barco cai como item) e segue a caçada. Testado aqui: posto à força num barco com
+  `/ride`, quebrou no tick seguinte e o item do barco caiu.
+- **Nome "FroggyDudeMC"** (pedido do pessoal): o nome dele no jogo (mensagem de morte, nome em cima, "entrou no jogo" da
+  invasão) e no chat (`<FroggyDudeMC> ...`). As legendas de som continuam "FroggyDude ...".
+- **Easter egg do FroggyDude de verdade**: se quem joga é o **FroggyDudeMC**, 3 s depois de entrar no mundo aparece só
+  no chat dele "<FroggyDudeMC> Vamos ver quem de nós dois sai vivo dessa... Impostor." (em inglês se o jogo estiver em
+  inglês). **Uma vez na vida**: fica marcado no aparelho dele (`froggydude/impostor.flag` na pasta do jogo); nem mundo
+  novo nem servidor mostram de novo (apagar esse arquivo faz aparecer de novo). Testado aqui com o nome FroggyDudeMC:
+  apareceu na 1ª vez e não na 2ª.
+
+O que tinha pra testar na v0.7.43:
 - **O anti-trapaça com o "Death screen FNAF"** (tu, com a gravação: "No final, ele bugou com a minha tela de morte").
   O FNAF troca a tela de morte do jogo pela dele (1,75 s de chiado com som, depois a tela normal). A 0.7.42 também
   usava a tela de morte do jogo e trocava a dele de volta a cada tick: os dois ficavam brigando e o chiado recomeçava

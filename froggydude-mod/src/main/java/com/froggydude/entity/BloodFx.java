@@ -65,7 +65,7 @@ public final class BloodFx {
     public static final int HIT_MARKS = 0;
 
     public static void hit(LivingEntity victim, @Nullable Entity attacker, Vec3 at, Vec3 dir, float damage, int color, int flags) {
-        if (!(victim.level() instanceof ServerLevel server)) return;
+        if (!(victim.level() instanceof ServerLevel server) || GoreSafe.spared(victim)) return;
         Vec3 d = unit(dir);
         send(server, at, new BloodFxPacket(BloodFxPacket.HIT, at.x, at.y, at.z, d.x, d.y, d.z, flags, damage, color,
                 victim.getId(), attacker == null ? -1 : attacker.getId(), 0));
@@ -77,7 +77,7 @@ public final class BloodFx {
      * blocos, no corpo dele; dir = pra onde, no mundo; speed em blocos/tick.
      */
     public static void stream(Entity from, Vec3 local, Vec3 dir, float speed, int ticks, int color) {
-        if (!(from.level() instanceof ServerLevel server)) return;
+        if (!(from.level() instanceof ServerLevel server) || GoreSafe.spared(from)) return;
         Vec3 d = unit(dir);
         send(server, from.position(), new BloodFxPacket(BloodFxPacket.STREAM, local.x, local.y, local.z,
                 d.x, d.y, d.z, 0, speed, color, from.getId(), -1, ticks));
@@ -93,7 +93,7 @@ public final class BloodFx {
 
     /** Explosão de sangue: membro arrancado, mob devorado, morte feia. */
     public static void burst(Level level, Vec3 at, Vec3 dir, int count, float power, int color, @Nullable Entity source) {
-        if (!(level instanceof ServerLevel server)) return;
+        if (!(level instanceof ServerLevel server) || GoreSafe.spared(source)) return;
         Vec3 d = unit(dir);
         send(server, at, new BloodFxPacket(BloodFxPacket.BURST, at.x, at.y, at.z, d.x, d.y, d.z, count, power, color,
                 source == null ? -1 : source.getId(), -1, 0));
@@ -104,7 +104,17 @@ public final class BloodFx {
      * (cada cliente decide pelo gore dele). dir = o empurrão, já com a força.
      */
     public static void breakBody(LivingEntity victim, Vec3 dir, float power) {
+        // (v0.7.44) maid do Touhou Little Maid: morre inteira, como no Minecraft normal
         if (!(victim.level() instanceof ServerLevel)) return;
+        if (GoreSafe.spared(victim)) {
+            if (Boolean.getBoolean("froggydude.debug")) {
+                System.out.println("[FROGGYDEBUG] sem gore (Touhou Little Maid): " + victim.getType().getDescriptionId() + " morre inteira");
+            }
+            return;
+        }
+        if (Boolean.getBoolean("froggydude.debug")) {
+            System.out.println("[FROGGYDEBUG] pedaços: " + victim.getType().getDescriptionId());
+        }
         BloodType type = BloodType.of(victim);
         ModNetwork.CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> victim),
                 new BloodFxPacket(BloodFxPacket.BREAK, victim.getX(), victim.getY(), victim.getZ(), dir.x, dir.y, dir.z,

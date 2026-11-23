@@ -400,8 +400,9 @@ public class FroggyFeedGoal extends Goal {
     }
 
     private static boolean food(LivingEntity e) {
+        // (v0.7.44) as maids do Touhou Little Maid não viram comida (GoreSafe)
         return e.isAlive() && e instanceof Mob && !(e instanceof Monster) && !(e instanceof FroggydudeEntity)
-                && !(e instanceof AbstractVillager v && v.isBaby());
+                && !(e instanceof AbstractVillager v && v.isBaby()) && !com.froggydude.entity.GoreSafe.spared(e);
     }
 
     /**

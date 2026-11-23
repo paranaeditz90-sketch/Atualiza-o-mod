@@ -193,6 +193,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** (v0.7.41) A cutscene da cabeça (entity.HeadGrab): quem está embaixo, quando agarrou, acertos (vazio = não está). */
     private static final EntityDataAccessor<CompoundTag> DATA_HEADGRAB =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.COMPOUND_TAG);
+    /** (v0.7.44) A cutscene de entrada: o id de quem assiste (-1 = ninguém). */
+    private static final EntityDataAccessor<Integer> DATA_INTRO =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
     /** (v0.7.40) A fase da raiva (entity.Rage: estalo, avança, parado, estalo parado), pra animação do cliente. */
     private static final EntityDataAccessor<Byte> DATA_RAGE =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
@@ -414,6 +417,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_RAGDOLL, new CompoundTag());
         this.entityData.define(DATA_RAGE, (byte) 0);
         this.entityData.define(DATA_HEADGRAB, new CompoundTag());
+        this.entityData.define(DATA_INTRO, -1);
     }
 
     @Override
@@ -880,6 +884,182 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** (v0.7.42) O decisor (IA dinâmica; só manda na IA Real). */
     public com.froggydude.entity.ai.FroggyDecider decider() {
         return decider;
+    }
+
+    /**
+     * (v0.7.44) Relato: "FroggyDude não pode perseguir porque ele está em um barco". O jogo põe mob sozinho no barco (ou
+     * carrinho de mina) que encosta nele, e lá dentro ele não anda mais. Agora, se ele estiver dentro de um, arrebenta na
+     * hora (o barco cai como item, igual quebrar na mão) e segue a caçada.
+     */
+    private void breakVehicle() {
+        net.minecraft.world.entity.Entity v = this.getVehicle();
+        if (!(v instanceof net.minecraft.world.entity.vehicle.Boat)
+                && !(v instanceof net.minecraft.world.entity.vehicle.AbstractMinecart)) return;
+        this.stopRiding();
+        this.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
+        this.level().playSound(null, v.getX(), v.getY(), v.getZ(), SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR,
+                this.getSoundSource(), 1.0F, 1.1F);
+        v.hurt(this.damageSources().mobAttack(this), 1000F);
+        if (v.isAlive()) v.discard(); // barco/carrinho que não quebra com dano (de mod): some mesmo assim
+        brainLog("estava preso num " + v.getName().getString() + ": arrebentei");
+    }
+
+    // ---------------------------------------------------------------- (v0.7.44) a cutscene de entrada
+
+    /** Quanto dura a pose parada olhando (o 1º plano do vídeo, ~2,5 s) e a cena inteira (com o uivo, ~1,7 s). */
+    public static final int INTRO_HOWL = 50, INTRO_END = 84;
+    /** A entrada ainda vai acontecer (ele é o 1º do mundo e ninguém viu ainda). */
+    private boolean introPending;
+    private int introAt;
+
+    /** (FroggyKeeper.onJoin) Ele é o primeiro deste mundo: na primeira chance, a cutscene de entrada. */
+    public void queueIntro() {
+        introPending = true;
+    }
+
+    /** Quem assiste a entrada agora (o id da entidade; -1 = ninguém). */
+    public int introViewerId() {
+        return this.entityData.get(DATA_INTRO);
+    }
+
+    /** Ticks desde o começo da entrada. */
+    public int introAge() {
+        return this.tickCount - introAt;
+    }
+
+    /**
+     * A cada 0,5 s enquanto a entrada está pendente: com alguém (sobrevivência) a até 64 blocos e ele livre (sem briga,
+     * sem comer), vai pra 5-7 blocos na frente dessa pessoa, à vista, e começa. Sem lugar na frente, só se já estiver
+     * perto (24 blocos); senão tenta de novo.
+     */
+    private void tryStartIntro() {
+        if (!(this.level() instanceof ServerLevel server) || isFightingNow() || isEating() || ragdollRun != null) return;
+        ServerPlayer viewer = null;
+        double best = 64.0D * 64.0D;
+        for (ServerPlayer p : server.players()) {
+            if (!p.isAlive() || p.isCreative() || p.isSpectator() || p.isSleeping()) continue;
+            double d = p.distanceToSqr(this);
+            if (d < best) {
+                best = d;
+                viewer = p;
+            }
+        }
+        if (viewer == null) return;
+        BlockPos spot = com.froggydude.world.FroggyKeeper.findSpot(server, viewer, 5.0D, 7.0D,
+                com.froggydude.world.FroggyKeeper.Sight.IN_VIEW, this.getRandom());
+        if (spot != null) {
+            this.teleportTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
+        } else if (best > 24.0D * 24.0D) {
+            return;
+        }
+        introPending = false;
+        FroggyWorldData data = FroggyWorldData.get(server.getServer());
+        data.introDone = true;
+        data.setDirty();
+        this.getNavigation().stop();
+        setTarget(null);
+        introAt = this.tickCount;
+        this.entityData.set(DATA_INTRO, viewer.getId());
+        setFroggyState(FroggyState.INTRO);
+        faceDirection(viewer.getX() - this.getX(), viewer.getZ() - this.getZ());
+        viewer.sendSystemMessage(net.minecraft.network.chat.Component.translatable("multiplayer.player.joined",
+                com.froggydude.world.Invasion.NAME).withStyle(net.minecraft.ChatFormatting.YELLOW));
+        brainLog("entrada: surgi na frente de " + viewer.getScoreboardName());
+    }
+
+    /** Parado na pose; no corte, o uivo pro céu; no fim, solta e vai pra cima de quem assistiu. */
+    private void introTick() {
+        int age = introAge();
+        this.setDeltaMovement(0, Math.min(0D, this.getDeltaMovement().y), 0);
+        this.getNavigation().stop();
+        Entity v = this.level().getEntity(introViewerId());
+        Player viewer = v instanceof Player p && p.isAlive() ? p : null;
+        if (viewer != null && age < INTRO_HOWL) faceDirection(viewer.getX() - this.getX(), viewer.getZ() - this.getZ());
+        if (age == INTRO_HOWL) {
+            this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.SCREAM.get(),
+                    SoundSource.HOSTILE, 1.8F, 0.8F);
+        }
+        if (age >= INTRO_END || viewer == null || age < 0) endIntro(viewer);
+    }
+
+    private void endIntro(@Nullable Player viewer) {
+        this.entityData.set(DATA_INTRO, -1);
+        setFroggyState(FroggyState.CHASE);
+        if (viewer != null && !viewer.isCreative() && !viewer.isSpectator() && !underTruce(viewer)) setTarget(viewer);
+    }
+
+    // ---------------------------------------------------------------- (v0.7.44) o destravador
+
+    /** Quantos segundos seguidos ele está parado sem fazer nada com gente perto. */
+    private int stuckSeconds;
+    @Nullable
+    private Vec3 stuckLastPos;
+    @Nullable
+    private FroggyState stuckLastState;
+
+    /**
+     * (v0.7.44) Relatos: "depois de um tempo jogando ele simplesmente fica quieto e nem se quer teleporta mais", sem log
+     * nem jeito de repetir. Rede de segurança: com um jogador (sobrevivência) a até 48 blocos e sem nenhum motivo pra
+     * estar parado (tocaia, vislumbre, renascendo, ragdoll, raiva, cabeça, trégua, escondido, comendo de verdade, indo
+     * embora), 30 s sem sair do lugar e no mesmo estado = travou: larga tudo e volta a caçar. Sempre escreve no log uma
+     * linha "[FROGGYDEBUG] destravei: ..." dizendo o que estava preso, pra achar a causa de verdade se alguém mandar o
+     * latest.log.
+     */
+    private void watchdog() {
+        if (!(this.level() instanceof ServerLevel server)) return;
+        Vec3 pos = this.position();
+        FroggyState st = getFroggyState();
+        boolean moved = stuckLastPos == null || pos.distanceToSqr(stuckLastPos) > 0.3D * 0.3D;
+        boolean sameState = st == stuckLastState;
+        stuckLastPos = pos;
+        stuckLastState = st;
+        ServerPlayer near = null;
+        double best = 48.0D * 48.0D;
+        for (ServerPlayer p : server.players()) {
+            if (!p.isAlive() || p.isCreative() || p.isSpectator()) continue;
+            double d = p.distanceToSqr(this);
+            if (d < best) {
+                best = d;
+                near = p;
+            }
+        }
+        LivingEntity feed = getFeedTarget();
+        boolean legit = near == null || moved || !sameState
+                || super.isNoAi() || glimpseFrozen || isReviving() || ragdollRun != null || rageRun != null
+                || headGrabRun != null || stakingOut || isHiding() || walkAwayTicks > 0 || leaveTicks > 0
+                || holdTicks > 0 || stalkTicks > 0
+                || underTruce(near) || hidingFrom(near) || isFedOn(near)
+                || isEating() && feed != null && feed.isAlive() && st != FroggyState.CHASE && st != FroggyState.IDLE
+                || hasFeast();
+        if (legit) {
+            stuckSeconds = 0;
+            return;
+        }
+        if (++stuckSeconds < 30) return;
+        stuckSeconds = 0;
+        StringBuilder goals = new StringBuilder();
+        this.goalSelector.getRunningGoals().forEach(g -> goals.append(goals.length() > 0 ? "," : "")
+                .append(g.getGoal().getClass().getSimpleName()));
+        LivingEntity pinned = getPinnedVictim();
+        System.out.println(String.format(java.util.Locale.ROOT,
+                "[FROGGYDEBUG] destravei: 30 s parado com %s a %.0f blocos | estado=%s alvo=%s metas=[%s] comida=%s"
+                        + " preso=%s segurando=%d intencao=%s",
+                near.getScoreboardName(), Math.sqrt(best), st,
+                this.getTarget() == null ? "-" : this.getTarget().getName().getString(), goals,
+                feed == null ? "-" : feed.getName().getString() + (feed.isAlive() ? "" : "(morto)"),
+                pinned == null ? "-" : pinned.getName().getString(), holdTicks, decider.intent().label));
+        // larga tudo o que pode estar preso e volta a caçar quem está perto
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        for (var fl : RAGDOLL_FLAGS) this.goalSelector.enableControlFlag(fl);
+        if (feed != null) FeedLock.release(feed);
+        setFeedTarget(null);
+        if (pinned instanceof ServerPlayer pp) PinTracker.release(pp);
+        setPinnedVictim(null);
+        holdTicks = 0;
+        this.getNavigation().stop();
+        setFroggyState(FroggyState.CHASE);
+        setTarget(near);
+        brainLog("destravei: fiquei 30 s parado sem motivo, volto pra cima de " + near.getScoreboardName());
     }
 
     /** Mundo -dev: conta no chat o que o cérebro decidiu/aprendeu. */
@@ -1385,7 +1565,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     @Override
     public boolean isNoAi() {
-        return super.isNoAi() || isReviving();
+        return super.isNoAi() || isReviving() || getFroggyState() == FroggyState.INTRO;
     }
 
     /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
@@ -1963,7 +2143,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     /** Fala no chat como se fosse um jogador: "<FroggyDude> ..." (pra quem está perto e pra vítima). */
     public void chat(@Nullable LivingEntity target, String key) {
-        net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("<FroggyDude> ")
+        net.minecraft.network.chat.Component line = net.minecraft.network.chat.Component.literal("<FroggyDudeMC> ")
                 .append(net.minecraft.network.chat.Component.translatable(key));
         for (Player p : this.level().players()) {
             if (p instanceof ServerPlayer sp && (p == target || p.distanceTo(this) < 64.0F)) sp.sendSystemMessage(line);
@@ -2987,6 +3167,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             else endRevive();
             return;
         }
+        if (getFroggyState() == FroggyState.INTRO) {
+            introTick();
+            return;
+        }
+        if (introPending && this.tickCount % 10 == 0) tryStartIntro();
         // (v0.7.42) a IA dinâmica: o decisor escolhe o que fazer; as vontades andam a cada 1 s
         decider.tick();
         if (this.tickCount % 20 == 0) {
@@ -3058,6 +3243,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             // terminou de ir embora: some quando ela não estiver olhando (senão anda mais 1 s e confere de novo)
             if (walkAwayTicks == 0 && walkAwayPlayer != null && !vanishAfterMock()) walkAwayTicks = 20;
         }
+        if (this.tickCount % 20 == 0) watchdog();
+        breakVehicle();
         if (holdTicks > 0) {
             holdTicks--;
             if (getFroggyState() != FroggyState.IDLE && !isFrenzyActive()) setFroggyState(FroggyState.IDLE);
@@ -3405,6 +3592,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public boolean hurt(DamageSource source, float amount) {
         // (v0.7.35) remontando: "é cinema", nada machuca (só o /kill e o fundo do mundo)
         if (isReviving() && !Revive.final_(source)) return false;
+        // (v0.7.44) na entrada também (só /kill e o fundo do mundo)
+        if (getFroggyState() == FroggyState.INTRO && !Revive.final_(source)) return false;
         // (v0.7.30) a fúria do Avaritia: arma/flecha/área do Avaritia não machuca ele (raramente um arranhão)
         if (!this.level().isClientSide && FroggyConfig.ai().stealsWeapons() && fromAvaritia(source)) {
             if (this.getRandom().nextFloat() >= AVARITIA_GRAZE_CHANCE) {
@@ -3553,6 +3742,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             if (!super.isNoAi()) tag.remove("NoAI");
         }
         if (glimpseFrozen) tag.putBoolean("GlimpseFrozen", true);
+        if (introPending || getFroggyState() == FroggyState.INTRO) tag.putBoolean("IntroPending", true);
         if (debugPhase2In > 0) tag.putInt("DebugPhase2In", debugPhase2In);
         if (debugFar > 0) tag.putInt("DebugFar", debugFar);
         // a barriga, e o que estiver na boca/língua agora (salvou no meio da mastigada: conta como engolido)
@@ -3598,6 +3788,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             this.setHealth(Math.max(this.getHealth(), this.getMaxHealth() * 0.5F));
         }
         this.glimpseFrozen = tag.getBoolean("GlimpseFrozen");
+        this.introPending = tag.getBoolean("IntroPending");
         this.debugPhase2In = tag.getInt("DebugPhase2In");
         this.debugFar = tag.getInt("DebugFar");
         belly.clear();
@@ -3643,6 +3834,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
     private static final RawAnimation ANIM_RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
     private static final RawAnimation ANIM_HEAD_GRAB = RawAnimation.begin().thenPlayAndHold("head_grab");
+    private static final RawAnimation ANIM_INTRO = RawAnimation.begin().thenPlayAndHold("intro");
     private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation ANIM_RUN_FRENZY = RawAnimation.begin().thenLoop("run_frenzy");
@@ -3732,6 +3924,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 }
                 return state.setAndContinue(ANIM_REVIVE_LIE);
             }
+            case INTRO:
+                return state.setAndContinue(ANIM_INTRO);
             case HEAD_GRAB:
                 // (v0.7.41) o bote (o mesmo pulo baixo que derruba) e, montado, puxando a cabeça em trancos
                 return state.setAndContinue(headGrabState().isEmpty() ? ANIM_JUMP_PIN : ANIM_HEAD_GRAB);
@@ -3954,8 +4148,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      * Matou: deita em cima dos pedaços e "come" por 3 a 7 s (FroggyFeastGoal). A fala
      * de depois ("that was so delicious") fica pro fim. Devolve false se não vai comer.
      */
+    /** (v0.7.44) As maids do Touhou Little Maid, protegidas: ele não mira nelas nem revida (GoreSafe). */
+    @Override
+    public boolean canAttack(LivingEntity target) {
+        return !GoreSafe.spared(target) && super.canAttack(target);
+    }
+
     public boolean startFeast(LivingEntity victim, @Nullable VoiceSituation speech) {
-        if (!this.isAlive() || victim instanceof FroggydudeEntity) return false;
+        // (v0.7.44) maid do Touhou Little Maid: sem banquete (não sobra corpo pra comer)
+        if (!this.isAlive() || victim instanceof FroggydudeEntity || GoreSafe.spared(victim)) return false;
         feastSpot = presetFeastSpot != null ? presetFeastSpot : victim.position();
         presetFeastSpot = null;
         feastTicksLeft = 60 + this.getRandom().nextInt(81);

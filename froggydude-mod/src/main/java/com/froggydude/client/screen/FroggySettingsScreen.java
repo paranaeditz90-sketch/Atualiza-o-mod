@@ -48,6 +48,8 @@ public class FroggySettingsScreen extends Screen {
     private CycleButton<GoreLevel> button;
     private CycleButton<AiLevel> aiButton;
     private CycleButton<Boolean> invasionButton;
+    /** (v0.7.44) Touhou Little Maid: gore (desligado = protegidas): só aparece com o mod deles instalado. */
+    private CycleButton<Boolean> tlmButton;
     private Button warningButton;
     private Button languageButton;
 
@@ -66,6 +68,7 @@ public class FroggySettingsScreen extends Screen {
         button = null;
         aiButton = null;
         invasionButton = null;
+        tlmButton = null;
         warningButton = null;
         languageButton = null;
         Tab[] tabs = Tab.values();
@@ -103,6 +106,12 @@ public class FroggySettingsScreen extends Screen {
                                 b -> this.minecraft.setScreen(new GoreWarningScreen(this, false)))
                         .bounds(cx - 110, TOP + 70, 220, 20).build();
                 this.addRenderableWidget(warningButton);
+                if (net.minecraftforge.fml.ModList.get().isLoaded(com.froggydude.entity.GoreSafe.TLM)) {
+                    tlmButton = CycleButton.onOffBuilder(FroggyConfig.tlmGore())
+                            .create(cx - 110, TOP + 94, 220, 20, Component.translatable("froggydude.settings.tlm"),
+                                    (b, on) -> FroggyConfig.setTlmGore(on));
+                    this.addRenderableWidget(tlmButton);
+                }
             }
             case LANGUAGE -> {
                 // a tela de idioma do próprio Minecraft (o mod segue ela)
@@ -189,8 +198,10 @@ public class FroggySettingsScreen extends Screen {
             }
             case GORE -> {
                 g.drawCenteredString(this.font, Component.translatable("froggydude.settings.caution"), cx, TOP, 0xFF5050);
-                int y = text(g, GoreScreens.describe(FroggyClientConfig.gore()), TOP + 40, wrap, bottom - 24);
-                if (warningButton != null) warningButton.setY(Math.min(y + 4, bottom - 20));
+                int room = tlmButton != null ? 48 : 24;
+                int y = text(g, GoreScreens.describe(FroggyClientConfig.gore()), TOP + 40, wrap, bottom - room);
+                if (warningButton != null) warningButton.setY(Math.min(y + 4, bottom - room + 4));
+                if (tlmButton != null && warningButton != null) tlmButton.setY(warningButton.getY() + 24);
             }
             case LANGUAGE -> renderLanguage(g, cx, wrap, bottom);
         }

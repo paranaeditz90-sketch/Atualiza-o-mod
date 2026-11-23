@@ -59,6 +59,11 @@ public class FroggyDoorGoal extends Goal {
     @Nullable
     private BlockPos door;
     private int bashTicks;
+    // (v0.7.44) a armadilha de portas soltas: parado, dentro/encostado numa porta (aberta ou fechada)
+    private boolean trapped;
+    @Nullable
+    private Vec3 stuckFrom;
+    private int stuckSince;
 
     public FroggyDoorGoal(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -72,7 +77,9 @@ public class FroggyDoorGoal extends Goal {
     @Override
     public boolean canUse() {
         if (!froggy.isAlive() || froggy.isPassenger() || froggy.isNoAi()) return false;
-        door = doorAhead();
+        door = trapDoor();
+        trapped = door != null;
+        if (!trapped) door = doorAhead();
         return door != null;
     }
 
@@ -90,6 +97,11 @@ public class FroggyDoorGoal extends Goal {
         Level level = froggy.level();
         BlockState st = level.getBlockState(pos);
         bashTicks = 0;
+        if (trapped) {
+            escapeTrap(level, pos, st);
+            door = null;
+            return;
+        }
         if (!openable(st)) {
             // ferro: só se pode arrombar (senão o caminho nem passa por aqui)
             if (canBreak(froggy)) {
@@ -145,6 +157,59 @@ public class FroggyDoorGoal extends Goal {
         if (door != null && bashTicks > 0) froggy.level().destroyBlockProgress(froggy.getId(), door, -1);
         door = null;
         bashTicks = 0;
+    }
+
+    // ---------------------------------------------------------------- a armadilha de portas soltas
+
+    /**
+     * (v0.7.44, os prints do LM: o jogador põe porta solta no campo e ele fica preso na tábua, empurrando, enquanto
+     * cercam ele com mais porta.) O caminho do jogo acha que porta é passagem, aberta ou fechada, e a tábua segura ele.
+     * Parado ~0,5 s querendo ir pra algum lugar, com uma porta (qualquer estado) dentro ou encostada no corpo: é ela.
+     */
+    @Nullable
+    private BlockPos trapDoor() {
+        boolean wants = froggy.getTarget() != null || froggy.getNavigation().isInProgress();
+        Vec3 here = froggy.position();
+        if (!wants || stuckFrom == null || here.subtract(stuckFrom).horizontalDistanceSqr() > 0.04D) {
+            stuckFrom = here;
+            stuckSince = froggy.tickCount;
+            return null;
+        }
+        if (froggy.tickCount - stuckSince < 10) return null;
+        Level level = froggy.level();
+        var box = froggy.getBoundingBox().inflate(0.3D, 0.0D, 0.3D);
+        BlockPos best = null;
+        double bestD = Double.MAX_VALUE;
+        for (BlockPos pos : BlockPos.betweenClosed(BlockPos.containing(box.minX, box.minY, box.minZ),
+                BlockPos.containing(box.maxX, box.maxY - 0.01D, box.maxZ))) {
+            if (!isDoorLike(level.getBlockState(pos))) continue;
+            double d = Vec3.atCenterOf(pos).distanceToSqr(here);
+            if (d < bestD) {
+                bestD = d;
+                best = pos.immutable();
+            }
+        }
+        if (best == null) return null;
+        stuckFrom = null; // depois de agir, conta de novo do zero
+        return bottom(level, best);
+    }
+
+    /** Preso na porta: arromba na hora (madeira ou ferro); sem poder quebrar bloco, pula pra longe da tábua. */
+    private void escapeTrap(Level level, BlockPos pos, BlockState st) {
+        if (canBreak(froggy) && level instanceof ServerLevel && ForgeEventFactory.onEntityDestroyBlock(froggy, pos, st)) {
+            level.levelEvent(LevelEvent.SOUND_ZOMBIE_DOOR_CRASH, pos, 0);
+            destroyNoDrops(level, pos, froggy);
+            froggy.swing(InteractionHand.MAIN_HAND);
+            froggy.brainLog("preso na porta solta em " + pos.toShortString() + ": arrombou");
+            return;
+        }
+        Vec3 away = froggy.position().subtract(Vec3.atBottomCenterOf(pos)).multiply(1, 0, 1);
+        if (away.lengthSqr() < 1.0E-4D) away = Vec3.directionFromRotation(0, froggy.getYRot() + 180F);
+        away = away.normalize();
+        froggy.getNavigation().stop();
+        froggy.setDeltaMovement(away.x * 0.45D, 0.42D, away.z * 0.45D);
+        froggy.hasImpulse = true;
+        froggy.brainLog("preso na porta solta em " + pos.toShortString() + ": pulou pra fora (sem poder quebrar)");
     }
 
     // ---------------------------------------------------------------- o que tem na frente

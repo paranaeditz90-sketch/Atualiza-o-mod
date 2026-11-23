@@ -9,11 +9,26 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 ---
 
+## Fila do LM (23/11), na ordem sugerida; os vídeos de referência ficam só no scratchpad
+
+1. Grito novo de correr da fase 2 (vídeos de 23/11 13:25; o bom começa no 0:06; cortar o grito e a voz do macaco).
+2. Sons "A, B, C, D, E, F, G..." (5 vídeos de 13:34; tirar os tiros e as falas do Grox).
+3. Bote com ragdoll: câmera fixa no chão, ele pula em ti, tu voa mole ~1,5-2 s visto de fora e corta pra marreta
+   (1 em cada 3 botes; sem "Hey, monkey man").
+4. Ele se esconder do jogador em floresta fechada (medo e tensão).
+5. Jumpscare quando ele tem certeza que tu não tem saída (inventário sem picareta/meio de fugir; curvas de blocos).
+6. Raiva/depois de morrer (2º vídeo, MediaFire 13:44, 33-45 s): sobe flutuando alto no céu (um pontinho), mergulha
+   reto e muito rápido em cima de quem caçava (a tela enche), levanta na pose "()" da raiva e já parte pro próximo
+   ("Who's next?"; a fala não entra); ~10 s; aviso tipo conquista "RUN FOR YOUR LIFE!!!! NOW!!"
+   vermelho com sangue escorrendo; fôlego infinito pro jogador até acabar.
+7. Sistema de fuga (esperando o LM escolher: adrenalina, despistar o faro, isca, empurrão na hora certa).
+- Feito na 0.7.44 (não commitado): TLM, portas, barco, destravador, nome FroggyDudeMC, entrada, easter egg.
+
 ## Os dois mods
 
 | mod | pasta | versão | estado |
 |---|---|---|---|
-| Froggydude (a IA) | `froggydude-mod/` | 0.7.43 | 17/11: a morte do anti-trapaça com tela própria, por cima de mod de tela de morte (o "Death screen FNAF" do LM fazia o chiado ficar em loop sem a mensagem). Antes, 0.7.42: o anti-trapaça ("Trapaças?" na tela de criar mundo, Não por padrão: quem entra no criativo/espectador vê o vídeo do FroggyDude em 60 qps com som e morre com "Eu odeio TRAPAÇAS", sem renascer nunca mais; o vídeo vai no jar pelo pacote da voz) e a IA dinâmica, etapa 1 (só na IA Real: as vontades fome, raiva e tédio e o decisor que escolhe a cada 0,5 s entre caçar, tocaia, comer, a vila, fugir pra curar e explorar; comando `/froggydude vontades`). Antes, 0.7.41: a cutscene jogável da cabeça (no fim da raiva ele monta em ti e puxa a cabeça com o rugido; o alerta vermelho em cima da hotbar pede 1 tiro, 2 golpes de espada ou 3 socos; se soltou, ele voa no ragdoll; não deu, ele arranca a cabeça com a cena da zebra só da cabeça). A 0.7.40 (o ragdoll do tiro, a raiva "()" e as falas novas) e as anteriores estão no `NOTES.md` |
+| Froggydude (a IA) | `froggydude-mod/` | 0.7.44 | 22/11: as maids do Touhou Little Maid protegidas (pedido do time do TLM): opção "Touhou Little Maid: gore", desligada por padrão = ele não ataca/come e sem sangue/pedaços nelas; ligada = normal. Jogador com YSM igual. A armadilha de portas soltas: preso meio segundo numa porta (aberta ou fechada), ele arromba (sem mobGriefing, pula pra fora). Cutscene de entrada (1 vez por mundo: surge parado na pose olhando, "entrou no jogo", corta pra câmera baixa e uiva pro céu). Preso no barco/carrinho: arrebenta e segue. Nome "FroggyDudeMC" (entidade e chat). Destravador do "fica quieto e nem teleporta" (30 s parado sem motivo com gente perto: larga tudo e volta a caçar; escreve "[FROGGYDEBUG] destravei: ..." no log com o que prendia). Easter egg: o FroggyDudeMC de verdade recebe uma vez na vida "Vamos ver quem de nós dois sai vivo dessa... Impostor.". Bedrock abandonado (LM: "muitos bugs") e apagado. 17/11: a morte do anti-trapaça com tela própria, por cima de mod de tela de morte (o "Death screen FNAF" do LM fazia o chiado ficar em loop sem a mensagem). Antes, 0.7.42: o anti-trapaça ("Trapaças?" na tela de criar mundo, Não por padrão: quem entra no criativo/espectador vê o vídeo do FroggyDude em 60 qps com som e morre com "Eu odeio TRAPAÇAS", sem renascer nunca mais; o vídeo vai no jar pelo pacote da voz) e a IA dinâmica, etapa 1 (só na IA Real: as vontades fome, raiva e tédio e o decisor que escolhe a cada 0,5 s entre caçar, tocaia, comer, a vila, fugir pra curar e explorar; comando `/froggydude vontades`). Antes, 0.7.41: a cutscene jogável da cabeça (no fim da raiva ele monta em ti e puxa a cabeça com o rugido; o alerta vermelho em cima da hotbar pede 1 tiro, 2 golpes de espada ou 3 socos; se soltou, ele voa no ragdoll; não deu, ele arranca a cabeça com a cena da zebra só da cabeça). A 0.7.40 (o ragdoll do tiro, a raiva "()" e as falas novas) e as anteriores estão no `NOTES.md` |
 | BecomeLM (tu vira o Froggy, só pra gravar) | `becomelm-mod/` | 0.3.9 (rede "8") | 03/11: pulo super alto novo + tremida da marreta (0.3.6); parado no galope com as pernas retas "||" (0.3.7); câmera "Da vítima" na marreta igual ao vídeo do LM (0.3.8); nado do vídeo, galope por cima da lava sem fogo e a tremida de quem bate em 1ª pessoa (0.3.9) |
 
 Detalhes de cada versão: `froggydude-mod/NOTES.md` e `becomelm-mod/NOTES.md`.
