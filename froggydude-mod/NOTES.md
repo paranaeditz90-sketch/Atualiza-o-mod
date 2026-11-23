@@ -1,4 +1,4 @@
-# Froggydude - v0.7.45: a entrada com a pose e o uivo do vídeo (sobre a v0.7.44)
+# Froggydude - v0.7.46: o grito correndo na fase 2 e o alfabeto escondido (sobre a v0.7.45)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.45):
+O que testar agora (v0.7.46):
+- **Grito novo correndo na fase 2** (vídeos do LM 23/11; o grito do macaco do começo e as falas com "monkey" ficaram de
+  fora): transformado, correndo atrás de ti, de vez em quando (a cada 8-14 s) ele grita/ri furioso. São dois gritos do
+  vídeo, sorteados (1,7 s e 2,7 s, no pacote de voz); sem a voz, toca o rugido do ravager mais agudo. Ninguém fala por
+  cima, e não toca no meio do grito longo da transformação.
+  - Pra testar: `/froggydude fase2` perto dele e corre.
+- **Ele canta o alfabeto escondido** (vídeos do LM 23/11, FroggyDude VS Grox: ele canta "A, B, C, D, E, F, G..." no
+  labirinto sem o Grox ver): caçando alguém, a 8-40 blocos e FORA da tua vista, de vez em quando (no máximo a cada 1-2
+  min) tu ouve ele cantar o alfabeto em algum lugar. Duas tomadas do vídeo no pacote de voz (só a música: as falas e os
+  tiros do Grox ficaram de fora; dos 5 vídeos, só 2 tinham trecho sem o Grox por cima); sem a voz, um som de caverna
+  baixo. Testado aqui com som: ele cantou preso numa caixa 15 blocos atrás do jogador. A base do "esconder na floresta".
+
+O que tinha pra testar na v0.7.45:
 - **A entrada corrigida** (LM: "a animação de entrada não é igual a do comecinho de antes de pular" e "o som não é o do
   vídeo fazendo Auuuuf"): a pose agora é a do quadro do vídeo, MEDIDA com o rigfit (skill video-motion-analysis: pontos
   do corpo marcados no quadro, ângulos ajustados no esqueleto do mod, resíduo < 1°) a partir da descrição do LM: pernas

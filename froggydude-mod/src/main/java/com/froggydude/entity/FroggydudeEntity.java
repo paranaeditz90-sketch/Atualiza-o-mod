@@ -904,6 +904,50 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         brainLog("estava preso num " + v.getName().getString() + ": arrebentei");
     }
 
+    // ---------------------------------------------------------------- (v0.7.46) o grito correndo na fase 2
+
+    /** Quando pode gritar correndo de novo (tickCount). */
+    private int frenzyYellAt;
+
+    /**
+     * (v0.7.46, vídeos do LM 23/11: "novo grito de correr dele, na fase 2") na fase 2, correndo atrás de alguém (vindo
+     * rápido, sem estar falando nem no meio do grito da transformação), de vez em quando ele grita/ri furioso. Os dois
+     * gritos do vídeo estão no pacote de voz (sem a voz, o rugido do ravager agudo). A cada 8-14 s no máximo.
+     */
+    private void frenzyRunYell() {
+        if (!isFrenzyActive() || getFroggyState() != FroggyState.CHASE || !(this.getTarget() instanceof Player)) return;
+        if (this.tickCount < frenzyYellAt || vocalCooldown > 0 || screamTicks > 0 || muteTicks > 0) return;
+        if (this.getDeltaMovement().horizontalDistanceSqr() < 0.15D * 0.15D) return;
+        this.level().playSound(null, this, ModSounds.FRENZY_RUN.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
+        vocalCooldown = Math.max(vocalCooldown, 60); // ninguém fala por cima (o grito mais longo tem 2,7 s)
+        frenzyYellAt = this.tickCount + 160 + this.getRandom().nextInt(120);
+        brainLog("grito correndo (fase 2)");
+    }
+
+    // ---------------------------------------------------------------- (v0.7.46) cantando escondido
+
+    /** Quando pode cantar de novo (tickCount). */
+    private int abcAt = 600;
+
+    /**
+     * (v0.7.46, vídeos do LM 23/11, FroggyDude VS Grox: ele canta "A, B, C, D, E, F, G..." escondido no labirinto, sem o
+     * Grox ver) caçando alguém, a 8-40 blocos e FORA da vista dessa pessoa, sem briga, sem estar falando: de vez em quando
+     * (no máximo a cada 1-2 min) ele canta o alfabeto. As duas tomadas do vídeo ficam no pacote de voz (só a música, sem
+     * as falas e os tiros do Grox); sem a voz, um som de caverna baixo.
+     */
+    private void hiddenSing() {
+        if (this.tickCount < abcAt || !(this.getTarget() instanceof ServerPlayer p) || isFrenzyActive() || isFightingNow()) return;
+        if (vocalCooldown > 0 || muteTicks > 0 || screamTicks > 0) return;
+        double d = this.distanceTo(p);
+        if (d < 8.0D || d > 40.0D || com.froggydude.player.PlayerSight.sees(p, this)) return;
+        if (this.getRandom().nextInt(6) != 0) return; // não sempre que dá: o susto é não saber quando
+        this.level().playSound(null, this.getX(), this.getEyeY(), this.getZ(), ModSounds.ABC.get(), SoundSource.HOSTILE,
+                2.5F, 1.0F);
+        vocalCooldown = Math.max(vocalCooldown, 130); // a música inteira (6,2 s) sem fala por cima
+        abcAt = this.tickCount + 1200 + this.getRandom().nextInt(1200);
+        brainLog("cantando o alfabeto escondido de " + p.getScoreboardName());
+    }
+
     // ---------------------------------------------------------------- (v0.7.44) a cutscene de entrada
 
     /** Quanto dura a pose parada olhando (o 1º plano do vídeo, ~2,5 s) e a cena inteira (com o uivo, ~1,7 s). */
@@ -3246,6 +3290,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             if (walkAwayTicks == 0 && walkAwayPlayer != null && !vanishAfterMock()) walkAwayTicks = 20;
         }
         if (this.tickCount % 20 == 0) watchdog();
+        frenzyRunYell();
+        if (this.tickCount % 20 == 0) hiddenSing();
         breakVehicle();
         if (holdTicks > 0) {
             holdTicks--;

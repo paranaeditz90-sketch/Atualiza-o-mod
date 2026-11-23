@@ -189,6 +189,27 @@
     ],
     "subtitle": "subtitles.froggydude.death"
   },
+  "froggydude.abc": {
+    "subtitle": "subtitles.froggydude.abc",
+    "sounds": [
+      {
+        "name": "minecraft:ambient/cave/cave13",
+        "volume": 0.8,
+        "attenuation_distance": 40
+      }
+    ]
+  },
+  "froggydude.frenzy_run": {
+    "subtitle": "subtitles.froggydude.frenzy_run",
+    "sounds": [
+      {
+        "name": "minecraft:mob/ravager/roar1",
+        "pitch": 1.25,
+        "volume": 0.9,
+        "attenuation_distance": 48
+      }
+    ]
+  },
   "froggydude.intro_howl": {
     "subtitle": "subtitles.froggydude.intro_howl",
     "sounds": [

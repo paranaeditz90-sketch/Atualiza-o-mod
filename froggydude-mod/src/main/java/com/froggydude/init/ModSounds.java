@@ -40,6 +40,10 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> SCREAM = register("froggydude.scream");
     /** (v0.7.44) O uivo da entrada ("Ooooooh!" do vídeo, no pacote de voz; sem ele, o uivo do lobo grave). */
     public static final RegistryObject<SoundEvent> INTRO_HOWL = register("froggydude.intro_howl");
+    /** (v0.7.46) Correndo furioso na fase 2: o grito/risada de quando ele vem pra cima (vídeos do LM 23/11). */
+    public static final RegistryObject<SoundEvent> FRENZY_RUN = register("froggydude.frenzy_run");
+    /** (v0.7.46) Escondido, fora da vista de quem ele caça: canta "A, B, C, D, E, F, G..." (vs Grox, vídeos do LM). */
+    public static final RegistryObject<SoundEvent> ABC = register("froggydude.abc");
     public static final RegistryObject<SoundEvent> BITE = register("froggydude.bite");
     /** Comendo / "you taste so good". */
     public static final RegistryObject<SoundEvent> EAT = register("froggydude.eat");
