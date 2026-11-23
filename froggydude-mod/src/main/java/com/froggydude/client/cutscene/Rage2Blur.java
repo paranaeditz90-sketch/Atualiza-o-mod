@@ -32,8 +32,11 @@ import java.util.Set;
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class Rage2Blur {
 
-    /** Quanto do quadro anterior entra (a cena de morte usa 0,35). */
-    static final float BLUR_MIX = 0.6F;
+    /**
+     * Quanto do quadro anterior entra (a cena de morte usa 0,35). LM 23/11 sobre o 0,6: "ficou muito forte. Precisa ser
+     * quase imperceptível, só pra disfarçar levemente alguns erros (...) diminuir em 3 vezes".
+     */
+    static final float BLUR_MIX = 0.2F;
     /** As trocas de pose em milissegundos (FroggydudeEntity.RAGE2_GLITCH ticks), com uma folga de um tick. */
     private static final long GLITCH_MS = FroggydudeEntity.RAGE2_GLITCH * 50L + 50L;
     /** Quando (relógio de verdade) cada FroggyDude começou a raiva 2 aqui; -1 = chegou já no meio. */
