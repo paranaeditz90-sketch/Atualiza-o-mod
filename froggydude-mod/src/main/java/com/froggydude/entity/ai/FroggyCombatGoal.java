@@ -1170,6 +1170,7 @@ public class FroggyCombatGoal extends Goal {
 
     /** (v0.7.54) O fim da emboscada na floresta: ela virou pro barulho e ele pula (o bote baixo). */
     public void ambushPounce(LivingEntity target) {
+        real.skipAnnounce(1200);
         beginAttack(FroggyState.JUMP_PIN, target, froggy.distanceTo(target));
     }
 

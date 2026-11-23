@@ -117,7 +117,7 @@ final class JumpScare {
                     // atrás de ti, colado: o som vem das tuas costas
                     froggy.setSilent(false);
                     if (!froggy.speak(VoiceSituation.SEE_YOU, true)) {
-                        froggy.playSound(ModSounds.AMBIENT.get(), 1.4F, 0.75F);
+                        froggy.voice(ModSounds.AMBIENT.get(), 1.4F, 0.75F, 56, true);
                     }
                     spoke = true;
                     froggy.brainLog("jumpscare em " + p.getScoreboardName() + ": \"I see you\" nas costas");

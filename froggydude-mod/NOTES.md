@@ -1,4 +1,4 @@
-# Froggydude - v0.7.55: emboscada só quando tu vira (sobre a v0.7.54)
+# Froggydude - v0.7.56: pente fino nas vozes + ele não flutua mais (sobre a v0.7.55)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,28 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.55):
+O que testar agora (v0.7.56):
+- **Pente fino nas vozes** (LM 23/11: "as vezes do nada tocava o som novo enquanto o outro tava tocando"): agora toda a
+  voz dele passa por **um canal só**. Achados e consertados:
+  - quando uma fala "urgente" entrava cortando (o "give me your body" quando ele te derruba, o grito da transformação),
+    ela só sabia cortar fala normal: os sons novos (a fala da emboscada, o grito correndo, o alfabeto) continuavam
+    tocando por baixo. Agora corta qualquer um;
+  - o som "à toa" dele (que o próprio Minecraft toca sozinho) e o gemido de dano não marcavam que ele estava falando:
+    o alfabeto/grito correndo podiam começar por cima. Agora seguram o canal pelo tempo certo (medi cada som do
+    pacote de voz);
+  - os gemidos de dor seguravam o canal 1,5 s, mas tem gemido de 2,3 s: agora pela duração de verdade;
+  - os "tai" dos socos não entram mais no meio de uma fala;
+  - o "I see you" da IA Real cortava a fala da emboscada no meio do pulo (falando a mesma coisa): desligado por 1 min
+    depois da emboscada;
+  - a raiva 2 cala o que ele estiver falando quando começa; e o relógio da voz agora anda nas cenas paradas.
+  - **Testado no jogo** (emboscada + derrubada, fase 2 com gemidos, grito e grito correndo, raiva 2): o jogo anotou cada
+    som com o tick e a duração, e um script conferiu: **0 sobreposições**; e a gravação transcrita tem as falas uma de
+    cada vez.
+- **Ele não flutua mais** (LM: "além de ele voar se ficar sem blocos no chão"): nas cenas paradas (raiva 2, emboscada,
+  entrada) o jogo desliga a física dele (mob sem IA não cai). Agora ele cai sozinho, na vertical. Testado: na raiva 2 em
+  cima de um pilar de 3 blocos, tirei o pilar e ele caiu e ficou na pose no chão.
+
+O que tinha pra testar na v0.7.55:
 - **Emboscada: só pula quando tu vira** (LM: "ele aparece na frente do personagem, não quando ele se vira para trás"):
   o gatilho usava também o "ele aparece na tela" do teu jogo, que vale com câmera em 3ª pessoa (ele nas tuas costas
   aparece na tela), e no fim ele pulava pelas costas de qualquer jeito (e caía na tua frente). Agora:

@@ -294,6 +294,16 @@ final class RealTactics {
         return true;
     }
 
+    /**
+     * (v0.7.56) Sem o "I see you" por um tempo: a emboscada da floresta já fez o susto dela (o "I can see you, but you
+     * can't see me" e o pulo); o "I see you" cortava a fala dela no meio do pulo.
+     */
+    void skipAnnounce(int ticks) {
+        approach = null;
+        seeYouAt = -1;
+        seeYouReadyAt = Math.max(seeYouReadyAt, froggy.tickCount + ticks);
+    }
+
     /** O "I see you": chega de mansinho até a distância da fala, fala, rodeia e no fim dela o bote. */
     private boolean announce(ServerPlayer p, double dist) {
         if (seeYouAt < 0) {

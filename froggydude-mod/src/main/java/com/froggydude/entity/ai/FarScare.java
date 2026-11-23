@@ -162,7 +162,7 @@ final class FarScare {
             return;
         }
         if (n == 1) {
-            froggy.playSound(ModSounds.AMBIENT.get(), 1.2F, 0.75F + froggy.getRandom().nextFloat() * 0.2F);
+            froggy.voice(ModSounds.AMBIENT.get(), 1.2F, 0.75F + froggy.getRandom().nextFloat() * 0.2F, 56, false);
             return;
         }
         // passos: três, rápidos, no chão em que ele está

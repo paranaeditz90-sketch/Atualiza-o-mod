@@ -283,6 +283,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** A fala tocando agora (pra cortar quando precisa falar outra por cima). */
     @Nullable
     private VoiceLine speakingLine;
+    /**
+     * (v0.7.56) O som de VOZ tocando agora que não é uma fala da fila (grito correndo, alfabeto, a fala da emboscada,
+     * ambiente, gemido...): o canal único de voz corta ele também (antes só cortava fala da fila e o resto encavalava).
+     */
+    @Nullable
+    private ResourceLocation voiceSound;
     /** Fala esperando a vez (ex.: "who's next?" depois de "that was so delicious"). */
     @Nullable
     private VoiceSituation pendingSpeech;
@@ -546,7 +552,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         float love = 0.35F;
         if (vocalCooldown <= 0 && r < love && speak(VoiceSituation.PAIN)) return;
         if (r >= love && r < 0.7F && ribbit(1.8F)) return;
-        super.playHurtSound(source);
+        // o gemido curto do jogo, pelo canal (falando, apanha calado)
+        voice(ModSounds.HURT.get(), this.getSoundVolume(), this.getVoicePitch(), voiceTicks(ModSounds.HURT.get()), false);
     }
 
     /**
@@ -555,8 +562,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     public boolean ribbit(float volume) {
         if (this.level().isClientSide || vocalCooldown > 0 || ribbitCooldown > 0) return false;
-        this.playSound(ModSounds.RIBBIT.get(), volume, 0.9F + this.getRandom().nextFloat() * 0.2F);
-        vocalCooldown = 14;
+        if (!voice(ModSounds.RIBBIT.get(), volume, 0.9F + this.getRandom().nextFloat() * 0.2F, voiceTicks(ModSounds.RIBBIT.get()), false)) {
+            return false;
+        }
         ribbitCooldown = 30;
         return true;
     }
@@ -606,11 +614,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         return 240; // à toa ele quase não faz barulho (o ribbit é de raiva: ver ribbit())
     }
 
-    /** O som à toa não entra por cima de uma fala. */
+    /**
+     * O som à toa não entra por cima de uma fala (v0.7.56: e passa pelo canal único, segurando ele pela duração; antes
+     * tocava sem marcar e o alfabeto/grito correndo entravam por cima).
+     */
     @Override
     public void playAmbientSound() {
-        if (vocalCooldown > 0 || speakingLine != null || muteTicks > 0) return;
-        super.playAmbientSound();
+        if (this.level().isClientSide || vocalCooldown > 0 || speakingLine != null || muteTicks > 0) return;
+        SoundEvent s = this.getAmbientSound();
+        if (s != null) voice(s, this.getSoundVolume(), this.getVoicePitch(), voiceTicks(s), false);
     }
 
     /** Quando acha uma vítima nova: som de caça (froggydude.hunt). */
@@ -922,8 +934,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (!isFrenzyActive() || getFroggyState() != FroggyState.CHASE || !(this.getTarget() instanceof Player)) return;
         if (this.tickCount < frenzyYellAt || vocalCooldown > 0 || screamTicks > 0 || muteTicks > 0) return;
         if (this.getDeltaMovement().horizontalDistanceSqr() < 0.15D * 0.15D) return;
-        this.level().playSound(null, this, ModSounds.FRENZY_RUN.get(), SoundSource.HOSTILE, 3.0F, 1.0F);
-        vocalCooldown = Math.max(vocalCooldown, 60); // ninguém fala por cima (o grito mais longo tem 2,7 s)
+        if (!voice(ModSounds.FRENZY_RUN.get(), 3.0F, 1.0F, voiceTicks(ModSounds.FRENZY_RUN.get()), false)) return;
         frenzyYellAt = this.tickCount + 160 + this.getRandom().nextInt(120);
         brainLog("grito correndo (fase 2)");
     }
@@ -963,6 +974,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         rage2ReadyAt = this.tickCount + 18000;
         setFroggyState(FroggyState.RAGE2);
         faceDirection(p.getX() - this.getX(), p.getZ() - this.getZ());
+        if (this.level() instanceof ServerLevel server) stopSpeaking(server); // nada da fala de antes por cima do som
+        vocalCooldown = Math.max(vocalCooldown, RAGE2_GLITCH + 4);
         // (v0.7.49) o som original dele se contorcendo toca em cada cliente, junto com o começo das trocas
         // (client.cutscene.Rage2Blur); sem fala por cima: o mute do rage2Tick segura as falas
         brainLog("raiva 2: louco, depois parado 25 s (" + p.getScoreboardName() + " foge)");
@@ -971,7 +984,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     private void rage2Tick() {
         int t = getStateTicks();
-        this.setDeltaMovement(0, Math.min(0D, this.getDeltaMovement().y), 0);
+        frozenFall();
         this.getNavigation().stop();
         mute(10);
         Player p = rage2Prey == null ? null : this.level().getPlayerByUUID(rage2Prey);
@@ -1112,7 +1125,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     private void ambushTick() {
         int t = getStateTicks();
-        this.setDeltaMovement(0, Math.min(0D, this.getDeltaMovement().y), 0);
+        frozenFall();
         this.getNavigation().stop();
         mute(10);
         Player pl = ambushPrey == null ? null : this.level().getPlayerByUUID(ambushPrey);
@@ -1162,8 +1175,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     private void ambushSound(boolean line) {
         if (line) {
-            this.level().playSound(null, this.getX(), this.getEyeY(), this.getZ(), ModSounds.AMBUSH_LINE.get(),
-                    SoundSource.HOSTILE, 1.6F, 1.0F);
+            // corta o que estiver tocando (ele está escondido e calado; a fala tem que sair inteira)
+            voice(ModSounds.AMBUSH_LINE.get(), 1.6F, 1.0F, voiceTicks(ModSounds.AMBUSH_LINE.get()), true);
         } else {
             this.level().playSound(null, this.getX(), this.getY() + 0.1D, this.getZ(), ModSounds.AMBUSH_SNAP.get(),
                     SoundSource.HOSTILE, 1.4F, 0.9F + this.getRandom().nextFloat() * 0.2F);
@@ -1179,6 +1192,35 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         setTarget(p);
         combatGoal.ambushPounce(p);
         brainLog("emboscada: pulou em " + p.getScoreboardName());
+    }
+
+    /** O relógio do canal de voz (quanto falta da fala/grito de agora e do silêncio). */
+    private void tickVoiceClock() {
+        if (vocalCooldown > 0 && --vocalCooldown == 0) {
+            speakingLine = null;
+            voiceSound = null;
+        }
+        if (screamTicks > 0) screamTicks--;
+        if (muteTicks > 0) muteTicks--;
+    }
+
+    /**
+     * (v0.7.56, LM 23/11: "além de ele voar se ficar sem blocos no chão") nos estados parados sem IA (raiva 2, emboscada,
+     * entrada) o jogo não roda a física dele (mob sem IA não cai): tiraram o chão e ele ficava no ar. Aqui ele cai na
+     * mão, só na vertical (a gravidade e o arrasto do jogo), e para no chão.
+     */
+    private void frozenFall() {
+        Vec3 v = this.getDeltaMovement();
+        // a marca "no chão" não muda sem ele se mexer: olha se tem bloco logo embaixo de verdade
+        boolean supported = !this.level().noCollision(this, this.getBoundingBox().move(0D, -0.05D, 0D));
+        if (supported && v.y <= 0D) {
+            this.setDeltaMovement(0D, 0D, 0D);
+            this.setOnGround(true);
+            return;
+        }
+        double vy = (v.y - 0.08D) * 0.98D;
+        this.move(net.minecraft.world.entity.MoverType.SELF, new Vec3(0D, vy, 0D));
+        this.setDeltaMovement(0D, this.onGround() ? 0D : vy, 0D);
     }
 
     /** (v0.7.47) Quem está voando no bote com ragdoll (o id da entidade; -1 = ninguém). */
@@ -1220,9 +1262,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         double d = this.distanceTo(p);
         if (d < 8.0D || d > 40.0D || com.froggydude.player.PlayerSight.sees(p, this)) return;
         if (this.getRandom().nextInt(6) != 0) return; // não sempre que dá: o susto é não saber quando
-        this.level().playSound(null, this.getX(), this.getEyeY(), this.getZ(), ModSounds.ABC.get(), SoundSource.HOSTILE,
-                2.5F, 1.0F);
-        vocalCooldown = Math.max(vocalCooldown, 130); // a música inteira (6,2 s) sem fala por cima
+        if (!voice(ModSounds.ABC.get(), 2.5F, 1.0F, voiceTicks(ModSounds.ABC.get()), false)) return; // 6,2 s sem nada por cima
         abcAt = this.tickCount + 1200 + this.getRandom().nextInt(1200);
         brainLog("cantando o alfabeto escondido de " + p.getScoreboardName());
     }
@@ -1294,7 +1334,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private void introTick() {
         int age = introAge();
         mute(10); // sem falas soltas por cima da cena (o uivo toca direto, não pela voz)
-        this.setDeltaMovement(0, Math.min(0D, this.getDeltaMovement().y), 0);
+        frozenFall();
         this.getNavigation().stop();
         Entity v = this.level().getEntity(introViewerId());
         Player viewer = v instanceof Player p && p.isAlive() ? p : null;
@@ -2549,11 +2589,48 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      * De boca fechada: a boca aberta é só da língua e de arrancar membro (LM, v0.7.6).
      */
     public void vocalize(SoundEvent sound, float volume) {
-        if (vocalCooldown > 0) return;
-        this.playSound(sound, volume, 0.95F + this.getRandom().nextFloat() * 0.1F);
-        vocalCooldown = 30;
-        speakingLine = null;
+        voice(sound, volume, 0.95F + this.getRandom().nextFloat() * 0.1F, voiceTicks(sound), false);
     }
+
+    /**
+     * (v0.7.56, LM 23/11: "as vezes do nada tocava o som novo enquanto o outro tava tocando") o CANAL ÚNICO da voz dele:
+     * todo som com a voz dele passa aqui. Não toca por cima de nada que ainda esteja tocando (fala da fila, grito,
+     * alfabeto, ambiente...); com {@code interrupt}, corta o que está tocando antes (o grito da transformação, o
+     * "give me your body" de quando derruba). Segura o canal pela duração do som ({@code ticks}).
+     */
+    public boolean voice(SoundEvent sound, float volume, float pitch, int ticks, boolean interrupt) {
+        if (!(this.level() instanceof ServerLevel server)) return false;
+        if (vocalCooldown > 0 || screamTicks > 0) {
+            if (!interrupt) return false;
+            stopSpeaking(server);
+        }
+        this.level().playSound(null, this, sound, this.getSoundSource(), volume, pitch);
+        if (Boolean.getBoolean("froggydude.debug")) {
+            System.out.println("[FROGGYDEBUG] VOZ t=" + this.level().getGameTime() + " som=" + sound.getLocation().getPath() + " dura=" + ticks);
+        }
+        speakingLine = null;
+        voiceSound = sound.getLocation();
+        vocalCooldown = Math.max(vocalCooldown, ticks);
+        return true;
+    }
+
+    /** Quanto cada som de voz segura o canal (a maior duração das variações no pacote de voz, em ticks, +4). */
+    private static int voiceTicks(SoundEvent sound) {
+        ResourceLocation id = sound.getLocation();
+        String p = id.getPath();
+        return switch (p) {
+            case "froggydude.ambient" -> 56;
+            case "froggydude.ribbit" -> 21;
+            case "froggydude.hurt" -> 16;
+            case "froggydude.pain", "froggydude.contort_grunt" -> 51;
+            case "froggydude.love_pain" -> 57;
+            case "froggydude.frenzy_run" -> 58;
+            case "froggydude.abc", "froggydude.ambush_line" -> 128;
+            case "froggydude.smash_tai" -> 7;
+            default -> 30;
+        };
+    }
+
 
     // ---------------- falas (na ordem dos vídeos, ver entity/voice) ----------------
 
@@ -2575,9 +2652,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             stopSpeaking(server);
         }
         VoiceLine line = nextLine(server, situation);
-        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] fala " + situation + ": " + line.clip);
+        if (Boolean.getBoolean("froggydude.debug")) {
+            System.out.println("[FROGGYDEBUG] fala " + situation + ": " + line.clip);
+            System.out.println("[FROGGYDEBUG] VOZ t=" + this.level().getGameTime() + " som=" + line.clip + " dura=" + (line.ticks + 10));
+        }
         this.playSound(ModSounds.VOICE.get(line).get(), situation.volume(), 1.0F);
         speakingLine = line;
+        voiceSound = null;
         vocalCooldown = line.ticks + 10;
         return true;
     }
@@ -2676,14 +2757,19 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     /** Cala a fala que está tocando, pra quem está por perto. */
     private void stopSpeaking(ServerLevel server) {
-        if (speakingLine == null) return;
-        ClientboundStopSoundPacket stop = new ClientboundStopSoundPacket(
-                new ResourceLocation(ModEntityTypes.MOD_ID, speakingLine.soundName()), this.getSoundSource());
+        ResourceLocation id = speakingLine != null ? new ResourceLocation(ModEntityTypes.MOD_ID, speakingLine.soundName())
+                : voiceSound;
+        speakingLine = null;
+        voiceSound = null;
+        vocalCooldown = 0;
+        if (id == null) return;
+        if (Boolean.getBoolean("froggydude.debug")) {
+            System.out.println("[FROGGYDEBUG] VOZ t=" + this.level().getGameTime() + " cortada=" + id.getPath());
+        }
+        ClientboundStopSoundPacket stop = new ClientboundStopSoundPacket(id, this.getSoundSource());
         for (ServerPlayer p : server.players()) {
             if (p.distanceToSqr(this) < 96.0D * 96.0D) p.connection.send(stop);
         }
-        speakingLine = null;
-        vocalCooldown = 0;
     }
 
     public void onBiteHit() {
@@ -2718,7 +2804,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void onSmashHit() {
         this.playSound(ModSounds.SMASH.get(), 1.3F, 0.8F + this.getRandom().nextFloat() * 0.25F);
         // a cada soco ele solta um "tai!" (nos vídeos: "tai tai tai tai tai"); gritando, soca calado
-        if (screamTicks <= 0) this.playSound(ModSounds.SMASH_TAI.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
+        // (v0.7.56) e no meio de uma fala ("give me your body", "wanna eat you") soca calado: não encavala
+        if (screamTicks <= 0 && vocalCooldown <= 0) {
+            this.playSound(ModSounds.SMASH_TAI.get(), 1.4F, 0.95F + this.getRandom().nextFloat() * 0.1F);
+        }
     }
 
     /** O baque do pulo altíssimo no chão. */
@@ -3388,7 +3477,12 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public void playScream(int quietTicks) {
         // preso nele (o grito do pacote dura 13,6 s e ele sai correndo no meio: no vídeo o grito
         // vem junto com ele, não fica lá onde começou)
+        if (this.level() instanceof ServerLevel server) stopSpeaking(server); // o grito corta o que estiver falando
         this.level().playSound(null, this, ModSounds.SCREAM.get(), SoundSource.HOSTILE, 8.0F, 1.0F);
+        if (Boolean.getBoolean("froggydude.debug")) {
+            System.out.println("[FROGGYDEBUG] VOZ t=" + this.level().getGameTime() + " som=scream dura=" + quietTicks);
+        }
+        voiceSound = ModSounds.SCREAM.get().getLocation();
         vocalCooldown = Math.max(vocalCooldown, quietTicks); // não fala por cima do grito
         screamTicks = Math.max(screamTicks, quietTicks);     // nem o "give me your body" que corta
     }
@@ -3493,16 +3587,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             else endRevive();
             return;
         }
-        if (getFroggyState() == FroggyState.INTRO) {
-            introTick();
-            return;
-        }
-        if (getFroggyState() == FroggyState.RAGE2) {
-            rage2Tick();
-            return;
-        }
-        if (getFroggyState() == FroggyState.AMBUSH) {
-            ambushTick();
+        FroggyState frozen = getFroggyState();
+        if (frozen == FroggyState.INTRO || frozen == FroggyState.RAGE2 || frozen == FroggyState.AMBUSH) {
+            // (v0.7.56) o relógio da voz anda também nas cenas paradas (antes congelava e segurava o canal à toa depois)
+            tickVoiceClock();
+            if (frozen == FroggyState.INTRO) introTick();
+            else if (frozen == FroggyState.RAGE2) rage2Tick();
+            else ambushTick();
             return;
         }
         if (introPending && this.tickCount % 10 == 0) tryStartIntro();
@@ -3628,8 +3719,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (frenzyCooldown > 0) frenzyCooldown--;
         if (debugPhase2In > 0 && --debugPhase2In == 0) phase2Requested = true;
         if (noFallTicks > 0) noFallTicks--;
-        if (vocalCooldown > 0 && --vocalCooldown == 0) speakingLine = null;
-        if (screamTicks > 0) screamTicks--;
+        tickVoiceClock();
         tickReal();
         if (this.tickCount % 10 == 0) tickPredators();
         if (ribbitCooldown > 0) ribbitCooldown--;
@@ -3637,7 +3727,6 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // fase 2: correndo desesperado, ribbit de raiva a cada ~2-4 s
         if (isFrenzyActive() && this.tickCount % 40 == 0 && this.getRandom().nextBoolean()) ribbit(2.5F);
         if (irkPending || irkTicks >= 0) tickIrk();
-        if (muteTicks > 0) muteTicks--;
         if (pendingSpeech != null) {
             if (--pendingSpeechTicks <= 0 && vocalCooldown <= 0) {
                 speak(pendingSpeech);
