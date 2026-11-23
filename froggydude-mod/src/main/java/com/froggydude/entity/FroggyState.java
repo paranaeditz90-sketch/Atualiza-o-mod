@@ -115,7 +115,12 @@ public enum FroggyState {
      * (v0.7.44) A entrada (vídeo do LM 23/11, 1 vez por mundo): ele surge parado na pose de pulo olhando pra quem joga
      * ("FroggyDudeMC entrou no jogo"), corta pra câmera baixa atrás dele e ele uiva pro céu. Sem IA e sem dano.
      */
-    INTRO(0);
+    INTRO(0),
+    /**
+     * (v0.7.47) A raiva 2 (vídeos do LM 23/11 14:33): extremamente louco, troca de pose a cada tick (2 s) e trava no "()"
+     * da raiva, parado 25 s sem tomar dano, enquanto quem ele caça vê "FUJA! AGORA!". Sem IA.
+     */
+    RAGE2(0);
 
     public final int durationTicks;
 

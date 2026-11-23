@@ -924,6 +924,68 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         brainLog("grito correndo (fase 2)");
     }
 
+    // ---------------------------------------------------------------- (v0.7.47) a raiva 2
+
+    /** A troca de poses (2 s = tools/anim/build_anims.py RAGE2_GLITCH) e o tempo parado no "()" (25 s, LM). */
+    public static final int RAGE2_GLITCH = 40, RAGE2_HOLD = 500;
+    /** Quando pode ter a raiva 2 de novo (tickCount). */
+    private int rage2ReadyAt = 2400;
+    @Nullable
+    private UUID rage2Prey;
+
+    /**
+     * Extremamente irritado (a raiva das vontades no máximo) com quem ele caça a até 32 blocos, sem estar no meio de outra
+     * coisa: a raiva 2. No máximo a cada 15 min. Também pelo /froggydude raiva2.
+     */
+    private void maybeRage2() {
+        if (this.tickCount < rage2ReadyAt || drives.anger < 0.95F) return;
+        if (!(this.getTarget() instanceof ServerPlayer p) || this.distanceTo(p) > 32.0F) return;
+        FroggyState s = getFroggyState();
+        if ((s != FroggyState.CHASE && s != FroggyState.IDLE) || isFrenzyActive() || isEating() || isHolding()) return;
+        beginRage2(p);
+    }
+
+    /** Começa a raiva 2 contra p (o comando força, sem as condições). */
+    public boolean beginRage2(ServerPlayer p) {
+        if (isReviving() || ragdollRun != null || rageRun != null || headGrabRun != null || getFroggyState() == FroggyState.INTRO) {
+            return false;
+        }
+        this.goalSelector.getRunningGoals().forEach(WrappedGoal::stop);
+        this.getNavigation().stop();
+        rage2Prey = p.getUUID();
+        rage2ReadyAt = this.tickCount + 18000;
+        setFroggyState(FroggyState.RAGE2);
+        faceDirection(p.getX() - this.getX(), p.getZ() - this.getZ());
+        this.playSound(ModSounds.RIBBIT.get(), 3.0F, 0.7F);
+        brainLog("raiva 2: louco, depois parado 25 s (" + p.getScoreboardName() + " foge)");
+        return true;
+    }
+
+    private void rage2Tick() {
+        int t = getStateTicks();
+        this.setDeltaMovement(0, Math.min(0D, this.getDeltaMovement().y), 0);
+        this.getNavigation().stop();
+        mute(10);
+        Player p = rage2Prey == null ? null : this.level().getPlayerByUUID(rage2Prey);
+        if (p != null) faceDirection(p.getX() - this.getX(), p.getZ() - this.getZ());
+        // os ossos estalando enquanto troca de pose (a cada 2-4 ticks, como as trocas do vídeo)
+        if (t < RAGE2_GLITCH && t % (2 + this.getRandom().nextInt(3)) == 0) {
+            this.playSound(ModSounds.CONTORT_CRACK.get(), 1.6F, 0.7F + this.getRandom().nextFloat() * 0.6F);
+        }
+        if (t == RAGE2_GLITCH) this.playSound(ModSounds.RIBBIT.get(), 2.5F, 0.6F); // travou no "()"
+        if (t >= RAGE2_GLITCH + RAGE2_HOLD || p == null || !p.isAlive()) {
+            rage2Prey = null;
+            setFroggyState(FroggyState.CHASE);
+            if (p != null && p.isAlive() && !p.isCreative() && !p.isSpectator()) setTarget(p);
+            drives.anger = Math.min(drives.anger, 0.6F); // a raiva já saiu
+        }
+    }
+
+    /** Pro HUD do cliente: ele está na raiva 2 (trocando de pose ou parado no "()"). */
+    public boolean inRage2() {
+        return getFroggyState() == FroggyState.RAGE2;
+    }
+
     // ---------------------------------------------------------------- (v0.7.46) cantando escondido
 
     /** Quando pode cantar de novo (tickCount). */
@@ -1611,7 +1673,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     @Override
     public boolean isNoAi() {
-        return super.isNoAi() || isReviving() || getFroggyState() == FroggyState.INTRO;
+        return super.isNoAi() || isReviving() || getFroggyState() == FroggyState.INTRO || getFroggyState() == FroggyState.RAGE2;
     }
 
     /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
@@ -3217,6 +3279,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             introTick();
             return;
         }
+        if (getFroggyState() == FroggyState.RAGE2) {
+            rage2Tick();
+            return;
+        }
         if (introPending && this.tickCount % 10 == 0) tryStartIntro();
         // (v0.7.42) a IA dinâmica: o decisor escolhe o que fazer; as vontades andam a cada 1 s
         decider.tick();
@@ -3292,6 +3358,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (this.tickCount % 20 == 0) watchdog();
         frenzyRunYell();
         if (this.tickCount % 20 == 0) hiddenSing();
+        if (this.tickCount % 20 == 0) maybeRage2();
         breakVehicle();
         if (holdTicks > 0) {
             holdTicks--;
@@ -3642,6 +3709,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (isReviving() && !Revive.final_(source)) return false;
         // (v0.7.44) na entrada também (só /kill e o fundo do mundo)
         if (getFroggyState() == FroggyState.INTRO && !Revive.final_(source)) return false;
+        // (v0.7.47) na raiva 2 também: parado 25 s e nada machuca (LM: "não recebe dano nessa posição")
+        if (getFroggyState() == FroggyState.RAGE2 && !Revive.final_(source)) return false;
         // (v0.7.30) a fúria do Avaritia: arma/flecha/área do Avaritia não machuca ele (raramente um arranhão)
         if (!this.level().isClientSide && FroggyConfig.ai().stealsWeapons() && fromAvaritia(source)) {
             if (this.getRandom().nextFloat() >= AVARITIA_GRAZE_CHANCE) {
@@ -3883,6 +3952,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private static final RawAnimation ANIM_RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
     private static final RawAnimation ANIM_HEAD_GRAB = RawAnimation.begin().thenPlayAndHold("head_grab");
     private static final RawAnimation ANIM_INTRO = RawAnimation.begin().thenPlayAndHold("intro");
+    private static final RawAnimation ANIM_RAGE2 = RawAnimation.begin().thenPlayAndHold("rage2");
     private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
     private static final RawAnimation ANIM_RUN_FRENZY = RawAnimation.begin().thenLoop("run_frenzy");
@@ -3974,6 +4044,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
             case INTRO:
                 return state.setAndContinue(ANIM_INTRO);
+            case RAGE2:
+                return state.setAndContinue(ANIM_RAGE2);
             case HEAD_GRAB:
                 // (v0.7.41) o bote (o mesmo pulo baixo que derruba) e, montado, puxando a cabeça em trancos
                 return state.setAndContinue(headGrabState().isEmpty() ? ANIM_JUMP_PIN : ANIM_HEAD_GRAB);

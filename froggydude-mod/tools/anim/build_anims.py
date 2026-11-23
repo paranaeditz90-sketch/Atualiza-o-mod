@@ -679,6 +679,66 @@ while _t < SKY_FIM - 1e-6:   # a cabeça balança de leve pros lados até o fim
 _SKY.append((SKY_FIM, _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0)))
 ANIMS["sky_drop"] = animation(SKY_FIM, _SKY, "hold_on_last_frame")
 
+# A raiva 2 (v0.7.47, vídeos do LM 23/11 14:33, "rage 2"; entity.FroggydudeEntity RAGE2): extremamente louco, ele TROCA
+# DE POSE a cada quadro, sem transição nenhuma (33 trocas em ~1,8 s no vídeo 9ed81736, 5,1-6,9 s; o ccc41279 começa mais
+# devagar), e para na pose final da raiva, o "()" (rage_crouch), parado 25 s. As poses são as do vídeo, quadro a quadro
+# (o número é o quadro único da folha de análise), de frente pra quem olha.
+_R2 = {
+    "normal": pose(arm_spread=6, leg_spread=2),                                                           # 2
+    "T": pose(arm_spread=80, leg_spread=3),                                                               # 4
+    "curva_lado": pose(waist=85, waist_z=25, head=10, arms=-20, arm_spread=10, root_y=-4, legs=-40, knee=60,
+                       leg_spread=8),                                                                     # 5
+    "Y": pose(arms=-170, arm_spread=50, leg_spread=4),                                                    # 6, 18, 25
+    "tomba": pose(waist_z=-35, head_z=-20, arms=-10, arm_spread=15, leg_spread=4, leg_spread_l=40),         # 7, 19, 27
+    "torce_braco": pose(waist=50, waist_z=-30, head=20, head_z=-25, arms=-30, arm_l=-90, spread_l=70, arm_spread=10,
+                        leg_spread=6),                                                                    # 8
+    "T_agacha": pose(arm_spread=75, root_y=-3, legs=-35, knee=50, leg_l=0, leg_spread=4),                 # 9
+    "vira": pose(waist_y=25, waist_z=-15, head_z=-20, arms=-20, arm_spread=8, root_y=-2, legs=-25, knee=40,
+                 leg_spread=6),                                                                           # 11
+    "de_ponta_cabeca": pose(root_x=180, root_y=30, arm_spread=10, leg_spread=4),                          # 12
+    "cocoras": pose(root_y=-6, legs=-80, knee=150, waist=10, head=-5, arms=-10, arm_spread=12, leg_spread=10),  # 13
+    "reverencia": pose(waist=80, head=15, arms=-80, arm_spread=8, leg_spread=3),                          # 14
+    "bracos_tortos": pose(arms=-120, arm_spread=60, arm_l=-60, spread_l=70, waist_z=-8, leg_spread=2),    # 15
+    "chute": pose(waist_z=-10, arms=-5, arm_spread=8, leg_spread=2, leg_spread_l=45),                     # 16
+    "curva_funda": pose(waist=95, head=20, root_y=-5, legs=-40, knee=70, arms=-90, arm_spread=10, leg_spread=8),  # 17, 20
+    "agacha_bracos": pose(waist=20, head=10, root_y=-3, legs=-35, knee=60, arms=-15, arm_spread=22, leg_spread=8),  # 21, 29
+    "no_ar": pose(root_y=14, arms=-180, arm_spread=4, leg_spread=2),                                      # 22
+    "frente_lado": pose(waist=70, waist_z=35, head=10, root_y=-3, legs=-30, knee=50, arms=-60, arm_spread=12,
+                        leg_spread=8),                                                                    # 23, 32
+    "curva_torta": pose(waist=95, waist_z=-25, head=20, root_y=-5, legs=-40, knee=70, arms=-90, arm_spread=10,
+                        leg_spread=8),                                                                    # 24
+    "meia_torcida": pose(waist=40, waist_y=-20, head=15, arms=-35, arm_spread=12, root_y=-2, legs=-20, knee=35,
+                         leg_spread=6),                                                                   # 28, 33
+    "T_um_pe": pose(arm_spread=80, leg_l=-90, knee_l=110, knee=0, leg_spread=3),                          # 30
+    "em_pe_torto": pose(waist=12, head=12, waist_y=12, arms=-8, arm_spread=16, leg_spread=5),             # 31
+    "dobra_lado": pose(waist_z=-40, waist=20, head_z=-30, arms=-150, arm_spread=20, arm_l=-10, spread_l=15,
+                       leg_spread=6),                                                                     # 34
+}
+# a ordem do vídeo (quadros 2-34; o 3 repete o 2)
+_R2_ORDEM = ["normal", "T", "curva_lado", "Y", "tomba", "torce_braco", "T_agacha", "Y", "vira", "de_ponta_cabeca",
+             "cocoras", "reverencia", "bracos_tortos", "chute", "curva_funda", "Y", "tomba", "curva_funda",
+             "agacha_bracos", "no_ar", "frente_lado", "curva_torta", "Y", "Y", "tomba", "meia_torcida",
+             "agacha_bracos", "T_um_pe", "em_pe_torto", "frente_lado", "meia_torcida", "dobra_lado"]
+RAGE2_GLITCH = 2.0     # FroggydudeEntity.RAGE2_GLITCH (40 ticks)
+
+
+def _rage2_keys():
+    """Cada pose segura até a próxima entrar de uma vez (o mesmo valor até 1 ms antes da troca). Começa devagar como o
+    ccc41279 (as 3 primeiras a 0,25 s) e acelera pra 1 por tick do jogo (0,05 s), como o 9ed81736."""
+    ts = [0.0, 0.25, 0.5]
+    while len(ts) < len(_R2_ORDEM):
+        ts.append(round(ts[-1] + (0.25 if len(ts) < 3 else 0.05), 3))
+    ts.append(RAGE2_GLITCH)
+    keys = []
+    for i, name in enumerate(_R2_ORDEM):
+        keys.append((ts[i], _R2[name]))
+        keys.append((round(ts[i + 1] - 0.001, 3), _R2[name]))
+    keys.append((RAGE2_GLITCH, rage_crouch()))     # e trava no "()"
+    return keys
+
+
+ANIMS["rage2"] = animation(RAGE2_GLITCH, _rage2_keys(), "hold_on_last_frame")
+
 # A entrada (v0.7.44/45, vídeo do LM 23/11; entity.FroggydudeEntity INTRO e client.cutscene.IntroCamera): ele surge
 # parado na pose de antes de pular (LM: "Tem no nosso mod essa mesma animação de começar a pular, mas não pula, ele
 # uiva em seguida") - é a agachada do pulo do céu aos 0,336 s (sky_drop: braço direito aberto pra frente e pro lado, o

@@ -80,6 +80,7 @@ public final class FroggyCommand {
                                         FroggyConfig.get(FroggyConfig.MANHUNT_DIAS))))
                         .then(Commands.literal("parar").executes(c -> stopManhunt(c.getSource()))))
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
+                .then(Commands.literal("raiva2").requires(FroggyCommand::admin).executes(c -> rage2(c.getSource())))
                 .then(Commands.literal("irritar").requires(FroggyCommand::admin).executes(c -> irk(c.getSource())))
                 .then(Commands.literal("susto").requires(FroggyCommand::admin).executes(c -> jumpscare(c.getSource())))
                 // (v0.7.35) o renascer com a língua agora (sem ter que matar ele e torcer pros 35%)
@@ -488,6 +489,18 @@ public final class FroggyCommand {
         }
         f.requestPhase2();
         src.sendSuccess(() -> t("phase2"), true);
+        return 1;
+    }
+
+    /** (v0.7.47) Teste: a raiva 2 agora, contra quem mandou. */
+    private static int rage2(CommandSourceStack src) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null || f.level() != p.level() || !f.beginRage2(p)) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        src.sendSuccess(() -> t("rage2"), true);
         return 1;
     }
 

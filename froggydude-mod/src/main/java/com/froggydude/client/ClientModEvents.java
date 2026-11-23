@@ -56,6 +56,9 @@ public class ClientModEvents {
         // (v0.7.41) o alerta da cutscene da cabeça: em cima da hotbar, no vão entre os corações e a fome
         event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.HOTBAR.id(), "headgrab_alert",
                 (gui, gfx, partial, w, h) -> HeadGrabHud.render(gfx, partial, w, h));
+        // (v0.7.47) o "FUJA! AGORA!" da raiva 2, no mesmo lugar
+        event.registerAbove(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.HOTBAR.id(), "rage2_alert",
+                (gui, gfx, partial, w, h) -> Rage2Hud.render(gfx, partial, w, h));
         // faixas pretas e o escuro da cutscene do golpe final: por cima de tudo
         event.registerAboveAll("cutscene", (gui, gfx, partial, w, h) -> {
             com.froggydude.client.cutscene.CinematicCamera.renderOverlay(gfx, partial, w, h);

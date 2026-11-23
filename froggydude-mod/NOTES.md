@@ -1,4 +1,4 @@
-# Froggydude - v0.7.46: o grito correndo na fase 2 e o alfabeto escondido (sobre a v0.7.45)
+# Froggydude - v0.7.47: a raiva 2 (sobre a v0.7.46)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,16 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.46):
+O que testar agora (v0.7.47):
+- **Raiva 2** (vídeos do LM 23/11 14:33): extremamente irritado (a raiva dele no máximo, com quem ele caça a até 32
+  blocos; no máximo a cada 15 min), ele fica louco: **troca de pose de repente, sem animação entre elas** (as 32 poses
+  do vídeo, quadro a quadro, na mesma ordem: em pé, "T", curvado, braços em "Y", tombado com a perna chutada, de
+  ponta-cabeça no alto, de cócoras, num pé só...; começa devagar e acelera pra uma por tick, ~2 s, com os ossos
+  estalando) e **trava no "()" da raiva, parado 25 s, sem tomar dano**. Enquanto isso, em cima da hotbar: **"⚠ FUJA!
+  AGORA! ⚠"**, o texto vermelho piscando e os ⚠ amarelos. Depois ele volta a caçar. É a janela pra fugir.
+  - Pra testar: `/froggydude raiva2` perto dele.
+
+O que tinha pra testar na v0.7.46:
 - **Grito novo correndo na fase 2** (vídeos do LM 23/11; o grito do macaco do começo e as falas com "monkey" ficaram de
   fora): transformado, correndo atrás de ti, de vez em quando (a cada 8-14 s) ele grita/ri furioso. São dois gritos do
   vídeo, sorteados (1,7 s e 2,7 s, no pacote de voz); sem a voz, toca o rugido do ravager mais agudo. Ninguém fala por
