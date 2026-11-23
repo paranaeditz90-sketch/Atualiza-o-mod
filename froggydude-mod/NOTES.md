@@ -1,4 +1,4 @@
-# Froggydude - v0.7.52: o pulão no pilar (sobre a v0.7.51)
+# Froggydude - v0.7.53: bote com ragdoll raro e dinâmico (sobre a v0.7.52)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,13 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.52):
+O que testar agora (v0.7.53):
+- **Bote com ragdoll raro e dinâmico** (LM 23/11: "deixa só como raro essa animação, pra não tocar toda hora"): na caça,
+  quando o bote baixo ia virar marreta, a chance era 1 em 3; agora é **6%**, mais **até 10%** com a raiva dele alta e
+  **+6%** se tu tava correndo na hora (o embalo joga longe); **nunca** com parede/bloco a menos de 4 blocos no rumo do
+  voo; e no máximo **1 a cada 4 min**. O do pilar continua sempre (é o único jeito de te tirar de lá).
+
+O que tinha pra testar na v0.7.52:
 - **Pilar de blocos** (LM 23/11: "quando um jogador sobe um pilar e quebra os blocos de baixo, o froggydude não consegue
   pegar o jogador"; "faz uma varredura pra saber onde ele tá em específico, daí ele derruba (sempre com ragdoll)"):
   tu no topo de um pilar (3+ blocos acima dele, sem chão em volta dos teus pés, sem caminho até lá):

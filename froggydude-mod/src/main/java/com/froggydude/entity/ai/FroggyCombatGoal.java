@@ -1735,11 +1735,12 @@ public class FroggyCombatGoal extends Goal {
         if (dbg == null && forced != null) dbg = forced;
         boolean smash = dbg == FroggyState.SMASH
                 || (dbg != FroggyState.PIN_HOLD && froggy.getRandom().nextBoolean());
-        // (v0.7.48) o bote com ragdoll: 1 em cada 3 vezes que o bote baixo ia pra marreta num jogador, ele voa girando
-        // antes (froggydude.tackleAlways: todo bote baixo que pega um jogador, pra testar)
+        // (v0.7.48/53) o bote com ragdoll, quando o bote baixo ia pra marreta num jogador: RARO e dinâmico (LM 23/11:
+        // "deixa só como raro essa animação, pra não tocar toda hora"), ver tackleRoll (froggydude.tackleAlways: todo bote
+        // baixo que pega um jogador, pra testar)
         boolean always = Boolean.getBoolean("froggydude.tackleAlways");
-        if ((smash || always) && (dbg == null || always) && target instanceof ServerPlayer p
-                && (always || froggy.getRandom().nextInt(3) == 0)) {
+        if ((smash || always) && (dbg == null || always) && target instanceof ServerPlayer p && (always || tackleRoll(p))) {
+            tackleReadyAt = froggy.tickCount + TACKLE_COOLDOWN;
             startTackle(p, FroggyState.JUMP_PIN, null);
             return;
         }
@@ -1756,6 +1757,28 @@ public class FroggyCombatGoal extends Goal {
     private static final double TACKLE_SPEED = 0.8D, TACKLE_UP = 0.55D;
     /** Ele voa do lado de quem leva o bote (blocos), pra cair do lado dela (a marreta é de joelhos do lado). */
     private static final double TACKLE_SIDE = 0.75D;
+    /** (v0.7.53) Depois de um bote com ragdoll na caça, nenhum outro por 4 min (o do pilar não conta: é o único jeito). */
+    private static final int TACKLE_COOLDOWN = 4800;
+    private int tackleReadyAt;
+
+    /**
+     * A chance do bote com ragdoll num bote baixo que ia virar marreta: base de 6%, mais com a raiva dele (até +10%) e
+     * com ela correndo na hora (+6%: o embalo joga longe), nunca com parede/bloco no caminho do voo (o voo bateria logo);
+     * e uma vez a cada 4 min no máximo.
+     */
+    private boolean tackleRoll(ServerPlayer p) {
+        if (froggy.tickCount < tackleReadyAt) return false;
+        Vec3 d = p.position().subtract(froggy.position()).multiply(1, 0, 1);
+        if (d.lengthSqr() < 1.0E-4D) return false;
+        Vec3 dir = d.normalize();
+        // 4 blocos de espaço livre no rumo do voo (na altura do corpo)
+        for (double k = 1.0D; k <= 4.0D; k += 1.0D) {
+            if (!froggy.level().noCollision(p, p.getBoundingBox().move(dir.scale(k)).move(0, 0.6D, 0))) return false;
+        }
+        double chance = 0.06D + 0.10D * Mth.clamp(froggy.drives().anger, 0F, 1F) + (targetPace > 0.18D ? 0.06D : 0.0D);
+        return froggy.getRandom().nextDouble() < chance;
+    }
+
     /** No máximo isso no ar (caindo de um pilar bem alto). */
     private static final int TACKLE_MAX = 120;
     /** De que lado dela ele voa (horizontal, unitário). */
