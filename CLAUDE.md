@@ -20,6 +20,8 @@ Onde paramos: `PROGRESSO.md`. Plano: `PLANO.md`. Notas de cada versão (o LM tes
   Quadros, áudio e transcrições de vídeo de referência ficam no scratchpad, nunca no repo.
 - **Sem chaves, tokens ou segredos no Git** (vão em variável de ambiente da nuvem).
 - Preservar os arquivos e as mudanças do LM.
+- **Sempre mandar vídeo com áudio** do que mudou, gravado no jogo (o LM vê pelo celular; testar cada .jar lá é
+  difícil). Sem vídeo, dizer o porquê e gravar na próxima.
 
 ## Skills do repo (`.claude/skills/`)
 

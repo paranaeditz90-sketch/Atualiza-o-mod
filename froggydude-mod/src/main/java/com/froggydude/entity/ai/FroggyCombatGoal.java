@@ -3,6 +3,7 @@ package com.froggydude.entity.ai;
 import com.froggydude.entity.FroggyState;
 import com.froggydude.entity.FroggydudeEntity;
 import com.froggydude.entity.PinTracker;
+import com.froggydude.entity.Ragdoll;
 import com.froggydude.brain.Strategy;
 import com.froggydude.brain.Style;
 import com.froggydude.config.AiLevel;
@@ -1749,34 +1750,66 @@ public class FroggyCombatGoal extends Goal {
     /** Pra onde quem voa foi arremessado (horizontal, unitário). */
     @javax.annotation.Nullable
     private Vec3 tackleDir;
+    /** (v0.7.51) O empurrão do bote (blocos/tick): ~6 blocos pra frente, ~0,7 s no ar. Os dois levam o mesmo. */
+    private static final double TACKLE_SPEED = 0.8D, TACKLE_UP = 0.55D;
+    /** Ele voa do lado de quem leva o bote (blocos), pra cair do lado dela (a marreta é de joelhos do lado). */
+    private static final double TACKLE_SIDE = 0.75D;
 
-    /** O bote pegou em cheio: arremessa pra longe e pra cima, e ele vai junto, montado. */
+    /**
+     * O bote pegou em cheio (v0.7.51, LM 23/11: "o jogador ter realmente ragdoll junto com o FroggyDude", "o froggydude
+     * cai sempre bem colado com o jogador (não como cola)", "sempre cair do lado do jogador por causa do martelo"): os
+     * dois saem com o mesmo empurrão, ele um passo do lado dela, e voam de verdade (cada um com a própria física);
+     * no cliente os dois corpos ficam moles (client.pieces.RagdollScene e PlayerRagdollScene).
+     */
     private void startTackle(ServerPlayer p) {
         finishAttack(FroggyState.JUMP_PIN);
         Vec3 d = p.position().subtract(froggy.position()).multiply(1, 0, 1);
         if (d.lengthSqr() < 1.0E-4D) d = froggy.getLookAngle().multiply(1, 0, 1);
+        if (d.lengthSqr() < 1.0E-4D) d = new Vec3(0, 0, 1);
         tackleDir = d.normalize();
+        Vec3 side = new Vec3(-tackleDir.z, 0, tackleDir.x);
+        // o lado que tem espaço (sem bloco onde ele ficaria)
+        Vec3 at = p.position().add(side.scale(TACKLE_SIDE)).subtract(tackleDir.scale(0.2D));
+        if (!froggy.level().noCollision(froggy, froggy.getBoundingBox().move(at.subtract(froggy.position())))) {
+            side = side.scale(-1D);
+            at = p.position().add(side.scale(TACKLE_SIDE)).subtract(tackleDir.scale(0.2D));
+            if (!froggy.level().noCollision(froggy, froggy.getBoundingBox().move(at.subtract(froggy.position())))) {
+                at = froggy.position();
+            }
+        }
+        Vec3 push = new Vec3(tackleDir.x * TACKLE_SPEED, TACKLE_UP, tackleDir.z * TACKLE_SPEED);
         p.setSprinting(false);
-        p.setDeltaMovement(tackleDir.x * 0.85D, 0.55D, tackleDir.z * 0.85D);
+        p.setDeltaMovement(push);
         p.hurtMarked = true;
         p.fallDistance = 0F;
+        froggy.getNavigation().stop();
+        froggy.setPos(at.x, at.y, at.z);
+        froggy.faceDirection(tackleDir.x, tackleDir.z);
+        froggy.setDeltaMovement(push);
+        froggy.setOnGround(false);
+        froggy.hurtMarked = true;
+        froggy.hasImpulse = true;
+        froggy.setNoFallTicks(60);
+        froggy.setTackleRagdoll(new Ragdoll.Params(froggy.level().getGameTime(), (float) tackleDir.x, (float) tackleDir.z,
+                (float) TACKLE_SPEED, (float) TACKLE_UP, froggy.getRandom().nextInt(), -1L, -1L));
         froggy.setTackleVictim(p.getId());
         froggy.setFroggyState(FroggyState.TACKLE);
-        froggy.getNavigation().stop();
-        debug("bote com ragdoll: " + p.getScoreboardName() + " voa girando");
+        debug("bote com ragdoll: " + p.getScoreboardName() + " e ele voam moles");
     }
 
-    /** Voando: ele vai colado em cima; quando a pessoa cai (ou o tempo acaba), corta pra marreta. */
+    /** Voando os dois: ele não anda sozinho (só a física); os dois no chão (ou o tempo acabou), corta pra marreta. */
     private void runTackle(LivingEntity target) {
         int t = froggy.getStateTicks();
-        Vec3 dir = tackleDir == null ? froggy.getLookAngle().multiply(1, 0, 1).normalize() : tackleDir;
-        Vec3 at = target.position().subtract(dir.scale(0.7D)).add(0, 0.3D, 0);
-        froggy.setDeltaMovement(target.getDeltaMovement());
-        froggy.moveTo(at.x, at.y, at.z, froggy.getYRot(), froggy.getXRot());
-        froggy.faceDirection(dir.x, dir.z);
+        froggy.getNavigation().stop();
+        froggy.setSpeed(0F);
+        froggy.setZza(0F);
+        froggy.setXxa(0F);
         target.fallDistance = 0F;
-        if (t >= FroggyState.TACKLE.durationTicks || (t >= 22 && target.onGround())) {
+        froggy.fallDistance = 0F;
+        // caíram e ficaram um tico moles no chão (o "1,5-2 s" do LM), ou acabou o tempo
+        if (t >= FroggyState.TACKLE.durationTicks || (t >= 28 && target.onGround() && froggy.onGround())) {
             froggy.setTackleVictim(-1);
+            froggy.setTackleRagdoll(null);
             tackleDir = null;
             beginSmash(FroggyState.JUMP_PIN, target, 1.6F);
         }

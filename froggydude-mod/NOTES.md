@@ -1,4 +1,4 @@
-# Froggydude - v0.7.50: borrão da raiva 2 3x mais fraco (sobre a v0.7.49)
+# Froggydude - v0.7.51: bote com ragdoll mole de verdade (sobre a v0.7.50)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.50):
+O que testar agora (v0.7.51):
+- **Bote com ragdoll v2** (LM 23/11: "o boneco todo duro", "câmera atrás do froggydude, 3 blocos, se tiver bloco
+  tapando ela se corrige", "os dois caem juntos, bem colado", "sempre cair do lado do jogador por causa do martelo"):
+  - **tu fica mole de verdade**: a mesma física do ragdoll do tiro dele (juntas com peso, tronco rígido, cabeça e
+    pernas com limites de gente, cada parte batendo no chão), desenhada com o teu skin (com chapéu/jaqueta/mangas/calça;
+    armadura e item na mão não aparecem nesse 1,5 s);
+  - **ele também voa mole**, do teu lado (~0,7 bloco), com o mesmo empurrão: os dois voam juntos, giram e caem lado a
+    lado; ficam um tico moles no chão e corta pra marreta (ele de joelhos do teu lado, como sempre);
+  - **a câmera** para 3 blocos atrás dele no instante do bote, na altura dos olhos, e fica ali virando pra acompanhar
+    os dois; bloco no caminho: ela anda pra frente até ver.
+  - Pra testar: deixa ele te caçar em campo aberto a uns 4-7 blocos (1 em cada 3 botes que iam virar marreta).
+
+O que tinha pra testar na v0.7.50:
 - **Borrão da raiva 2 3x mais fraco** (LM: "ficou muito forte. Precisa ser quase imperceptível"): de 60% pra 20% do
   quadro anterior, só pra disfarçar de leve. O resto da raiva 2 é igual à 0.7.49 (abaixo).
 

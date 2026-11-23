@@ -993,6 +993,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.set(DATA_TACKLE, id);
     }
 
+    /**
+     * (v0.7.51) No bote com ragdoll ele voa MOLE junto com a vítima: os mesmos números do ragdoll do tiro (o corpo de
+     * juntas do cliente, client.pieces.RagdollScene, também desenha o estado TACKLE); null = acabou.
+     */
+    public void setTackleRagdoll(@Nullable Ragdoll.Params p) {
+        this.entityData.set(DATA_RAGDOLL, p == null ? new CompoundTag() : p.toTag());
+    }
+
     /** Pro HUD do cliente: ele está na raiva 2 (trocando de pose ou parado no "()"). */
     public boolean inRage2() {
         return getFroggyState() == FroggyState.RAGE2;

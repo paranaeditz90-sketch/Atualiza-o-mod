@@ -122,10 +122,10 @@ public enum FroggyState {
      */
     RAGE2(0),
     /**
-     * (v0.7.48) O bote com ragdoll (vídeo do LM 23/11, o do macaco): o bote baixo pega e arremessa quem caça, que voa
-     * girando mole (~1,7 s, câmera fixa no chão vendo de fora), e corta pra marreta.
+     * (v0.7.48/51) O bote com ragdoll (vídeo do LM 23/11, o do macaco): o bote baixo pega e os dois voam MOLES juntos
+     * (ele do lado da vítima), vistos de uma câmera 3 blocos atrás dele; caíram (~1,5 s), corta pra marreta. No máximo 2 s.
      */
-    TACKLE(34);
+    TACKLE(40);
 
     public final int durationTicks;
 

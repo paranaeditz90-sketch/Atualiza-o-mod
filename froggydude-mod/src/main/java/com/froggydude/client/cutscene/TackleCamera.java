@@ -2,8 +2,10 @@ package com.froggydude.client.cutscene;
 
 import com.froggydude.entity.CutsceneCamera;
 import com.froggydude.entity.FroggydudeEntity;
+import com.froggydude.entity.Ragdoll;
+import com.froggydude.client.pieces.PlayerRagdollScene;
+import net.minecraft.client.player.AbstractClientPlayer;
 import com.froggydude.init.ModEntityTypes;
-import com.mojang.math.Axis;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -24,20 +26,21 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * (v0.7.48) O bote com ragdoll (vídeo do LM 23/11: "ele pula nele, ativando uma ragdoll (uns 1,5-2s de duração), e
- * automaticamente pula para a parte da marreta", "em outra visão"): quem voa é visto de fora, de uma câmera fixa no chão,
- * de lado, onde o bote pegou; o corpo gira mole no ar (aqui no cliente, pra todo mundo que vê). Quando ele cai, a marreta
- * (em 1ª pessoa) assume. Sem mão, sem mira, sem andar.
+ * (v0.7.48/51) O bote com ragdoll, pra quem leva o bote. LM 23/11: "Atrás do froggydude, antes de ele começar a animação
+ * do ragdoll, distância de 3 blocos (câmera dinâmica, se tiver bloco tapando, ela precisa se corrigir sozinha)": a câmera
+ * para 3 blocos atrás dele (no rumo do voo, na altura dos olhos) no instante do bote e fica ali, virando pra acompanhar os
+ * dois voando moles (o meio entre ele e quem voa); se um bloco tapar, ela anda pra frente na linha até ver. Quando caem,
+ * a marreta (em 1ª pessoa) assume. Sem mão, sem mira, sem andar.
+ * <p>
+ * O corpo mole de quem voa (pra todo mundo que vê) é o client.pieces.PlayerRagdollScene, no lugar do desenho normal.
  */
 @Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class TackleCamera {
 
-    /** De lado (blocos), baixo (perto do chão), um pouco pra trás de onde o bote pegou. */
-    private static final double SIDE = 4.5D, HEIGHT = 0.35D, BACK = 1.0D;
+    /** Atrás dele (blocos) e a altura dos olhos de quem estava em pé ali. */
+    private static final double BACK = 3.0D, HEIGHT = 1.5D;
 
     @Nullable
     private static FroggydudeEntity froggy;
@@ -45,10 +48,9 @@ public final class TackleCamera {
     private static CutsceneCamera cam;
     @Nullable
     private static CameraType savedType;
+    /** Onde a câmera quer ficar (fixo) e onde ficou no último quadro (corrigida pelos blocos). */
     @Nullable
-    private static Vec3 camPos;
-    /** Quando cada um que voa começou a voar (tick do jogo do cliente), pro giro. */
-    private static final Map<Integer, Long> FLYING = new HashMap<>();
+    private static Vec3 camWant;
 
     private TackleCamera() {
     }
@@ -93,21 +95,11 @@ public final class TackleCamera {
         }
         if (savedType == null) savedType = mc.options.getCameraType();
         mc.options.setCameraType(CameraType.FIRST_PERSON);
-        // a câmera fica parada: de lado do rumo do voo, baixa, um pouco atrás de onde pegou
-        Vec3 p = mc.player.position();
-        Vec3 dir = p.subtract(f.position()).multiply(1, 0, 1);
+        // 3 blocos atrás dele, no rumo do voo (o do ragdoll; sem ele, dele pra quem voa)
+        Ragdoll.Params rp = f.ragdollParams();
+        Vec3 dir = rp != null ? new Vec3(rp.dx(), 0, rp.dz()) : mc.player.position().subtract(f.position()).multiply(1, 0, 1);
         dir = dir.lengthSqr() < 1.0E-4D ? new Vec3(0, 0, 1) : dir.normalize();
-        Vec3 side = new Vec3(-dir.z, 0, dir.x);
-        Vec3 want = p.add(side.scale(SIDE)).subtract(dir.scale(BACK)).add(0, HEIGHT, 0);
-        Vec3 from = p.add(0, 1.0D, 0);
-        var hit = mc.level.clip(new ClipContext(from, want, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
-        if (hit.getType() == HitResult.Type.BLOCK) {
-            // sem espaço desse lado: o outro
-            want = p.subtract(side.scale(SIDE)).subtract(dir.scale(BACK)).add(0, HEIGHT, 0);
-            hit = mc.level.clip(new ClipContext(from, want, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
-            if (hit.getType() == HitResult.Type.BLOCK) want = hit.getLocation().add(from.subtract(want).normalize().scale(0.3D));
-        }
-        camPos = want;
+        camWant = f.position().subtract(dir.scale(BACK)).add(0, HEIGHT, 0);
     }
 
     private static void stop(Minecraft mc) {
@@ -116,16 +108,25 @@ public final class TackleCamera {
         if (savedType != null) mc.options.setCameraType(savedType);
         savedType = null;
         froggy = null;
-        camPos = null;
+        camWant = null;
     }
 
     private static void place(Minecraft mc, float partial) {
-        if (camPos == null) return;
-        Vec3 aim = mc.player.getPosition(partial).add(0, 0.8D, 0);
-        Vec3 d = aim.subtract(camPos);
+        if (camWant == null || froggy == null) return;
+        // olha pro meio dos dois
+        Vec3 aim = mc.player.getPosition(partial).add(froggy.getPosition(partial)).scale(0.5D).add(0, 0.6D, 0);
+        // bloco no caminho: vem pra frente na linha até enxergar (corrige sozinha a cada quadro)
+        Vec3 pos = camWant;
+        var hit = mc.level.clip(new ClipContext(aim, camWant, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
+        if (hit.getType() == HitResult.Type.BLOCK) {
+            Vec3 back = camWant.subtract(aim);
+            double len = back.length();
+            pos = len < 1.0E-4D ? aim : hit.getLocation().subtract(back.scale(0.3D / len));
+        }
+        Vec3 d = aim.subtract(pos);
         float yaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
         float pitch = (float) -(Mth.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)) * Mth.RAD_TO_DEG);
-        cam.setPos(camPos.x, camPos.y - cam.getEyeHeight(), camPos.z);
+        cam.setPos(pos.x, pos.y - cam.getEyeHeight(), pos.z);
         cam.xo = cam.xOld = cam.getX();
         cam.yo = cam.yOld = cam.getY();
         cam.zo = cam.zOld = cam.getZ();
@@ -135,33 +136,20 @@ public final class TackleCamera {
         cam.xRotO = pitch;
     }
 
-    /** O corpo de quem voa gira mole: cambalhota pra frente e um pouco de lado, mais rápido no começo. */
+    /** Quem voa no bote: o corpo mole (PlayerRagdollScene) no lugar do desenho normal, pra todo mundo que vê. */
     @SubscribeEvent
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
         Player p = event.getEntity();
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-        if (tackler(p) == null) {
-            FLYING.remove(p.getId());
+        if (!(p instanceof AbstractClientPlayer pl)) return;
+        FroggydudeEntity f = tackler(p);
+        Ragdoll.Params rp = f == null ? null : f.ragdollParams();
+        if (rp == null) {
+            PlayerRagdollScene.end(p.getId());
             return;
         }
-        long start = FLYING.computeIfAbsent(p.getId(), k -> mc.level.getGameTime());
-        float age = mc.level.getGameTime() - start + event.getPartialTick();
-        float spin = 720F * (1F - (float) Math.exp(-age / 14F)); // ~2 voltas, freando
-        var ps = event.getPoseStack();
-        ps.pushPose();
-        ps.translate(0, 0.9D, 0);
-        ps.mulPose(Axis.XP.rotationDegrees(spin));
-        ps.mulPose(Axis.ZP.rotationDegrees(25F * Mth.sin(age * 0.45F)));
-        ps.translate(0, -0.9D, 0);
-        PUSHED.add(p.getId());
-    }
-
-    private static final java.util.Set<Integer> PUSHED = new java.util.HashSet<>();
-
-    @SubscribeEvent
-    public static void onRenderPlayerPost(RenderPlayerEvent.Post event) {
-        if (PUSHED.remove(event.getEntity().getId())) event.getPoseStack().popPose();
+        event.setCanceled(true);
+        PlayerRagdollScene.of(pl, rp).render(pl, event.getRenderer().getModel(), event.getPoseStack(),
+                event.getMultiBufferSource(), event.getPackedLight(), event.getPartialTick());
     }
 
     @SubscribeEvent

@@ -245,7 +245,8 @@ public final class RagdollScene {
     /** A cena dele (cria se começou um ragdoll novo); null se não está mole. */
     @Nullable
     public static RagdollScene of(FroggydudeEntity f) {
-        if (f.getFroggyState() != FroggyState.RAGDOLL) {
+        // (v0.7.51) também no bote com ragdoll (TACKLE): ele voa mole junto com a vítima
+        if (f.getFroggyState() != FroggyState.RAGDOLL && f.getFroggyState() != FroggyState.TACKLE) {
             SCENES.remove(f.getId());
             return null;
         }
