@@ -946,6 +946,36 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      * RAGE2) e o tempo parado na pose final (25 s, LM).
      */
     public static final int RAGE2_GLITCH = 32, RAGE2_HOLD = 500;
+    /** Perto no fim da raiva 2 (blocos): o pulo absurdo; mais longe: a disparada. */
+    private static final double RAGE2_NEAR = 12.0D;
+    /** A disparada depois da raiva 2: +70% de velocidade por 12 s. */
+    private static final int RAGE2_RUSH = 240;
+    private static final UUID RAGE2_RUSH_ID = UUID.fromString("6f1c2a9e-3b7d-4e55-9a1e-2d8c4b7f0a57");
+    private int rage2RushUntil = -1;
+
+    /** (v0.7.57) Na disparada do fim da raiva 2: só corre atrás, sem chegar de mansinho nem encarar. */
+    public boolean rage2Rushing() {
+        return rage2RushUntil >= 0;
+    }
+
+    private void startRage2Rush() {
+        var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null && speed.getModifier(RAGE2_RUSH_ID) == null) {
+            speed.addTransientModifier(new AttributeModifier(RAGE2_RUSH_ID, "froggy_rage2_rush", 0.7D,
+                    AttributeModifier.Operation.MULTIPLY_TOTAL));
+        }
+        rage2RushUntil = this.tickCount + RAGE2_RUSH;
+        combatGoal.skipAnnounce(RAGE2_RUSH); // vem direto, sem parar pra anunciar
+    }
+
+    private void tickRage2Rush() {
+        if (rage2RushUntil < 0 || this.tickCount < rage2RushUntil) return;
+        rage2RushUntil = -1;
+        var speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) speed.removeModifier(RAGE2_RUSH_ID);
+        drives.anger = Math.min(drives.anger, 0.6F); // agora sim a raiva sai
+    }
+
     /** Quando pode ter a raiva 2 de novo (tickCount). */
     private int rage2ReadyAt = 2400;
     @Nullable
@@ -992,8 +1022,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (t >= RAGE2_GLITCH + RAGE2_HOLD || p == null || !p.isAlive()) {
             rage2Prey = null;
             setFroggyState(FroggyState.CHASE);
-            if (p != null && p.isAlive() && !p.isCreative() && !p.isSpectator()) setTarget(p);
-            drives.anger = Math.min(drives.anger, 0.6F); // a raiva já saiu
+            if (!(p instanceof ServerPlayer sp) || !sp.isAlive() || sp.isCreative() || sp.isSpectator()) {
+                drives.anger = Math.min(drives.anger, 0.6F);
+                return;
+            }
+            setTarget(sp);
+            // (v0.7.57, LM 23/11: "e depois do 'Run!! Now!!' o que ele faz?") o fim tem que cumprir o aviso:
+            if (this.distanceTo(sp) <= RAGE2_NEAR) {
+                // não fugiu: o pulo absurdo que arranca o braço
+                brainLog("raiva 2 acabou com " + sp.getScoreboardName() + " perto: pulo absurdo");
+                combatGoal.rage2Strike(sp);
+            } else {
+                // fugiu: o grito e a disparada atrás dela (a raiva só baixa quando a disparada acaba)
+                voice(ModSounds.FRENZY_RUN.get(), 3.5F, 0.95F, voiceTicks(ModSounds.FRENZY_RUN.get()), true);
+                startRage2Rush();
+                brainLog("raiva 2 acabou: disparada atrás de " + sp.getScoreboardName());
+            }
         }
     }
 
@@ -1257,7 +1301,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      * as falas e os tiros do Grox); sem a voz, um som de caverna baixo.
      */
     private void hiddenSing() {
-        if (this.tickCount < abcAt || !(this.getTarget() instanceof ServerPlayer p) || isFrenzyActive() || isFightingNow()) return;
+        if (this.tickCount < abcAt || !(this.getTarget() instanceof ServerPlayer p) || isFrenzyActive() || isFightingNow()
+                || rage2RushUntil >= 0) return;
         if (vocalCooldown > 0 || muteTicks > 0 || screamTicks > 0) return;
         double d = this.distanceTo(p);
         if (d < 8.0D || d > 40.0D || com.froggydude.player.PlayerSight.sees(p, this)) return;
@@ -3673,6 +3718,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (this.tickCount % 20 == 0) hiddenSing();
         if (this.tickCount % 20 == 0) maybeRage2();
         if (this.tickCount % 20 == 10) maybeAmbush();
+        tickRage2Rush();
         breakVehicle();
         if (holdTicks > 0) {
             holdTicks--;

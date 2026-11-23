@@ -127,7 +127,7 @@ final class RealTactics {
                     PlayerSight.dark(froggy), PlayerSight.distracted(player)));
         }
         // fase 2: só corre atrás, gritando (Grox 5:28)
-        if (froggy.isFrenzyActive() || froggy.isMocking(target)) {
+        if (froggy.isFrenzyActive() || froggy.isMocking(target) || froggy.rage2Rushing()) {
             endSequences();
             return false;
         }

@@ -318,7 +318,12 @@ public class FroggyCombatGoal extends Goal {
         double dist = froggy.distanceTo(target);
         if (froggy.tickCount % 10 == 0) observe(target, dist);
         // o jumpscare raro: some, "I see you" nas costas, na tua cara (JumpScare)
-        if (jumpScare.tick(target, dist)) return;
+        boolean rush = froggy.rage2Rushing();
+        if (rush && froggy.tickCount % 20 == 0) {
+            debug(String.format(java.util.Locale.ROOT, "disparada: estado=%s dist=%.2f espreita=%s irritado=%s ataqueCd=%d navFeita=%s",
+                    state, dist, froggy.isStalking(), froggy.isIrked(), froggy.getAttackCooldown(), froggy.getNavigation().isDone()));
+        }
+        if (!rush && jumpScare.tick(target, dist)) return;
 
         switch (state) {
             case PIN_HOLD -> {
@@ -376,7 +381,7 @@ public class FroggyCombatGoal extends Goal {
         // (v0.7.22) dentro d'água: nada de verdade atrás dela (e o barco)
         if (swimChase(target, dist)) return;
         // te viu de longe e sorteou o medo: o barulho sem aparecer antes da caçada (FarScare)
-        if (farScare.tick(target, dist)) return;
+        if (!rush && farScare.tick(target, dist)) return;
 
         // a vítima subiu numa torre/parede: ele vai atrás, de quatro, parede acima.
         // Nada de ficar olhando de longe nem de puxar com a língua lá de baixo - antes,
@@ -389,7 +394,7 @@ public class FroggyCombatGoal extends Goal {
         // antes, no modo "só olhando", ele fugia de quem se aproximava e voltava depois)
         boolean charging = !elevated && dist <= 8.0D && approachSpeed(target) > 0.06D;
         // perto (ou lá em cima, ou vindo pra cima dele): acabou o "só olhando"
-        if (froggy.isStalking() && (dist <= 7.0D || elevated || charging)) {
+        if (froggy.isStalking() && (rush || dist <= 7.0D || elevated || charging)) {
             froggy.stopStalking();
         }
         if (froggy.isStalking()) {
@@ -408,7 +413,8 @@ public class FroggyCombatGoal extends Goal {
         // Extra/Máx: escudo levantado na cara dele - dá a volta antes de atacar
         if (!elevated && sidestepShield(target, dist)) return;
 
-        if (!irked && froggy.getAttackCooldown() <= 0) {
+        // (v0.7.57) na disparada do fim da raiva 2 nada de pulo de longe: corre até colar e aí ataca
+        if (!irked && froggy.getAttackCooldown() <= 0 && !(rush && dist > 4.0D)) {
             FroggyState next = pickAttack(target, dist, elevated);
             if (next != null) {
                 // na hora de partir pra cima, às vezes a raiva vem antes do bote
@@ -1169,6 +1175,25 @@ public class FroggyCombatGoal extends Goal {
     }
 
     /** (v0.7.54) O fim da emboscada na floresta: ela virou pro barulho e ele pula (o bote baixo). */
+    /** (v0.7.57) O fim da raiva 2 com ela ainda perto: o pulo teleguiado em velocidade absurda que arranca o braço. */
+    private boolean rage2Strike;
+
+    /**
+     * (v0.7.57, LM 23/11: "se o jogador continuar perto, ele pula direto no jogador em velocidade absurda e já arranca o
+     * braço") o castigo de quem não fugiu da raiva 2: o bote baixo, mas sai na hora e voa reto e teleguiado nela
+     * (~1,6 blocos/tick), e ao encostar já crava os dentes no ombro e arranca o braço (sem braço pra arrancar: a marreta).
+     */
+    public void rage2Strike(LivingEntity target) {
+        real.skipAnnounce(1200);
+        rage2Strike = true;
+        beginAttack(FroggyState.JUMP_PIN, target, froggy.distanceTo(target));
+    }
+
+    /** (v0.7.57) A disparada do fim da raiva 2: nada de parar pra anunciar o "I see you" no meio. */
+    public void skipAnnounce(int ticks) {
+        real.skipAnnounce(ticks);
+    }
+
     public void ambushPounce(LivingEntity target) {
         real.skipAnnounce(1200);
         beginAttack(FroggyState.JUMP_PIN, target, froggy.distanceTo(target));
@@ -1530,6 +1555,16 @@ public class FroggyCombatGoal extends Goal {
                         return;
                     }
                 }
+                if (rage2Strike && !launched && t >= 2) {
+                    // o pulo absurdo do fim da raiva 2: sai já, reto nela
+                    launched = true;
+                    Vec3 d = target.position().add(0, 0.6D, 0).subtract(froggy.position());
+                    froggy.setDeltaMovement(d.normalize().scale(RAGE2_STRIKE_SPEED).add(0, 0.25D, 0));
+                    froggy.setNoFallTicks(60);
+                    froggy.hasImpulse = true;
+                    froggy.onLeapLaunch();
+                    return;
+                }
                 if (!launched && t >= launchAt) {
                     launched = true;
                     boolean ok = high ? launch(target, HIGH_JUMP_VY, HIGH_JUMP_AIR, 3.5D, 10.0D)
@@ -1544,6 +1579,34 @@ public class FroggyCombatGoal extends Goal {
                         }
                         return;
                     }
+                }
+                if (rage2Strike && launched && !fired1) {
+                    // teleguiado: corrige o rumo todo tick, em cheio nela
+                    if (touching(target, 0.7D) || froggy.distanceTo(target) <= 1.6D) {
+                        fired1 = true;
+                        rage2Strike = false;
+                        attackHit = true;
+                        froggy.setDeltaMovement(Vec3.ZERO);
+                        hurtNoKnockback(target, 4.0F);
+                        froggy.spawnBlood(target, 8);
+                        if (target instanceof ServerPlayer rp && ArmLoss.canLoseArm(rp)) {
+                            debug("raiva 2: pulo absurdo, arranca o braço");
+                            finishAttack(state);
+                            beginArmRip(target);
+                        } else {
+                            beginSmash(state, target, 1.8F);
+                        }
+                        return;
+                    }
+                    if (t > 40) {
+                        rage2Strike = false;
+                        abort(state);
+                        return;
+                    }
+                    Vec3 d = target.position().add(0, 0.6D, 0).subtract(froggy.position());
+                    froggy.setDeltaMovement(d.normalize().scale(RAGE2_STRIKE_SPEED));
+                    froggy.faceTarget(target);
+                    return;
                 }
                 if (launched && !fired1) {
                     // no ar ele confere TODO tick se trombou na vítima (de frente ela passava por baixo)
@@ -1784,6 +1847,9 @@ public class FroggyCombatGoal extends Goal {
         double chance = 0.06D + 0.10D * Mth.clamp(froggy.drives().anger, 0F, 1F) + (targetPace > 0.18D ? 0.06D : 0.0D);
         return froggy.getRandom().nextDouble() < chance;
     }
+
+    /** O pulo absurdo do fim da raiva 2 (blocos/tick; o bote baixo normal sai a ~0,6). */
+    private static final double RAGE2_STRIKE_SPEED = 1.6D;
 
     /** No máximo isso no ar (caindo de um pilar bem alto). */
     private static final int TACKLE_MAX = 120;
@@ -2049,6 +2115,7 @@ public class FroggyCombatGoal extends Goal {
     }
 
     private void abort(FroggyState state) {
+        rage2Strike = false;
         if (state.isCapture()) capture.reset();
         froggy.setCooldown(state, 30);
         froggy.setAttackCooldown(10);

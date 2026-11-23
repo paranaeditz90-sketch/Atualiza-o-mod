@@ -1,4 +1,4 @@
-# Froggydude - v0.7.56: pente fino nas vozes + ele não flutua mais (sobre a v0.7.55)
+# Froggydude - v0.7.57: o fim da raiva 2 (perto: pulo absurdo e o braço; longe: disparada) (sobre a v0.7.56)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,19 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.56):
+O que testar agora (v0.7.57):
+- **O fim da raiva 2** (LM 23/11: "se o jogador continuar perto, ele pula direto no jogador em velocidade absurda e já
+  arranca o braço"). Quando acabam os 25 s parado na pose:
+  - **tu ainda perto (até 12 blocos)**: ele se lança direto em ti, rápido (o dobro do bote normal), corrigindo a mira no
+    ar; encostou, já **arranca o braço** (se tu ainda tiver o braço; senão, te derruba e esmaga);
+  - **tu longe**: o grito de correr da fase 2 e ele dispara atrás de ti a toda velocidade (+70%) por 12 s, com a raiva lá
+    em cima. Nada de chegar de mansinho, encarar, espreitar, cantar o alfabeto ou pular de longe no meio: corre até
+    colar e aí ataca. Depois dos 12 s a raiva baixa e volta ao normal.
+  - **Testado no jogo**: perto, o pulo e o braço arrancado; longe (35 blocos, de costas pra ele), ele correu os 35 blocos
+    sem parar e te derrubou. Antes desse conserto ele parava a uns 10 blocos (a "chegada de mansinho" da IA Real e o
+    pulo do céu de longe atrapalhavam a disparada).
+
+O que tinha pra testar na v0.7.56:
 - **Pente fino nas vozes** (LM 23/11: "as vezes do nada tocava o som novo enquanto o outro tava tocando"): agora toda a
   voz dele passa por **um canal só**. Achados e consertados:
   - quando uma fala "urgente" entrava cortando (o "give me your body" quando ele te derruba, o grito da transformação),

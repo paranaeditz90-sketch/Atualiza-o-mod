@@ -30,6 +30,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
     FroggyDude (vídeo 9ed81736, 5,78-7,40 s), animação com a duração do áudio.
 11. ~~Bote com ragdoll v2~~ (feito na 0.7.51) (LM 23/11): o boneco ficou duro; câmera fixa atrás antes do pulo, ragdoll mole de verdade
     junto com o FroggyDude, caindo do lado da vítima.
+12. ~~Fim da raiva 2~~ (feito na 0.7.57) (LM 23/11): "se o jogador continuar perto, ele pula direto no jogador em velocidade
+    absurda e já arranca o braço"; longe: o grito de correr e a disparada a toda velocidade, sem parar no meio.
 - Feito na 0.7.44 (não commitado): TLM, portas, barco, destravador, nome FroggyDudeMC, entrada, easter egg.
 
 ## Os dois mods
