@@ -993,8 +993,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private int ambushReadyAt = 6000;
     @Nullable
     private UUID ambushPrey;
-    /** Quando toca o 1º som, o 2º (se ela não olhou) e quando ele pula de qualquer jeito (ticks do estado). */
-    private int ambushCue1, ambushCue2, ambushGiveUp;
+    /** Quando toca o 1º som, o 2º e o 3º (se ela não olhou) e quando ele desiste quieto (ticks do estado). */
+    private int ambushCue1, ambushCue2, ambushCue3, ambushGiveUp, ambushMoves;
     private boolean ambushFirstLine;
 
     /**
@@ -1054,7 +1054,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         ambushPrey = p.getUUID();
         ambushCue1 = 30 + this.getRandom().nextInt(30);
         ambushCue2 = ambushCue1 + 110;
-        ambushGiveUp = ambushCue1 + 240;
+        ambushCue3 = ambushCue2 + 120;
+        ambushGiveUp = ambushCue3 + 140;
+        ambushMoves = 0;
         ambushFirstLine = this.getRandom().nextInt(3) == 0; // o graveto é o mais comum; a fala, 1 em 3
         ambushReadyAt = this.tickCount + 18000 + this.getRandom().nextInt(12000);
         setTarget(p);
@@ -1114,20 +1116,41 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.getNavigation().stop();
         mute(10);
         Player pl = ambushPrey == null ? null : this.level().getPlayerByUUID(ambushPrey);
-        if (!(pl instanceof ServerPlayer p) || !p.isAlive() || p.isCreative() || p.isSpectator() || this.distanceTo(p) > 14.0F) {
+        if (!(pl instanceof ServerPlayer p) || !p.isAlive() || p.isCreative() || p.isSpectator() || this.distanceTo(p) > 24.0F) {
             endAmbush(null, false);
             return;
         }
+        // ela andou pra longe: volta pra trás dela, sem ela ver (até 4 vezes). Virando devagar pro lado dele, não: é
+        // justamente o susto
+        if (t % 20 == 0 && !lookingAtMe(p) && behind(p) && this.distanceTo(p) > 7.5F && ambushMoves < 4) {
+            Vec3 again = ambushSpot(p);
+            if (again != null && !com.froggydude.player.PlayerSight.sees(p, this)) {
+                ambushMoves++;
+                this.moveTo(again.x, again.y, again.z, this.getYRot(), 0F);
+            }
+        }
         faceDirection(p.getX() - this.getX(), p.getZ() - this.getZ());
         this.getLookControl().setLookAt(p, 30.0F, 30.0F);
-        // virou pra ele (pro barulho, ou sem querer): assim que ele aparece na tela dela, na hora ele pula
-        if (t > 4 && (lookingAtMe(p) || com.froggydude.player.PlayerSight.sees(p, this))) {
+        // virou pra ele (pro barulho, ou sem querer): na hora ele pula. Só o rumo do olhar dela conta (LM: "ele aparece
+        // na frente do personagem, não quando ele se vira pra trás": o "aparece na tela" do cliente valia também de
+        // câmera em 3ª pessoa, com ele nas costas, e ele pulava antes de ela virar)
+        if (t > 4 && lookingAtMe(p)) {
             endAmbush(p, true);
             return;
         }
         if (t == ambushCue1) ambushSound(ambushFirstLine);
         if (t == ambushCue2) ambushSound(!ambushFirstLine);
-        if (t >= ambushGiveUp) endAmbush(p, true); // nem assim: pula pelas costas
+        if (t == ambushCue3) ambushSound(false);
+        // nem assim ela virou: desiste quieto (nunca pula pelas costas: o susto é ela virar e dar de cara)
+        if (t >= ambushGiveUp) endAmbush(p, false);
+    }
+
+    /** Ele está nas costas dela (a mais de ~100° do rumo do olhar). */
+    private boolean behind(ServerPlayer p) {
+        Vec3 to = this.position().subtract(p.position()).multiply(1, 0, 1);
+        Vec3 look = p.getViewVector(1.0F).multiply(1, 0, 1);
+        if (to.lengthSqr() < 1.0E-4D || look.lengthSqr() < 1.0E-4D) return true;
+        return to.normalize().dot(look.normalize()) < -0.17D;
     }
 
     /** Ela olha pro lado dele (até ~45° do meio da tela), mesmo com folha no meio: virou pro barulho. */

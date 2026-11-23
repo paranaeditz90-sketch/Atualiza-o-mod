@@ -1,4 +1,4 @@
-# Froggydude - v0.7.54: a emboscada na floresta (sobre a v0.7.53)
+# Froggydude - v0.7.55: emboscada só quando tu vira (sobre a v0.7.54)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,15 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.54):
+O que testar agora (v0.7.55):
+- **Emboscada: só pula quando tu vira** (LM: "ele aparece na frente do personagem, não quando ele se vira para trás"):
+  o gatilho usava também o "ele aparece na tela" do teu jogo, que vale com câmera em 3ª pessoa (ele nas tuas costas
+  aparece na tela), e no fim ele pulava pelas costas de qualquer jeito (e caía na tua frente). Agora:
+  - só conta **o rumo do teu olhar** (virou até ~45° pro lado dele = pula na hora);
+  - **nunca pula pelas costas**: se tu não vira, repete o graveto (3 sons ao todo) e no fim desiste quieto e volta a caçar;
+  - se tu **anda pra longe** (mais de 7,5 blocos), ele se reposiciona atrás de ti de novo, sem tu ver (até 4 vezes).
+
+O que tinha pra testar na v0.7.54:
 - **Emboscada na floresta** (item 4; LM 23/11: "ele fica posicionado estrategicamente, faz um som de graveto quebrando, ou
   uma fala 'I can see you but you can't see me..', daí o personagem olha em direção ao barulho (sempre atrás dele), daí
   ele pula no jogador, bem raro em floresta fechada"; "o jogador não vê"; "dinâmico, onde é mais difícil enxergar"):
