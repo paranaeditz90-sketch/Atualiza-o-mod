@@ -4,6 +4,123 @@ Mod **privado** do LM pra gravar vídeos como o FroggyDude (não é pra lançar)
 1.20.1, Forge 47.4.10, precisa do **GeckoLib 4.4.9** (o mesmo do Froggydude). Pode ficar
 junto com o mod Froggydude, um não mexe no outro.
 
+## v0.8.0 — voar longe na explosão
+
+Rede "13": quem joga junto precisa estar na 0.8.0.
+- Transformado, levou uma **explosão** (creeper, TNT, cama no Nether, cristal...) ou o **grito do warden**: voa pra
+  longe dela dando **cambalhota pra trás**, cai de costas e levanta (o "flung" do mod da IA, o boom do warden do Grox).
+  Enquanto voa e levanta não dá pra andar; sem dano de queda. Se estava no meio de um golpe, larga (quem estava preso
+  levanta). Testado: TNT a 2 blocos jogou uns 5 blocos pra trás e 2,5 pra cima.
+
+## v0.7.2 — correções da 2ª revisão
+
+Rede a mesma ("12"). A 2ª revisão do código (no que entrou depois do 1º pente fino) achou, eu conferi e corrigi:
+- **Cabeça, o mais sério**: deitada, a vítima conseguia USAR ITEM (levantar escudo e sobreviver ao arranque, comer maçã
+  dourada, beber poção). Agora, presa, só o golpe/tiro em quem está em cima conta; o resto não faz nada.
+- **Cabeça**: "atire nele" saía com 1 soco pra quem segurava arco/tridente; e um "tiro" valia até com arco sem flecha ou
+  besta descarregada. Agora é por pontos (precisa de 6): tiro de verdade 6 (arco com flecha, besta carregada, arma de
+  fogo), golpe de arma 3, soco 2 = 1 tiro / 2 golpes / 3 socos, e o aviso mostra o que falta pelo que ela tem na mão
+  AGORA. Testado: mão vazia pede "3x", depois de 1 soco "2x"; espada solta com 2 golpes; sem se soltar, morre.
+- **Cabeça**: a espera de 30 s começava mesmo quando o servidor recusava (PvP desligado, alguém já pegou), e tu
+  escorregava 1 s pra cima da pessoa à toa. Agora só conta se começou de verdade.
+- **Cabeça**: virar Humano/transformar/ser derrubado no meio não parava a cena (ela morria do mesmo jeito). Agora para.
+- **Cabeça**: sair do jogo no meio deixava a câmera da vítima presa em 3ª pessoa. Agora volta.
+- Limpeza: código morto tirado, um comentário fora do lugar (o "Cansado" estava em cima da cabeça), uma soltura dobrada.
+
+## v0.7.1 — o toco no ombro
+
+Rede a mesma da 0.7.0 ("12").
+- **Toco no ombro**: quem perdeu o braço agora mostra o toco vermelho com a ponta do osso no ombro, no corpo de jogador
+  e no boneco do FroggyDude (antes o braço só sumia). Testado com 2 jogadores.
+- O aviso da cabeça ("SE SOLTA!") agora sai no idioma do jogo (em inglês pra quem joga em inglês).
+
+## v0.7.0 — cansado e arrancar a cabeça
+
+Rede "12": quem joga junto precisa estar na 0.7.0.
+- Gomo novo **Cansado**: curvado, ofegando (o "tired" do mod da IA). Andando, anda normal e volta a ofegar quando para.
+  Acaba quando tu ataca, escolhe de novo, ou em 1 min. (O chicote e o puxão da língua são só do Become HIM...: aqui a
+  boca já faz isso.)
+- **Arrancar a cabeça** (gomo armado; sai no próximo ataque em alguém a até 3,2 blocos; 30 s de espera entre um uso e
+  outro, tu escolheu): derruba de costas, monta, olha, crava a boca na cabeça e chacoalha durante o rugido (4,2 s, a
+  cutscene do mod da IA 0.7.41).
+  - **Jogador** se defende: aparece em cima da barra, em vermelho, "SE SOLTA! atire nele / bata nele 2x com a arma /
+    soque ele 3x" e o tempo que falta, e a câmera dele vai pra 3ª pessoa durante a cena (volta sozinha). Deitado, cada
+    clique de atacar conta como golpe em ti (de dentro do teu corpo o golpe do jogo não acertava); usar arco/besta/arma
+    de fogo conta como tiro. Conseguiu: tu voa pra trás (com tiro voa mais) e ele levanta. Não conseguiu: tu arranca a
+    cabeça e ele morre (e vira o monte).
+  - **Bicho** não se defende: arranca e morre.
+  - Testado: zumbi morre em 4,2 s; jogador com espada que acertou 2x (por comando) te jogou pra trás e ficou vivo. O
+    clique da vítima não deu pra testar aqui (o 2º jogador do teste não recebe teclado/mouse): confere com um amigo.
+
+## v0.6.1 — correções do pente fino (revisão do código)
+
+Rede a mesma da 0.6.0 ("11"). O que mudou (a revisão achou, eu conferi no código e corrigi):
+- **Lava**: andar em cima da lava sem queimar valia pra QUALQUER jogador com o mod, até no modo Humano (bug desde o
+  BecomeLM 0.3.9). Agora só transformado. Testado: Humano afunda e pega fogo; no galope anda em cima sem fogo.
+- **Teto**: o mergulho não achava o bicho se o teto fosse alto ou se tu olhasse reto pra baixo (só caía). Agora procura
+  em 3D pra onde tu olha. Testado: teto a 3,2 blocos, olhando reto pra baixo, derrubou o zumbi.
+- **Braço**: quem viu alguém sem braço e não estava perto quando ele renasceu continuava vendo ele sem braço. E sair do
+  End pelo portal devolvia o braço sem morrer. Os dois corrigidos (não deu pra testar sozinho: precisa de 2 jogadores).
+- **Comer vivo**: o bicho do golpe armado podia "sobrar" e ser comido num monte depois, sem nada a ver; outro jogador
+  podia pegar o mesmo bicho; e ele seguia mordendo o bicho mesmo longe. Corrigidos.
+- **Sair do jogo no meio de um golpe** (arrancando o braço, martelando, comendo vivo, montado): quem estava preso ficava
+  até 1 min caído. Agora solta na hora.
+- **Raiva**: clicar 2 vezes rápido pra sair dela às vezes começava outra raiva. Corrigido.
+- **Roubar arma**: picareta/pá de mod que bate forte contava como arma, e "gunpowder" (pólvora) também (tinha "gun" no
+  nome). Agora só nome de arma inteiro e ferramenta não conta.
+
+## v0.6.0 — roubar e comer a arma
+
+Rede "11": quem joga junto precisa estar na 0.6.0.
+
+O que testar (gomo novo na roda, "Roubar a arma", embaixo à direita):
+- Tocar no gomo **arma** o golpe; o próximo ataque em quem estiver com uma **arma na mão** (espada, machado, arco,
+  besta, tridente ou arma de mod: TaCZ, Avaritia...; tu escolheu "só armas") sai num bote curto **mordendo a mão** (de perto, até 3,2 blocos) e arranca. A arma **some** da mão da pessoa (ou
+  do bicho) e ele **come**: sacode a cabeça com ela atravessada na boca, ela vai entrando aos poucos, com farelo cinza
+  e barulho de mastigar, e engole olhando pra cima (o "glup", o arroto). Igual ao mod da IA (Grox 1:24).
+- Sem arma na mão: aparece "Ele não tem arma na mão" e o golpe continua armado.
+- Testado no jogo: zumbi com espada de ferro ficou de mão vazia.
+- A roda agora tem 5 ações: estalar o pescoço (em cima), arrancar o braço, roubar a arma, teto e raiva.
+
+## v0.5.0 — arrancar o braço (e comer vivo na flexão) e o teto
+
+Rede "10": quem joga junto precisa estar na 0.5.0.
+
+O que testar (gomo novo na roda, "Arrancar o braço", à direita embaixo):
+- Tocar no gomo **arma** o golpe (aparece o aviso em cima da barra; tocar de novo desarma). Ele sai no **próximo
+  ataque** em alguém a até 3,2 blocos. Ninguém perto: continua armado.
+- **Em jogador** (que não esteja no criativo e ainda tenha o braço): derruba de costas, crava os dentes no ombro (0,4 s),
+  ARRANCA o braço esquerdo (1,1 s, jato de sangue) e come ele (4,5 s, o braço atravessado na boca, com a skin e a manga
+  de quem perdeu, encurtando a cada mordida). Comer enche a fome (3 mordidas de 1 coxinha). Igual ao mod da IA (tu
+  escolheu): quem perde o braço fica com 3 corações a menos, sem a mão secundária e sangrando pelo ombro (para em 3
+  corações); o braço só volta quando ele morre. O braço some do corpo de jogador, da 1ª pessoa e do boneco do FroggyDude.
+- **Em bicho** (tu: "mobs come normal, deitado, com a flexão"): derruba e deita em cima dele na flexão do monte, comendo
+  ele VIVO (cada mordida de verdade tira 1 coração e enche a fome). Morreu: vira o monte de pedaços embaixo de ti e tu
+  segue comendo. Andar levanta, pular sai no mortal, igual ao monte.
+- Testado no jogo com 2 jogadores (vida máxima da vítima 20 -> 14) e num zumbi (20 -> 7 em ~5 s).
+- **Teto** (gomo novo, embaixo na roda): sobe e gruda de cabeça pra baixo no teto que estiver em cima da cabeça (até 4
+  blocos; sem teto aparece o aviso). Fica parado lá (a tocaia do canto do teto do mod da IA). **Atacar** = se joga em
+  cima do bicho da mira (até 9 blocos), derruba e dá o dano do bote. **Pular ou agachar** = solta. Sozinho, solta em
+  1 min. Testado: 8 s pendurado sem o servidor chutar por "voar", mergulho num zumbi (20 -> 13).
+- A roda agora tem 4 gomos de ação: estalar o pescoço (em cima), arrancar o braço (direita), teto (embaixo) e raiva
+  (esquerda).
+- Ainda sem o toco vermelho no ombro de quem perdeu o braço (no mod da IA tem): fica pra depois se tu quiser.
+
+## v0.4.0 — a roda de ações (estalar o pescoço e a raiva "()")
+
+Rede "9": quem joga junto precisa estar na 0.4.0 também.
+
+O que testar:
+- **A roda nova**: no meio o Humano, em volta os jeitos (galope, em pé, fase 2) e, no anel de fora, as **ações**. As
+  câmeras continuam do lado. As ações saem na hora que tu toca no gomo.
+- **Estalar o pescoço** (gomo de cima): a cabeça tomba de lado num tranco, com o estalo de osso (0,6 s, parado).
+- **Raiva "()"** (gomo de baixo): estala o pescoço e fica agachado fundo, braços abertos até o chão, boca aberta (a
+  raiva do mod da IA 0.7.40, o teu vídeo 4). Andando, avança curvado (a corrida da fase 2). Acaba quando tu ataca,
+  escolhe a raiva de novo, ou em 30 s. Testado no jogo (parado, andando, atacando pra sair).
+- O pulo super alto continua o mesmo da 0.3.9: o `sky_air` e companhia ficaram congelados em `tools/frozen/` (o
+  `sky_drop` do mod da IA mudou e o corte antigo ia pegar a ameaça em vez do voo se o gerador rodasse).
+- Os próximos golpes do FroggyDude entram como gomos nesse anel (no BecomeLM, com a boca no lugar da língua).
+
 ## v0.3.9 — o nado do vídeo, a lava sem queimar e a tremida em primeira pessoa
 
 Rede "8" (a mesma: nada mudou no que vai pela rede).

@@ -30,7 +30,43 @@ public enum LmAttack {
      */
     HAMMER,
     /** (pedido) soltou o atacar: para de martelar e levanta. */
-    HAMMER_STOP;
+    HAMMER_STOP,
+    /** (roda) Estala o pescoço: a cabeça tomba de lado num tranco (rage_crack, 0,6 s). */
+    NECK_CRACK,
+    /**
+     * (roda) A raiva "()" (mod da IA 0.7.40, o vídeo 4 do LM): agachado fundo, braços abertos até o chão, boca aberta;
+     * andando, avança agachado. Até escolher de novo, atacar ou 30 s.
+     */
+    RAGE,
+    /** (roda, armado) Arranca o braço esquerdo de um jogador: derruba, crava os dentes no ombro e puxa (2 s). */
+    ARM_RIP,
+    /** Come o braço arrancado: mastiga, engole e digere (4,5 s). */
+    ARM_EAT,
+    /** (roda, armado, em bicho) Quem o golpe vai comer deitado (vem logo antes do PILE). */
+    FEED,
+    /** (roda) Grudado no teto (mod da IA: a tocaia do canto do teto, Grox RABIES). Pedido de novo = solta. */
+    CEILING,
+    /** Do teto, se joga em cima do bicho (o bote, caindo de cima). */
+    CEILING_DIVE,
+    /** (roda, armado) Rouba a arma da mão de alguém (no BecomeLM, mordendo a mão). */
+    STEAL,
+    /** Come a arma roubada: sacode a cabeça e ela vai entrando aos poucos (o mod da IA, Grox 1:24). */
+    WEAPON_EAT,
+    /**
+     * (roda, armado) A cutscene da cabeça (mod da IA 0.7.41): derruba, monta, crava a boca na cabeça e chacoalha durante o
+     * rugido (4,2 s). Jogador: se acertar ele (1 tiro / 2 golpes de arma / 3 socos), ele voa pra trás; senão arranca a
+     * cabeça. Bicho não se defende.
+     */
+    HEAD_GRAB,
+    /** (pedido da vítima da cabeça) bateu (alvo 0) ou atirou (alvo 1) em quem está em cima. */
+    HEAD_HIT,
+    /** (roda) Cansado: ofegando curvado, as mãos nos joelhos (o "tired" do mod da IA). Até escolher de novo ou atacar. */
+    TIRED,
+    /**
+     * Levou uma explosão (creeper, TNT...) ou o grito do warden: voa longe dando cambalhota pra trás, cai de costas e
+     * levanta (o FLUNG do mod da IA, a animação "flung"). O "alvo" leva o rumo do corpo (graus x10, virado pro estouro).
+     */
+    FLUNG;
 
     public static LmAttack byOrdinal(int i) {
         LmAttack[] all = values();

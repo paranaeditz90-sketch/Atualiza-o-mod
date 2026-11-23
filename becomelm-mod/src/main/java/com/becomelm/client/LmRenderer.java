@@ -1,5 +1,13 @@
 package com.becomelm.client;
 
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.world.item.ItemDisplayContext;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.renderer.RenderType;
+import software.bernie.geckolib.util.RenderUtils;
+import software.bernie.geckolib.cache.object.GeoBone;
+import com.becomelm.LmAttacks;
+import com.becomelm.LmAttack;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.util.Mth;
@@ -34,6 +42,10 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
     static long localHeadFrame = -1;
 
     private static LmRenderer instance;
+
+    /** A boca (px), onde o braço arrancado fica atravessado (a do mod da IA). */
+    private static final float MOUTH_Y = 26.0F;
+    private static final float MOUTH_Z = -4.5F;
 
     private LmRenderer(EntityRendererProvider.Context context) {
         super(context, new LmModel(), LmAnimatable.INSTANCE);
@@ -75,6 +87,60 @@ public class LmRenderer extends GeoReplacedEntityRenderer<AbstractClientPlayer, 
         poseStack.translate(0.0D, Mth.lerp(swim, 1.0D, 0.3D), 0.0D);
         poseStack.mulPose(Axis.XP.rotationDegrees(-tilt));
         poseStack.translate(0.0D, -1.0D, 0.0D);
+    }
+
+    @Override
+    public void renderRecursively(PoseStack poseStack, LmAnimatable animatable, GeoBone bone, RenderType renderType,
+                                  MultiBufferSource bufferSource, VertexConsumer buffer, boolean isReRender,
+                                  float partialTick, int packedLight, int packedOverlay,
+                                  float red, float green, float blue, float alpha) {
+        AbstractClientPlayer p = this.currentEntity;
+        if (!isReRender && p != null && "left_arm".equals(bone.getName()) && LmArmClient.isArmless(p.getId())) {
+            // sem o braço: o toco no ombro (o osso do braço está escondido; o toco vai no lugar do ombro dele). O GeckoLib
+            // desenha o x do modelo invertido: o braço (x 4..8 no geo.json) fica em -8..-4 aqui
+            poseStack.pushPose();
+            RenderUtils.prepMatrixForBone(poseStack, bone);
+            LmArmClient.stump(poseStack, bufferSource, packedLight, -8.2F, -3.8F, 20.6F, 24.2F, -2.2F, 2.2F, 20.6F);
+            poseStack.popPose();
+            buffer = bufferSource.getBuffer(renderType);
+        }
+        if (!isReRender && p != null && "head".equals(bone.getName())) {
+            // o braço arrancado atravessado na boca (arrancando depois do puxão, e comendo até engolir)
+            LmActsClient.Act a = LmActsClient.get(p);
+            float eaten = -1F;
+            if (a != null && a.kind == LmAttack.ARM_RIP && a.age >= LmAttacks.RIP_AT) eaten = 0F;
+            if (a != null && a.kind == LmAttack.ARM_EAT && a.age < LmAttacks.EAT_SWALLOW) {
+                eaten = 0.75F * Math.min(1F, (a.age + partialTick) / LmAttacks.EAT_SWALLOW);
+            }
+            if (a != null && !a.stolen.isEmpty() && (a.kind == LmAttack.WEAPON_EAT && a.age < LmAttacks.WEAPON_SWALLOW
+                    || a.kind == LmAttack.STEAL && a.age >= LmAttacks.STEAL_TICKS - 2)) {
+                poseStack.pushPose();
+                RenderUtils.prepMatrixForBone(poseStack, bone);
+                poseStack.translate(0F, (MOUTH_Y - 2.5F) / 16F, (MOUTH_Z - 1.0F) / 16F);
+                if (a.kind == LmAttack.WEAPON_EAT) {
+                    // vai engolindo: a ponta de dentro parada na boca e o pedaço de fora encurtando (mod da IA 0.7.30)
+                    float in = Mth.clamp((a.age + partialTick - 2F) / (LmAttacks.WEAPON_SWALLOW - 2F), 0F, 1F);
+                    float out = 1F - 0.92F * in;
+                    poseStack.translate(7F / 16F * (0.15F - out), 0F, 0F);
+                    poseStack.scale(out, 1F - 0.2F * in, 1F);
+                }
+                poseStack.mulPose(Axis.ZP.rotationDegrees(-45F));
+                poseStack.scale(1.4F, 1.4F, 1.4F);
+                Minecraft.getInstance().getItemRenderer().renderStatic(a.stolen, ItemDisplayContext.GROUND, packedLight,
+                        OverlayTexture.NO_OVERLAY, poseStack, bufferSource, p.level(), p.getId());
+                poseStack.popPose();
+                buffer = bufferSource.getBuffer(renderType);
+            }
+            if (eaten >= 0F) {
+                poseStack.pushPose();
+                RenderUtils.prepMatrixForBone(poseStack, bone);
+                LmArmClient.drawHeldArm(poseStack, bufferSource, packedLight, a.target, eaten, MOUTH_Y, MOUTH_Z);
+                poseStack.popPose();
+                buffer = bufferSource.getBuffer(renderType);
+            }
+        }
+        super.renderRecursively(poseStack, animatable, bone, renderType, bufferSource, buffer, isReRender, partialTick,
+                packedLight, packedOverlay, red, green, blue, alpha);
     }
 
     @Override

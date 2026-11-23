@@ -1,5 +1,7 @@
 package com.becomelm;
 
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import com.becomelm.network.LmNetwork;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,12 +31,18 @@ public final class LmServerEvents {
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer p) LmNetwork.sendMode(p, LmModes.get(p));
+        if (event.getEntity() instanceof ServerPlayer p) {
+            LmNetwork.sendMode(p, LmModes.get(p));
+            if (LmArmLoss.isArmless(p)) LmNetwork.sendArm(p, true);
+        }
     }
 
     @SubscribeEvent
     public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        if (event.getEntity() instanceof ServerPlayer p) LmNetwork.sendMode(p, LmModes.get(p));
+        if (event.getEntity() instanceof ServerPlayer p) {
+            LmNetwork.sendMode(p, LmModes.get(p));
+            LmArmLoss.respawned(p);
+        }
     }
 
     @SubscribeEvent
@@ -46,7 +54,11 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onStartTracking(PlayerEvent.StartTracking event) {
         if (!(event.getEntity() instanceof ServerPlayer viewer)) return;
-        if (event.getTarget() instanceof ServerPlayer target) LmNetwork.sendModeTo(viewer, target, LmModes.get(target));
+        if (event.getTarget() instanceof ServerPlayer target) {
+            LmNetwork.sendModeTo(viewer, target, LmModes.get(target));
+            // sempre o estado de verdade: quem viu ele sem braço e não viu ele renascer ficava com o braço sumido
+            LmNetwork.sendArmTo(viewer, target, LmArmLoss.isArmless(target));
+        }
         LmKnock.sendTo(viewer, event.getTarget());
         LmTransform.sendTo(viewer, event.getTarget());
         LmAttacks.sendTo(viewer, event.getTarget());
@@ -55,6 +67,7 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onClone(PlayerEvent.Clone event) {
         LmModes.copy(event.getOriginal(), event.getEntity());
+        LmArmLoss.cloned(event.getOriginal(), event.getEntity(), event.isWasDeath());
     }
 
     @SubscribeEvent
@@ -64,6 +77,7 @@ public final class LmServerEvents {
                 LmAttacks.tick(sp);
                 LmTransform.tick(sp);
                 LmLava.tick(sp);
+                LmArmLoss.tick(sp);
             }
             return;
         }
@@ -120,13 +134,25 @@ public final class LmServerEvents {
     @SubscribeEvent
     public static void onAttack(LivingAttackEvent event) {
         // (v0.3.9) em cima da lava não queima (LmLava)
-        if (event.getEntity() instanceof Player p && event.getSource().is(DamageTypeTags.IS_FIRE) && LmLava.onLava(p)) {
+        if (event.getEntity() instanceof Player p && event.getSource().is(DamageTypeTags.IS_FIRE) && LmModes.get(p).froggy()
+                && LmLava.onLava(p)) {
             event.setCanceled(true);
             return;
         }
+        // a cutscene da cabeça: quem está embaixo bate (ou atira) em quem agarrou pra se soltar
+        if (!event.getEntity().level().isClientSide() && LmAttacks.headHit(event.getEntity(), event.getSource())) return;
         if (event.getSource().getEntity() instanceof LivingEntity attacker && LmKnock.lying(attacker)
                 && event.getSource().getDirectEntity() == attacker) {
             event.setCanceled(true);
+        }
+    }
+
+    /** Explosão ou o grito do warden no FroggyDude: voa longe dando cambalhota (LmAttacks.blast). */
+    @SubscribeEvent
+    public static void onHurt(LivingHurtEvent event) {
+        if (event.getEntity() instanceof ServerPlayer p && (event.getSource().is(DamageTypeTags.IS_EXPLOSION)
+                || event.getSource().is(DamageTypes.SONIC_BOOM))) {
+            LmAttacks.blast(p, event.getSource());
         }
     }
 

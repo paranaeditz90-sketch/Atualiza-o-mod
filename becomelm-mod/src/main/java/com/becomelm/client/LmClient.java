@@ -1,5 +1,6 @@
 package com.becomelm.client;
 
+import net.minecraftforge.client.event.EntityRenderersEvent;
 import com.becomelm.BecomeLM;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
@@ -25,6 +26,17 @@ public final class LmClient {
     public static void onParticles(RegisterParticleProvidersEvent event) {
         event.registerSpriteSet(BecomeLM.DUST_PUFF.get(), DustPuffParticle.Provider::new);
         event.registerSpriteSet(BecomeLM.BLOOD.get(), com.becomelm.client.pieces.LmBloodParticle.Provider::new);
+    }
+
+    /** O toco no ombro de quem perdeu o braço, no corpo de jogador (normal e fino). */
+    @SubscribeEvent
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static void onLayers(EntityRenderersEvent.AddLayers event) {
+        for (String skin : event.getSkins()) {
+            if (event.getSkin(skin) instanceof net.minecraft.client.renderer.entity.player.PlayerRenderer pr) {
+                pr.addLayer(new LmArmClient.StumpLayer(pr));
+            }
+        }
     }
 
     @SubscribeEvent

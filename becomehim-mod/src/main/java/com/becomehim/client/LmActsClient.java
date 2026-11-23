@@ -1,0 +1,786 @@
+package com.becomehim.client;
+
+import net.minecraft.client.CameraType;
+import net.minecraft.world.item.ItemStack;
+import com.becomehim.BecomeHim;
+import com.becomehim.LmAttack;
+import com.becomehim.LmAttacks;
+import com.becomehim.LmTongue;
+import com.becomehim.LmFinish;
+import com.becomehim.LmKnock;
+import com.becomehim.LmMove;
+import com.becomehim.LmPileRhythm;
+import com.becomehim.network.LmNetwork;
+import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.InputEvent;
+import net.minecraftforge.client.event.MovementInputUpdateEvent;
+import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * Os golpes longos de cada jogador (montado socando, segurando na boca, deitado no monte), do
+ * lado de quem vê: a animação certa e, pro próprio jogador, ficar parado em cima da vítima até
+ * acabar, ou arrastar quem está na boca.
+ */
+@Mod.EventBusSubscriber(modid = BecomeHim.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+public final class LmActsClient {
+
+    /** Um golpe longo: qual, em quem e há quantos ticks. */
+    static final class Act {
+        final LmAttack kind;
+        final int target;
+        int age;
+        /** O próprio jogador já virou o olhar pra vítima. */
+        boolean faced;
+        /** O servidor já confirmou (o que o próprio jogador começou sozinho espera por isso). */
+        boolean confirmed;
+        /** Segurando na boca: há quantos ticks está sacudindo (-1 = não está). */
+        int shake = -1;
+        /** No monte: o rumo do corpo deitado. */
+        float pileYaw;
+        /** No monte: o ritmo da flexão pela fome (a mesma conta do servidor). */
+        @Nullable
+        LmPileRhythm pile;
+        /** (roda) A arma roubada (a cópia do que estava na mão da vítima). */
+        ItemStack stolen = ItemStack.EMPTY;
+        /** (Become HIM...) Arremesso: o giro (graus) e pra onde ele olhava quando pulou. */
+        float sweep;
+        float throwYaw;
+        /** Montando (finalização e martelar): de onde ele saiu, escorrega até em cima dela. */
+        @Nullable
+        Vec3 from;
+
+        Act(LmAttack kind, int target, int age) {
+            this.kind = kind;
+            this.target = target;
+            this.age = age;
+        }
+    }
+
+    private static final Map<UUID, Act> ACTS = new HashMap<>();
+    private static final boolean DEBUG = Boolean.getBoolean("becomehim.debug");
+    /** De costas: senta em cima do quadril dela, virado pra cabeça (os socos descem na cara). */
+    private static final double SEAT = 0.5D;
+    /** Na finalização senta um pouco mais pra trás (nas coxas): a barriga fica livre na frente dele. */
+    private static final double FINISH_SEAT = 0.45D;
+    /** De lado (bicho de quatro): ajoelhado do lado da barriga, a essa distância do corpo. */
+    private static final double BESIDE = 0.45D;
+    /** O que o próprio jogador começou e o servidor não confirmou nesse tempo, não valeu. */
+    private static final int CONFIRM = 20;
+    /** O quanto quem está na boca balança pra cada lado na sacudida (graus). */
+    private static final float SWING = 28F;
+    /** No monte: o tempo de deitar e quando a flexão começa (os mesmos do servidor; o ritmo vem do LmPileRhythm). */
+    static final int PILE_DROP = LmAttacks.PILE_DROP;
+    private static final int PILE_LIE_START = LmAttacks.PILE_LIE_START;
+    /**
+     * (v0.3.4) Na flexão nova (prancha deitada, braços retos "||"): a mão fica a 1,33 bloco dos pés e a
+     * cara, lá embaixo no mergulho, a ~1,75 - o meio do monte fica entre as duas (1,5).
+     */
+    static final double PILE_CENTER = 1.5D;
+    private static final double PILE_FACE = 1.75D;
+    /** Primeira pessoa no monte: o olho (1,0 de altura em cima, 1,72 na frente dos pés) desce 0,24 em cada mergulho. */
+    private static final double PILE_EYE = 1.85D;
+    private static final double PILE_EYE_Y = 1.0D;
+    private static final double PILE_EYE_DIP = 0.24D;
+    private static final int RISE_TICKS = 10;
+    /** O pulo do mortal (o normal é 0,42 pra cima): ~1,4 bloco de altura, ~0,6 s no ar. */
+    private static final double FLIP_UP = 0.5D;
+    private static final double FLIP_BACK = 0.12D;
+
+    private static boolean jumpHeld;
+    /** (roda) Quando o servidor aceitou a cabeça por último (a espera de 30 s conta daí). */
+    static int lastHead = Integer.MIN_VALUE;
+    /** (roda) O golpe armado: sai no próximo ataque (null = nenhum). */
+    @Nullable
+    static LmAttack armed;
+
+    private LmActsClient() {
+    }
+
+    /** Chegou do servidor (kind -1 = acabou). */
+    public static void set(UUID player, int kind, int target, int age) {
+        if (DEBUG) System.out.printf("[LMATK] act do servidor kind=%d alvo=%d idade=%d%n", kind, target, age);
+        if (kind < 0) {
+            Act old = ACTS.remove(player);
+            // saiu do monte num mortal: já está no ar, não levanta (o levantar tapava o mortal pra quem vê)
+            if (old != null && old.kind == LmAttack.PILE && !LmMoves.flipping(player)) rise(player, old);
+            Minecraft mc = Minecraft.getInstance();
+            if (old != null && old.kind == LmAttack.FINISH) {
+                if (old.age >= LmFinish.TICKS - 5) {
+                    // acabou a cena: ainda fica 1,5 s ajoelhado encarando (no plano do fim) e levanta
+                    Act hold = new Act(LmAttack.FINISH, -1, old.age);
+                    hold.confirmed = true;
+                    ACTS.put(player, hold);
+                }
+                if (mc.player != null && mc.player.getUUID().equals(player)) LmFinishClient.ended(old.age);
+            }
+            return;
+        }
+        LmAttack k = LmAttack.byOrdinal(kind);
+        if (k == LmAttack.THROW) {
+            // (Become HIM...) o arremesso da língua: o "age" traz o giro (graus); começa do zero aqui
+            Act th = new Act(LmAttack.THROW, target, 0);
+            th.confirmed = true;
+            th.sweep = age;
+            Minecraft mc0 = Minecraft.getInstance();
+            Player pl = mc0.level == null ? null : mc0.level.getPlayerByUUID(player);
+            th.throwYaw = pl == null ? 0F : pl.getYRot();
+            ACTS.put(player, th);
+            return;
+        }
+        if (k == LmAttack.SHAKE) {
+            // (Become HIM...) o puxão da língua é um pedaço do "segurando"
+            Act g = ACTS.get(player);
+            if (g == null || g.kind != LmAttack.GRAB || g.target != target) {
+                g = new Act(LmAttack.GRAB, target, age);
+                ACTS.put(player, g);
+            }
+            g.age = age;
+            g.confirmed = true;
+            // o próprio jogador já começou a dele: não volta do começo
+            if (g.shake < 0 || g.shake > 4) g.shake = 0;
+            return;
+        }
+        Act old = ACTS.get(player);
+        if (old != null && old.kind == k && old.target == target) {
+            old.age = age;
+            old.confirmed = true;
+            return;
+        }
+        Act a = new Act(k, target, age);
+        a.confirmed = true;
+        Minecraft mcc = Minecraft.getInstance();
+        if (k == LmAttack.HEAD_GRAB && mcc.player != null && mcc.player.getUUID().equals(player)) lastHead = LmClientEvents.ticks();
+        if (k == LmAttack.ARM_EAT && old != null) a.pileYaw = old.pileYaw;
+        stealFrom(a, old);
+        // no monte o "alvo" é o rumo do corpo deitado (graus x10) junto com a fome de quando deitou
+        if (k == LmAttack.FLUNG) a.pileYaw = target / 10F;
+        if (k == LmAttack.PILE) {
+            a.pileYaw = LmPileRhythm.yawX10(target) / 10F;
+            a.pile = new LmPileRhythm(LmPileRhythm.food(target));
+        }
+        ACTS.put(player, a);
+    }
+
+    /** O próprio jogador largou o golpe (sem esperar o servidor). */
+    static void stopLocal(LocalPlayer p) {
+        ACTS.remove(p.getUUID());
+    }
+
+    /** (roda) O roubo: guarda o que estava na mão da vítima (comendo, vem do roubo de antes). */
+    private static void stealFrom(Act a, @Nullable Act old) {
+        Minecraft mc = Minecraft.getInstance();
+        if (a.kind == LmAttack.STEAL && mc.level != null && mc.level.getEntity(a.target) instanceof LivingEntity v) {
+            a.stolen = v.getMainHandItem().copy();
+        } else if (a.kind == LmAttack.WEAPON_EAT && old != null) {
+            a.stolen = old.stolen;
+            a.pileYaw = old.pileYaw;
+        }
+    }
+
+    /** O próprio jogador já começa (sem esperar o servidor): a animação sai no quadro do pouso. */
+    static void startLocal(LocalPlayer p, LmAttack kind, int target) {
+        Act a = new Act(kind, target, 0);
+        stealFrom(a, null);
+        ACTS.put(p.getUUID(), a);
+    }
+
+    /** Deita no monte (o próprio jogador já começa; o servidor confirma). */
+    static void startPile(LocalPlayer p, float yaw) {
+        // o mesmo "alvo" que o servidor vai mandar (rumo + fome), senão a confirmação recomeçava tudo
+        int food = LmPileRhythm.foodCode(p);
+        Act a = new Act(LmAttack.PILE, LmPileRhythm.pack(Math.round(Mth.wrapDegrees(yaw) * 10F), food), 0);
+        a.pileYaw = yaw;
+        a.pile = new LmPileRhythm(food);
+        ACTS.put(p.getUUID(), a);
+    }
+
+    /** O mortal pra trás saindo do monte: pula de costas pro monte e dá a volta no ar. */
+    private static void flip(LocalPlayer p, Act a) {
+        ACTS.remove(p.getUUID());
+        float yaw = a.pileYaw;
+        float y = yaw * Mth.DEG_TO_RAD;
+        p.setYRot(yaw);
+        p.yRotO = yaw;
+        p.setYBodyRot(yaw);
+        p.setXRot(0F);
+        p.xRotO = 0F;
+        // um pouco pra trás (sai de cima do monte) e alto o bastante pra volta caber no ar
+        p.setDeltaMovement(Mth.sin(y) * FLIP_BACK, FLIP_UP, -Mth.cos(y) * FLIP_BACK);
+        p.hasImpulse = true;
+        LmMoves.local(p, LmMove.FLIP);
+    }
+
+    /** Saiu do monte: a animação de levantar (só no cliente; já anda). */
+    private static void rise(UUID player, Act old) {
+        Act r = new Act(LmAttack.RISE, -1, 0);
+        r.confirmed = true;
+        r.pileYaw = old.pileYaw;
+        ACTS.put(player, r);
+    }
+
+    @Nullable
+    static Act get(Player p) {
+        return ACTS.get(p.getUUID());
+    }
+
+    /** Deitado no monte de pedaços. */
+    public static boolean onPile(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && a.kind == LmAttack.PILE;
+    }
+
+    /**
+     * Deitado no monte, a cara está lá embaixo nos cacos neste tick: onde ela está (os cacos ali
+     * mexem). Senão, null.
+     */
+    @Nullable
+    public static Vec3 pileDip(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        LmPileRhythm r = pileNow(a);
+        return r != null && r.dipNow() ? pileFace(p, a.pileYaw) : null;
+    }
+
+    /** Este mergulho é uma das mordidas de verdade (as que enchem a fome no servidor). */
+    public static boolean pileBite(Player p) {
+        LmPileRhythm r = pileNow(ACTS.get(p.getUUID()));
+        return r != null && r.biteNow();
+    }
+
+    /** O ritmo do monte levado até este tick, ou null se não está na flexão. */
+    @Nullable
+    private static LmPileRhythm pileNow(@Nullable Act a) {
+        if (a == null || a.kind != LmAttack.PILE || a.pile == null || a.age < PILE_LIE_START) return null;
+        a.pile.advanceTo(a.age - PILE_LIE_START);
+        return a.pile;
+    }
+
+    /**
+     * O tempo do pile_lie (em ticks, 0 a 7) no relógio da mordida, pro corpo não escorregar dela (o
+     * GeckoLib perde um pedacinho a cada volta do loop); negativo se não está na flexão.
+     */
+    static float pileAnimTicks(Player p, float partial) {
+        LmPileRhythm r = pileNow(ACTS.get(p.getUUID()));
+        return r == null ? -1F : r.animTicks(partial);
+    }
+
+    /** O impacto do sky_smash: aos 0,10 s de cada golpe de 0,25 s (make_anims.py). */
+    private static final float SMASH_IMPACT_TICKS = 2F;
+    /** O sky_smash tem 2 golpes (0,5 s = 10 ticks). */
+    private static final float SMASH_LOOP_TICKS = 10F;
+    /** Logo depois da pancada, ainda embaixo em cima da vítima (o quadro de 0,12 s do golpe). */
+    private static final float SMASH_STAY_TICKS = 2.4F;
+    /** O último soco montado (o servidor dá PUNCHES, um a cada SMASH_EVERY a partir do SMASH_FIRST). */
+    private static final int LAST_SMASH_PUNCH = LmAttacks.SMASH_FIRST + (LmAttacks.PUNCHES - 1) * LmAttacks.SMASH_EVERY;
+
+    /**
+     * (v0.3.5) O tempo do sky_smash (em ticks, 0 a 10) no relógio dos golpes: o punho bate (o impacto da animação)
+     * no mesmo tick da pancada do servidor (o 1º soco em SMASH_FIRST, depois um a cada SMASH_EVERY), na marreta em
+     * pé e nos socos montado do pulo do céu. Negativo fora dos socos (nas mordidas, por exemplo).
+     */
+    static float smashAnimTicks(Player p, float partial) {
+        Act a = ACTS.get(p.getUUID());
+        if (a == null) return -1F;
+        boolean punching = a.kind == LmAttack.HAMMER || a.kind == LmAttack.SMASH && a.age < LmAttacks.BITE_FROM;
+        if (!punching) return -1F;
+        float perTick = SMASH_LOOP_TICKS * 0.5F / LmAttacks.SMASH_EVERY;
+        float k = (a.age - LmAttacks.SMASH_FIRST + partial) * perTick;
+        // montado são PUNCHES socos: depois do último ele fica embaixo, em cima da vítima, até as mordidas (antes o
+        // loop seguia e o punho descia mais uma vez, mudo, sem pancada nem crítico)
+        if (a.kind == LmAttack.SMASH) {
+            k = Math.min(k, (LAST_SMASH_PUNCH - LmAttacks.SMASH_FIRST) * perTick + SMASH_STAY_TICKS - SMASH_IMPACT_TICKS);
+        }
+        return Mth.positiveModulo(k + SMASH_IMPACT_TICKS, SMASH_LOOP_TICKS);
+    }
+
+    /**
+     * (v0.3.5) Este acerto de soco (o n-ésimo) é o empurrão que derruba, o começo da marreta em pé: não é punho
+     * descendo, então fica sem o crítico e sem a tremidinha. Na marreta em pé o servidor numera o empurrão como 0 e
+     * as pancadas a partir de 1 (nos socos montado o 1º já é 0, mas lá o golpe é o SMASH). Pela idade não dá: o
+     * acerto da 1ª pancada chega aqui 1 tick antes da idade dela.
+     */
+    static boolean knockdownHit(Player p, int n) {
+        Act a = ACTS.get(p.getUUID());
+        return n == 0 && a != null && a.kind == LmAttack.HAMMER;
+    }
+
+    /**
+     * O quanto a cara está afundada (0 em cima, 1 lá embaixo), no mesmo desenho do pile_lie (o feed_mob do mod
+     * da IA): em cima 13% do ciclo, desce 29%, fica embaixo 17%, sobe 41%, com a mesma suavização.
+     */
+    private static float pileDipAmount(Act a, float partial) {
+        LmPileRhythm r = pileNow(a);
+        if (r == null) return 0F;
+        float ph = r.cycle(partial);
+        if (ph < 0.13F) return 0F;
+        if (ph < 0.42F) return smooth((ph - 0.13F) / 0.29F);
+        if (ph < 0.59F) return 1F;
+        return 1F - smooth((ph - 0.59F) / 0.41F);
+    }
+
+    private static float smooth(float k) {
+        k = Mth.clamp(k, 0F, 1F);
+        return k * k * (3F - 2F * k);
+    }
+
+    private static Vec3 pileFace(Player p, float yawDeg) {
+        float y = yawDeg * Mth.DEG_TO_RAD;
+        return p.position().add(-Mth.sin(y) * PILE_FACE, 0.35D, Mth.cos(y) * PILE_FACE);
+    }
+
+    static boolean busy(Player p) {
+        return ACTS.containsKey(p.getUUID());
+    }
+
+    /** Montado socando, martelando, finalizando ou deitado no monte: não anda nem bate. */
+    static boolean locked(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && (riding(a) || a.kind == LmAttack.PILE || a.kind == LmAttack.THROW
+                || a.kind == LmAttack.NECK_CRACK || a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT
+                || a.kind == LmAttack.STEAL || a.kind == LmAttack.WEAPON_EAT || a.kind == LmAttack.FLUNG);
+    }
+
+    /** Montado em cima de alguém (socando, martelando ou finalizando). */
+    private static boolean riding(Act a) {
+        return a.kind == LmAttack.SMASH || a.kind == LmAttack.HAMMER || a.kind == LmAttack.FINISH
+                || a.kind == LmAttack.HEAD_GRAB;
+    }
+
+    /** O próprio jogador está finalizando alguém agora (a câmera vira a da cena). */
+    @Nullable
+    static Act finishing(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && a.kind == LmAttack.FINISH ? a : null;
+    }
+
+    /** Quem está finalizando essa vítima (ou null). */
+    @Nullable
+    static Player finisher(Entity victim) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return null;
+        for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+            if (en.getValue().kind == LmAttack.FINISH && en.getValue().target == victim.getId()) {
+                Player p = mc.level.getPlayerByUUID(en.getKey());
+                if (p != null) return p;
+            }
+        }
+        return null;
+    }
+
+    /** (Become HIM...) Quem está com esse na língua (segurando ou arremessando), ou null. */
+    @Nullable
+    public static Player tongueHolder(Entity victim) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return null;
+        for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+            Act a = en.getValue();
+            if ((a.kind == LmAttack.GRAB || a.kind == LmAttack.THROW) && a.target == victim.getId()) {
+                Player p = mc.level.getPlayerByUUID(en.getKey());
+                if (p != null) return p;
+            }
+        }
+        return null;
+    }
+
+    /** (roda) Alguém está arrancando a minha cabeça? (aí eu posso bater deitado) */
+    static boolean headGrabbed(Entity me) {
+        for (Act a : ACTS.values()) {
+            if (a.kind == LmAttack.HEAD_GRAB && a.target == me.getId()) return true;
+        }
+        return false;
+    }
+
+    /** Alguém na boca (anda arrastando). */
+    static boolean holding(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        return a != null && a.kind == LmAttack.GRAB;
+    }
+
+    /** A câmera de antes da cutscene da cabeça (a vítima vê de 3ª pessoa enquanto dura; null = não está nela). */
+    @Nullable
+    private static CameraType beforeGrab;
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            boolean grabbed = headGrabbed(mc.player);
+            if (grabbed && beforeGrab == null) {
+                beforeGrab = mc.options.getCameraType();
+                mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            } else if (!grabbed && beforeGrab != null) {
+                mc.options.setCameraType(beforeGrab);
+                beforeGrab = null;
+            }
+        }
+        if (mc.level == null) {
+            ACTS.clear();
+            return;
+        }
+        if (mc.isPaused()) return;
+        ACTS.values().removeIf(a -> {
+            a.age++;
+            if (DEBUG && (a.kind == LmAttack.HAMMER || a.kind == LmAttack.SMASH && a.age <= LAST_SMASH_PUNCH)
+                    && a.age >= LmAttacks.SMASH_FIRST && (a.age - LmAttacks.SMASH_FIRST) % LmAttacks.SMASH_EVERY == 0) {
+                System.out.printf("[LMATK] cliente punho embaixo idade=%d jogo=%d%n", a.age, mc.level.getGameTime());
+            }
+            if (a.shake >= 0 && ++a.shake >= LmAttacks.SHAKE_TICKS) a.shake = -1;
+            // sem notícia do servidor (ele não tem o mod, recusou, ou o pacote se perdeu): solta sozinho
+            boolean gone = (!a.confirmed && a.age > CONFIRM) || a.age > limit(a.kind);
+            if (gone && DEBUG) System.out.printf("[LMATK] act some no cliente %s idade=%d confirmado=%s%n", a.kind, a.age, a.confirmed);
+            return gone;
+        });
+    }
+
+    private static int limit(LmAttack kind) {
+        return switch (kind) {
+            case SMASH -> LmAttacks.SMASH_TICKS + 20;
+            case GRAB -> LmAttacks.GRAB_MAX + 20;
+            case THROW -> LmTongue.T_END + 10;
+            case PILE -> LmAttacks.PILE_MAX + 40;
+            case RISE -> RISE_TICKS;
+            case FINISH -> LmFinish.TICKS + 30;
+            case HAMMER -> LmAttacks.HAMMER_MAX + 20;
+            case NECK_CRACK -> LmAttacks.NECK_CRACK_TICKS + 10;
+            case TIRED -> LmAttacks.RAGE_MAX * 2 + 20;
+            case ARM_RIP -> LmAttacks.RIP_TICKS + 20;
+            case CEILING -> LmAttacks.CEILING_MAX + 40;
+            case STEAL -> LmAttacks.STEAL_TICKS + 20;
+            case FLUNG -> LmAttacks.FLUNG_MAX + 20;
+            case HEAD_GRAB -> LmAttacks.HEAD_WINDOW + 20;
+            case WHIP -> LmAttacks.WHIP_TICKS + 10;
+            case PULL -> LmAttacks.PULL_TICKS + 10;
+            case WEAPON_EAT -> LmAttacks.EAT_WEAPON_TICKS + 20;
+            case CEILING_DIVE -> 14;
+            case ARM_EAT -> LmAttacks.EAT_TICKS + 20;
+            case RAGE -> LmAttacks.RAGE_MAX + 20;
+            default -> 40;
+        };
+    }
+
+    /** Montado: o próprio jogador fica no peito da vítima (antes de andar, todo tick). */
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.START || !(event.player instanceof LocalPlayer p)) return;
+        Act a = ACTS.get(p.getUUID());
+        // (roda) no teto: parado lá em cima; acabou (do lado do servidor também): cai
+        if (a != null && a.kind == LmAttack.CEILING) {
+            LmCeilingClient.hold(p);
+            return;
+        }
+        if (LmCeilingClient.hanging()) LmCeilingClient.drop(p, false);
+        if (a == null) {
+            victimTick(p);
+            return;
+        }
+        if (!riding(a) && a.kind != LmAttack.PILE) return;
+        Vec3 v = p.getDeltaMovement();
+        p.setDeltaMovement(0D, Math.min(v.y, 0D), 0D);
+        if (a.kind == LmAttack.PILE) {
+            p.setYBodyRot(a.pileYaw);
+            return;
+        }
+        double[] s = seat(p, a);
+        if (s == null) return;
+        int mount = a.kind == LmAttack.FINISH ? LmFinish.Phase.DIG.from : a.kind == LmAttack.HAMMER ? LmAttacks.HAMMER_MOUNT
+                : a.kind == LmAttack.HEAD_GRAB ? 6 : 0;
+        if (a.age < mount) {
+            // montando: escorrega de onde estava até em cima dela
+            if (a.from == null) a.from = p.position();
+            float k = Mth.clamp((a.age + 1F) / mount, 0F, 1F);
+            k = k * k * (3F - 2F * k);
+            p.setPos(Mth.lerp(k, a.from.x, s[0]), Mth.lerp(k, a.from.y, s[1]), Mth.lerp(k, a.from.z, s[2]));
+        } else {
+            p.setPos(s[0], s[1], s[2]);
+        }
+        float yaw = (float) s[3];
+        if (!a.faced) {
+            // olha pra cara dela lá embaixo (depois dá pra olhar em volta)
+            a.faced = true;
+            p.setYRot(yaw);
+            p.yRotO = yaw;
+            p.setYHeadRot(yaw);
+            p.yHeadRotO = yaw;
+            p.setXRot(Math.max(p.getXRot(), 35F));
+            p.xRotO = p.getXRot();
+        }
+        p.setYBodyRot(yaw);
+    }
+
+    /** Eu sou a vítima: montado em mim, não saio debaixo; na boca de alguém, vou arrastado. */
+    private static void victimTick(LocalPlayer me) {
+        Player h = holder(me);
+        if (h != null) {
+            LmKnock.State ks = LmKnockClient.get(me);
+            if (ks == null) return;
+            double[] spot = LmAttacks.dragSpot(h.getX(), h.getZ(), h.getYRot(), 0F, me, ks.back, ks.side);
+            // a velocidade que leva até lá neste tick (o jogo move com colisão: não entro na parede)
+            Vec3 v = me.getDeltaMovement();
+            me.setDeltaMovement(Mth.clamp(spot[0] - me.getX(), -1.5D, 1.5D), v.y,
+                    Mth.clamp(spot[1] - me.getZ(), -1.5D, 1.5D));
+            return;
+        }
+        if (mounted(me)) {
+            Vec3 v = me.getDeltaMovement();
+            me.setDeltaMovement(0D, v.y, 0D);
+        }
+    }
+
+    /**
+     * Onde quem está montado fica e pra onde olha: {x, y, z, rumo}. Usa o derrubado que veio do
+     * servidor; antes dele chegar, a mesma conta que o servidor faz.
+     */
+    @Nullable
+    private static double[] seat(Player p, Act a) {
+        if (!riding(a)) return null;
+        Entity e = p.level().getEntity(a.target);
+        if (!(e instanceof LivingEntity victim)) return null;
+        LmKnock.State ks = LmKnockClient.get(victim);
+        boolean back;
+        Vec3 d;
+        if (ks != null) {
+            back = ks.back;
+            d = LmKnockClient.headDir(ks, ks.yaw);
+        } else if (LmKnock.upright(victim)) {
+            back = true;
+            float y = LmKnock.backYaw(victim, p) * Mth.DEG_TO_RAD;
+            d = new Vec3(Mth.sin(y), 0D, -Mth.cos(y));
+        } else {
+            back = false;
+            float y = victim.yBodyRot * Mth.DEG_TO_RAD;
+            int side = LmKnock.sideAwayFrom(victim, p);
+            d = new Vec3(-Mth.cos(y) * side, 0D, -Mth.sin(y) * side);
+        }
+        Vec3 at = victim.position();
+        // de costas a cabeça dela vai pra "d" e ele senta no quadril; de lado as costas dela vão
+        // pra "d" e ele fica do lado da barriga, virado pra ela
+        double seat = a.kind == LmAttack.FINISH ? FINISH_SEAT : SEAT;
+        Vec3 spot = back ? at.add(d.scale(seat)) : at.subtract(d.scale(victim.getBbWidth() * 0.5D + BESIDE));
+        return new double[] {spot.x, at.y, spot.z, Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG - 90D};
+    }
+
+    /** Montado: o corpo virado pra vítima no desenho (o jogo vira o corpo pro olhar a cada tick). */
+    static void faceBody(Player p) {
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && (a.kind == LmAttack.PILE || a.kind == LmAttack.RISE || a.kind == LmAttack.FLUNG)) {
+            p.yBodyRot = a.pileYaw;
+            p.yBodyRotO = a.pileYaw;
+            return;
+        }
+        if (a != null && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.ARM_EAT || a.kind == LmAttack.STEAL
+                || a.kind == LmAttack.WEAPON_EAT)) {
+            // arrancando e comendo: virado pra vítima (comendo, ela pode ter fugido: fica como estava)
+            Entity v = p.level().getEntity(a.target);
+            if (v != null && (a.kind == LmAttack.ARM_RIP || a.kind == LmAttack.STEAL)) {
+                float yaw = (float) (Mth.atan2(v.getZ() - p.getZ(), v.getX() - p.getX()) * Mth.RAD_TO_DEG) - 90F;
+                a.pileYaw = yaw;
+            }
+            p.yBodyRot = a.pileYaw;
+            p.yBodyRotO = a.pileYaw;
+            return;
+        }
+        if (a != null && a.kind == LmAttack.THROW) {
+            // (Become HIM...) o arremesso: o corpo gira junto com a vítima (a cintura faz o resto, no LmModel)
+            float yaw = a.throwYaw + LmTongue.bodyAngle(a.age + Minecraft.getInstance().getFrameTime(), a.sweep);
+            p.yBodyRot = yaw;
+            p.yBodyRotO = yaw;
+            return;
+        }
+        if (a != null && a.kind == LmAttack.GRAB) {
+            // segurando: o corpo no rumo do olhar (a boca aponta pra onde se olha)
+            float yaw = p.getYRot();
+            p.yBodyRot = yaw;
+            p.yBodyRotO = p.yRotO;
+            return;
+        }
+        double[] s = a == null ? null : seat(p, a);
+        if (s == null) return;
+        p.yBodyRot = (float) s[3];
+        p.yBodyRotO = (float) s[3];
+    }
+
+    private static boolean mounted(LocalPlayer me) {
+        for (Act a : ACTS.values()) {
+            if (riding(a) && a.target == me.getId()) return true;
+        }
+        return false;
+    }
+
+    /** Quem está segurando esse na boca (ou null). */
+    @Nullable
+    static Player holder(Entity victim) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return null;
+        for (Map.Entry<UUID, Act> en : ACTS.entrySet()) {
+            Act a = en.getValue();
+            if (a.kind == LmAttack.GRAB && a.target == victim.getId()) {
+                Player p = mc.level.getPlayerByUUID(en.getKey());
+                if (p != null) return p;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Quem está na boca de alguém: onde desenhar (os pés) e o rumo do corpo, {x, z, rumo}, a
+     * partir de quem segura neste quadro (a posição que vem do servidor chega atrasada e o corpo
+     * ia ficar pra trás da boca). Com o balanço da sacudida.
+     */
+    @Nullable
+    static double[] heldSpot(LivingEntity victim, LmKnock.State ks, float partial) {
+        Player h = holder(victim);
+        if (h == null) return null;
+        Act a = ACTS.get(h.getUUID());
+        float swing = 0F;
+        if (a != null && a.shake >= 0) {
+            float t = (a.shake + partial) / LmAttacks.SHAKE_EVERY;
+            swing = SWING * Mth.sin(t * Mth.TWO_PI);
+        }
+        double hx = Mth.lerp(partial, h.xo, h.getX()), hz = Mth.lerp(partial, h.zo, h.getZ());
+        return LmAttacks.dragSpot(hx, hz, h.getViewYRot(partial), swing, victim, ks.back, ks.side);
+    }
+
+    /** Segurando, atacar: sacode (o próprio jogador já começa a animação). */
+    static void localShake(LocalPlayer p) {
+        Act a = ACTS.get(p.getUUID());
+        // o mesmo clique que agarrou não sacode
+        if (a == null || a.kind != LmAttack.GRAB || a.shake >= 0 || a.age < LmTongue.LIFT_END) return;
+        a.shake = 0;
+        LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.SHAKE, a.target));
+    }
+
+    /** No meio de um golpe longo não anda, não pula e não bate (o golpe é que bate). */
+    @SubscribeEvent
+    public static void onInput(MovementInputUpdateEvent event) {
+        Player p = event.getEntity();
+        var in = event.getInput();
+        // só o apertar conta (segurando o pulo desde antes de agarrar não arremessa na hora)
+        boolean jumpPressed = in.jumping && !jumpHeld;
+        jumpHeld = in.jumping;
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind == LmAttack.GRAB && p instanceof LocalPlayer lp) {
+            // segurando: anda (devagar, o servidor freia) e o pulo vira arremesso
+            // (Become HIM...) o arremesso sai quando o servidor responde (ele escolhe o lado livre)
+            if (jumpPressed && a.age >= LmTongue.LIFT_END && a.shake < 0) {
+                LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.THROW, a.target));
+            }
+            in.jumping = false;
+            return;
+        }
+        if (a != null && a.kind == LmAttack.CEILING && p instanceof LocalPlayer lp) {
+            // no teto: pular ou agachar solta; andar não anda
+            if (jumpPressed || in.shiftKeyDown) {
+                LmCeilingClient.drop(lp, true);
+                stopLocal(lp);
+                jumpHeld = true;
+            }
+            in.forwardImpulse = 0F;
+            in.leftImpulse = 0F;
+            in.up = in.down = in.left = in.right = false;
+            in.jumping = false;
+            in.shiftKeyDown = false;
+            return;
+        }
+        if (a != null && a.kind == LmAttack.THROW) {
+            // o pulo que arremessou não vira pulo
+            in.jumping = false;
+            return;
+        }
+        if (a != null && a.kind == LmAttack.PILE && p instanceof LocalPlayer lp && a.age > PILE_DROP + 2
+                && (in.up || in.down || in.left || in.right || jumpPressed)) {
+            // pular comendo = sai do monte num mortal (How many days 0:47); andar só levanta
+            if (jumpPressed) flip(lp, a);
+            else rise(lp.getUUID(), a);
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.GET_UP, -1));
+            jumpHeld = true;
+            in.jumping = false;
+            return;
+        }
+        if (!locked(p)) return;
+        in.forwardImpulse = 0F;
+        in.leftImpulse = 0F;
+        in.up = in.down = in.left = in.right = false;
+        in.jumping = false;
+        in.shiftKeyDown = false;
+    }
+
+    /** Primeira pessoa no monte: o olho vai pra cara, em cima do peito empinado, e mergulha junto. */
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void onCamera(ViewportEvent.ComputeCameraAngles event) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null || LmCamera.active() || !mc.options.getCameraType().isFirstPerson()) return;
+        Camera cam = event.getCamera();
+        if (cam.getEntity() != p) return;
+        float partial = (float) event.getPartialTick();
+        float turn = LmMoves.flipTurn(p, partial);
+        if (turn >= 0F) {
+            // o mortal em primeira pessoa: o olhar dá a volta pra trás (o céu, as costas, o chão)
+            float k = turn * turn * (3F - 2F * turn);
+            event.setPitch(event.getPitch() - 360F * k);
+            return;
+        }
+        Act a = ACTS.get(p.getUUID());
+        if (a == null || (a.kind != LmAttack.PILE && a.kind != LmAttack.RISE)) return;
+        float t = a.age + partial;
+        float k = a.kind == LmAttack.PILE ? Math.min(1F, t / PILE_DROP) : 1F - Math.min(1F, t / RISE_TICKS);
+        k = k * k * (3F - 2F * k);
+        float y = a.pileYaw * Mth.DEG_TO_RAD;
+        float dip = a.kind == LmAttack.PILE ? pileDipAmount(a, partial) : 0F;
+        Vec3 feet = p.getPosition(partial);
+        Vec3 face = feet.add(-Mth.sin(y) * PILE_EYE, PILE_EYE_Y - dip * PILE_EYE_DIP, Mth.cos(y) * PILE_EYE);
+        Vec3 pos = cam.getPosition();
+        cam.setPosition(pos.add(face.subtract(pos).scale(k)));
+        event.setPitch(event.getPitch() + (35F + dip * 8F - event.getPitch()) * k * 0.7F);
+    }
+
+    @SubscribeEvent
+    public static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
+        LocalPlayer p = Minecraft.getInstance().player;
+        if (p == null || !busy(p)) return;
+        // levantando do monte já pode tudo
+        Act a = ACTS.get(p.getUUID());
+        if (a != null && a.kind == LmAttack.RISE) return;
+        event.setCanceled(true);
+        event.setSwingHand(false);
+        if (event.isAttack() && holding(p)) localShake(p);
+        // no teto: atacar = se joga em cima do bicho da mira
+        if (event.isAttack() && a != null && a.kind == LmAttack.CEILING && a.age > 4) LmCeilingClient.dive(p);
+        // na raiva, atacar acaba com ela (de pé de novo)
+        if (event.isAttack() && a != null && (a.kind == LmAttack.RAGE || a.kind == LmAttack.TIRED) && a.age > 4) {
+            LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(a.kind, -1));
+            // já larga aqui: um 2º clique antes da resposta do servidor começava outra raiva
+            stopLocal(p);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
+        ACTS.clear();
+        jumpHeld = false;
+        armed = null;
+        // saiu no meio da cutscene da cabeça: a câmera volta pro que era
+        if (beforeGrab != null) {
+            Minecraft.getInstance().options.setCameraType(beforeGrab);
+            beforeGrab = null;
+        }
+    }
+}

@@ -1,5 +1,6 @@
 package com.becomelm.mixin;
 
+import com.becomelm.LmModes;
 import com.becomelm.LmLava;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
@@ -17,6 +18,8 @@ public abstract class EntityLavaFireMixin {
 
     @Inject(method = "fireImmune", at = @At("HEAD"), cancellable = true)
     private void becomelm$lavaFire(CallbackInfoReturnable<Boolean> cir) {
-        if ((Object) this instanceof Player p && !p.isSpectator() && LmLava.onLava(p)) cir.setReturnValue(true);
+        if ((Object) this instanceof Player p && !p.isSpectator() && LmModes.get(p).froggy() && LmLava.onLava(p)) {
+            cir.setReturnValue(true);
+        }
     }
 }

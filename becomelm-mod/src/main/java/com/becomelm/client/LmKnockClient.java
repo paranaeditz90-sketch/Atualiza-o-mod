@@ -1,5 +1,8 @@
 package com.becomelm.client;
 
+import com.becomelm.network.LmNetwork;
+import com.becomelm.LmAttack;
+import com.becomelm.LmWeapons;
 import com.becomelm.BecomeLM;
 import com.becomelm.LmKnock;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -239,6 +242,18 @@ public final class LmKnockClient {
     @SubscribeEvent
     public static void onInteract(InputEvent.InteractionKeyMappingTriggered event) {
         LocalPlayer p = Minecraft.getInstance().player;
+        // (roda) a cutscene da cabeça: deitado, bater ou atirar conta (de dentro do corpo dele o golpe do jogo não
+        // acerta, então o clique vai direto pro servidor)
+        if (p != null && lying(p) && LmActsClient.headGrabbed(p)) {
+            // só vale o golpe/tiro em quem está em cima: escudo, comida, poção, bloco... nada (deitado não usa item)
+            boolean shoots = LmWeapons.shoots(p.getMainHandItem());
+            if (event.isAttack() || event.isUseItem() && shoots) {
+                LmNetwork.CHANNEL.sendToServer(new LmNetwork.Attack(LmAttack.HEAD_HIT, event.isUseItem() ? 1 : 0));
+            }
+            event.setCanceled(true);
+            event.setSwingHand(event.isAttack());
+            return;
+        }
         if (p != null && lying(p)) {
             event.setCanceled(true);
             event.setSwingHand(false);
