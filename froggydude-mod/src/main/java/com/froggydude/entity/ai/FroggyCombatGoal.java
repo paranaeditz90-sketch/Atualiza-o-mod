@@ -328,6 +328,10 @@ public class FroggyCombatGoal extends Goal {
                 runSmash(target, dist);
                 return;
             }
+            case TACKLE -> {
+                runTackle(target);
+                return;
+            }
             case ARM_RIP -> {
                 runArmRip();
                 return;
@@ -1728,8 +1732,54 @@ public class FroggyCombatGoal extends Goal {
         if (dbg == null && forced != null) dbg = forced;
         boolean smash = dbg == FroggyState.SMASH
                 || (dbg != FroggyState.PIN_HOLD && froggy.getRandom().nextBoolean());
+        // (v0.7.48) o bote com ragdoll: 1 em cada 3 vezes que o bote baixo ia pra marreta num jogador, ele voa girando
+        // antes (froggydude.tackleAlways: todo bote baixo que pega um jogador, pra testar)
+        boolean always = Boolean.getBoolean("froggydude.tackleAlways");
+        if ((smash || always) && (dbg == null || always) && target instanceof ServerPlayer p
+                && (always || froggy.getRandom().nextInt(3) == 0)) {
+            startTackle(p);
+            return;
+        }
         if (smash) beginSmash(state, target, 1.4F);
         else pinVictim(state, target, 1.2F);
+    }
+
+    // ---------------------------------------------------------------- (v0.7.48) o bote com ragdoll
+
+    /** Pra onde quem voa foi arremessado (horizontal, unitário). */
+    @javax.annotation.Nullable
+    private Vec3 tackleDir;
+
+    /** O bote pegou em cheio: arremessa pra longe e pra cima, e ele vai junto, montado. */
+    private void startTackle(ServerPlayer p) {
+        finishAttack(FroggyState.JUMP_PIN);
+        Vec3 d = p.position().subtract(froggy.position()).multiply(1, 0, 1);
+        if (d.lengthSqr() < 1.0E-4D) d = froggy.getLookAngle().multiply(1, 0, 1);
+        tackleDir = d.normalize();
+        p.setSprinting(false);
+        p.setDeltaMovement(tackleDir.x * 0.85D, 0.55D, tackleDir.z * 0.85D);
+        p.hurtMarked = true;
+        p.fallDistance = 0F;
+        froggy.setTackleVictim(p.getId());
+        froggy.setFroggyState(FroggyState.TACKLE);
+        froggy.getNavigation().stop();
+        debug("bote com ragdoll: " + p.getScoreboardName() + " voa girando");
+    }
+
+    /** Voando: ele vai colado em cima; quando a pessoa cai (ou o tempo acaba), corta pra marreta. */
+    private void runTackle(LivingEntity target) {
+        int t = froggy.getStateTicks();
+        Vec3 dir = tackleDir == null ? froggy.getLookAngle().multiply(1, 0, 1).normalize() : tackleDir;
+        Vec3 at = target.position().subtract(dir.scale(0.7D)).add(0, 0.3D, 0);
+        froggy.setDeltaMovement(target.getDeltaMovement());
+        froggy.moveTo(at.x, at.y, at.z, froggy.getYRot(), froggy.getXRot());
+        froggy.faceDirection(dir.x, dir.z);
+        target.fallDistance = 0F;
+        if (t >= FroggyState.TACKLE.durationTicks || (t >= 22 && target.onGround())) {
+            froggy.setTackleVictim(-1);
+            tackleDir = null;
+            beginSmash(FroggyState.JUMP_PIN, target, 1.6F);
+        }
     }
 
     private boolean landed(int t, int launchTick, FroggyState state) {

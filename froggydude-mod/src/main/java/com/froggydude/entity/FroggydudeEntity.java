@@ -196,6 +196,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** (v0.7.44) A cutscene de entrada: o id de quem assiste (-1 = ninguém). */
     private static final EntityDataAccessor<Integer> DATA_INTRO =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
+    /** (v0.7.48) O bote com ragdoll: o id de quem voa (-1 = ninguém). */
+    private static final EntityDataAccessor<Integer> DATA_TACKLE =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.INT);
     /** (v0.7.40) A fase da raiva (entity.Rage: estalo, avança, parado, estalo parado), pra animação do cliente. */
     private static final EntityDataAccessor<Byte> DATA_RAGE =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
@@ -418,6 +421,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_RAGE, (byte) 0);
         this.entityData.define(DATA_HEADGRAB, new CompoundTag());
         this.entityData.define(DATA_INTRO, -1);
+        this.entityData.define(DATA_TACKLE, -1);
     }
 
     @Override
@@ -926,8 +930,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     // ---------------------------------------------------------------- (v0.7.47) a raiva 2
 
-    /** A troca de poses (2 s = tools/anim/build_anims.py RAGE2_GLITCH) e o tempo parado no "()" (25 s, LM). */
-    public static final int RAGE2_GLITCH = 40, RAGE2_HOLD = 500;
+    /** A troca de poses (1,7 s = tools/anim/build_anims.py RAGE2_GLITCH) e o tempo parado na pose final (25 s, LM). */
+    public static final int RAGE2_GLITCH = 34, RAGE2_HOLD = 500;
     /** Quando pode ter a raiva 2 de novo (tickCount). */
     private int rage2ReadyAt = 2400;
     @Nullable
@@ -972,13 +976,22 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (t < RAGE2_GLITCH && t % (2 + this.getRandom().nextInt(3)) == 0) {
             this.playSound(ModSounds.CONTORT_CRACK.get(), 1.6F, 0.7F + this.getRandom().nextFloat() * 0.6F);
         }
-        if (t == RAGE2_GLITCH) this.playSound(ModSounds.RIBBIT.get(), 2.5F, 0.6F); // travou no "()"
+        if (t == RAGE2_GLITCH) this.playSound(ModSounds.RIBBIT.get(), 2.5F, 0.6F); // travou na pose final
         if (t >= RAGE2_GLITCH + RAGE2_HOLD || p == null || !p.isAlive()) {
             rage2Prey = null;
             setFroggyState(FroggyState.CHASE);
             if (p != null && p.isAlive() && !p.isCreative() && !p.isSpectator()) setTarget(p);
             drives.anger = Math.min(drives.anger, 0.6F); // a raiva já saiu
         }
+    }
+
+    /** (v0.7.47) Quem está voando no bote com ragdoll (o id da entidade; -1 = ninguém). */
+    public int tackleVictimId() {
+        return getFroggyState() == FroggyState.TACKLE ? this.entityData.get(DATA_TACKLE) : -1;
+    }
+
+    public void setTackleVictim(int id) {
+        this.entityData.set(DATA_TACKLE, id);
     }
 
     /** Pro HUD do cliente: ele está na raiva 2 (trocando de pose ou parado no "()"). */
@@ -4046,6 +4059,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_INTRO);
             case RAGE2:
                 return state.setAndContinue(ANIM_RAGE2);
+            case TACKLE:
+                return state.setAndContinue(ANIM_JUMP_PIN);
             case HEAD_GRAB:
                 // (v0.7.41) o bote (o mesmo pulo baixo que derruba) e, montado, puxando a cabeça em trancos
                 return state.setAndContinue(headGrabState().isEmpty() ? ANIM_JUMP_PIN : ANIM_HEAD_GRAB);

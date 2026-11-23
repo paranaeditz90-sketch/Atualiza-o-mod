@@ -719,21 +719,36 @@ _R2_ORDEM = ["normal", "T", "curva_lado", "Y", "tomba", "torce_braco", "T_agacha
              "cocoras", "reverencia", "bracos_tortos", "chute", "curva_funda", "Y", "tomba", "curva_funda",
              "agacha_bracos", "no_ar", "frente_lado", "curva_torta", "Y", "Y", "tomba", "meia_torcida",
              "agacha_bracos", "T_um_pe", "em_pe_torto", "frente_lado", "meia_torcida", "dobra_lado"]
-RAGE2_GLITCH = 2.0     # FroggydudeEntity.RAGE2_GLITCH (40 ticks)
+RAGE2_GLITCH = 1.7     # FroggydudeEntity.RAGE2_GLITCH (34 ticks; LM 23/11: "cerca de 1,7s essas trocas")
+
+# (v0.7.48) A pose em que ele trava (LM 23/11: "ele para nessa mesma pose que temos no artefato"): a contort_nova da
+# Bancada de Animações aos 2,65 s (tick 53), copiada osso por osso do json da bancada (ela não existe no mod: era a
+# contorção nova só pra comparar). Cabeça caída pro lado, ombro direito deslocado pra cima, pernas tortas.
+RAGE2_FINAL = {
+    "root": {"position": [0.5, -0.24, 0], "rotation": [8.96, 0, 0]},
+    "waist": {"rotation": [-7.47, -21.06, 0]},
+    "head": {"rotation": [-81.78, 17.78, 58.87], "position": [0.81, -1.44, -1.24]},
+    "right_arm": {"rotation": [22.66, 39.5, 22.75], "position": [0, 4.5, 0]},
+    "left_arm": {"rotation": [13.34, 0, 1.47], "position": [0, -5.73, 0]},
+    "right_leg": {"rotation": [24.33, 0, 11.93]},
+    "left_leg": {"rotation": [-40.3, 0, -12.75]},
+}
 
 
 def _rage2_keys():
-    """Cada pose segura até a próxima entrar de uma vez (o mesmo valor até 1 ms antes da troca). Começa devagar como o
-    ccc41279 (as 3 primeiras a 0,25 s) e acelera pra 1 por tick do jogo (0,05 s), como o 9ed81736."""
-    ts = [0.0, 0.25, 0.5]
-    while len(ts) < len(_R2_ORDEM):
-        ts.append(round(ts[-1] + (0.25 if len(ts) < 3 else 0.05), 3))
-    ts.append(RAGE2_GLITCH)
+    """Uma pose por tick do jogo (0,05 s), entrando de uma vez (o mesmo valor até 1 ms antes da troca): as poses do
+    vídeo em ordem e, se sobrar tempo, repete do começo (sem a "normal"), até cair na RAGE2_FINAL aos 1,7 s."""
+    n = round(RAGE2_GLITCH / 0.05)
+    ordem = list(_R2_ORDEM)
+    while len(ordem) < n:
+        ordem.append(_R2_ORDEM[1 + (len(ordem) - len(_R2_ORDEM)) % (len(_R2_ORDEM) - 1)])
+    ordem = ordem[:n]
     keys = []
-    for i, name in enumerate(_R2_ORDEM):
-        keys.append((ts[i], _R2[name]))
-        keys.append((round(ts[i + 1] - 0.001, 3), _R2[name]))
-    keys.append((RAGE2_GLITCH, rage_crouch()))     # e trava no "()"
+    for i, name in enumerate(ordem):
+        t0, t1 = round(i * 0.05, 3), round((i + 1) * 0.05, 3)
+        keys.append((t0, copy.deepcopy(_R2[name])))
+        keys.append((round(t1 - 0.001, 3), copy.deepcopy(_R2[name])))
+    keys.append((RAGE2_GLITCH, copy.deepcopy(RAGE2_FINAL)))   # e trava nela
     return keys
 
 

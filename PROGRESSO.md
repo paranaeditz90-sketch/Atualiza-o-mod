@@ -13,15 +13,15 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 1. ~~Grito novo de correr da fase 2~~ (feito na 0.7.46).
 2. ~~Sons "A, B, C..."~~ (feito na 0.7.46: canta escondido, fora da vista).
-3. Bote com ragdoll: câmera fixa no chão, ele pula em ti, tu voa mole ~1,5-2 s visto de fora e corta pra marreta
-   (1 em cada 3 botes; sem "Hey, monkey man").
+3. ~~Bote com ragdoll~~ (feito na 0.7.48): câmera fixa no chão, ele pula em ti, tu voa mole ~1,5-2 s visto de fora e
+   corta pra marreta (1 em cada 3 botes; sem "Hey, monkey man").
 4. Ele se esconder do jogador em floresta fechada (medo e tensão).
 5. Jumpscare quando ele tem certeza que tu não tem saída (inventário sem picareta/meio de fugir; curvas de blocos).
 6. Raiva/depois de morrer (2º vídeo, MediaFire 13:44, 33-45 s): sobe flutuando alto no céu (um pontinho), mergulha
    reto e muito rápido em cima de quem caçava (a tela enche), levanta na pose "()" da raiva e já parte pro próximo
    ("Who's next?"; a fala não entra); ~10 s; aviso tipo conquista "RUN FOR YOUR LIFE!!!! NOW!!"
    vermelho com sangue escorrendo; fôlego infinito pro jogador até acabar.
-8. ~~"Rage 2"~~ (feito na 0.7.47) (vídeos 23/11 14:33): extremamente louco, se contorcendo em várias POSES diferentes trocadas de repente (sem
+8. ~~"Rage 2"~~ (feito na 0.7.47; na 0.7.48 trocas de 1,7 s e trava na pose da bancada) (vídeos 23/11 14:33): extremamente louco, se contorcendo em várias POSES diferentes trocadas de repente (sem
    animação entre elas, bem rápido) e termina na pose final da raiva. Medir pose por pose, quadro a quadro.
 7. Sistema de fuga (esperando o LM escolher: adrenalina, despistar o faro, isca, empurrão na hora certa).
 - Feito na 0.7.44 (não commitado): TLM, portas, barco, destravador, nome FroggyDudeMC, entrada, easter egg.

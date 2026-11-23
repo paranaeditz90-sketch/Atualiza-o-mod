@@ -44,6 +44,10 @@ minecraft {
                 property 'froggydude.debug', 'true'
             }
             // Entrar com outro nome (ex.: -PplayerName=FroggyDudeMC pro easter egg, ver client.EasterEgg)
+            // O bote com ragdoll sempre (em vez de 1 em 3), pra testar (-PtackleAlways)
+            if (project.hasProperty('tackleAlways')) {
+                property 'froggydude.tackleAlways', 'true'
+            }
             if (project.hasProperty('playerName')) {
                 args '--username', project.property('playerName')
             }

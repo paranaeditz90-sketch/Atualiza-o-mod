@@ -117,10 +117,15 @@ public enum FroggyState {
      */
     INTRO(0),
     /**
-     * (v0.7.47) A raiva 2 (vídeos do LM 23/11 14:33): extremamente louco, troca de pose a cada tick (2 s) e trava no "()"
+     * (v0.7.47/48) A raiva 2 (vídeos do LM 23/11 14:33): extremamente louco, troca de pose a cada tick (1,7 s) e trava na pose
      * da raiva, parado 25 s sem tomar dano, enquanto quem ele caça vê "FUJA! AGORA!". Sem IA.
      */
-    RAGE2(0);
+    RAGE2(0),
+    /**
+     * (v0.7.48) O bote com ragdoll (vídeo do LM 23/11, o do macaco): o bote baixo pega e arremessa quem caça, que voa
+     * girando mole (~1,7 s, câmera fixa no chão vendo de fora), e corta pra marreta.
+     */
+    TACKLE(34);
 
     public final int durationTicks;
 
@@ -150,6 +155,6 @@ public enum FroggyState {
 
     /** Qualquer ação conduzida pela Goal de combate (ataques, montado, braço). */
     public boolean isCombatAction() {
-        return isAttack() || isOnVictim() || this == ARM_EAT || this == FLUNG;
+        return isAttack() || isOnVictim() || this == ARM_EAT || this == FLUNG || this == TACKLE;
     }
 }

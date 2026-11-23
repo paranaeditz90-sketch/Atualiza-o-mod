@@ -1,4 +1,4 @@
-# Froggydude - v0.7.47: a raiva 2 (sobre a v0.7.46)
+# Froggydude - v0.7.48: raiva 2 na pose da bancada + bote com ragdoll (sobre a v0.7.47)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,20 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.47):
+O que testar agora (v0.7.48):
+- **Raiva 2 corrigida** (LM 23/11: "ele para nessa mesma pose que temos no artefato. E precisa durar cerca de 1,7s essas
+  trocas"): as trocas agora duram **1,7 s, uma pose por tick** (as poses do vídeo e, quando acabam, repetem), e ele
+  **trava na pose da Bancada de Animações** (a contorção nova aos 2,65 s: cabeça caída pro lado, ombro direito
+  deslocado pra cima, pernas tortas) em vez do "()". O resto igual: 25 s parado, sem dano, "⚠ FUJA! AGORA! ⚠".
+  - Pra testar: `/froggydude raiva2` perto dele.
+- **Bote com ragdoll** (item 3 da fila): 1 em cada 3 vezes que o bote baixo pega um jogador e ia virar marreta, a
+  câmera corta pra um plano baixo de lado, no chão: tu voa pra frente e pra cima **girando mole**, com ele montado em
+  cima, por ~1,1-1,7 s; quando tu cai no chão, volta pra marreta normal (os socos). Só pra quem é atingido; os outros
+  veem o voo normal.
+  - Pra testar: deixa ele te caçar em campo aberto e fica a uns 4-7 blocos (é o bote baixo; pode levar uns botes até
+    sair o ragdoll, é sorteio).
+
+O que tinha pra testar na v0.7.47:
 - **Raiva 2** (vídeos do LM 23/11 14:33): extremamente irritado (a raiva dele no máximo, com quem ele caça a até 32
   blocos; no máximo a cada 15 min), ele fica louco: **troca de pose de repente, sem animação entre elas** (as 32 poses
   do vídeo, quadro a quadro, na mesma ordem: em pé, "T", curvado, braços em "Y", tombado com a perna chutada, de
