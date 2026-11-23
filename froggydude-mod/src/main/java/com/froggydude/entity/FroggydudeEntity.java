@@ -984,6 +984,180 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
     }
 
+    // ---------------------------------------------------------------- (v0.7.54) a emboscada na floresta
+
+    /**
+     * Raro: depois de uma, nenhuma por 15-25 min (e a primeira só 5 min depois de ele aparecer). Nas condições, sorteia
+     * 1 em 6 a cada ~10 s.
+     */
+    private int ambushReadyAt = 6000;
+    @Nullable
+    private UUID ambushPrey;
+    /** Quando toca o 1º som, o 2º (se ela não olhou) e quando ele pula de qualquer jeito (ticks do estado). */
+    private int ambushCue1, ambushCue2, ambushGiveUp;
+    private boolean ambushFirstLine;
+
+    /**
+     * (v0.7.54, LM 23/11: "da pra só ele ficar posicionado estrategicamente, aí fazer um som de graveto quebrando, ou uma
+     * fala 'I can see you but you can't see me..', daí o personagem olha em direção ao barulho (sempre atrás dele), daí ele
+     * pula no jogador, bem raro em floresta fechada"; "o jogador não vê"; "dinâmico, em lugares onde o mod tem certeza
+     * onde é mais difícil enxergar o froggydude (não se aplica a cavernas)") a emboscada: caçando alguém que está numa
+     * mata fechada (muita folha e tronco em volta, céu em cima: caverna não), sem ela ver ele, ele aparece escondido
+     * ATRÁS dela (fora da vista, a 4-7 blocos), parado; um tempinho depois, o estalo de graveto ou a fala, do lugar
+     * dele; ela vira pra olhar e na hora ele pula nela (o bote baixo). Não virou: outro som; e no fim ele pula assim mesmo.
+     */
+    private void maybeAmbush() {
+        boolean test = Boolean.getBoolean("froggydude.ambushTest"); // dev: sem a espera nem o sorteio
+        if (this.tickCount < ambushReadyAt && !test) return;
+        if (!(this.getTarget() instanceof ServerPlayer p) || !p.isAlive() || p.isCreative() || p.isSpectator() || p.isPassenger()) return;
+        FroggyState s = getFroggyState();
+        if ((s != FroggyState.CHASE && s != FroggyState.IDLE) || isFrenzyActive() || isEating() || isHolding() || isFightingNow()) return;
+        if (this.distanceTo(p) > 40.0F || com.froggydude.player.PlayerSight.sees(p, this) || !denseForest(p)) return;
+        if (!test && this.getRandom().nextInt(6) != 0) {
+            ambushReadyAt = this.tickCount + 200;
+            return;
+        }
+        if (!beginAmbush(p)) ambushReadyAt = this.tickCount + 200;
+    }
+
+    /**
+     * Mata fechada em volta dela: céu em cima (luz do céu, então não é caverna) e muita folha/tronco perto (num cubo de 11
+     * blocos de lado, do pé a 6 acima, 70+ blocos de folha ou tronco), ou seja, difícil de enxergar longe.
+     */
+    private boolean denseForest(ServerPlayer p) {
+        Level level = this.level();
+        BlockPos eye = BlockPos.containing(p.getEyePosition());
+        if (level.getBrightness(net.minecraft.world.level.LightLayer.SKY, eye) < 8) return false;
+        int n = 0;
+        BlockPos base = p.blockPosition();
+        for (BlockPos q : BlockPos.betweenClosed(base.offset(-5, -1, -5), base.offset(5, 6, 5))) {
+            var st = level.getBlockState(q);
+            if (st.is(net.minecraft.tags.BlockTags.LEAVES) || st.is(net.minecraft.tags.BlockTags.LOGS)) {
+                if (++n >= 70) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Também pelo /froggydude emboscada (sem precisar de mata nem sorteio). */
+    public boolean beginAmbush(ServerPlayer p) {
+        if (isReviving() || ragdollRun != null || rageRun != null || headGrabRun != null || getFroggyState() == FroggyState.INTRO
+                || getFroggyState() == FroggyState.RAGE2 || !(this.level() instanceof ServerLevel)) {
+            return false;
+        }
+        Vec3 spot = ambushSpot(p);
+        if (spot == null) return false;
+        this.getNavigation().stop();
+        this.setDeltaMovement(Vec3.ZERO);
+        this.moveTo(spot.x, spot.y, spot.z, this.getYRot(), 0F);
+        faceDirection(p.getX() - spot.x, p.getZ() - spot.z);
+        ambushPrey = p.getUUID();
+        ambushCue1 = 30 + this.getRandom().nextInt(30);
+        ambushCue2 = ambushCue1 + 110;
+        ambushGiveUp = ambushCue1 + 240;
+        ambushFirstLine = this.getRandom().nextInt(3) == 0; // o graveto é o mais comum; a fala, 1 em 3
+        ambushReadyAt = this.tickCount + 18000 + this.getRandom().nextInt(12000);
+        setTarget(p);
+        setFroggyState(FroggyState.AMBUSH);
+        brainLog("emboscada: escondido atrás de " + p.getScoreboardName());
+        return true;
+    }
+
+    /**
+     * Um lugar no chão bem atrás dela (no rumo das costas, até 25° pros lados: o barulho vem de trás), a 3,5-5,5 blocos,
+     * fora da vista dela e com o caminho do pulo livre até ela (escondido atrás de um tronco, o pulo batia na árvore).
+     */
+    @Nullable
+    private Vec3 ambushSpot(ServerPlayer p) {
+        ServerLevel level = (ServerLevel) this.level();
+        Vec3 look = p.getViewVector(1.0F).multiply(1, 0, 1);
+        if (look.lengthSqr() < 1.0E-4D) look = new Vec3(0, 0, 1);
+        look = look.normalize();
+        double back = Math.atan2(-look.z, -look.x);
+        for (int i = 0; i < 48; i++) {
+            double a = back + (this.getRandom().nextDouble() - 0.5D) * Math.toRadians(50D);
+            double d = 3.5D + this.getRandom().nextDouble() * 2.0D;
+            int x = Mth.floor(p.getX() + Math.cos(a) * d), z = Mth.floor(p.getZ() + Math.sin(a) * d);
+            for (int dy = 2; dy >= -3; dy--) {
+                BlockPos at = new BlockPos(x, Mth.floor(p.getY()) + dy, z);
+                if (!ambushFree(level, at) || !ambushFree(level, at.above()) || !ambushFree(level, at.above(2))) continue;
+                if (!level.getBlockState(at.below()).isFaceSturdy(level, at.below(), net.minecraft.core.Direction.UP)) continue;
+                Vec3 v = Vec3.atBottomCenterOf(at);
+                if (Math.abs(v.y - p.getY()) > 1.5D || com.froggydude.world.FroggyKeeper.visible(level, p, at)) break;
+                if (!ambushClear(level, v, p.position())) break;
+                return v;
+            }
+        }
+        return null;
+    }
+
+    /** O corpo dele passa do lugar até ela sem bater em nada (o pulo baixo, ~1 bloco acima do chão). */
+    private boolean ambushClear(ServerLevel level, Vec3 from, Vec3 to) {
+        var box0 = this.getBoundingBox().move(from.subtract(this.position())).deflate(0.1D);
+        Vec3 d = to.subtract(from);
+        int n = (int) Math.ceil(d.length() / 0.4D);
+        for (int k = 0; k <= n; k++) {
+            double f = k / (double) Math.max(1, n);
+            var b = box0.move(d.scale(f)).move(0, 0.4D * Math.sin(Math.PI * f), 0);
+            if (!level.noCollision(this, b)) return false;
+        }
+        return true;
+    }
+
+    private static boolean ambushFree(ServerLevel level, BlockPos p) {
+        return level.getBlockState(p).getCollisionShape(level, p).isEmpty() && level.getFluidState(p).isEmpty();
+    }
+
+    private void ambushTick() {
+        int t = getStateTicks();
+        this.setDeltaMovement(0, Math.min(0D, this.getDeltaMovement().y), 0);
+        this.getNavigation().stop();
+        mute(10);
+        Player pl = ambushPrey == null ? null : this.level().getPlayerByUUID(ambushPrey);
+        if (!(pl instanceof ServerPlayer p) || !p.isAlive() || p.isCreative() || p.isSpectator() || this.distanceTo(p) > 14.0F) {
+            endAmbush(null, false);
+            return;
+        }
+        faceDirection(p.getX() - this.getX(), p.getZ() - this.getZ());
+        this.getLookControl().setLookAt(p, 30.0F, 30.0F);
+        // virou pra ele (pro barulho, ou sem querer): assim que ele aparece na tela dela, na hora ele pula
+        if (t > 4 && (lookingAtMe(p) || com.froggydude.player.PlayerSight.sees(p, this))) {
+            endAmbush(p, true);
+            return;
+        }
+        if (t == ambushCue1) ambushSound(ambushFirstLine);
+        if (t == ambushCue2) ambushSound(!ambushFirstLine);
+        if (t >= ambushGiveUp) endAmbush(p, true); // nem assim: pula pelas costas
+    }
+
+    /** Ela olha pro lado dele (até ~45° do meio da tela), mesmo com folha no meio: virou pro barulho. */
+    private boolean lookingAtMe(ServerPlayer p) {
+        Vec3 to = this.getEyePosition().subtract(p.getEyePosition());
+        double len = to.length();
+        return len > 1.0E-3D && to.scale(1.0D / len).dot(p.getViewVector(1.0F)) > 0.7D;
+    }
+
+    private void ambushSound(boolean line) {
+        if (line) {
+            this.level().playSound(null, this.getX(), this.getEyeY(), this.getZ(), ModSounds.AMBUSH_LINE.get(),
+                    SoundSource.HOSTILE, 1.6F, 1.0F);
+        } else {
+            this.level().playSound(null, this.getX(), this.getY() + 0.1D, this.getZ(), ModSounds.AMBUSH_SNAP.get(),
+                    SoundSource.HOSTILE, 1.4F, 0.9F + this.getRandom().nextFloat() * 0.2F);
+        }
+        brainLog(line ? "emboscada: \"I can see you...\"" : "emboscada: graveto");
+    }
+
+    /** Acaba a emboscada: pula nela (o bote baixo, o pulo do jumpscare) ou só volta a caçar. */
+    private void endAmbush(@Nullable ServerPlayer p, boolean pounce) {
+        ambushPrey = null;
+        setFroggyState(FroggyState.CHASE);
+        if (!pounce || p == null) return;
+        setTarget(p);
+        combatGoal.ambushPounce(p);
+        brainLog("emboscada: pulou em " + p.getScoreboardName());
+    }
+
     /** (v0.7.47) Quem está voando no bote com ragdoll (o id da entidade; -1 = ninguém). */
     public int tackleVictimId() {
         return getFroggyState() == FroggyState.TACKLE ? this.entityData.get(DATA_TACKLE) : -1;
@@ -1693,7 +1867,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
      */
     @Override
     public boolean isNoAi() {
-        return super.isNoAi() || isReviving() || getFroggyState() == FroggyState.INTRO || getFroggyState() == FroggyState.RAGE2;
+        return super.isNoAi() || isReviving() || getFroggyState() == FroggyState.INTRO || getFroggyState() == FroggyState.RAGE2
+                || getFroggyState() == FroggyState.AMBUSH;
     }
 
     /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
@@ -3303,6 +3478,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             rage2Tick();
             return;
         }
+        if (getFroggyState() == FroggyState.AMBUSH) {
+            ambushTick();
+            return;
+        }
         if (introPending && this.tickCount % 10 == 0) tryStartIntro();
         // (v0.7.42) a IA dinâmica: o decisor escolhe o que fazer; as vontades andam a cada 1 s
         decider.tick();
@@ -3379,6 +3558,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         frenzyRunYell();
         if (this.tickCount % 20 == 0) hiddenSing();
         if (this.tickCount % 20 == 0) maybeRage2();
+        if (this.tickCount % 20 == 10) maybeAmbush();
         breakVehicle();
         if (holdTicks > 0) {
             holdTicks--;
@@ -3731,6 +3911,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (getFroggyState() == FroggyState.INTRO && !Revive.final_(source)) return false;
         // (v0.7.47) na raiva 2 também: parado 25 s e nada machuca (LM: "não recebe dano nessa posição")
         if (getFroggyState() == FroggyState.RAGE2 && !Revive.final_(source)) return false;
+        // (v0.7.54) acertaram ele escondido: a emboscada acaba e ele parte pra cima
+        if (getFroggyState() == FroggyState.AMBUSH && !this.level().isClientSide && source.getEntity() instanceof ServerPlayer hitter) {
+            endAmbush(hitter, true);
+        }
         // (v0.7.30) a fúria do Avaritia: arma/flecha/área do Avaritia não machuca ele (raramente um arranhão)
         if (!this.level().isClientSide && FroggyConfig.ai().stealsWeapons() && fromAvaritia(source)) {
             if (this.getRandom().nextFloat() >= AVARITIA_GRAZE_CHANCE) {
@@ -4066,6 +4250,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_INTRO);
             case RAGE2:
                 return state.setAndContinue(ANIM_RAGE2);
+            case AMBUSH:
+                return state.setAndContinue(ANIM_CROUCH_IDLE);
             case TACKLE:
                 return state.setAndContinue(ANIM_JUMP_PIN);
             case HEAD_GRAB:

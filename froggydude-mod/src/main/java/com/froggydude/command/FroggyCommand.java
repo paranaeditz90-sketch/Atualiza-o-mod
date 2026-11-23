@@ -81,6 +81,7 @@ public final class FroggyCommand {
                         .then(Commands.literal("parar").executes(c -> stopManhunt(c.getSource()))))
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
                 .then(Commands.literal("raiva2").requires(FroggyCommand::admin).executes(c -> rage2(c.getSource())))
+                .then(Commands.literal("emboscada").requires(FroggyCommand::admin).executes(c -> ambush(c.getSource())))
                 .then(Commands.literal("irritar").requires(FroggyCommand::admin).executes(c -> irk(c.getSource())))
                 .then(Commands.literal("susto").requires(FroggyCommand::admin).executes(c -> jumpscare(c.getSource())))
                 // (v0.7.35) o renascer com a língua agora (sem ter que matar ele e torcer pros 35%)
@@ -501,6 +502,18 @@ public final class FroggyCommand {
             return 0;
         }
         src.sendSuccess(() -> t("rage2"), true);
+        return 1;
+    }
+
+    /** (v0.7.54) Teste: a emboscada da floresta agora (sem precisar de mata nem do sorteio). */
+    private static int ambush(CommandSourceStack src) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null || f.level() != p.level() || !f.beginAmbush(p)) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        src.sendSuccess(() -> t("ambush"), true);
         return 1;
     }
 

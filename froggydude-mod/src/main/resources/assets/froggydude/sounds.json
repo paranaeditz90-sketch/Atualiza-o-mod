@@ -1115,5 +1115,26 @@
         "attenuation_distance": 48
       }
     ]
+  },
+  "froggydude.ambush_snap": {
+    "subtitle": "subtitles.froggydude.ambush_snap",
+    "sounds": [
+      {
+        "name": "minecraft:dig/wood1",
+        "volume": 1.0,
+        "pitch": 1.5,
+        "attenuation_distance": 24
+      }
+    ]
+  },
+  "froggydude.ambush_line": {
+    "subtitle": "subtitles.froggydude.ambush_line",
+    "sounds": [
+      {
+        "name": "minecraft:ambient/cave/cave4",
+        "volume": 0.8,
+        "attenuation_distance": 24
+      }
+    ]
   }
 }

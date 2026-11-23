@@ -46,6 +46,9 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> ABC = register("froggydude.abc");
     /** (v0.7.49) A raiva 2: o som original dele se contorcendo louco (1,6 s, vídeo do LM 23/11; no pacote de voz). */
     public static final RegistryObject<SoundEvent> RAGE2 = register("froggydude.rage2");
+    /** (v0.7.54) A emboscada na floresta: o graveto quebrando e o "I can see you, but you can't see me" (no pacote de voz). */
+    public static final RegistryObject<SoundEvent> AMBUSH_SNAP = register("froggydude.ambush_snap");
+    public static final RegistryObject<SoundEvent> AMBUSH_LINE = register("froggydude.ambush_line");
     public static final RegistryObject<SoundEvent> BITE = register("froggydude.bite");
     /** Comendo / "you taste so good". */
     public static final RegistryObject<SoundEvent> EAT = register("froggydude.eat");

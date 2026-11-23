@@ -15,7 +15,7 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 2. ~~Sons "A, B, C..."~~ (feito na 0.7.46: canta escondido, fora da vista).
 3. ~~Bote com ragdoll~~ (feito na 0.7.48): câmera fixa no chão, ele pula em ti, tu voa mole ~1,5-2 s visto de fora e
    corta pra marreta (1 em cada 3 botes; sem "Hey, monkey man").
-4. Ele se esconder do jogador em floresta fechada (medo e tensão).
+4. ~~Ele se esconder do jogador em floresta fechada~~ (feito na 0.7.54: a emboscada, graveto/fala atrás, olhou = pulo).
 5. Jumpscare quando ele tem certeza que tu não tem saída (inventário sem picareta/meio de fugir; curvas de blocos).
 6. Raiva/depois de morrer (2º vídeo, MediaFire 13:44, 33-45 s): sobe flutuando alto no céu (um pontinho), mergulha
    reto e muito rápido em cima de quem caçava (a tela enche), levanta na pose "()" da raiva e já parte pro próximo

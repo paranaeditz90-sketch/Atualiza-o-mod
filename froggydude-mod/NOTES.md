@@ -1,4 +1,4 @@
-# Froggydude - v0.7.53: bote com ragdoll raro e dinâmico (sobre a v0.7.52)
+# Froggydude - v0.7.54: a emboscada na floresta (sobre a v0.7.53)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,23 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.53):
+O que testar agora (v0.7.54):
+- **Emboscada na floresta** (item 4; LM 23/11: "ele fica posicionado estrategicamente, faz um som de graveto quebrando, ou
+  uma fala 'I can see you but you can't see me..', daí o personagem olha em direção ao barulho (sempre atrás dele), daí
+  ele pula no jogador, bem raro em floresta fechada"; "o jogador não vê"; "dinâmico, onde é mais difícil enxergar"):
+  - **quando:** ele te caçando, tu numa **mata fechada** (muita folha e tronco em volta) **com céu em cima** (em caverna
+    não), sem tu estar vendo ele. Bem raro: nas condições, 1 chance em 6 a cada ~10 s; a 1ª só 5 min depois de ele
+    aparecer, e depois de uma, nenhuma por 15-25 min;
+  - **como:** ele aparece escondido **bem atrás de ti** (3,5-5,5 blocos, fora da tua vista, com caminho livre pro pulo),
+    agachado e parado. Um tempinho depois, do lugar dele: **o graveto quebrando** (mais comum) **ou a fala "I can see
+    you, but you can't see me"** (1 em 3). Tu vira pro barulho e **na hora que ele aparece na tua tela, ele pula em
+    ti** (o bote baixo). Não virou: ~5 s depois, o outro som; mais ~6 s e ele pula pelas costas assim mesmo. Tu
+    batendo nele escondido: pula na hora;
+  - os dois sons são do vídeo que tu mandou (a fala separada da música; no pacote de voz). Sem o pacote: um estalo de
+    madeira agudo e um som de caverna.
+  - Pra testar sem esperar: `/froggydude emboscada` (sem precisar de mata nem do sorteio).
+
+O que tinha pra testar na v0.7.53:
 - **Bote com ragdoll raro e dinâmico** (LM 23/11: "deixa só como raro essa animação, pra não tocar toda hora"): na caça,
   quando o bote baixo ia virar marreta, a chance era 1 em 3; agora é **6%**, mais **até 10%** com a raiva dele alta e
   **+6%** se tu tava correndo na hora (o embalo joga longe); **nunca** com parede/bloco a menos de 4 blocos no rumo do

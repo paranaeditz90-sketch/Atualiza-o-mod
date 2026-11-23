@@ -45,6 +45,10 @@ minecraft {
             }
             // Entrar com outro nome (ex.: -PplayerName=FroggyDudeMC pro easter egg, ver client.EasterEgg)
             // O bote com ragdoll sempre (em vez de 1 em 3), pra testar (-PtackleAlways)
+            // A emboscada da floresta sem a espera nem o sorteio (-PambushTest)
+            if (project.hasProperty('ambushTest')) {
+                property 'froggydude.ambushTest', 'true'
+            }
             if (project.hasProperty('tackleAlways')) {
                 property 'froggydude.tackleAlways', 'true'
             }

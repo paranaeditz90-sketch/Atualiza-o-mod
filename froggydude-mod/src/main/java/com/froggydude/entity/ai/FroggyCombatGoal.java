@@ -1168,6 +1168,11 @@ public class FroggyCombatGoal extends Goal {
         return dx * dx + dz * dz < 144.0D;
     }
 
+    /** (v0.7.54) O fim da emboscada na floresta: ela virou pro barulho e ele pula (o bote baixo). */
+    public void ambushPounce(LivingEntity target) {
+        beginAttack(FroggyState.JUMP_PIN, target, froggy.distanceTo(target));
+    }
+
     /** O pulo altíssimo calculado (RealTactics.solveArc), pra cair do lado dela em {@code land}. */
     void beginArc(LivingEntity target, Vec3 land) {
         arcLand = land;
