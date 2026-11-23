@@ -679,6 +679,49 @@ while _t < SKY_FIM - 1e-6:   # a cabeça balança de leve pros lados até o fim
 _SKY.append((SKY_FIM, _sky_zumbi(perna=SKY_PERNA, perna_l=4, waist=6, head=0)))
 ANIMS["sky_drop"] = animation(SKY_FIM, _SKY, "hold_on_last_frame")
 
+# A entrada (v0.7.44/45, vídeo do LM 23/11; entity.FroggydudeEntity INTRO e client.cutscene.IntroCamera): ele surge
+# parado na pose de antes de pular (LM: "Tem no nosso mod essa mesma animação de começar a pular, mas não pula, ele
+# uiva em seguida") - é a agachada do pulo do céu aos 0,336 s (sky_drop: braço direito aberto pra frente e pro lado, o
+# esquerdo mais baixo, as pernas "||" encolhidas), com a cabeça um pouco torta como no quadro do vídeo; respira de leve
+# até o corte (2,5 s = INTRO_HOWL) e uiva pro céu: fica de pé, o corpo pra trás, a cabeça bem pra cima tremendo.
+INTRO_HOWL_T = 2.5     # FroggydudeEntity.INTRO_HOWL (50 ticks)
+INTRO_END_T = 4.2      # FroggydudeEntity.INTRO_END (84 ticks)
+
+
+def _intro_pose(k=0.0):
+    """A pose de antes de pular do vídeo; k de 0 a 1 = a respiração (inclina um tico mais)."""
+    # (LM 23/11: "as pernas encostam na barriga ... em posição reta '||' para fora, os braços em '/ \\' ... abertos + para
+    # trás, cabeça olhando levemente para o chão, o ombro dele aparece") medida com o rigfit (skill video-motion-analysis)
+    # no quadro do vídeo a 1,4 s, partindo da profundidade descrita pelo LM: só o que se vê de frente foi ajustado
+    # (resíduo máximo 0,9°). A agachada "||" do pulo do céu (2,5 px), o corpo 40° pra frente (a cabeça cobre o peito,
+    # aparece o topo dela e o ombro), o braço direito 35° PRA TRÁS e aberto 25° (LM: "esse braço precisa arrumar", depois "É para trás man, não para frente" - a 37° caído ele passava do quadril; no vídeo a mão termina na altura do quadril com a ponta à mostra; rigfit refeito com ele 35° pra trás, resíduo 0,16°), o esquerdo bem pra trás e aberto 18° (o rigfit deu 8°, mas aí ele sumia atrás do corpo; no vídeo ele
+    # aparece com 63% do comprimento do direito), corpo e cabeça um pouco tortos
+    # (LM: "as pernas ... realmente reto, como se tivesse 'deslocado' para frente, perto da barriga, em posição igual a
+    # '||'"; escolheu a de 6 px e pediu "BEM leve mexida para trás") as pernas andam 5 px pra frente e 3 px pra dentro:
+    # saem retas de baixo da barriga, não do quadril lá atrás
+    # (LM: "ficou levemente torto ... tem como deixar ele mais centralizado?") sem o corpo torto pro lado e as pernas
+    # abertas iguais (o rigfit tinha copiado 5° de corpo e pernas 2,5/5,5 do vídeo); só a cabeça um pouco torta
+    return _sky_agacha(5.0, 3.0 + 0.4 * k, waist=40 + 2 * k, head=-12 - k, head_z=4,
+                       arms=-5 - k, arm_spread=25, arm_l=10 - k, spread_l=18, leg_spread=4)
+
+
+def _intro_howl(head=-62.0, head_z=0.0):
+    return pose(waist=-10, head=head, head_z=head_z, arms=10, arm_spread=12, leg_spread=3)
+
+
+ANIMS["intro"] = animation(INTRO_END_T, [
+    (0.0, _intro_pose()),
+    (1.25, _intro_pose(1.0)),
+    (INTRO_HOWL_T, _intro_pose()),
+    (INTRO_HOWL_T + 0.25, _intro_howl()),
+    (3.0, _intro_howl(-58, 4)),
+    (3.25, _intro_howl(-64, -4)),
+    (3.5, _intro_howl(-60, 4)),
+    (3.75, _intro_howl(-63, -3)),
+    (3.9, _intro_howl()),
+    (INTRO_END_T, pose()),
+], "hold_on_last_frame")
+
 # Renascer com a língua (v0.7.35; réplica v3 aprovada pelo LM em 16/11; entity.Revive e client.pieces.ReviveScene):
 #   revive_lie: deitado de bruços - a raiz tomba 90° pra frente e sobe 2 px (o peito encosta no chão, o rosto fica 2 px
 #     enterrado). É a mesma pose das juntas dos pedaços: quando o último encaixa, o modelo inteiro assume sem pulo.

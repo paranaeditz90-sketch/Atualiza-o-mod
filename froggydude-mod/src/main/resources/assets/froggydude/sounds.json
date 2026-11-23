@@ -189,6 +189,17 @@
     ],
     "subtitle": "subtitles.froggydude.death"
   },
+  "froggydude.intro_howl": {
+    "subtitle": "subtitles.froggydude.intro_howl",
+    "sounds": [
+      {
+        "name": "minecraft:mob/wolf/howl1",
+        "pitch": 0.7,
+        "volume": 1.0,
+        "attenuation_distance": 64
+      }
+    ]
+  },
   "froggydude.scream": {
     "sounds": [
       {

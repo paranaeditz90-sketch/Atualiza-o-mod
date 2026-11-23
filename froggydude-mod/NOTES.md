@@ -1,4 +1,4 @@
-# Froggydude - v0.7.44: maids do TLM protegidas, portas, barco, destravador, nome FroggyDudeMC, entrada e easter egg (sobre a v0.7.43)
+# Froggydude - v0.7.45: a entrada com a pose e o uivo do vídeo (sobre a v0.7.44)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,17 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.44):
+O que testar agora (v0.7.45):
+- **A entrada corrigida** (LM: "a animação de entrada não é igual a do comecinho de antes de pular" e "o som não é o do
+  vídeo fazendo Auuuuf"): a pose agora é a do quadro do vídeo, MEDIDA com o rigfit (skill video-motion-analysis: pontos
+  do corpo marcados no quadro, ângulos ajustados no esqueleto do mod, resíduo < 1°) a partir da descrição do LM: pernas
+  "||" encostando na barriga (a agachada do pulo do céu), corpo inclinado pra frente (a cabeça cobre o peito e aparece o
+  topo dela), cabeça olhando pro chão e meio torta, braços em "/ \" (o direito aberto quase de lado, o esquerdo pra
+  trás; o direito 35° pra trás; depois, a pedido do LM: as pernas "||" deslocadas pra frente, saindo retas de baixo da
+  barriga, e sem o corpo torto pro lado), ele surge mais perto (3,5-5 blocos, como no vídeo) e o uivo é o "Ooooooh!" do próprio vídeo, tocando bem no corte pra câmera do céu (antes tocava
+  uns décimos antes logo depois de carregar o mundo). Sem falas soltas por cima da cena. Gravado aqui com som.
+
+O que tinha pra testar na v0.7.44:
 - **Touhou Little Maid** (pedido do time do TLM, com o vídeo deles: as maids viravam pedaços com a roupa delas, numa
   poça de sangue). Opção nova **"Touhou Little Maid: gore"** (Mods > Froggydude > Configurar > Gore; só aparece com o
   TLM instalado; no arquivo: `[compatibilidade] touhou_little_maid_gore` em `froggydude-common.toml`).
@@ -43,8 +53,10 @@ O que testar agora (v0.7.44):
 - **Cutscene de entrada** (vídeo do LM, 23/11; **uma vez por mundo**, só em mundo onde ele nunca apareceu): na 1ª vez
   que ele surge no mundo (invasão, manhunt, ovo, comando), com alguém em sobrevivência a até 64 blocos, ele aparece a
   5-7 blocos na tua frente **parado na pose de pulo, te olhando** (~2,5 s, com "FroggyDudeMC entrou no jogo" no chat),
-  e **corta pra câmera baixa atrás dele** olhando pro céu: ele **uiva pra cima** (o grito dele, ~1,7 s). Aí solta e vem.
-  Sem a fala do vídeo ("Where's the monkey?" saiu). Durante a cena: sem mão, sem mira, sem andar; ele não toma dano.
+  e **corta pra câmera baixa atrás dele** olhando pro céu: ele **uiva pra cima** ("Ooooooh!", o uivo do próprio vídeo,
+  no pacote de voz; sem a voz, o uivo do lobo grave), tocando no corte. Aí solta e vem. Sem a fala do vídeo ("Where's
+  the monkey?" saiu). A pose (LM: "o comecinho de antes de pular"): curvado pra frente, cabeça baixa e torta, braço
+  direito aberto, o esquerdo pra frente e pra baixo, joelhos meio dobrados, copiada do quadro do vídeo. Durante a cena: sem mão, sem mira, sem andar; ele não toma dano.
   Testado aqui: os dois planos certos, nada de corpo do jogador na frente.
   - Pra testar: mundo novo, chama ele (ovo ou `/summon froggydude:froggydude`) longe de ti.
 - **Preso no barco** (relato: "FroggyDude não pode perseguir porque ele está em um barco"). O jogo põe mob sozinho

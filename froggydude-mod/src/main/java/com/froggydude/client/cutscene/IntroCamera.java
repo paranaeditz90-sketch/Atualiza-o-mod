@@ -45,6 +45,8 @@ public final class IntroCamera {
     @Nullable
     private static CameraType savedType;
     private static long startTime;
+    /** O uivo já tocou nesta cena (toca no corte, aqui no cliente: o relógio do servidor corre na frente ao carregar). */
+    private static boolean howled;
 
     private IntroCamera() {
     }
@@ -83,6 +85,7 @@ public final class IntroCamera {
     private static void start(Minecraft mc, FroggydudeEntity f) {
         froggy = f;
         startTime = mc.level.getGameTime();
+        howled = false;
         if (cam == null || cam.level() != mc.level) {
             cam = new CutsceneCamera(ModEntityTypes.CUTSCENE_CAMERA.get(), mc.level);
             cam.setId(-91_7003);
@@ -111,6 +114,11 @@ public final class IntroCamera {
             Vec3 eye = mc.player.getEyePosition(partial);
             pos = eye.add(aim.subtract(eye).multiply(1, 0, 1).normalize().scale(0.6D));
         } else {
+            if (!howled) {
+                howled = true;
+                mc.level.playLocalSound(fp.x, fp.y, fp.z, com.froggydude.init.ModSounds.INTRO_HOWL.get(),
+                        net.minecraft.sounds.SoundSource.HOSTILE, 1.8F, 1.0F, false);
+            }
             // 2º plano: pra onde ele olha (o corpo), atrás dele, baixo e de lado, olhando pro céu por cima da cabeça
             float yaw = Mth.rotLerp(partial, f.yBodyRotO, f.yBodyRot) * Mth.DEG_TO_RAD;
             Vec3 fwd = new Vec3(-Mth.sin(yaw), 0, Mth.cos(yaw));

@@ -929,7 +929,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     /**
      * A cada 0,5 s enquanto a entrada está pendente: com alguém (sobrevivência) a até 64 blocos e ele livre (sem briga,
-     * sem comer), vai pra 5-7 blocos na frente dessa pessoa, à vista, e começa. Sem lugar na frente, só se já estiver
+     * sem comer), vai pra 3,5-5 blocos na frente dessa pessoa (como no vídeo), à vista, e começa. Sem lugar na frente, só se já estiver
      * perto (24 blocos); senão tenta de novo.
      */
     private void tryStartIntro() {
@@ -945,7 +945,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             }
         }
         if (viewer == null) return;
-        BlockPos spot = com.froggydude.world.FroggyKeeper.findSpot(server, viewer, 5.0D, 7.0D,
+        BlockPos spot = com.froggydude.world.FroggyKeeper.findSpot(server, viewer, 3.5D, 5.0D,
                 com.froggydude.world.FroggyKeeper.Sight.IN_VIEW, this.getRandom());
         if (spot != null) {
             this.teleportTo(spot.getX() + 0.5D, spot.getY(), spot.getZ() + 0.5D);
@@ -970,14 +970,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Parado na pose; no corte, o uivo pro céu; no fim, solta e vai pra cima de quem assistiu. */
     private void introTick() {
         int age = introAge();
+        mute(10); // sem falas soltas por cima da cena (o uivo toca direto, não pela voz)
         this.setDeltaMovement(0, Math.min(0D, this.getDeltaMovement().y), 0);
         this.getNavigation().stop();
         Entity v = this.level().getEntity(introViewerId());
         Player viewer = v instanceof Player p && p.isAlive() ? p : null;
         if (viewer != null && age < INTRO_HOWL) faceDirection(viewer.getX() - this.getX(), viewer.getZ() - this.getZ());
         if (age == INTRO_HOWL) {
-            this.level().playSound(null, this.getX(), this.getY(), this.getZ(), ModSounds.SCREAM.get(),
-                    SoundSource.HOSTILE, 1.8F, 0.8F);
+            // quem assiste ouve o uivo no corte da câmera dele (IntroCamera); os outros, daqui
+            this.level().playSound(viewer, this.getX(), this.getY(), this.getZ(), ModSounds.INTRO_HOWL.get(),
+                    SoundSource.HOSTILE, 1.8F, 1.0F);
         }
         if (age >= INTRO_END || viewer == null || age < 0) endIntro(viewer);
     }

@@ -38,6 +38,8 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> DEATH = register("froggydude.death");
     /** O grito da fase 2. */
     public static final RegistryObject<SoundEvent> SCREAM = register("froggydude.scream");
+    /** (v0.7.44) O uivo da entrada ("Ooooooh!" do vídeo, no pacote de voz; sem ele, o uivo do lobo grave). */
+    public static final RegistryObject<SoundEvent> INTRO_HOWL = register("froggydude.intro_howl");
     public static final RegistryObject<SoundEvent> BITE = register("froggydude.bite");
     /** Comendo / "you taste so good". */
     public static final RegistryObject<SoundEvent> EAT = register("froggydude.eat");
