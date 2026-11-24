@@ -2150,6 +2150,27 @@ public class FroggyCombatGoal extends Goal {
         froggy.setTongueLength(0F);
     }
 
+    /** (v0.7.67) A distância (blocos) em que o empurrão vale: ~0,3 s antes dele chegar, no ar. */
+    private static final double PARRY_DIST = 4.0D;
+
+    /**
+     * (v0.7.67) O empurrão na hora certa (item 7 da fila; LM 24/11: "bater no bote dele"): quem ele caça bate nele com a mão
+     * (ou arma de mão) enquanto ele está no ar no bote baixo, já perto (~0,3 s antes de chegar): o bote acaba ali, ele é
+     * jogado pra trás e fica tonto ~2 s. Fora disso (cedo, longe, ou já pegou) não vale: o bote derruba como sempre.
+     */
+    public boolean tryParry(Player p) {
+        FroggyState st = froggy.getFroggyState();
+        debug("empurrão? estado=" + st + " no ar=" + launched + " pegou=" + fired1 + " dist=" + froggy.distanceTo(p));
+        if (st != FroggyState.JUMP_PIN || !launched || fired1 || rage2Strike) return false;
+        if (froggy.getTarget() != p || froggy.distanceTo(p) > PARRY_DIST) return false;
+        fired1 = true;
+        attackHit = false;
+        debug("empurrão na hora certa: dist=" + froggy.distanceTo(p));
+        finishAttack(st);
+        froggy.parried(p);
+        return true;
+    }
+
     private void finishAttack(FroggyState state) {
         LivingEntity target = froggy.getTarget();
         if (target != null) {

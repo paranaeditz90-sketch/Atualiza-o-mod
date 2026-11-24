@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "13";
+    private static final String PROTOCOL = "14";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -48,9 +48,16 @@ public final class ModNetwork {
                 NoEscapePacket::encode, NoEscapePacket::decode, NoEscapePacket::handle);
         CHANNEL.registerMessage(9, SkyRagePacket.class,
                 SkyRagePacket::encode, SkyRagePacket::decode, SkyRagePacket::handle);
+        CHANNEL.registerMessage(10, EscapePacket.class,
+                EscapePacket::encode, EscapePacket::decode, EscapePacket::handle);
     }
 
     /** (v0.7.62) A raiva do céu: o aviso de correr, a tela vermelha do acerto, o fim. */
+    /** (v0.7.67) O sistema de fuga (EscapePacket). */
+    public static void sendEscape(ServerPlayer player, byte kind, int ticks) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new EscapePacket(kind, ticks));
+    }
+
     public static void sendSkyRage(ServerPlayer player, byte kind, int ticks) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SkyRagePacket(kind, ticks));
     }

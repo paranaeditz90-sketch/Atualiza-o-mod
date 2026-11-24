@@ -454,6 +454,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // 1: na água, de vitória-régia em vitória-régia (não nada quando tem folha no rumo)
         this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyPadHopGoal(this));
         // 1: speedrun - longe da vítima, come o portal do Nether que ela está fazendo
+        // (v0.7.67) a isca: carne jogada no chão por um jogador (item 7, o sistema de fuga)
+        this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyBaitGoal(this));
         this.goalSelector.addGoal(1, new FroggySabotageGoal(this));
         // 1: (v0.7.29) arma de mod na mão/mochila dela ou no chão: a língua arranca e ele come (Extra, Máx, Real)
         this.goalSelector.addGoal(1, new com.froggydude.entity.ai.FroggyStealGoal(this));
@@ -1642,6 +1644,35 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public boolean isHolding() {
         return holdTicks > 0;
+    }
+
+    /** (v0.7.67) Tonto depois do empurrão (ticks) e quanto do começo ele ainda desliza pra trás (o tranco). */
+    private int dazedTicks;
+    private int slideTicks;
+
+    /**
+     * (v0.7.67) Levou o empurrão na hora certa no bote (FroggyCombatGoal.tryParry): é jogado pra trás, para e fica tonto
+     * ~2 s (a pose cansada, ofegando), depois volta a caçar.
+     */
+    public void parried(Player p) {
+        Vec3 away = this.position().subtract(p.position()).multiply(1, 0, 1);
+        away = away.lengthSqr() < 1.0E-4D ? p.getLookAngle().multiply(1, 0, 1) : away;
+        away = away.lengthSqr() < 1.0E-4D ? new Vec3(1, 0, 0) : away.normalize();
+        holdStill(40, p);
+        slideTicks = 8;
+        dazedTicks = 40;
+        this.entityData.set(DATA_TIRED, true);
+        this.setDeltaMovement(away.x * 1.1D, 0.38D, away.z * 1.1D);
+        this.hasImpulse = true;
+        this.level().playSound(null, this.getX(), this.getY() + 1.0D, this.getZ(), net.minecraft.sounds.SoundEvents.SHIELD_BLOCK,
+                net.minecraft.sounds.SoundSource.HOSTILE, 1.6F, 0.7F);
+        this.level().playSound(null, this.getX(), this.getY() + 1.0D, this.getZ(), net.minecraft.sounds.SoundEvents.PLAYER_ATTACK_KNOCKBACK,
+                net.minecraft.sounds.SoundSource.PLAYERS, 1.4F, 0.8F);
+        if (this.level() instanceof ServerLevel sl) {
+            sl.sendParticles(net.minecraft.core.particles.ParticleTypes.CRIT, this.getX(), this.getY() + 1.6D, this.getZ(),
+                    20, 0.4D, 0.4D, 0.4D, 0.3D);
+        }
+        brainLog("empurrão na hora certa: " + p.getScoreboardName() + " me jogou pra trás; tonto 2 s");
     }
 
     @Override
@@ -3833,7 +3864,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (holdTicks > 0) {
             holdTicks--;
             if (getFroggyState() != FroggyState.IDLE && !isFrenzyActive()) setFroggyState(FroggyState.IDLE);
-            this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
+            if (slideTicks > 0) slideTicks--; // o tranco do empurrão: desliza pra trás antes de parar
+            else this.setDeltaMovement(0, this.getDeltaMovement().y, 0);
             Player look = holdLookAt == null ? null : this.level().getPlayerByUUID(holdLookAt);
             if (look != null) faceTarget(look);
         }
@@ -3934,7 +3966,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
         if (climb) noFallTicks = Math.max(noFallTicks, 40); // se soltar da parede, cai em pé
 
-        if (frenzyTicksLeft > 0) {
+        boolean inFrenzy = frenzyTicksLeft > 0;
+        if (inFrenzy) {
             frenzyTicksLeft--;
             // fase 2 dói: grita e reclama de dor enquanto corre
             if (--painCooldown <= 0) {
@@ -3944,7 +3977,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             if (frenzyTicksLeft == 0) {
                 endFrenzy();
             }
-        } else if (frenzyTiredTicksLeft > 0) {
+        }
+        if (dazedTicks > 0 && --dazedTicks == 0 && frenzyTiredTicksLeft <= 0) this.entityData.set(DATA_TIRED, false);
+        if (!inFrenzy && frenzyTiredTicksLeft > 0) {
             frenzyTiredTicksLeft--;
             if (frenzyTiredTicksLeft == 0) {
                 AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
@@ -4185,6 +4220,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (isReviving() && !Revive.final_(source)) return false;
         // (v0.7.62) na raiva do céu nada pega nele; (v0.7.63) só tonto, depois de errar o mergulho, ele apanha
         if (skyRun != null && getFroggyState() != FroggyState.SKY_STUN && !Revive.final_(source)) return false;
+        // (v0.7.67) o empurrão na hora certa: bateu nele no bote, já perto
+        if (!this.level().isClientSide && source.getEntity() instanceof Player pp && source.getDirectEntity() == pp) {
+            combatGoal.tryParry(pp);
+        }
         // (v0.7.44) na entrada também (só /kill e o fundo do mundo)
         if (getFroggyState() == FroggyState.INTRO && !Revive.final_(source)) return false;
         // (v0.7.47) na raiva 2 também: parado 25 s e nada machuca (LM: "não recebe dano nessa posição")

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.66: contagem do manhunt de 45 s com cores (sobre a v0.7.65)
+# Froggydude - v0.7.67: o sistema de fuga (adrenalina, empurrão na hora certa, isca) (sobre a v0.7.66)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,21 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.66):
+O que testar agora (v0.7.67):
+- **O sistema de fuga** (item 7 da fila; LM 24/11 escolheu os 3):
+  - **Adrenalina**: com **3 corações ou menos** e ele **te caçando a até 10 blocos**, tu ganha **4 s de velocidade
+    forte** (Velocidade III), a **borda da tela pulsa vermelha** e o **coração bate** alto; depois **cansa** (3 s lento).
+    Uma vez a cada **90 s**.
+  - **Empurrão na hora certa**: quando ele dá o **bote** (o pulo baixo em ti), **bate nele quando ele já está no ar e
+    perto** (~4 blocos, ~0,3 s antes de chegar): o bote acaba ali, ele é **jogado pra trás** (faísca, barulho de escudo)
+    e fica **tonto ~2 s** (a pose cansada), depois volta. Bateu cedo/longe, ou não bateu: o bote derruba como sempre.
+  - **Isca**: **joga carne no chão (Q)**, crua ou assada: caçando, ele vê a carne (até 14 blocos), larga a caça,
+    corre até ela e come (pega com a boca, sacode a cabeça e engole, e fica mordendo): **3 s com 1 pedaço, 4 s com 2,
+    5 s com 3 ou mais**. Depois volta a caçar, e por **30 s** não cai em outra isca. Só vale carne que um **jogador**
+    jogou (a que cai dos bichos que ele mata não conta).
+  - Testado no jogo: os três (adrenalina com a vida em 4, empurrão a 3,5 blocos no ar, isca com 2 bifes = 4 s).
+
+O que tinha pra testar na v0.7.66:
 - **A contagem do manhunt** (item 13 da fila, LM 24/11): a vantagem agora é de **45 s** (era 30); nos últimos 5 s a
   mensagem muda de cor: **5 amarelo, 4 um tom levemente mais vermelho, 3 vermelho claro, 2 e 1 vermelho escuro** (em
   negrito). Testado no jogo (`/froggydude manhunt iniciar`).
