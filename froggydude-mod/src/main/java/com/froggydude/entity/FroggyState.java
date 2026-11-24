@@ -140,7 +140,12 @@ public enum FroggyState {
     /** (v0.7.62) O mergulho do céu: reto e muito rápido, de braços abertos, até a cara de quem matou ele. Sem IA. */
     SKY_DIVE(0),
     /** (v0.7.62) Pousou (matou): de pé na pose "()" da raiva uns 2 s, e parte pro próximo. Sem IA. */
-    SKY_LAND(0);
+    SKY_LAND(0),
+    /**
+     * (v0.7.63) Errou o mergulho (quem matou saiu da sombra a tempo): bateu no chão, abriu a cratera e fica tonto uns 4 s.
+     * Sem IA, mas aqui apanha (o prêmio de quem desviou).
+     */
+    SKY_STUN(0);
 
     public final int durationTicks;
 

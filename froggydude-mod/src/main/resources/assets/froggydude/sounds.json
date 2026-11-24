@@ -1136,5 +1136,17 @@
         "attenuation_distance": 24
       }
     ]
+  },
+  "froggydude.sky_prophecy": {
+    "subtitle": "subtitles.froggydude.sky_prophecy",
+    "sounds": [
+      {
+        "name": "minecraft:ambient/cave/cave13",
+        "stream": true,
+        "volume": 1.0,
+        "pitch": 0.7,
+        "attenuation_distance": 64
+      }
+    ]
   }
 }

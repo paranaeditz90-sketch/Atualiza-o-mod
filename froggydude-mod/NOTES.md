@@ -1,4 +1,4 @@
-# Froggydude - v0.7.62: a raiva do céu (sobe, pontinho no céu, mergulha em quem matou) (sobre a v0.7.61)
+# Froggydude - v0.7.63: a raiva do céu com a voz de profecia, o giro e o mergulho desviável (sobre a v0.7.62)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,26 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.62):
+O que testar agora (v0.7.63):
+- **A raiva do céu, do jeito do teu 2º vídeo de referência** (LM 24/11):
+  - **a voz de "profecia" dele** (o áudio do teu vídeo, ~17 s, no pacote de voz do jar) começa na hora que ele "morre"
+    e segue presa em ti (não some se tu correr);
+  - fica reto ~2,8 s e tomba de costas (no tempo do vídeo); deitado, **tronco e cabeça retos** (a cara pro céu) e só
+    **braços e pernas pendurados pra baixo**, balançando um tico (LM: "o tronco e a cabeça ficam retos deitados");
+  - sobe ~3 blocos e **gira deitado em volta do próprio eixo, ~5,5 voltas**, até a voz acabar (LM: "umas 5-6 voltas,
+    depende do áudio");
+  - a voz acabou: dispara pro céu (o pontinho) e aí vem o "RUN FOR YOUR LIFE!!!! NOW!!" e os ~10 s de corrida sem cansar;
+  - **o mergulho dá pra desviar** (LM: "não matar o jogador logo de cara, ficaria injogável"; tu escolheu "sombra +
+    desvio"): 1,5 s antes aparece uma **sombra no chão onde tu está** (círculo escuro de borda vermelha, que fecha) com
+    um aviso no ouvido; ela fica parada e ele mergulha NELA. **Sai de 3 blocos e escapa**: ele bate no chão, abre uma
+    cratera pequena (só terra/pedra/areia, sem drop; com `mobGriefing` desligado, nada quebra), joga longe quem estiver
+    perto e fica **tonto ~4 s** (aqui ele apanha); depois volta a caçar em fúria. **Ficou na sombra**: a cara enche a
+    tela, vermelho e morte, como antes.
+  - Morreu tonto: morre (ou renasce com a língua) normal, sem outra raiva do céu em seguida.
+  - **Pro jar do GitHub sair com a voz nova**: o zip do segredo `FROGGY_VOZ_URL` precisa ser trocado pelo
+    `FroggyDude-Voz-0.7.63.zip` que eu te mando (o jar que eu te mando direto já vai com ela).
+
+O que tinha pra testar na v0.7.62:
 - **A raiva do céu** (item 6 da fila; vídeo do LM "MediaFire 13:44", 25-45 s; LM 24/11: "quando ele morre", "o mergulho
   mata na hora"). Quando tu mata ele (e o renascer com a língua não veio), às vezes (30%, config
   `froggydude.raiva_ceu_chance`) ele não morre:

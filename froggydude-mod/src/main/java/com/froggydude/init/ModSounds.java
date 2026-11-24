@@ -68,6 +68,8 @@ public class ModSounds {
     public static final RegistryObject<SoundEvent> SMASH_TAI = register("froggydude.smash_tai");
     /** O baque do pulo altíssimo no chão. */
     public static final RegistryObject<SoundEvent> SKY_LAND = register("froggydude.sky_land");
+    /** (v0.7.63) A voz de "profecia" dele na raiva do céu (do pacote de voz; ~17,1 s). */
+    public static final RegistryObject<SoundEvent> SKY_PROPHECY = register("froggydude.sky_prophecy");
     /** Braço sendo arrancado. */
     public static final RegistryObject<SoundEvent> RIP = register("froggydude.rip");
     /** Ossos estalando na contorção da fase 2 (vs Grox, 5:16: "hughghuguuhuh *crack*"). */

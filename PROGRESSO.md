@@ -22,7 +22,11 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
    reto e muito rápido em cima de quem caçava (a tela enche), levanta na pose "()" da raiva e já parte pro próximo
    ("Who's next?"; a fala não entra); ~10 s; aviso tipo conquista "RUN FOR YOUR LIFE!!!! NOW!!"
    vermelho com sangue escorrendo; fôlego infinito pro jogador até acabar.
-   Decidido (LM 24/11): acontece **quando ele morre**; o mergulho **mata na hora**.
+   Decidido (LM 24/11): acontece **quando ele morre**. Na 0.7.63 (LM 24/11, 2º vídeo de referência com a voz de
+   "profecia" dele): fica reto, tomba de costas, deitado de barriga pra cima (tronco e cabeça retos, membros pendurados),
+   sobe um pouco e gira ~5,5 voltas durante a voz (~17 s); aí dispara pro céu e vem o aviso. O mergulho virou
+   **desviável** (LM: "não matar logo de cara, ficaria injogável"; escolheu sombra + desvio): sombra no chão 1,5 s antes,
+   quem sai dela (3 blocos) escapa e ele bate no chão (cratera) e fica tonto ~4 s; quem fica, morre.
 8. ~~"Rage 2"~~ (feito na 0.7.47; na 0.7.48 trocas de 1,7 s e trava na pose da bancada) (vídeos 23/11 14:33): extremamente louco, se contorcendo em várias POSES diferentes trocadas de repente (sem
    animação entre elas, bem rápido) e termina na pose final da raiva. Medir pose por pose, quadro a quadro.
 7. Sistema de fuga: o LM escolheu (24/11) **adrenalina, isca e empurrão na hora certa** (falta detalhar).
@@ -35,6 +39,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
     junto com o FroggyDude, caindo do lado da vítima.
 12. ~~Fim da raiva 2~~ (feito na 0.7.57) (LM 23/11): "se o jogador continuar perto, ele pula direto no jogador em velocidade
     absurda e já arranca o braço"; longe: o grito de correr e a disparada a toda velocidade, sem parar no meio.
+13. Contagem do manhunt (LM 24/11): de 30 pra **45 s** antes de começar; nos últimos 5 s a cor do número muda: 5 amarelo,
+    4 um tom levemente mais vermelho, 3 vermelho claro, 2 e 1 vermelho escuro.
 - Feito na 0.7.44 (não commitado): TLM, portas, barco, destravador, nome FroggyDudeMC, entrada, easter egg.
 
 ## Os dois mods

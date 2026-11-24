@@ -7,16 +7,24 @@ import com.froggydude.network.ModNetwork;
 import com.froggydude.network.SkyRagePacket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -35,19 +43,31 @@ import java.util.UUID;
  * <li>a cara enche a tela, a tela fica vermelha e a pessoa morre (o mergulho mata na hora; LM 24/11);</li>
  * <li>ele fica na pose "()" da raiva uns 2 s e parte pro próximo. Volta com metade da vida.</li>
  * </ol>
+ * (v0.7.63, LM 24/11) Com a voz de "profecia" dele (o vídeo de referência do LM, ~17 s): a voz começa na morte; ele
+ * fica reto, tomba de costas, sobe um pouco e GIRA deitado em volta do próprio eixo (~5,5 voltas) até a voz acabar; aí
+ * dispara pro céu e vem o aviso. E o mergulho dá pra DESVIAR (LM: "não matar o jogador logo de cara, ficaria
+ * injogável"; escolheu "sombra + desvio"): 1,5 s antes aparece uma sombra no chão onde a pessoa está e toca um aviso; ele
+ * mergulha na sombra. Quem sair dela (3 blocos) escapa: ele bate no chão, abre uma cratera pequena e fica tonto ~4 s (e
+ * apanha). Quem ficou: a cara e a morte, como antes.
  * Só com céu aberto em cima dele e num mundo com céu (no Nether não); quem matou tem que ser jogador (sobrevivência),
  * a até 64 blocos. Na dúvida, morre normal. Se quem matou sumir (saiu, mudou de mundo, foi longe), ele desce e caça normal.
  */
 public final class SkyRage {
 
     /**
-     * Parado antes de subir: o tombo do "sky_tip" (LM 24/11: reto ~2 s, depois o corpo cai de costas em ~0,9 s). Sobe
+     * Parado antes de subir: o tombo do "sky_tip" (LM 24/11: reto ~2,8 s, depois o corpo cai de costas em ~0,9 s). Sobe
      * quando ele acaba de deitar.
      */
-    static final int STILL = 58;
-    /** A subida devagar do vídeo (~3 blocos em 3 s). */
+    static final int STILL = 74;
+    /** A subida devagar do vídeo (~3 blocos em 3 s); depois fica parado no ar girando até a voz acabar. */
     static final int RISE_SLOW = 60;
-    private static final double SLOW_SPEED = 0.06D;
+    private static final double SLOW_SPEED = 0.05D;
+    /** A voz de "profecia" (froggydude.sky_prophecy, 17,1 s): o giro dura isso; acabou, ele dispara pro céu. */
+    static final int PROPHECY = 342;
+    /** O giro deitado (graus/tick): ~5,5 voltas do fim do tombo até o fim da voz (LM: "umas 5-6 voltas"). */
+    private static final float SPIN_RATE = 360F * 5.5F / (PROPHECY - STILL);
+    /** Do aviso "RUN FOR YOUR LIFE" até o mergulho: ~10 s. */
+    static final int RUN_TICKS = 200;
     /** Depois acelera até isso (blocos/tick) até chegar lá em cima. */
     private static final double RISE_MAX = 1.1D;
     private static final double RISE_ACCEL = 0.04D;
@@ -55,8 +75,14 @@ public final class SkyRage {
     private static final double TOP = 50.0D;
     /** Seguindo por cima de quem matou (blocos/tick). */
     private static final double FOLLOW = 0.55D;
-    /** O mergulho começa aqui (ticks desde a morte): ~10 s de corrida, como pediu o LM. */
-    static final int DIVE_AT = 200;
+    /** O mergulho começa aqui (ticks desde a morte): a voz e depois ~10 s de corrida. */
+    static final int DIVE_AT = PROPHECY + RUN_TICKS;
+    /** A sombra no chão (e o aviso) aparece esse tanto antes do mergulho, e ele mergulha nela. */
+    static final int WARN = 30;
+    /** Fora disso (blocos, na horizontal) da sombra, escapou. */
+    static final double DODGE_R = 3.0D;
+    /** Tonto depois de errar. */
+    static final int STUN_TICKS = 80;
     /** Mergulho: blocos/tick (50 blocos em ~0,5 s). */
     private static final double DIVE_SPEED = 4.5D;
     private static final int DIVE_MAX = 40;
@@ -84,6 +110,13 @@ public final class SkyRage {
         boolean preLanded;
         /** Desceu sem matar (quem matou sumiu). */
         boolean aborting;
+        /** Já mandou o aviso "RUN FOR YOUR LIFE" (no fim da voz). */
+        boolean warned;
+        /** A sombra: onde ele vai cair (null = ainda não). */
+        @Nullable
+        Vec3 target;
+        /** Já decidiu: errou (vai bater no chão na sombra). */
+        boolean missing;
 
         Run(UUID killer, int startedAt, List<UUID> runners) {
             this.killer = killer;
@@ -119,7 +152,9 @@ public final class SkyRage {
         for (Player p : level.players()) {
             if (p instanceof ServerPlayer sp && !sp.isSpectator() && (sp == killer || sp.distanceTo(froggy) <= 64.0F)) {
                 runners.add(sp.getUUID());
-                ModNetwork.sendSkyRage(sp, SkyRagePacket.RUN, DIVE_AT);
+                // a voz de profecia presa na pessoa (segue ela, não some se correr)
+                sp.connection.send(new ClientboundSoundEntityPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(
+                        ModSounds.SKY_PROPHECY.get()), SoundSource.HOSTILE, sp, 1.0F, 1.0F, froggy.getRandom().nextLong()));
             }
         }
         Run run = new Run(killer.getUUID(), froggy.tickCount, runners);
@@ -138,14 +173,16 @@ public final class SkyRage {
         ServerPlayer killer = level.getServer().getPlayerList().getPlayer(run.killer);
         boolean valid = killer != null && killer.isAlive() && killer.level() == level && !killer.isCreative()
                 && !killer.isSpectator() && killer.distanceTo(froggy) < 160.0F;
-        if (run.hitAt < 0) stamina(level, run);
+        if (run.hitAt < 0 && run.warned) stamina(level, run);
         FroggyState s = froggy.getFroggyState();
         if (!valid && run.hitAt < 0 && !run.aborting) {
             run.aborting = true;
             froggy.brainLog("raiva do céu: quem me matou sumiu; desço");
             for (UUID id : run.runners) {
                 ServerPlayer p = level.getServer().getPlayerList().getPlayer(id);
-                if (p != null) ModNetwork.sendSkyRage(p, SkyRagePacket.END, 0);
+                if (p == null) continue;
+                ModNetwork.sendSkyRage(p, SkyRagePacket.END, 0);
+                p.connection.send(new ClientboundStopSoundPacket(ModSounds.SKY_PROPHECY.get().getLocation(), SoundSource.HOSTILE));
             }
         }
         froggy.setDeltaMovement(Vec3.ZERO);
@@ -165,7 +202,10 @@ public final class SkyRage {
             double nx = at.x, nz = at.z, ny;
             if (t < STILL + RISE_SLOW) {
                 ny = at.y + SLOW_SPEED;
+            } else if (t < PROPHECY) {
+                ny = at.y; // parado no ar, girando, até a voz acabar
             } else {
+                if (!run.warned) warn(froggy, run, level);
                 run.vy = Math.min(RISE_MAX, Math.max(run.vy, SLOW_SPEED) + RISE_ACCEL);
                 double top = Math.min(killer.getY() + TOP, level.getMaxBuildHeight() - 4);
                 ny = Math.min(top, at.y + run.vy);
@@ -173,16 +213,22 @@ public final class SkyRage {
                 Vec3 h = new Vec3(killer.getX() - at.x, 0, killer.getZ() - at.z);
                 double len = h.length();
                 if (len > 0.05D) {
-                    double step = Math.min(len, FOLLOW * Math.min(1.0D, (t - STILL - RISE_SLOW) / 40.0D));
+                    double step = Math.min(len, FOLLOW * Math.min(1.0D, (t - PROPHECY) / 40.0D));
                     nx += h.x / len * step;
                     nz += h.z / len * step;
                 }
             }
-            float spin = froggy.getYRot() + 1.6F; // meio girando, devagar, como um corpo pendurado
+            // deitado, girando em volta do próprio eixo durante a voz (como um espeto); subindo, meio girando, devagar
+            float spin = Mth.wrapDegrees(froggy.getYRot() + (t < PROPHECY ? SPIN_RATE : 1.6F));
             froggy.moveTo(nx, ny, nz, spin, 0F);
             froggy.setYHeadRot(spin);
             froggy.setYBodyRot(spin);
+            if (t >= DIVE_AT - WARN) shadow(froggy, run, killer, level, t);
             if (t >= DIVE_AT) beginDive(froggy, run, killer);
+            return;
+        }
+        if (s == FroggyState.SKY_STUN) {
+            if (froggy.stateTicks() >= STUN_TICKS) froggy.endSkyRage();
             return;
         }
         if (s == FroggyState.SKY_LAND) {
@@ -213,11 +259,34 @@ public final class SkyRage {
                 return;
             }
             Vec3 at = froggy.position();
-            Vec3 face = faceSpot(killer);
+            Vec3 aim = run.target != null ? run.target : killer.position();
+            if (!run.preLanded && !run.missing && at.distanceTo(aim) < DIVE_SPEED * 3.0D) {
+                // ~3 ticks antes de chegar: saiu da sombra? escapou
+                Vec3 k = killer.position();
+                double off = Math.sqrt((k.x - aim.x) * (k.x - aim.x) + (k.z - aim.z) * (k.z - aim.z));
+                if (off > DODGE_R || Math.abs(k.y - aim.y) > 4.0D) {
+                    run.missing = true;
+                    froggy.brainLog(String.format(java.util.Locale.ROOT, "raiva do céu: %s saiu da sombra (%.1f blocos)",
+                            killer.getScoreboardName(), off));
+                }
+            }
+            if (run.missing) {
+                Vec3 d = aim.subtract(at);
+                double len = d.length();
+                if (len <= DIVE_SPEED || froggy.tickCount - run.phaseAt > DIVE_MAX) {
+                    crash(froggy, run, aim, level);
+                    return;
+                }
+                Vec3 n = at.add(d.scale(DIVE_SPEED / len));
+                froggy.moveTo(n.x, n.y, n.z, froggy.getYRot(), 0F);
+                return;
+            }
+            Vec3 face = run.preLanded ? faceSpot(killer) : aim;
             Vec3 d = face.subtract(at);
             double len = d.length();
             int dt = froggy.tickCount - run.phaseAt;
-            if (len <= DIVE_SPEED || dt > DIVE_MAX) {
+            if (run.preLanded && len <= DIVE_SPEED || dt > DIVE_MAX) {
+                face = faceSpot(killer);
                 froggy.moveTo(face.x, face.y, face.z, yawTo(face, killer), 0F);
                 froggy.setYHeadRot(froggy.getYRot());
                 froggy.setYBodyRot(froggy.getYRot());
@@ -229,7 +298,7 @@ public final class SkyRage {
                 } // a câmera dela vem pra frente, na cara dele
                 return;
             }
-            if (!run.preLanded && len < DIVE_SPEED * 3.0D) {
+            if (!run.preLanded && at.distanceTo(aim) < DIVE_SPEED * 3.0D) {
                 // ~3 ticks antes de chegar: já na pose curvada da fúria (o CHASE em fase 2) e a câmera dela vem pra frente.
                 // Medido: de pé (TAUNT) ou esticado (o mergulho) o modelo é bem mais alto que a caixa e a câmera via o
                 // peito; curvado, a cara dele fica na altura do olho dela (como no susto do beco, que chega correndo)
@@ -249,6 +318,94 @@ public final class SkyRage {
             }
             return;
         }
+    }
+
+    /** Acabou a voz: o aviso "RUN FOR YOUR LIFE" e a corrida sem cansar (~10 s) até o mergulho. */
+    private static void warn(FroggydudeEntity froggy, Run run, ServerLevel level) {
+        run.warned = true;
+        for (UUID id : run.runners) {
+            ServerPlayer p = level.getServer().getPlayerList().getPlayer(id);
+            if (p != null) ModNetwork.sendSkyRage(p, SkyRagePacket.RUN, RUN_TICKS);
+        }
+        froggy.brainLog("raiva do céu: acabou a profecia; subo e mergulho daqui a " + RUN_TICKS / 20 + " s");
+    }
+
+    /**
+     * A sombra no chão onde quem matou está, 1,5 s antes do mergulho: aparece com um aviso no ouvido e fica PARADA ali (é
+     * onde ele vai cair). Um círculo escuro com a borda vermelha, que fecha até o mergulho.
+     */
+    private static void shadow(FroggydudeEntity froggy, Run run, ServerPlayer killer, ServerLevel level, int t) {
+        if (run.target == null) {
+            run.target = killer.position();
+            killer.connection.send(new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(
+                    SoundEvents.WARDEN_SONIC_CHARGE), SoundSource.HOSTILE, killer.getX(), killer.getEyeY(), killer.getZ(),
+                    1.0F, 1.2F, froggy.getRandom().nextLong()));
+            froggy.brainLog(String.format(java.util.Locale.ROOT, "raiva do céu: sombra em %.1f %.1f %.1f",
+                    run.target.x, run.target.y, run.target.z));
+        }
+        Vec3 c = run.target;
+        double r = DODGE_R * Math.max(0.35D, 1.0D - (t - (DIVE_AT - WARN)) / (double) (WARN + 12));
+        DustParticleOptions dark = new DustParticleOptions(new Vector3f(0.05F, 0.0F, 0.0F), 2.0F);
+        DustParticleOptions red = new DustParticleOptions(new Vector3f(0.7F, 0.0F, 0.0F), 1.5F);
+        for (int i = 0; i < 24; i++) {
+            double a = i * Math.PI * 2.0D / 24.0D;
+            level.sendParticles(red, c.x + Math.cos(a) * r, c.y + 0.08D, c.z + Math.sin(a) * r, 1, 0, 0, 0, 0);
+        }
+        level.sendParticles(dark, c.x, c.y + 0.06D, c.z, 14, r * 0.45D, 0.0D, r * 0.45D, 0);
+    }
+
+    /** Errou: bate no chão na sombra, cratera pequena, quem estava perto é jogado, e fica tonto. */
+    private static void crash(FroggydudeEntity froggy, Run run, Vec3 at, ServerLevel level) {
+        BlockPos base = BlockPos.containing(at.x, at.y + 0.5D, at.z);
+        for (int i = 0; i < 6 && level.getBlockState(base.below()).getCollisionShape(level, base.below()).isEmpty(); i++) {
+            base = base.below();
+        }
+        if (level.getGameRules().getBoolean(GameRules.RULE_MOBGRIEFING)) {
+            // a cratera: uma bacia rasa (raio 2, 1 de fundo; 2 no meio), só terra/pedra/areia (nada com conteúdo, nada duro)
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    int d2 = dx * dx + dz * dz;
+                    if (d2 > 5) continue;
+                    for (int dy = 1; dy <= (d2 <= 1 ? 2 : 1); dy++) {
+                        BlockPos q = base.offset(dx, -dy, dz);
+                        BlockState bs = level.getBlockState(q);
+                        float hard = bs.getDestroySpeed(level, q);
+                        if (bs.isAir() || hard < 0F || hard > 3.0F || bs.hasBlockEntity() || !bs.getFluidState().isEmpty()) continue;
+                        level.destroyBlock(q, false, froggy);
+                    }
+                }
+            }
+        }
+        base = base.below();
+        while (base.getY() > level.getMinBuildHeight()
+                && level.getBlockState(base.below()).getCollisionShape(level, base.below()).isEmpty()) {
+            base = base.below();
+        }
+        froggy.moveTo(at.x, base.getY(), at.z, froggy.getYRot(), 0F);
+        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, at.x, base.getY() + 0.5D, at.z, 1, 0, 0, 0, 0);
+        level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, at.x, base.getY() + 0.3D, at.z, 30, 1.5D, 0.2D, 1.5D, 0.02D);
+        level.playSound(null, at.x, base.getY(), at.z, ModSounds.SKY_LAND.get(), SoundSource.HOSTILE, 4.0F, 0.8F);
+        level.playSound(null, at.x, base.getY(), at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.HOSTILE, 3.0F, 0.7F);
+        for (Player p : level.players()) {
+            double d = p.position().distanceTo(at);
+            if (d < 6.0D && !p.isSpectator()) {
+                Vec3 push = p.position().subtract(at).multiply(1, 0, 1);
+                push = push.lengthSqr() < 1.0E-4D ? new Vec3(1, 0, 0) : push.normalize();
+                p.push(push.x * 0.9D, 0.45D, push.z * 0.9D);
+                p.hurtMarked = true;
+            }
+        }
+        for (UUID id : run.runners) {
+            ServerPlayer p = level.getServer().getPlayerList().getPlayer(id);
+            if (p != null) ModNetwork.sendSkyRage(p, SkyRagePacket.END, 0);
+        }
+        run.hitAt = froggy.tickCount; // a corrida sem cansar acaba
+        froggy.setSnap(false);
+        froggy.setRunningFlag(false);
+        froggy.noPhysics = false;
+        froggy.setNoGravity(false);
+        froggy.setFroggyState(FroggyState.SKY_STUN);
+        froggy.brainLog("raiva do céu: errei, bati no chão; tonto");
     }
 
     private static void beginDive(FroggydudeEntity froggy, Run run, ServerPlayer killer) {

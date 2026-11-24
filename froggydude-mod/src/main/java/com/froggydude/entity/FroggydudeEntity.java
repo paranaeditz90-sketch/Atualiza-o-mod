@@ -2051,7 +2051,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public boolean isNoAi() {
         return super.isNoAi() || isReviving() || getFroggyState() == FroggyState.INTRO || getFroggyState() == FroggyState.RAGE2
                 || getFroggyState() == FroggyState.AMBUSH || getFroggyState() == FroggyState.SKY_RISE
-                || getFroggyState() == FroggyState.SKY_DIVE || getFroggyState() == FroggyState.SKY_LAND || skyRun != null;
+                || getFroggyState() == FroggyState.SKY_DIVE || getFroggyState() == FroggyState.SKY_LAND
+                || getFroggyState() == FroggyState.SKY_STUN || skyRun != null;
     }
 
     /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
@@ -2082,6 +2083,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (!this.level().isClientSide && finishing) finisherGoal.stop(); // morto não roda Goal: acaba aqui
         if (!this.level().isClientSide && feedTarget != null) FeedLock.release(feedTarget); // o bicho levanta
         if (!this.level().isClientSide && isReviving()) clearRevive(); // /kill no meio do renascer: morre de vez
+        // (v0.7.63) morreu tonto, depois de errar o mergulho do céu: acaba a cena e morre (ou renasce) normal, sem outra
+        // raiva do céu em seguida
+        boolean afterSky = skyRun != null;
+        if (afterSky && !this.level().isClientSide) {
+            skyRun = null;
+            this.noPhysics = false;
+            this.setNoGravity(false);
+            setSnap(false);
+        }
         if (!this.level().isClientSide && Revive.tryStart(this, source)) {
             // (v0.7.35) despedaçou mas vai voltar (o que roubou já caiu no beginRevive): o cérebro anota que "morreu",
             // que é o que o jogador viu
@@ -2089,7 +2099,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             return;
         }
         // (v0.7.62) a raiva do céu: não morre, sobe e mergulha em quem matou (SkyRage)
-        if (!this.level().isClientSide && skyRun == null && SkyRage.tryStart(this, source)) {
+        if (!this.level().isClientSide && !afterSky && SkyRage.tryStart(this, source)) {
             endEngagement(FroggyBrain.Outcome.FROGGY_DIED);
             return;
         }
@@ -3721,7 +3731,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             SkyRage.tick(this, skyRun);
             return;
         }
-        if (frozen == FroggyState.SKY_RISE || frozen == FroggyState.SKY_DIVE || frozen == FroggyState.SKY_LAND) {
+        if (frozen == FroggyState.SKY_RISE || frozen == FroggyState.SKY_DIVE || frozen == FroggyState.SKY_LAND
+                || frozen == FroggyState.SKY_STUN) {
             setFroggyState(FroggyState.CHASE); // sobrou o estado sem a cena (carregou o mundo no meio): volta
         }
         if (frozen == FroggyState.INTRO || frozen == FroggyState.RAGE2 || frozen == FroggyState.AMBUSH) {
@@ -4164,7 +4175,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     public boolean hurt(DamageSource source, float amount) {
         // (v0.7.35) remontando: "é cinema", nada machuca (só o /kill e o fundo do mundo)
         if (isReviving() && !Revive.final_(source)) return false;
-        if (skyRun != null && !Revive.final_(source)) return false; // (v0.7.62) na raiva do céu nada pega nele
+        // (v0.7.62) na raiva do céu nada pega nele; (v0.7.63) só tonto, depois de errar o mergulho, ele apanha
+        if (skyRun != null && getFroggyState() != FroggyState.SKY_STUN && !Revive.final_(source)) return false;
         // (v0.7.44) na entrada também (só /kill e o fundo do mundo)
         if (getFroggyState() == FroggyState.INTRO && !Revive.final_(source)) return false;
         // (v0.7.47) na raiva 2 também: parado 25 s e nada machuca (LM: "não recebe dano nessa posição")
@@ -4419,8 +4431,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     // o tombo antes da subida (reto, cai de costas); separado do loop pelo mesmo motivo do contort/contort_hold
     private static final RawAnimation ANIM_SKY_TIP =
             RawAnimation.begin().then("sky_tip", Animation.LoopType.HOLD_ON_LAST_FRAME);
-    /** Duração do "sky_tip" em ticks (build_anims.py: SKY_TIP_END = 3,25 s). */
-    private static final int SKY_TIP_TICKS = 65;
+    /** Duração do "sky_tip" em ticks (build_anims.py: SKY_TIP_END = 4,05 s). */
+    private static final int SKY_TIP_TICKS = 81;
     private static final RawAnimation ANIM_SKY_DIVE = RawAnimation.begin().thenLoop("sky_dive");
     private static final RawAnimation ANIM_WALK = RawAnimation.begin().thenLoop("walk");
     private static final RawAnimation ANIM_RUN = RawAnimation.begin().thenLoop("run");
@@ -4519,6 +4531,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
                 return state.setAndContinue(ANIM_SKY_DIVE);
             case SKY_LAND:
                 return state.setAndContinue(ANIM_RAGE_IDLE);
+            case SKY_STUN:
+                return state.setAndContinue(ANIM_TIRED); // tonto, ofegando, depois de bater no chão
             case RAGE2:
                 return state.setAndContinue(ANIM_RAGE2);
             case AMBUSH:

@@ -379,17 +379,21 @@ ANIMS["rage_crack"] = animation(0.6, [
 # caindo pra baixo com o peso e a cabeça virada pro céu (LM 24/11, com print: "a cabeça olha para o céu, enquanto braços
 # e pernas ficam a favor da gravidade"; escolheu a prévia "rx-90 l90 h-60" do tools/anim/preview.py). Mole: os membros e
 # a cabeça balançam devagar, cada um no seu tempo. Erguido 12 px pra as pernas penduradas não entrarem no chão no começo.
-def sky_limp(arm_r=90.0, arm_l=84.0, leg_r=90.0, leg_l=96.0, head=-60.0, head_z=0.0, sway=0.0, knee=22.0, knee_l=30.0):
-    return pose(root_x=-90.0 + sway, root_y=12.0, arms=arm_r, arm_l=arm_l, arm_spread=10, legs=leg_r, leg_l=leg_l,
-                knee=knee, knee_l=knee_l, leg_spread=9, head=head, head_z=head_z)
+def sky_limp(arm_r=90.0, arm_l=90.0, leg_r=90.0, leg_l=90.0, head=0.0, head_z=0.0, sway=0.0, knee=0.0, knee_l=0.0):
+    # LM 24/11 (2ª): "Os braços e pernas ficam a favor da gravidade, para baixo. O tronco e cabeça, que olha para cima,
+    # ficam retos deitados": tronco e cabeça numa linha só, deitados (a cara pro céu), sem balançar; só os braços e as
+    # pernas pendurados retos pra baixo, balançando um pouquinho.
+    return pose(root_x=-90.0 + sway, root_y=12.0, arms=arm_r, arm_l=arm_l, arm_spread=4, legs=leg_r, leg_l=leg_l,
+                knee=knee, knee_l=knee_l, leg_spread=3, head=head, head_z=head_z)
+
 
 
 # Antes de subir, o tombo (LM 24/11, dois vídeos de referência do original: "a animação dele reto, e depois deixando o
 # corpo 'cair' pra trás"): ele fica RETO, parado, braços colados no corpo (~2 s, como no vídeo), e cai de costas feito
 # tábua, girando nos pés, acelerando como coisa que cai (ângulo ~ t²); os braços e as pernas ficam junto do corpo no
-# começo e só no fim despencam pra baixo com o peso, a cabeça tomba por último. Um repique pequeno no fim (passa de 90°
+# começo e só no fim despencam pra baixo com o peso, a cabeça fica reta com o tronco. Um repique pequeno no fim (passa de 90°
 # e volta) e termina exatamente na primeira pose do "sky_rise" (o cliente troca pra ela sem salto).
-SKY_TIP_STAND = 2.0   # s reto
+SKY_TIP_STAND = 2.8   # s reto (o vídeo da profecia: ~2,8 s de pé desde o começo da voz)
 SKY_TIP_FALL = 0.9    # s caindo
 SKY_TIP_END = round(SKY_TIP_STAND + SKY_TIP_FALL + 0.35, 4)
 
@@ -402,12 +406,12 @@ def _sky_tip_keys():
         rx = -90.0 * a
         g = max(0.0, (a - 0.35) / 0.65) ** 1.5  # os membros só soltam depois da metade
         keys.append((round(SKY_TIP_STAND + SKY_TIP_FALL * f, 4),
-                     pose(root_x=rx, root_y=12.0 * a, arms=90.0 * g, arm_l=84.0 * g, arm_spread=10 * g,
-                          legs=90.0 * g, leg_l=96.0 * g, knee=22.0 * g, knee_l=30.0 * g, leg_spread=9 * g,
-                          head=-60.0 * g * g)))
+                     pose(root_x=rx, root_y=12.0 * a, arms=90.0 * g, arm_l=90.0 * g, arm_spread=4 * g,
+                          legs=90.0 * g, leg_l=90.0 * g, leg_spread=3 * g,
+                          head=0.0)))
     t1 = SKY_TIP_STAND + SKY_TIP_FALL
     # o repique: o tronco passa um pouco, os membros balançam com o tranco
-    keys.append((round(t1 + 0.15, 4), sky_limp(sway=-6.0, arm_r=104.0, arm_l=98.0, leg_r=100.0, leg_l=106.0, head=-70.0)))
+    keys.append((round(t1 + 0.15, 4), sky_limp(sway=-4.0, arm_r=102.0, arm_l=100.0, leg_r=98.0, leg_l=100.0)))
     keys.append((SKY_TIP_END, end))
     return keys
 
@@ -416,8 +420,8 @@ ANIMS["sky_tip"] = animation(SKY_TIP_END, _sky_tip_keys(), "hold_on_last_frame",
 
 ANIMS["sky_rise"] = animation(2.4, [
     (0.00, sky_limp()),
-    (0.80, sky_limp(arm_r=98.0, arm_l=80.0, leg_r=84.0, leg_l=100.0, head=-54.0, head_z=6.0, sway=4.0, knee=28.0)),
-    (1.60, sky_limp(arm_r=84.0, arm_l=92.0, leg_r=96.0, leg_l=88.0, head=-64.0, head_z=-5.0, sway=-3.0, knee_l=24.0)),
+    (0.80, sky_limp(arm_r=95.0, arm_l=86.0, leg_r=87.0, leg_l=93.0)),
+    (1.60, sky_limp(arm_r=86.0, arm_l=95.0, leg_r=93.0, leg_l=87.0)),
     (2.40, sky_limp()),
 ], True, ground=False)
 
