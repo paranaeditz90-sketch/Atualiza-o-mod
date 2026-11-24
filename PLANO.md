@@ -460,6 +460,47 @@ Como fazer:
 
 ---
 
+## 13. A Mente do FroggyDude: IA "consciente" (planejado com o LM em 24/11)
+
+Pedido do LM: "a IA mais avançada dos mods atuais, não prevendo o que o jogador faz, mas pensando como um jogador
+real, quase consciente"; "não quero um mod difícil de matar, quero um mod que realmente pensa e não faz algo sem
+sentido"; "age como se fosse um agente". Tudo offline, leve pro celular (nada de IA de linguagem online).
+
+Pesquisa (24/11): o estado da arte é The Hunters (rede neural que aprende pra onde tu olha e onde tu vai estar, mas
+trapaceia nas regras do mundo), Don't Let It Learn (coerente: estuda construções, prevê rota e pode errar, lembra) e
+Found Footage with AI (perfil de 8 medidas). Os bots com IA de linguagem (Mindcraft, Voyager, Player2) levam segundos
+por decisão e precisam de internet: copiar só a arquitetura (perceber -> crer -> decidir -> agir -> lembrar).
+Ninguém faz: crença de onde o jogador provavelmente está (mapa de ocupação, Damián Isla), busca que perde de verdade,
+objetivo com compromisso e motivo visível, curiosidade por mudança no mundo, variar sem sortear.
+
+O que a IA de hoje faz de errado (mapa de 24/11): sabe a posição exata por vários caminhos (manhunt a cada segundo,
+destravador, diretor, persegue 8 s sem ver, faro com raio X a 5 blocos), lê a mochila inteira, enxerga 360° no escuro a
+160 blocos e não ouve nada; o decisor não manda no combate; sorteios cortam a intenção ("irritado do nada", pulo à toa,
+cara ou coroa comendo); a caçada do diretor acaba aos 4 min mesmo ganhando; falas fora de contexto ("Hey, humans!" sem
+ver, alfabeto caçando escondido, "can't hide" em toda varredura); bug: STALK vira RUSH na IA Real e nunca é contado
+(FroggyBrain, otimismo eterno), "cercar por trás" quase não sai.
+
+Decisões do LM (24/11):
+- Manhunt: **bússola, só direção** de tempos em tempos (como o caçador do Dream); lugar exato só vendo, ouvindo ou
+  farejando. Dá pra despistar.
+- Cenas que teleportam (emboscada, jumpscare, beco, reaparecer): **mantém o teleporte**.
+- Cenas que hoje saem por sorte (raiva do céu 30%, arrancar braço 35%, arremesso 18%, encarar 45%, jumpscare 40%,
+  irritado do nada): **viram consequência** de um motivo visível; sem chance pura; nunca o mesmo truque seguido.
+- Ordem: **etapa 1 primeiro**, uma etapa por vez, cada uma testada no jogo com vídeo.
+
+Etapas:
+1. Sentidos honestos + crença + busca: visão com cone, luz e agachar (acumula suspeita); audição (passo, porta, baú,
+   bloco quebrado, comer: eventos de vibração do jogo); faro sem raio X; mapa de "onde ela provavelmente está" que
+   vaza a partir da última percepção; investigar o barulho, procurar cômodo por cômodo, perder de verdade e desistir
+   com frustração visível.
+2. Um pensamento por vez, com motivo: objetivo único que o combate obedece (caçar, investigar, procurar, espreitar,
+   emboscar, comer, recuar, sumir), troca só por evento novo e mostra (vira a cabeça, fareja), sorteios viram
+   consequência, falas com contexto, medidor de ameaça (cansa e some andando); `/froggydude pensamento` mostra o que
+   ele pensa e por quê.
+3. Esperteza de gente: percebe mudança no mundo (tocha nova, porta aberta, buraco), decora a base e as entradas, espera
+   em gargalo, prevê rota (pode errar), aprende contra-tática com motivo (porta tapada -> cava do lado), imita sons que
+   ouviu de verdade.
+
 ## Mod de gravação separado: "E se eu fosse o FroggyDude" (depois de terminar este)
 
 Pedido do LM (22/10): um mod À PARTE (pra não dar conflito com este) em que o JOGADOR é o

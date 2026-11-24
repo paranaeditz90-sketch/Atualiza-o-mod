@@ -9,6 +9,11 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 ---
 
+## Agora (24/11): a Mente do FroggyDude (IA "consciente")
+
+Plano, pesquisa e decisões do LM em `PLANO.md`, seção 13. Etapa 1 (sentidos honestos + crença + busca) em andamento.
+Depois: pente fino (revisores só leitura; o LM pediu para usar poucos agentes por causa da cota).
+
 ## Fila do LM (23/11), na ordem sugerida; os vídeos de referência ficam só no scratchpad
 
 1. ~~Grito novo de correr da fase 2~~ (feito na 0.7.46).
