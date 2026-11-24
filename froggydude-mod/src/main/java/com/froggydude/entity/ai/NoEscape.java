@@ -271,7 +271,7 @@ final class NoEscape {
     }
 
     private boolean maybeStart(ServerLevel level, LivingEntity target) {
-        if (!(target instanceof ServerPlayer p) || p.isCreative() || p.isSpectator() || !p.onGround() || p.isInWater()
+        if (!(target instanceof ServerPlayer p) || p.isCreative() || p.isSpectator() || p.isInWater()
                 || p.isPassenger() || p.isSleeping()) {
             sure = 0;
             return false;
@@ -489,7 +489,7 @@ final class NoEscape {
      * </ol>
      */
     static Result analyze(ServerLevel level, ServerPlayer p, FroggydudeEntity f) {
-        if (!p.onGround()) return Result.no("jogador no ar");
+        // (pulando de nervoso no beco continua no beco: o chão é procurado até 2 blocos abaixo dele, em standing)
         if (p.isInWater() || p.isInLava()) return Result.no("jogador na água/lava");
         for (ItemStack s : allItems(p)) {
             if (s.is(Items.ENDER_PEARL)) return Result.no("tem pérola do End");

@@ -1,4 +1,4 @@
-# Froggydude - v0.7.59: o beco com o diretor (câmera nervosa), a fúria e um pente fino de 32 lugares (sobre a v0.7.58)
+# Froggydude - v0.7.60: o beco sem falhas de pulo, tela preta até renascer (sobre a v0.7.59)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,17 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.59):
+O que testar agora (v0.7.60):
+- **No preto, só o som dos botões** (LM 24/11: "deve cortar qualquer som, apenas o som dos botões do Minecraft"): já era
+  assim, agora testado clicando: depois do corte só tocam os cliques do Menu e do Renascer, nada mais, até renascer.
+  E achei e consertei 2 furos: o "Tem certeza que quer sair?" do Menu abria com o mundo escurecido atrás (agora preto);
+  e o Renascer dessa confirmação reabria por um instante a tela de morte vermelha do jogo, com a pontuação (agora
+  continua preta). Testado: nenhum quadro vermelho, som só dos dois cliques.
+- **Pular no beco não cancela mais o susto**: o teste com a câmera tremendo e pulos achou que, no meio do caminho, ele
+  desistia ("jogador no ar") ou só fazia o susto já colado, sem esperar na curva. Agora o beco é medido pelo chão
+  embaixo de ti, pulando ou não. Testado com pulos e câmera nervosa: esperou atrás da curva e fez a cena inteira.
+
+O que tinha pra testar na v0.7.59:
 - **O beco agora passa pelo diretor** (LM 24/11: "o modo diretor decide se vira tensão ou não, avalia no comportamento
   da câmera, se treme demais"): no beco, o jogo mede a tua câmera nos últimos 3 s (o quanto ela gira e quantas vezes vai
   e volta). **Câmera nervosa** (olhando pra todo lado, tremendo) = ele faz o susto. **Câmera calma** (parado olhando o

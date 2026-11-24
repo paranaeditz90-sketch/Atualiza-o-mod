@@ -74,7 +74,10 @@ public final class NoEscapeClient {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onScreenOpening(ScreenEvent.Opening event) {
-        if (!blackDeath || !(event.getNewScreen() instanceof DeathScreen) || event.getNewScreen() instanceof BlackDeathScreen) {
+        // a primeira, e qualquer outra enquanto durar o preto (o Renascer do "tem certeza?" reabre a do jogo, vermelha,
+        // por um instante antes de renascer)
+        if (!blackDeath && since < 0L || !(event.getNewScreen() instanceof DeathScreen)
+                || event.getNewScreen() instanceof BlackDeathScreen) {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
@@ -82,11 +85,24 @@ public final class NoEscapeClient {
         event.setNewScreen(new BlackDeathScreen(mc.level != null && mc.level.getLevelData().isHardcore()));
     }
 
+    /**
+     * O "Tem certeza que quer sair?" do Menu da tela de morte preta também fica preto (o do jogo mostra o mundo escurecido
+     * por trás).
+     */
+    @SubscribeEvent
+    public static void onBackground(ScreenEvent.BackgroundRendered event) {
+        if (since >= 0L && event.getScreen() instanceof DeathScreen.TitleConfirmScreen s) {
+            event.getGuiGraphics().fill(0, 0, s.width, s.height, 0xFF000000);
+        }
+    }
+
     /** Silêncio no corte e na tela de morte preta. */
     @SubscribeEvent
     public static void onPlaySound(PlaySoundEvent event) {
         if (event.getSound() == null) return;
-        if (black() || Minecraft.getInstance().screen instanceof BlackDeathScreen) {
+        Minecraft mc = Minecraft.getInstance();
+        if (black() || mc.screen instanceof BlackDeathScreen
+                || since >= 0L && mc.screen instanceof DeathScreen.TitleConfirmScreen) {
             // os cliques dos botões tocam: são da interface, não do mundo
             if (!event.getSound().getLocation().getPath().startsWith("ui.")) event.setSound(null);
         }
@@ -98,6 +114,7 @@ public final class NoEscapeClient {
         Minecraft mc = Minecraft.getInstance();
         // renasceu: acabou
         if (mc.player != null && !mc.player.isDeadOrDying() && !(mc.screen instanceof BlackDeathScreen)
+                && !(mc.screen instanceof DeathScreen.TitleConfirmScreen)
                 && Util.getMillis() - since > 500L && !blackDeath) {
             since = -1L;
         }
