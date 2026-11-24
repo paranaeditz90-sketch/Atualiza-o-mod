@@ -1,4 +1,4 @@
-# Froggydude - v0.7.64: a raiva do céu com o mergulho em onda (sobre a v0.7.63)
+# Froggydude - v0.7.65: a raiva do céu: sobe com a voz, grito novo no mergulho, desvio só nos 5 blocos (sobre a v0.7.64)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,20 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.64):
+O que testar agora (v0.7.65):
+- **A raiva do céu na ordem certa** (LM 24/11, com o vídeo do grito):
+  - ele **sobe durante a voz de profecia** (girando deitado e ondulando) e chega lá em cima, na tua frente, quando a voz
+    acaba; fica **~1,2 s parado** lá; aí vem o **grito novo** (o "UHHH!!!" do teu vídeo, esticado pra ~2,4 s, só a parte
+    rouca do meio, sem o ronco grave) com ele **descendo em onda**, chegando em ti quando o grito acaba. O grito rouco
+    antigo do mergulho saiu. O "RUN FOR YOUR LIFE" aparece quando a voz acaba (com a corrida sem cansar até o fim);
+  - **o desvio** (LM: "só conta a partir de quando ele tá uns 5 blocos"): até 5 blocos ele vem **direto em ti**, mirando
+    onde tu VAI estar (correr reto não salva); **a 5 blocos ele trava a mira**: só quem muda de rumo ou para ali escapa
+    (ele passa reto e bate no chão: cratera + tonto);
+  - pegou: como na 0.7.64 (cara, câmera tremendo, vermelho subindo, tela de morte no vermelho forte).
+  - **Pacote de voz novo** (`FroggyDude-Voz-0.7.65.zip`, com o grito): o jar que eu te mando já vai com ele; pro jar do
+    GitHub, troca o zip do segredo `FROGGY_VOZ_URL`.
+
+O que tinha pra testar na v0.7.64:
 - **O mergulho em onda, no lugar da sombra** (LM 24/11, o vídeo do deserto: "ao invés de ele cair direto no chão com
   uma demarcação, ele deveria fazer que nem movimento de onda"):
   - acabou a voz: ele dispara pro céu **em onda** (sobe, volta um pouco, sobe, como no deserto) e fica lá em cima

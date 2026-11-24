@@ -28,7 +28,9 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
    **desviável** (LM: "não matar logo de cara, ficaria injogável"; escolheu sombra + desvio): sombra no chão 1,5 s antes,
    quem sai dela (3 blocos) escapa e ele bate no chão (cratera) e fica tonto ~4 s; quem fica, morre. Na 0.7.64 (LM 24/11, vídeo do deserto) a sombra
    saiu: sobe e mergulha EM ONDA (3-4 blocos subindo e voltando), lá em cima fica na frente dela, a 5 blocos trava a
-   mira; pegou = cara + câmera tremendo + vermelho subindo + morte; errou = cratera + tonto.
+   mira; pegou = cara + câmera tremendo + vermelho subindo + morte; errou = cratera + tonto. Na 0.7.65: sobe DURANTE a voz,
+   1,2 s parado, grito novo (o "UHHH" do vídeo do LM, esticado) no mergulho; até 5 blocos ele mira onde a pessoa vai
+   estar, a 5 blocos trava (só mudar de rumo ali salva).
 8. ~~"Rage 2"~~ (feito na 0.7.47; na 0.7.48 trocas de 1,7 s e trava na pose da bancada) (vídeos 23/11 14:33): extremamente louco, se contorcendo em várias POSES diferentes trocadas de repente (sem
    animação entre elas, bem rápido) e termina na pose final da raiva. Medir pose por pose, quadro a quadro.
 7. Sistema de fuga: o LM escolheu (24/11) **adrenalina, isca e empurrão na hora certa** (falta detalhar).

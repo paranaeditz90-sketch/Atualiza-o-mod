@@ -9,7 +9,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
-import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -50,6 +49,10 @@ import java.util.UUID;
  * mergulho vem em linha reta na pessoa, ondulando; a 5 blocos ele trava a mira: quem já saiu do caminho escapa (ele passa
  * reto e bate no chão: cratera pequena e tonto ~4 s, apanhando). Quem não saiu: a cara enche a tela, a câmera treme e o
  * vermelho vai subindo (~1,2 s) até a tela de morte.
+ * (v0.7.65, LM 24/11) Ele SOBE durante a voz (girando e ondulando), chega lá em cima no fim dela, fica ~1,2 s parado e
+ * aí vem o GRITO novo (o "UHHH!!!" do vídeo do LM, esticado) com ele descendo em onda, chegando no fim do grito. O
+ * desvio: até 5 blocos ele vem direto em ti, mirando onde tu vai estar (correr reto não salva); a 5 blocos trava a mira,
+ * e só quem muda de rumo/para ali escapa.
  * Só com céu aberto em cima dele e num mundo com céu (no Nether não); quem matou tem que ser jogador (sobrevivência),
  * a até 64 blocos. Na dúvida, morre normal. Se quem matou sumir (saiu, mudou de mundo, foi longe), ele desce e caça normal.
  */
@@ -60,36 +63,30 @@ public final class SkyRage {
      * quando ele acaba de deitar.
      */
     static final int STILL = 74;
-    /** A subida devagar do vídeo (~3 blocos em 3 s); depois fica parado no ar girando até a voz acabar. */
-    static final int RISE_SLOW = 60;
-    private static final double SLOW_SPEED = 0.05D;
-    /** A voz de "profecia" (froggydude.sky_prophecy, 17,1 s): o giro dura isso; acabou, ele dispara pro céu. */
+    /** A voz de "profecia" (froggydude.sky_prophecy, 17,1 s): sobe girando durante ela e chega lá em cima no fim. */
     static final int PROPHECY = 342;
     /** O giro deitado (graus/tick): ~5,5 voltas do fim do tombo até o fim da voz (LM: "umas 5-6 voltas"). */
     private static final float SPIN_RATE = 360F * 5.5F / (PROPHECY - STILL);
-    /** Do aviso "RUN FOR YOUR LIFE" até o mergulho: ~10 s. */
-    static final int RUN_TICKS = 200;
-    /** Depois acelera até isso (blocos/tick) até chegar lá em cima (devagar o bastante pra onda aparecer). */
-    private static final double RISE_MAX = 0.6D;
-    private static final double RISE_ACCEL = 0.03D;
+    /** Parado lá em cima depois da voz, antes do grito e do mergulho (LM: "uns 1,2 s"). */
+    static final int PAUSE = 24;
+    /** O grito do mergulho (froggydude.sky_scream, 2,44 s): ele chega na pessoa quando o grito acaba. */
+    static final int SCREAM_TICKS = 49;
     /** Lá em cima: um pontinho ~32 blocos acima e ~24 na frente de quem matou (dá pra ver ele vindo). */
     private static final double TOP = 32.0D;
     private static final double HOVER_DIST = 24.0D;
-    /** Indo pro lugar lá em cima e acompanhando quem matou (blocos/tick). */
-    private static final double FOLLOW = 0.8D;
     /** A onda (LM: "uns 3-4 blocos subindo e voltando"): altura e período (ticks). */
     private static final double WAVE_H = 3.5D;
     private static final int WAVE_T = 12;
-    /** O mergulho começa aqui (ticks desde a morte): a voz e depois ~10 s de corrida. */
-    static final int DIVE_AT = PROPHECY + RUN_TICKS;
+    /** O mergulho começa aqui (ticks desde a morte): a voz e a pausa. */
+    static final int DIVE_AT = PROPHECY + PAUSE;
     /** A esta distância ele trava a mira (LM: "precisa desviar antes de 5 blocos"). */
     static final double LOCK_DIST = 5.0D;
     /** Chegando no ponto travado: quem está a mais que isso dele (na horizontal) escapou. */
     static final double HIT_R = 1.0D;
     /** Tonto depois de errar. */
     static final int STUN_TICKS = 80;
-    /** Mergulho: blocos/tick (~40 blocos em ~2 s, ondulando). */
-    private static final double DIVE_SPEED = 1.0D;
+    /** Mergulho: a velocidade sai da distância (chega no fim do grito), entre estas (blocos/tick). */
+    private static final double DIVE_MIN = 0.6D, DIVE_TOP = 2.5D;
     private static final int DIVE_MAX = 160;
     /**
      * Quanto ele afunda no chão no baque. (v0.7.64) Medido na gravação com a cara segurada ~1,3 s (o galope curvado parado):
@@ -120,8 +117,16 @@ public final class SkyRage {
         boolean aborting;
         /** Já mandou o aviso "RUN FOR YOUR LIFE" (no fim da voz). */
         boolean warned;
-        /** A altura "sem a onda" da subida depois da voz (NaN = ainda não). */
+        /** A altura "sem a onda" (NaN = ainda não). */
         double baseY = Double.NaN;
+        /** Onde ele começou a subir (null = ainda não). */
+        @Nullable
+        Vec3 riseFrom;
+        /** O mergulho: blocos/tick (da distância, pra chegar no fim do grito). */
+        double diveSpeed = 1.0D;
+        /** Onde quem matou estava no tick anterior (pra mirar onde ela vai estar). */
+        @Nullable
+        Vec3 prevK;
         /** De que lado de quem matou ele fica lá em cima (na horizontal, pra onde ela olhava no aviso). */
         Vec3 side = new Vec3(0, 0, 1);
         /** O mergulho: o ponto na linha reta (a onda vai por cima disso) e a direção. */
@@ -216,27 +221,20 @@ public final class SkyRage {
         if (s == FroggyState.SKY_RISE) {
             Vec3 at = froggy.position();
             if (t < STILL) return;
-            double nx = at.x, nz = at.z, ny;
-            if (t < STILL + RISE_SLOW) {
-                ny = at.y + SLOW_SPEED;
-            } else if (t < PROPHECY) {
-                ny = at.y; // parado no ar, girando, até a voz acabar
-            } else {
-                if (!run.warned) warn(froggy, run, killer, level);
-                if (Double.isNaN(run.baseY)) run.baseY = at.y;
-                // sobe em ONDA (o vídeo do deserto: sobe, volta um pouco, sobe) até o lugar lá em cima, na frente dela
-                Vec3 hover = hoverSpot(killer, run, level);
-                run.vy = Math.min(RISE_MAX, Math.max(run.vy, SLOW_SPEED) + RISE_ACCEL);
-                run.baseY = Math.min(hover.y, run.baseY + run.vy);
-                ny = run.baseY + wave(t - PROPHECY);
-                Vec3 h = new Vec3(hover.x - at.x, 0, hover.z - at.z);
-                double len = h.length();
-                if (len > 0.05D) {
-                    double step = Math.min(len, FOLLOW * Math.min(1.0D, (t - PROPHECY) / 40.0D));
-                    nx += h.x / len * step;
-                    nz += h.z / len * step;
-                }
+            if (run.riseFrom == null) {
+                run.riseFrom = at;
+                Vec3 look = killer.getViewVector(1.0F).multiply(1, 0, 1); // lá em cima: na frente de onde ela olha
+                run.side = look.lengthSqr() < 1.0E-4D ? new Vec3(0, 0, 1) : look.normalize();
             }
+            // sobe durante a voz (devagar no começo, devagar no fim) até o lugar lá em cima, na frente dela, em ONDA
+            // (o vídeo do deserto: sobe, volta um pouco, sobe), girando; chega no fim da voz e fica lá
+            Vec3 hover = hoverSpot(killer, run, level);
+            double pr = Mth.clamp((t - STILL) / (double) (PROPHECY - STILL), 0.0D, 1.0D);
+            double e = pr * pr * (3.0D - 2.0D * pr);
+            Vec3 b = run.riseFrom.add(hover.subtract(run.riseFrom).scale(e));
+            run.baseY = b.y;
+            double nx = b.x, nz = b.z, ny = b.y + wave(t - STILL) * Math.min(1.0D, pr * 5.0D);
+            if (t >= PROPHECY && !run.warned) warn(froggy, run, killer, level);
             // deitado, girando em volta do próprio eixo durante a voz (como um espeto); subindo, meio girando, devagar
             float spin = Mth.wrapDegrees(froggy.getYRot() + (t < PROPHECY ? SPIN_RATE : 1.6F));
             froggy.moveTo(nx, ny, nz, spin, 0F);
@@ -280,7 +278,7 @@ public final class SkyRage {
             if (run.base == null) run.base = froggy.position();
             if (run.missing) {
                 // passou reto (a pessoa saiu do caminho): segue na mesma direção até bater no chão
-                Vec3 n = run.base.add(run.dir.scale(DIVE_SPEED * 1.5D));
+                Vec3 n = run.base.add(run.dir.scale(Math.max(1.2D, run.diveSpeed * 1.5D)));
                 BlockPos bp = BlockPos.containing(n);
                 boolean ground = !level.getBlockState(bp).getCollisionShape(level, bp).isEmpty()
                         || n.y <= level.getMinBuildHeight() + 1;
@@ -297,30 +295,40 @@ public final class SkyRage {
                 Vec3 face = faceSpot(killer);
                 Vec3 d = face.subtract(run.base);
                 double len = d.length();
-                if (len <= DIVE_SPEED * 1.5D || dt > DIVE_MAX) {
+                double fast = Math.max(1.2D, run.diveSpeed * 1.5D);
+                if (len <= fast || dt > DIVE_MAX) {
                     froggy.moveTo(face.x, face.y, face.z, yawTo(face, killer), 0F);
                     froggy.setYHeadRot(froggy.getYRot());
                     froggy.setYBodyRot(froggy.getYRot());
                     run.arrivedAt = froggy.tickCount;
                     return;
                 }
-                run.base = run.base.add(d.scale(DIVE_SPEED * 1.5D / len));
+                run.base = run.base.add(d.scale(fast / len));
                 froggy.moveTo(run.base.x, run.base.y, run.base.z, yawTo(run.base, killer), 0F);
                 froggy.setYHeadRot(froggy.getYRot());
                 return;
             }
-            Vec3 chest = killer.position().add(0, 1.0D, 0);
-            if (run.lock == null && run.base.distanceTo(chest) <= LOCK_DIST) {
-                run.lock = chest; // a 5 blocos: trava a mira aqui
-                froggy.brainLog("raiva do céu: travei a mira em " + killer.getScoreboardName());
+            // mira onde ela vai estar quando ele chegar (correndo reto não adianta); a 5 blocos trava
+            Vec3 k = killer.position();
+            Vec3 vel = run.prevK == null ? Vec3.ZERO : k.subtract(run.prevK).multiply(1, 0, 1);
+            run.prevK = k;
+            if (vel.length() > 0.6D) vel = vel.normalize().scale(0.6D); // teleporte/pérola: não conta
+            Vec3 chest = k.add(0, 1.0D, 0);
+            double eta = Math.min(30.0D, run.base.distanceTo(chest) / run.diveSpeed);
+            Vec3 lead = chest.add(vel.scale(eta));
+            if (run.lock == null && run.base.distanceTo(lead) <= LOCK_DIST) {
+                run.lock = lead; // a 5 blocos: trava a mira aqui
+                froggy.brainLog(String.format(java.util.Locale.ROOT, "raiva do céu: travei a mira em %s (t=%d, %.1f blocos, adiantado %.1f)",
+                        killer.getScoreboardName(), froggy.tickCount - run.startedAt, run.base.distanceTo(chest), lead.distanceTo(chest)));
             }
-            Vec3 aim = run.lock != null ? run.lock : chest;
+            Vec3 aim = run.lock != null ? run.lock : lead;
             Vec3 d = aim.subtract(run.base);
             double len = d.length();
-            if (run.lock != null && len <= DIVE_SPEED * 1.5D) {
+            if (run.lock != null && len <= run.diveSpeed * 1.5D) {
                 // chegou no ponto travado: ainda está ali? pega. Saiu? passa reto
-                Vec3 k = killer.position();
                 double off = Math.sqrt((k.x - aim.x) * (k.x - aim.x) + (k.z - aim.z) * (k.z - aim.z));
+                froggy.brainLog(String.format(java.util.Locale.ROOT, "raiva do céu: cheguei (t=%d), a %.2f blocos da mira",
+                        froggy.tickCount - run.startedAt, off));
                 if (off <= HIT_R && Math.abs(k.y + 1.0D - aim.y) < 2.5D) {
                     run.committed = true;
                     run.preLanded = true;
@@ -336,10 +344,10 @@ public final class SkyRage {
                 return;
             }
             if (len > 1.0E-4D) run.dir = d.scale(1.0D / len);
-            Vec3 n = run.base.add(run.dir.scale(Math.min(len, DIVE_SPEED)));
+            Vec3 n = run.base.add(run.dir.scale(Math.min(len, run.diveSpeed)));
             run.base = n;
             // a onda por cima da linha reta, sumindo perto da trava (chega reto na mira)
-            double taper = Mth.clamp((n.distanceTo(chest) - LOCK_DIST) / 10.0D, 0.0D, 1.0D);
+            double taper = Mth.clamp((n.distanceTo(aim) - LOCK_DIST) / 10.0D, 0.0D, 1.0D);
             double y = n.y + wave(dt) * taper;
             froggy.moveTo(n.x, y, n.z, yawTo(n, killer), 0F);
             froggy.setYHeadRot(froggy.getYRot());
@@ -368,13 +376,11 @@ public final class SkyRage {
     /** Acabou a voz: o aviso "RUN FOR YOUR LIFE" e a corrida sem cansar (~10 s) até o mergulho. */
     private static void warn(FroggydudeEntity froggy, Run run, ServerPlayer killer, ServerLevel level) {
         run.warned = true;
-        Vec3 look = killer.getViewVector(1.0F).multiply(1, 0, 1);
-        run.side = look.lengthSqr() < 1.0E-4D ? new Vec3(0, 0, 1) : look.normalize();
         for (UUID id : run.runners) {
             ServerPlayer p = level.getServer().getPlayerList().getPlayer(id);
-            if (p != null) ModNetwork.sendSkyRage(p, SkyRagePacket.RUN, RUN_TICKS);
+            if (p != null) ModNetwork.sendSkyRage(p, SkyRagePacket.RUN, PAUSE + SCREAM_TICKS);
         }
-        froggy.brainLog("raiva do céu: acabou a profecia; subo e mergulho daqui a " + RUN_TICKS / 20 + " s");
+        froggy.brainLog("raiva do céu: acabou a profecia; lá em cima, mergulho daqui a " + PAUSE / 20.0F + " s");
     }
 
     /** Errou: bate no chão onde passou, cratera pequena, quem estava perto é jogado, e fica tonto. */
@@ -434,20 +440,21 @@ public final class SkyRage {
     private static void beginDive(FroggydudeEntity froggy, Run run, ServerPlayer killer) {
         run.phaseAt = froggy.tickCount;
         run.base = new Vec3(froggy.getX(), Double.isNaN(run.baseY) ? froggy.getY() : run.baseY, froggy.getZ());
-        froggy.setSnap(true); // o cliente sem deslize: senão o mergulho de 4,5 blocos/tick chegava atrasado
+        // chega no fim do grito
+        double dist = run.base.distanceTo(killer.position().add(0, 1.0D, 0));
+        run.diveSpeed = Mth.clamp(dist / (SCREAM_TICKS - 6), DIVE_MIN, DIVE_TOP);
+        froggy.setSnap(true); // o cliente sem deslize: senão o mergulho chegava atrasado
         froggy.setFroggyState(FroggyState.SKY_DIVE);
         froggy.openMouth(60);
         // em fúria (a fase 2, sem a contorção): curvado, a cara dele fica na altura do olho de quem ele encara (igual ao
         // susto do beco); em pé normal o modelo é bem mais alto que a caixa e a câmera via o peito. E é a raiva que fica
         // quando ele parte pro próximo
         if (!froggy.isFrenzyActive()) froggy.startFrenzy(400);
-        // o grito rouco no ouvido de quem matou (2 cópias: alto), e no lugar dele lá em cima
-        long seed = froggy.getRandom().nextLong();
-        for (int k = 0; k < 2; k++) {
-            killer.connection.send(new ClientboundSoundPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(ModSounds.FRENZY_RUN.get()),
-                    SoundSource.HOSTILE, killer.getX(), killer.getEyeY(), killer.getZ(), 1.0F, 1.0F, seed));
-        }
-        froggy.level().playSound(null, froggy.getX(), froggy.getY(), froggy.getZ(), ModSounds.FRENZY_RUN.get(),
+        // (v0.7.65) o grito novo (o "UHHH!!!" do vídeo do LM, esticado): preso em quem matou (segue ela, alto), e no lugar
+        // dele pros outros
+        killer.connection.send(new ClientboundSoundEntityPacket(BuiltInRegistries.SOUND_EVENT.wrapAsHolder(
+                ModSounds.SKY_SCREAM.get()), SoundSource.HOSTILE, killer, 1.0F, 1.0F, froggy.getRandom().nextLong()));
+        froggy.level().playSound(killer, froggy.getX(), froggy.getY(), froggy.getZ(), ModSounds.SKY_SCREAM.get(),
                 SoundSource.HOSTILE, 8.0F, 1.0F);
         froggy.brainLog("raiva do céu: mergulho em " + killer.getScoreboardName());
     }

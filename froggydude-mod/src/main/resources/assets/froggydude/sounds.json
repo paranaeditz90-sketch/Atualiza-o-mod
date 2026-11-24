@@ -1148,5 +1148,16 @@
         "attenuation_distance": 64
       }
     ]
+  },
+  "froggydude.sky_scream": {
+    "subtitle": "subtitles.froggydude.sky_scream",
+    "sounds": [
+      {
+        "name": "minecraft:mob/ravager/roar1",
+        "pitch": 1.3,
+        "volume": 1.0,
+        "attenuation_distance": 64
+      }
+    ]
   }
 }
