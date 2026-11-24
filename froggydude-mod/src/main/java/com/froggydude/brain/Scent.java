@@ -81,6 +81,30 @@ public final class Scent {
         return best;
     }
 
+    /**
+     * (v0.7.68, a Mente) A marca MAIS PERTO do nariz (ainda com cheiro): é onde ele cruza o rastro. Daí ele segue o rastro
+     * marca a marca até a pessoa. Antes a primeira farejada pegava a marca mais NOVA num raio de 32 blocos (a posição de
+     * meio segundo atrás: era saber onde ela estava).
+     */
+    @Nullable
+    public static Sniff nearest(ServerLevel level, Vec3 nose, double range, @Nullable UUID only) {
+        long now = level.getGameTime();
+        Sniff best = null;
+        double bestD = range * range;
+        for (Map.Entry<UUID, ArrayDeque<Mark>> e : TRAILS.entrySet()) {
+            if (only != null && !only.equals(e.getKey())) continue;
+            for (Mark m : e.getValue()) {
+                if (m.strength(now) <= 0F || m.dim != level.dimension()) continue;
+                double d = m.pos.distanceToSqr(nose);
+                if (d <= bestD) {
+                    bestD = d;
+                    best = new Sniff(e.getKey(), m);
+                }
+            }
+        }
+        return best;
+    }
+
     /** A última marca dessa pessoa (onde o rastro termina), se ainda tem cheiro. */
     @Nullable
     public static Mark newest(UUID player, long now) {

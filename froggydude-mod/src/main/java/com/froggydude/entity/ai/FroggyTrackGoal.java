@@ -28,9 +28,9 @@ import java.util.UUID;
 public class FroggyTrackGoal extends Goal {
 
     /** Sente o rastro de qualquer um a até 24 blocos. */
-    private static final double SMELL_RANGE = 24.0D;
+    private static final double SMELL_RANGE = 10.0D; // (v0.7.68) o nariz precisa estar perto do rastro
     /** O da presa que acabou de sumir ele sente de mais longe. */
-    private static final double LOST_PREY_RANGE = 40.0D;
+    private static final double LOST_PREY_RANGE = 24.0D;
     /** Andando no rastro: a marca mais nova até essa distância é o próximo passo. */
     private static final double TRAIL_STEP = 14.0D;
     /** Perto assim ele sente de onde vem o cheiro (com erro). */
@@ -95,8 +95,9 @@ public class FroggyTrackGoal extends Goal {
         sniffCheckAt = froggy.tickCount + 10;
         if (!free()) return false;
         UUID lost = froggy.getRecentlyLostPrey();
-        Scent.Sniff s = lost == null ? null : Scent.freshest(level, froggy.position(), LOST_PREY_RANGE * sense(), lost);
-        if (s == null || !valid(player(s.player()))) s = Scent.freshest(level, froggy.position(), SMELL_RANGE * sense(), null);
+        // (v0.7.68) cruza o rastro onde ele passa mais perto (não onde ela está agora)
+        Scent.Sniff s = lost == null ? null : Scent.nearest(level, froggy.position(), LOST_PREY_RANGE * sense(), lost);
+        if (s == null || !valid(player(s.player()))) s = Scent.nearest(level, froggy.position(), SMELL_RANGE * sense(), null);
         if (s == null) return false;
         ServerPlayer p = player(s.player());
         if (!valid(p)) return false;
@@ -195,8 +196,8 @@ public class FroggyTrackGoal extends Goal {
         long now = level.getGameTime();
 
         double d = froggy.distanceTo(p);
-        // viu: acabou a procura
-        if (d < 48.0D && froggy.getSensing().hasLineOfSight(p)) {
+        // viu (com os olhos da Mente: na frente dele, na luz, sem parede): acabou a procura
+        if (froggy.mind().hasSpotted(p)) {
             found(p, "vi");
             return;
         }
@@ -205,9 +206,10 @@ public class FroggyTrackGoal extends Goal {
             found(p, "beco sem saída");
             return;
         }
-        // tão perto que o cheiro entrega onde está, mesmo atrás da parede
+        // tão perto que o cheiro entrega mais ou menos onde está, mesmo atrás da parede: vai procurar ali (não sabe o lugar
+        // exato; antes isso punha ela na mira, como se visse)
         if (d <= FOUND_RANGE) {
-            found(p, "cheiro");
+            smelled(p, "cheiro bem perto");
             return;
         }
         if (pauseTicks > 0) {
@@ -290,7 +292,7 @@ public class FroggyTrackGoal extends Goal {
                 bestSearchDist = d;
                 searchStuck = 0;
             } else if (++searchStuck > 100) {
-                found(p, "cheiro forte, atrás da parede");
+                smelled(p, "cheiro forte, atrás da parede");
                 return;
             }
         }
@@ -359,6 +361,13 @@ public class FroggyTrackGoal extends Goal {
                 + (int) center.z + ": varredura");
         // ele sabe que tu está por perto: "you can run, but you can't hide" (transformado não: só grita)
         if (!froggy.isFrenzyActive()) froggy.speak(VoiceSituation.SEARCH);
+    }
+
+    /** (v0.7.68) O cheiro diz "está aqui perto": a Mente procura em volta (FroggySearchGoal). */
+    private void smelled(ServerPlayer p, String how) {
+        found = true;
+        froggy.setTracking(false);
+        froggy.mind().smell(p, how);
     }
 
     private void found(ServerPlayer p, String how) {

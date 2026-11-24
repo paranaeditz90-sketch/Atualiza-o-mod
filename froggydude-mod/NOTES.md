@@ -1,4 +1,4 @@
-# Froggydude - v0.7.67: o sistema de fuga (adrenalina, empurrão na hora certa, isca) (sobre a v0.7.66)
+# Froggydude - v0.7.68: a Mente, etapa 1 (sentidos honestos, crença de onde tu está, procurar e perder) (sobre a v0.7.67)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,32 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.67):
+O que testar agora (v0.7.68):
+- **A Mente do FroggyDude, etapa 1** (LM 24/11: "uma IA que realmente pensa e não faz nada sem sentido"; plano em
+  `PLANO.md` seção 13). Ele não sabe mais onde tu está sem perceber:
+  - **olhos de verdade**: só vê o que está na frente dele (~130°), de longe menos, **no escuro e agachado bem menos**,
+    vidro deixa ver, folha e parede não. Antes de ter certeza, **vira a cabeça pro que viu de relance**. Encostado, sente
+    mesmo de costas. Parou de encarar quem estava atrás dele (olha em volta à toa, e é assim que te acha);
+  - **ouvidos**: passos (agachado quase nada, correndo mais), porta, baú, bloco quebrando/posto, comendo, flecha, água,
+    queda, alguém se machucando, explosão: vira a cabeça e vai ver (ainda sem teste isolado no jogo);
+  - **perdeu de vista = não sabe**: corre uns 2 s pra onde tu foi, e depois **procura** onde tu provavelmente está (onde
+    te viu por último e pra onde tu corria); chegou, **para e olha em volta**; não achou, a procura vai abrindo (até onde
+    tu poderia ter corrido); depois de ~45 s (só barulho: ~20 s) **desiste** com raiva. Antes ele ia direto pra tua
+    posição real por 8 s e no manhunt nunca perdia;
+  - **faro honesto**: cruza o teu rastro onde passa perto (10 blocos) e segue marca a marca; antes pegava a marca mais
+    nova num raio de 24 (a tua posição de meio segundo atrás). De perto, atrás da parede, o cheiro diz "está por aqui"
+    (ele procura em volta), não "está ali" (antes punha tu na mira como se visse);
+  - **manhunt com bússola** (LM: "só direção"): de 10 em 10 s ele sabe a direção geral, não o lugar; acha vendo, ouvindo
+    ou farejando. Quem sangra (sem braço) deixa cheiro que chega de longe, mas só a região;
+  - quem põe o alvo nele sem ele ter visto (diretor, manhunt, faro) agora só dá a região (erro de 1/4 da distância);
+  - **`/froggydude pensamento`**: mostra o que ele está pensando e por quê (ex.: "perdi Dev de vista: ela foi pra ...",
+    "procurando há 12 s, 30 lugares possíveis", "desisti de procurar: perdi"). No mundo -dev sai tudo no log.
+  - Testado no jogo: de costas não te nota; te vê de relance, confirma e vem; tu some, ele procura onde te viu, abre a
+    procura, desiste, pega teu rastro, o rastro acaba (teleporte), varre a área e te acha pela janela da caixa.
+  - Ainda não mudou (próximas etapas): os sorteios (irritado do nada, jumpscare 40%...), as falas fora de contexto, o
+    combate ainda vê 360° enquanto está lutando colado, e o decisor ainda não manda no combate.
+
+O que tinha pra testar na v0.7.67:
 - **O sistema de fuga** (item 7 da fila; LM 24/11 escolheu os 3):
   - **Adrenalina**: com **3 corações ou menos** e ele **te caçando a até 10 blocos**, tu ganha **4 s de velocidade
     forte** (Velocidade III), a **borda da tela pulsa vermelha** e o **coração bate** alto; depois **cansa** (3 s lento).

@@ -11,7 +11,9 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 
 ## Agora (24/11): a Mente do FroggyDude (IA "consciente")
 
-Plano, pesquisa e decisões do LM em `PLANO.md`, seção 13. Etapa 1 (sentidos honestos + crença + busca) em andamento.
+Plano, pesquisa e decisões do LM em `PLANO.md`, seção 13. **Etapa 1 feita na 0.7.68** (pacote `mind/`: Senses, Belief,
+Hearing, Mind; `entity/ai/FroggySearchGoal`; faro honesto; manhunt com bússola; `/froggydude pensamento`). Falta testar a
+audição isolada no jogo. Próximo: etapa 2 (um pensamento por vez com motivo, sorteios viram consequência, falas com contexto).
 Depois: pente fino (revisores só leitura; o LM pediu para usar poucos agentes por causa da cota).
 
 ## Fila do LM (23/11), na ordem sugerida; os vídeos de referência ficam só no scratchpad

@@ -63,6 +63,7 @@ public final class FroggyCommand {
         d.register(Commands.literal("froggydude").requires(FroggyCommand::player)
                 .then(Commands.literal("invocar").requires(FroggyCommand::admin).executes(c -> summon(c.getSource())))
                 .then(Commands.literal("info").executes(c -> info(c.getSource())))
+                .then(Commands.literal("pensamento").requires(FroggyCommand::admin).executes(c -> thought(c.getSource())))
                 .then(ai())
                 .then(invasion())
                 .then(director())
@@ -564,6 +565,17 @@ public final class FroggyCommand {
         com.froggydude.player.FinisherTracker.mark(p, f.getId());
         f.requestFinisher(p);
         src.sendSuccess(() -> t("finisher"), true);
+        return 1;
+    }
+
+    /** (v0.7.68) /froggydude pensamento: o que a Mente dele está pensando agora e por quê. */
+    private static int thought(CommandSourceStack src) {
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null) {
+            src.sendFailure(t("cmd.thought_none"));
+            return 0;
+        }
+        src.sendSuccess(() -> t("cmd.thought", f.mind().describe()), false);
         return 1;
     }
 

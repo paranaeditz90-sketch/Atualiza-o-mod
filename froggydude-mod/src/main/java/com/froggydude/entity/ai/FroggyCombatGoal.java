@@ -252,7 +252,17 @@ public class FroggyCombatGoal extends Goal {
     public boolean canUse() {
         if (froggy.getFroggyState() == FroggyState.ARM_EAT) return true;
         LivingEntity target = froggy.getTarget();
-        return target != null && target.isAlive() && !froggy.isVulnerableState();
+        return target != null && target.isAlive() && !froggy.isVulnerableState() && knows(target);
+    }
+
+    /**
+     * (v0.7.68, a Mente) Ele só luta com quem ele PERCEBE (viu há pouco, está colado, ou está arrombando onde viu ela
+     * entrar). Sem perceber, quem age é a procura (FroggySearchGoal). Um golpe já começado termina.
+     */
+    private boolean knows(LivingEntity target) {
+        if (froggy.mind().perceives(target)) return true;
+        FroggyState st = froggy.getFroggyState();
+        return st.isCombatAction() || eating != null || st == FroggyState.BUILD || isBreaking() && froggy.distanceTo(target) < 10.0F;
     }
 
     @Override
@@ -260,7 +270,7 @@ public class FroggyCombatGoal extends Goal {
         FroggyState state = froggy.getFroggyState();
         if (state == FroggyState.ARM_EAT) return true; // termina de comer, com ou sem alvo
         LivingEntity target = froggy.getTarget();
-        return target != null && target.isAlive()
+        return target != null && target.isAlive() && knows(target)
                 && (state == FroggyState.CHASE || state.isCombatAction() || eating != null
                 || state == FroggyState.BUILD || state == FroggyState.TAUNT);
     }

@@ -235,5 +235,7 @@
   "froggydude.cmd.pardoned": "%s player(s) pardoned: they can respawn.",
   "froggydude.skyrage.title": "FroggyDude came back...",
   "froggydude.skyrage.run": "RUN FOR YOUR LIFE!!!! NOW!!",
+  "froggydude.cmd.thought_none": "FroggyDude is not in the world.",
+  "froggydude.cmd.thought": "FroggyDude is thinking: %s",
   "froggydude.cmd.skyrage": "The sky rage: he rises and dives at you."
 }

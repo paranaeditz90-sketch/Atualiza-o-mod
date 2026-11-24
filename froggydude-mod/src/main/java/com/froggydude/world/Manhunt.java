@@ -216,9 +216,9 @@ public final class Manhunt {
         } else {
             farTicks = 0;
         }
-        if (!froggy.isHolding() && (froggy.getTarget() == null || !froggy.getTarget().isAlive())) {
-            froggy.setTarget(nearest); // faro: sabe onde tu está
-        }
+        // (v0.7.68, a Mente; LM 24/11: "bússola, só direção") antes: punha o mais perto na mira a cada segundo (sabia onde
+        // tu estava). Agora a Mente olha a "bússola" de tempos em tempos (só a direção) e procura; acha vendo, ouvindo ou
+        // farejando.
     }
 
     @Nullable

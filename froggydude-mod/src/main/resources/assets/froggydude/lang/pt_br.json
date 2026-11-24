@@ -235,5 +235,7 @@
   "froggydude.cmd.pardoned": "%s jogador(es) perdoado(s): podem renascer.",
   "froggydude.skyrage.title": "O FroggyDude voltou...",
   "froggydude.skyrage.run": "RUN FOR YOUR LIFE!!!! NOW!!",
+  "froggydude.cmd.thought_none": "O FroggyDude não está no mundo.",
+  "froggydude.cmd.thought": "O FroggyDude está pensando: %s",
   "froggydude.cmd.skyrage": "A raiva do céu: ele sobe e mergulha em ti."
 }

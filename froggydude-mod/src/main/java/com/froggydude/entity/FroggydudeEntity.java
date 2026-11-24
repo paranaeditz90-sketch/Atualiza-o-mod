@@ -310,6 +310,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     private boolean tracking;
     /** Há quanto tempo o alvo está fora de vista (ver serverAiStep). */
     private int unseenTicks;
+    /** (v0.7.68) A Mente: o que ele percebe, a crença de onde ela está e o porquê de cada coisa (mind.Mind). */
+    private final com.froggydude.mind.Mind mind = new com.froggydude.mind.Mind(this);
     private int preyLostAt = Integer.MIN_VALUE / 2;
     /** Altura onde começou a subir a parede (NaN = não está subindo). */
     private double climbStartY = Double.NaN;
@@ -466,6 +468,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         // em volta até achar quem se escondeu (mesma prioridade do combate: um
         // precisa de alvo, o outro só roda sem alvo)
         this.goalSelector.addGoal(2, new FroggyTrackGoal(this));
+        // (v0.7.68) a Mente: procura onde ela provavelmente está quando não está vendo (no lugar de saber sempre)
+        this.goalSelector.addGoal(2, new com.froggydude.entity.ai.FroggySearchGoal(this));
         // 1: IA Real (v0.6) - longe da presa, vai pro lugar que ela está pra voltar (o baú,
         // a cama, a mina) e espera lá dentro: no canto do teto ou no breu. Na frente do faro
         // (às vezes vai atrás pelo cheiro, às vezes espera): na mesma prioridade, o faro
@@ -484,23 +488,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8D));
         // sem RandomLookAroundGoal: ele virava a cabeça pros lados do nada (parecia tique).
         // Só encara quem estiver perto.
-        this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 12.0F));
+        // (v0.7.68) olha em volta à toa (o cone de visão depende de pra onde ele olha). Antes encarava quem estivesse a 12
+        // blocos mesmo de costas pra ela (sabia que estava ali sem ver)
+        this.goalSelector.addGoal(4, new net.minecraft.world.entity.ai.goal.RandomLookAroundGoal(this));
 
         this.targetSelector.addGoal(1, new HurtByTargetGoal(this));
-        // faro: quem está sem braço sangra e ele sente o cheiro de longe, mesmo sem ver
-        this.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, 10, false, false,
-                e -> e instanceof Player p && ArmLoss.isArmless(p) && !isFedOn(p) && !underTruce(p) && !hidingFrom(p) && !stakingOut) {
-            {
-                this.targetConditions = this.targetConditions.ignoreLineOfSight();
-            }
-
-            @Override
-            protected double getFollowDistance() {
-                return 64.0D * FroggyConfig.ai().sense;
-            }
-        });
+        // (v0.7.68) quem está sem braço sangra: o cheiro chega de longe, mas só a REGIÃO (Mind.clues), não o alvo na mão
         this.targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, Player.class, 10, true, false,
-                e -> !isFedOn(e) && !underTruce(e) && !hidingFrom(e) && !stakingOut) {
+                e -> !isFedOn(e) && !underTruce(e) && !hidingFrom(e) && !stakingOut && mind.hasSpotted(e)) {
             @Override
             protected double getFollowDistance() {
                 // até onde ele enxerga: do Alto pra cima, a distância de renderização (sightRange)
@@ -649,6 +644,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         LivingEntity old = this.getTarget();
         super.setTarget(target);
         if (this.level().isClientSide) return;
+        // (v0.7.68) quem pôs o alvo sem ele ter visto (manhunt, diretor, faro, destravador): ele sabe só a REGIÃO
+        if (target instanceof Player tp && old != target && !mind.perceives(tp) && !mind.hasSpotted(tp)) {
+            mind.rumor(tp, 6.0D, "sei mais ou menos por onde " + tp.getScoreboardName() + " anda");
+        }
         if (old instanceof Player && old != target) {
             lastPreyId = old.getUUID();
             preyLostAt = this.tickCount;
@@ -1644,6 +1643,11 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
 
     public boolean isHolding() {
         return holdTicks > 0;
+    }
+
+    /** (v0.7.68) A Mente (percepção honesta, crença, porquê). */
+    public com.froggydude.mind.Mind mind() {
+        return mind;
     }
 
     /** (v0.7.67) Tonto depois do empurrão (ticks) e quanto do começo ele ainda desliza pra trás (o tranco). */
@@ -3784,6 +3788,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
         if (introPending && this.tickCount % 10 == 0) tryStartIntro();
         // (v0.7.42) a IA dinâmica: o decisor escolhe o que fazer; as vontades andam a cada 1 s
+        mind.tick();
         decider.tick();
         if (this.tickCount % 20 == 0) {
             com.froggydude.brain.Intent it = decider.intent();
@@ -3869,23 +3874,9 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             Player look = holdLookAt == null ? null : this.level().getPlayerByUUID(holdLookAt);
             if (look != null) faceTarget(look);
         }
-        // Sumiu de vista (escondeu, dobrou a esquina) por 8 s: ele larga o alvo e
-        // passa a usar o FARO (FroggyTrackGoal) - antes, alvo posto sem ser por
-        // um TargetGoal (faro, mordida) ele seguia pra sempre sabendo onde estava.
-        // No manhunt ele está sempre no teu rastro (Manhunt.keepOnTrail).
-        if (this.getTarget() instanceof Player tp && !isHolding() && !getFroggyState().isOnVictim()
-                && !combatGoal.isBreaking() && this.level() instanceof ServerLevel sl
-                && !FroggyWorldData.get(sl).manhuntActive) {
-            if (this.getSensing().hasLineOfSight(tp) || this.distanceTo(tp) < 6.0F || combatGoal.holdsTarget()) {
-                unseenTicks = 0;
-            } else if (++unseenTicks > 160) {
-                unseenTicks = 0;
-                brainLog("perdi " + tp.getScoreboardName() + " de vista: no faro agora");
-                this.setTarget(null);
-            }
-        } else {
-            unseenTicks = 0;
-        }
+        // (v0.7.68) "Sumiu de vista por 8 s: larga o alvo" saiu: agora é a Mente. Ele não sabe mais onde ela está e procura
+        // (FroggySearchGoal) onde ela provavelmente foi; desiste quando perde de verdade (Mind.giveUp). Antes, nesses 8 s ele
+        // ia direto pra posição real dela, e no manhunt nunca perdia.
         if (engagement != null && engagement.lostAt >= 0 && this.tickCount - engagement.lostAt > 1200) {
             endEngagement(FroggyBrain.Outcome.ESCAPED); // sumiu por 1 minuto: escapou
         }
@@ -4220,6 +4211,8 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         if (isReviving() && !Revive.final_(source)) return false;
         // (v0.7.62) na raiva do céu nada pega nele; (v0.7.63) só tonto, depois de errar o mergulho, ele apanha
         if (skyRun != null && getFroggyState() != FroggyState.SKY_STUN && !Revive.final_(source)) return false;
+        // (v0.7.68) a Mente: quem machucou ele (perto: sabe quem é e onde está; longe: de que lado veio)
+        if (!this.level().isClientSide && source.getEntity() instanceof Player hp && !hp.isCreative()) mind.hurtBy(hp);
         // (v0.7.67) o empurrão na hora certa: bateu nele no bote, já perto
         if (!this.level().isClientSide && source.getEntity() instanceof Player pp && source.getDirectEntity() == pp) {
             combatGoal.tryParry(pp);
