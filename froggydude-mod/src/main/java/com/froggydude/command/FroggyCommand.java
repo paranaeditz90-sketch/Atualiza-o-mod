@@ -82,6 +82,8 @@ public final class FroggyCommand {
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
                 .then(Commands.literal("raiva2").requires(FroggyCommand::admin).executes(c -> rage2(c.getSource())))
                 .then(Commands.literal("emboscada").requires(FroggyCommand::admin).executes(c -> ambush(c.getSource())))
+                // (v0.7.62) a raiva do céu agora, contra quem mandou (como se tivesse matado ele)
+                .then(Commands.literal("ceu").requires(FroggyCommand::admin).executes(c -> skyRage(c.getSource())))
                 // (v0.7.58) o jumpscare sem saída: mostra se o lugar conta como beco; "forcar" = o próximo sem intervalo
                 .then(Commands.literal("semsaida").requires(FroggyCommand::admin).executes(c -> noEscape(c.getSource(), false))
                         .then(Commands.literal("forcar").executes(c -> noEscape(c.getSource(), true))))
@@ -519,6 +521,17 @@ public final class FroggyCommand {
         String msg = f.noEscapeCheck(p, force);
         if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] semsaida: " + msg);
         src.sendSuccess(() -> Component.literal(msg), false);
+        return 1;
+    }
+
+    private static int skyRage(CommandSourceStack src) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null || f.level() != p.level() || !f.startSkyRage(p)) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        src.sendSuccess(() -> t("skyrage"), true);
         return 1;
     }
 

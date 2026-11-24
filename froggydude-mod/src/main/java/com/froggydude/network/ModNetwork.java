@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "12";
+    private static final String PROTOCOL = "13";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -46,6 +46,13 @@ public final class ModNetwork {
                 AntiCheatPacket::encode, AntiCheatPacket::decode, AntiCheatPacket::handle);
         CHANNEL.registerMessage(8, NoEscapePacket.class,
                 NoEscapePacket::encode, NoEscapePacket::decode, NoEscapePacket::handle);
+        CHANNEL.registerMessage(9, SkyRagePacket.class,
+                SkyRagePacket::encode, SkyRagePacket::decode, SkyRagePacket::handle);
+    }
+
+    /** (v0.7.62) A raiva do céu: o aviso de correr, a tela vermelha do acerto, o fim. */
+    public static void sendSkyRage(ServerPlayer player, byte kind, int ticks) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new SkyRagePacket(kind, ticks));
     }
 
     /** (v0.7.58) O corte do jumpscare sem saída: tela preta e silêncio na hora, tela de morte preta. */

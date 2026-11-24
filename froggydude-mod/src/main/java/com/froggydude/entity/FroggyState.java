@@ -130,7 +130,17 @@ public enum FroggyState {
      * (v0.7.54) A emboscada na floresta: escondido atrás de quem caça, parado, até ela virar pro barulho (o graveto ou a
      * fala) e ele pular. Sem IA.
      */
-    AMBUSH(0);
+    AMBUSH(0),
+    /**
+     * (v0.7.62) A raiva do céu (entity.SkyRage; item 6 da fila, vídeo do LM 13:44): mataram ele e ele não morre: sobe
+     * flutuando, mole, até virar um pontinho no céu, enquanto quem matou lê "RUN FOR YOUR LIFE!!!! NOW!!" e corre sem
+     * cansar. Sem IA.
+     */
+    SKY_RISE(0),
+    /** (v0.7.62) O mergulho do céu: reto e muito rápido, de braços abertos, até a cara de quem matou ele. Sem IA. */
+    SKY_DIVE(0),
+    /** (v0.7.62) Pousou (matou): de pé na pose "()" da raiva uns 2 s, e parte pro próximo. Sem IA. */
+    SKY_LAND(0);
 
     public final int durationTicks;
 

@@ -84,6 +84,10 @@ public class FroggydudeModel extends GeoModel<FroggydudeEntity> {
                 // o corpo inteiro vira atrás do olhar (FroggyBodyControl): o pescoço só ajusta o resto
                 head.setRotY(head.getRotY() + Mth.clamp(data.netHeadYaw(), -25F, 25F) * Mth.DEG_TO_RAD);
             }
+            if (state == FroggyState.SKY_DIVE) {
+                // (v0.7.62) a raiva do céu, colado na cara de quem olha pra cima: a cabeça desce até encarar a câmera
+                head.setRotX(head.getRotX() + Mth.clamp(data.headPitch(), -10F, 80F) * Mth.DEG_TO_RAD);
+            }
             if (upright || aiming) {
                 // (v0.7.33) segurando alguém lá em cima (captura/arremesso): a cabeça sobe até -50°, o resto do ângulo
                 // é a língua (réplica v8)

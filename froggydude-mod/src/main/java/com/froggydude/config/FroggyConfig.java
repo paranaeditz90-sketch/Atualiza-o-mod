@@ -18,6 +18,7 @@ public final class FroggyConfig {
     public static final ForgeConfigSpec.BooleanValue INVASAO;
     public static final ForgeConfigSpec.DoubleValue CACA_BLOCOS_POR_SEGUNDO;
     public static final ForgeConfigSpec.IntValue IRRITADO_CHANCE;
+    public static final ForgeConfigSpec.IntValue RAIVA_CEU_CHANCE;
     public static final ForgeConfigSpec.EnumValue<AiLevel> IA;
     public static final ForgeConfigSpec.BooleanValue TLM_GORE;
 
@@ -48,6 +49,10 @@ public final class FroggyConfig {
                         "pra cima de um jogador, mesmo com a vida cheia. Sorteada ao começar a perseguição e a cada 30 s dela",
                         "(depois de uma transformação, só de novo em 60-90 s). 0 = só com a vida baixa, como antes.")
                 .defineInRange("irritado_chance", 25, 0, 100);
+        RAIVA_CEU_CHANCE = b.comment("Chance (%) de, quando um jogador mata ele (e o renascer com a língua não veio), ele não morrer:",
+                        "sobe flutuando até virar um pontinho no céu, \"RUN FOR YOUR LIFE!!!! NOW!!\" e ~10 s pra correr,",
+                        "e mergulha em quem matou (mata na hora). Só com céu aberto em cima dele. 0 = nunca.")
+                .defineInRange("raiva_ceu_chance", 30, 0, 100);
         IA = b.comment("O quanto ele pensa: MIN, MEDIO, ALTO (o de sempre), EXTRA, MAX, REAL.",
                         "Muda alcance de visão/faro, reação, previsão, táticas (cercar, cortar caminho, pôr bloco,",
                         "arrombar, sabotar), o uso do que ele aprendeu de cada jogador e, no EXTRA/MAX, truques novos.",

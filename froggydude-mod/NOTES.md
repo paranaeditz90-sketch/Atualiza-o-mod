@@ -1,4 +1,4 @@
-# Froggydude - v0.7.61: o susto do beco revisado lado a lado + física dos pedaços desligável (sobre a v0.7.60)
+# Froggydude - v0.7.62: a raiva do céu (sobe, pontinho no céu, mergulha em quem matou) (sobre a v0.7.61)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,28 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.61):
+O que testar agora (v0.7.62):
+- **A raiva do céu** (item 6 da fila; vídeo do LM "MediaFire 13:44", 25-45 s; LM 24/11: "quando ele morre", "o mergulho
+  mata na hora"). Quando tu mata ele (e o renascer com a língua não veio), às vezes (30%, config
+  `froggydude.raiva_ceu_chance`) ele não morre:
+  1. fica RETO, parado, ~2 s, e o corpo cai de costas feito tábua (~0,9 s, acelerando; LM 24/11, com dois vídeos
+     do original: "a animação dele reto, e depois deixando o corpo 'cair' pra trás"); deitado, de BARRIGA PRA CIMA, com
+     os braços e as pernas pendurados pra baixo e a cabeça olhando pro céu (a pose que tu escolheu na prévia, "rx-90 l90
+     h-60"), SOBE flutuando, mole, balançando e meio girando (devagar no começo, ~3 blocos em 3 s, como no vídeo), até
+     virar um pontinho no céu, ~50 blocos acima de ti, sempre por cima de onde tu está;
+  2. aparece pra ti o aviso tipo conquista, vermelho, com sangue escorrendo: "O FroggyDude voltou... / RUN FOR YOUR
+     LIFE!!!! NOW!!", e tu corre sem cansar (a fome não gasta e não deixa cair abaixo do que precisa pra correr);
+  3. aos 10 s ele MERGULHA reto e muito rápido, de braços abertos, gritando (o grito rouco da fase 2); no fim a tua câmera
+     vem pra frente e a cara dele enche a tela;
+  4. a tela fica vermelha com sangue escorrendo (~1,5 s) e tu morre (a tela de morte normal vem depois do vermelho);
+  5. ele fica na pose "()" da raiva uns 2 s e volta a caçar (em fúria), com metade da vida.
+  - Só com céu aberto em cima dele e num mundo com céu (no Nether não). Se quem matou ele sumir (morrer de outro jeito,
+    sair, ir longe) ele desce e volta a caçar normal. Ninguém machuca ele durante a cena.
+  - **Testado no jogo**: matando ele com dano de jogador de verdade (a cena toda até ele voltar a caçar), com o comando,
+    e com quem matou morrendo no meio (ele desce e volta).
+  - Comando de teste: `/froggydude ceu` (a cena agora, contra quem mandou).
+
+O que tinha pra testar na v0.7.61:
 - **O susto do beco comparado lado a lado com o vídeo do Grox** (LM 24/11: "um agente para comparar lado a lado,
   extremamente exigente"). Um agente mediu as duas gravações quadro a quadro, e o que era do mod foi consertado:
   - **a cara agora enche a tela** (antes ele parava a ~1,3 bloco, ~8% da tela): o cliente mostrava ele ~3 ticks atrás

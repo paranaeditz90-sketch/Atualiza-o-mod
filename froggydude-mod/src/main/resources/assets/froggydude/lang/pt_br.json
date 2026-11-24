@@ -230,5 +230,8 @@
   "froggydude.cmd.cheats_no": "Trapaças neste mundo: Não (criativo ou espectador = morte sem volta).",
   "froggydude.cmd.cheats_yes": "Trapaças neste mundo: Sim (o anti-trapaça está desligado).",
   "froggydude.cmd.cheats_old": "Este mundo é de antes do anti-trapaça: está desligado. Use /froggydude trapacas nao pra ligar.",
-  "froggydude.cmd.pardoned": "%s jogador(es) perdoado(s): podem renascer."
+  "froggydude.cmd.pardoned": "%s jogador(es) perdoado(s): podem renascer.",
+  "froggydude.skyrage.title": "O FroggyDude voltou...",
+  "froggydude.skyrage.run": "RUN FOR YOUR LIFE!!!! NOW!!",
+  "froggydude.cmd.skyrage": "A raiva do céu: ele sobe e mergulha em ti."
 }

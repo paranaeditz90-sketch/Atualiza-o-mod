@@ -374,6 +374,65 @@ ANIMS["rage_crack"] = animation(0.6, [
     (0.60, rage_crouch(76)),
 ], "hold_on_last_frame")
 
+# (v0.7.62) A raiva do céu (entity.SkyRage; vídeo do LM "MediaFire 13:44", 25-30 s e 38,6-39,1 s).
+# Subindo: de BARRIGA PRA CIMA, o corpo deitado no ar como se uma força puxasse ele pelo peito, os braços e as pernas
+# caindo pra baixo com o peso e a cabeça virada pro céu (LM 24/11, com print: "a cabeça olha para o céu, enquanto braços
+# e pernas ficam a favor da gravidade"; escolheu a prévia "rx-90 l90 h-60" do tools/anim/preview.py). Mole: os membros e
+# a cabeça balançam devagar, cada um no seu tempo. Erguido 12 px pra as pernas penduradas não entrarem no chão no começo.
+def sky_limp(arm_r=90.0, arm_l=84.0, leg_r=90.0, leg_l=96.0, head=-60.0, head_z=0.0, sway=0.0, knee=22.0, knee_l=30.0):
+    return pose(root_x=-90.0 + sway, root_y=12.0, arms=arm_r, arm_l=arm_l, arm_spread=10, legs=leg_r, leg_l=leg_l,
+                knee=knee, knee_l=knee_l, leg_spread=9, head=head, head_z=head_z)
+
+
+# Antes de subir, o tombo (LM 24/11, dois vídeos de referência do original: "a animação dele reto, e depois deixando o
+# corpo 'cair' pra trás"): ele fica RETO, parado, braços colados no corpo (~2 s, como no vídeo), e cai de costas feito
+# tábua, girando nos pés, acelerando como coisa que cai (ângulo ~ t²); os braços e as pernas ficam junto do corpo no
+# começo e só no fim despencam pra baixo com o peso, a cabeça tomba por último. Um repique pequeno no fim (passa de 90°
+# e volta) e termina exatamente na primeira pose do "sky_rise" (o cliente troca pra ela sem salto).
+SKY_TIP_STAND = 2.0   # s reto
+SKY_TIP_FALL = 0.9    # s caindo
+SKY_TIP_END = round(SKY_TIP_STAND + SKY_TIP_FALL + 0.35, 4)
+
+
+def _sky_tip_keys():
+    keys = [(0.0, pose()), (SKY_TIP_STAND, pose())]
+    end = sky_limp()
+    for f in (0.35, 0.55, 0.72, 0.86, 1.0):
+        a = f * f  # cai acelerando
+        rx = -90.0 * a
+        g = max(0.0, (a - 0.35) / 0.65) ** 1.5  # os membros só soltam depois da metade
+        keys.append((round(SKY_TIP_STAND + SKY_TIP_FALL * f, 4),
+                     pose(root_x=rx, root_y=12.0 * a, arms=90.0 * g, arm_l=84.0 * g, arm_spread=10 * g,
+                          legs=90.0 * g, leg_l=96.0 * g, knee=22.0 * g, knee_l=30.0 * g, leg_spread=9 * g,
+                          head=-60.0 * g * g)))
+    t1 = SKY_TIP_STAND + SKY_TIP_FALL
+    # o repique: o tronco passa um pouco, os membros balançam com o tranco
+    keys.append((round(t1 + 0.15, 4), sky_limp(sway=-6.0, arm_r=104.0, arm_l=98.0, leg_r=100.0, leg_l=106.0, head=-70.0)))
+    keys.append((SKY_TIP_END, end))
+    return keys
+
+
+ANIMS["sky_tip"] = animation(SKY_TIP_END, _sky_tip_keys(), "hold_on_last_frame", ground=False)
+
+ANIMS["sky_rise"] = animation(2.4, [
+    (0.00, sky_limp()),
+    (0.80, sky_limp(arm_r=98.0, arm_l=80.0, leg_r=84.0, leg_l=100.0, head=-54.0, head_z=6.0, sway=4.0, knee=28.0)),
+    (1.60, sky_limp(arm_r=84.0, arm_l=92.0, leg_r=96.0, leg_l=88.0, head=-64.0, head_z=-5.0, sway=-3.0, knee_l=24.0)),
+    (2.40, sky_limp()),
+], True, ground=False)
+
+# Mergulhando: em pé, os braços abertos em cruz (a silhueta "+" no céu do vídeo), as pernas um pouco abertas, a cabeça
+# olhando um tico pra baixo (pra quem ele vai acertar); os braços tremem com o vento.
+def sky_cross(spread=86.0, arms=-4.0, head=14.0):
+    return pose(waist=-4, head=head, arms=arms, arm_spread=spread, legs=-6, leg_l=6, leg_spread=12)
+
+
+ANIMS["sky_dive"] = animation(0.3, [
+    (0.00, sky_cross()),
+    (0.15, sky_cross(spread=94.0, arms=6.0, head=10.0)),
+    (0.30, sky_cross()),
+], True, ground=False)
+
 # Bote baixo que derruba: salta rente ao chão com os braços pra frente pra
 # agarrar e cai montado na vítima. Impulso no tick 4, impacto no ~15.
 # Cabeça olhando pro rosto da vítima (deitada a ~2 blocos): o rosto dele aponta

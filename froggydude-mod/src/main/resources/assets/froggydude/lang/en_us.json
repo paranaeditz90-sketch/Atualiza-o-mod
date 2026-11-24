@@ -230,5 +230,8 @@
   "froggydude.cmd.cheats_no": "Cheats in this world: No (Creative or Spectator = death with no respawn).",
   "froggydude.cmd.cheats_yes": "Cheats in this world: Yes (the anti-cheat is off).",
   "froggydude.cmd.cheats_old": "This world is older than the anti-cheat: it's off. Use /froggydude trapacas nao to turn it on.",
-  "froggydude.cmd.pardoned": "%s player(s) pardoned: they can respawn."
+  "froggydude.cmd.pardoned": "%s player(s) pardoned: they can respawn.",
+  "froggydude.skyrage.title": "FroggyDude came back...",
+  "froggydude.skyrage.run": "RUN FOR YOUR LIFE!!!! NOW!!",
+  "froggydude.cmd.skyrage": "The sky rage: he rises and dives at you."
 }
