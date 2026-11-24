@@ -129,6 +129,9 @@ public final class NoEscapeClient {
     /** A tela de morte do jogo, desenhada no preto: só o título e os botões. */
     public static final class BlackDeathScreen extends DeathScreen {
 
+        /** Quando abriu (relógio de verdade): ~0,25 s de preto puro antes do texto (a referência: ~0,21 s). */
+        private final long opened = Util.getMillis();
+
         BlackDeathScreen(boolean hardcore) {
             super(null, hardcore);
         }
@@ -136,6 +139,7 @@ public final class NoEscapeClient {
         @Override
         public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
             g.fill(0, 0, this.width, this.height, 0xFF000000);
+            if (Util.getMillis() - opened < 250L) return;
             g.pose().pushPose();
             g.pose().scale(2.0F, 2.0F, 2.0F);
             g.drawCenteredString(this.font, this.title, this.width / 2 / 2, 30, 0xFFFFFF);

@@ -16,6 +16,7 @@ public final class FroggyClientConfig {
     public static final ForgeConfigSpec.IntValue PIECES_SECONDS;
     public static final ForgeConfigSpec.IntValue PIECES_MAX;
     public static final ForgeConfigSpec.IntValue PIECES_SHARDS;
+    public static final ForgeConfigSpec.BooleanValue PIECES_PHYSICS;
     public static final ForgeConfigSpec.BooleanValue CUTSCENE_BLUR;
 
     static {
@@ -32,6 +33,9 @@ public final class FroggyClientConfig {
                 .defineInRange("segundos", 90, 10, 600);
         PIECES_SHARDS = b.comment("Em quantos cacos cada corpo estilhaça (o vídeo do FroggyDude: ~60).")
                 .defineInRange("cacos", 60, 6, 150);
+        PIECES_PHYSICS = b.comment("Física dos pedaços (quicar, rolar, bater um no outro, chutados quando alguém passa).",
+                        "false = celular/PC fraco: os pedaços só caem retos e param no chão (bem mais leve).")
+                .define("fisica", true);
         PIECES_MAX = b.comment("Máximo de cacos no mundo ao mesmo tempo (celular fraco: diminua).")
                 .defineInRange("maximo", 300, 20, 1000);
         b.pop();
@@ -61,6 +65,10 @@ public final class FroggyClientConfig {
 
     public static int piecesShards() {
         return SPEC.isLoaded() ? PIECES_SHARDS.get() : PIECES_SHARDS.getDefault();
+    }
+
+    public static boolean piecesPhysics() {
+        return SPEC.isLoaded() ? PIECES_PHYSICS.get() : PIECES_PHYSICS.getDefault();
     }
 
     public static int piecesMax() {

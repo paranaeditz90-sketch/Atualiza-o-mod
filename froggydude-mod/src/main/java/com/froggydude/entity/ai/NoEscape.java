@@ -87,10 +87,10 @@ final class NoEscape {
     /** A corrida da curva até a cara: blocos por tick (no vídeo: ~10 blocos em ~0,4 s). */
     private static final double DASH_SPEED = 1.15D;
     /**
-     * A cara colada antes do corte (ticks). No vídeo são 1-2 quadros, mas o cliente desliza a posição do bicho em 3 ticks:
-     * com 2 o corte vinha com ele ainda a 2 blocos. Com 5, a cara enche a tela uns 2 ticks e aí o preto.
+     * A cara colada antes do corte (ticks). No vídeo são 1-2 quadros. O cliente normalmente desliza a posição do bicho em 3
+     * ticks (e ele vinha até 2 blocos atrás); no susto ele vai sem deslize (DATA_SNAP), então a cara aparece 1 tick depois.
      */
-    static final int FACE_TICKS = 5;
+    static final int FACE_TICKS = 2; // com o cliente sem deslize (DATA_SNAP) a cara chega 1 tick depois; com 1 o corte vinha antes dela
 
     private enum Stage { NONE, APPROACH, WAIT, DASH, FACE }
 
@@ -133,6 +133,11 @@ final class NoEscape {
     private boolean tense;
     private float lastScore;
     private double dashPos;
+    /** Última vez que a análise viu ela num beco (sem saída, ou corredor sem saída com ele ainda longe). */
+    private int corridorAt = -1000;
+    private boolean yelled;
+    /** A fúria foi ligada pelo susto (na espera), não pela fase 2 de verdade. */
+    private boolean ourFrenzy;
 
     NoEscape(FroggydudeEntity froggy) {
         this.froggy = froggy;
@@ -144,7 +149,7 @@ final class NoEscape {
 
     /** Começou, ou está confirmando que é beco (aí o jumpscare raro não começa por cima). */
     boolean pending() {
-        return stage != Stage.NONE || sure > 0;
+        return stage != Stage.NONE || sure > 0 || froggy.tickCount - corridorAt < 40;
     }
 
     /** Pode acontecer agora (fora do intervalo entre um e outro)? */
@@ -157,6 +162,7 @@ final class NoEscape {
         forced = true;
         readyAt = 0;
     }
+
 
     // ------------------------------------------------------------------ o susto
 
@@ -204,6 +210,12 @@ final class NoEscape {
                     // parado não faz passo: já tira o "silencioso" (o grito preso nele não toca enquanto o cliente
                     // ainda acha que ele está silencioso)
                     froggy.setSilent(false);
+                    // já em fúria escondido (a pele troca agora, fora da vista; antes trocava no meio da corrida e "piscava")
+                    if (!froggy.isFrenzyActive()) {
+                        froggy.startFrenzy(600);
+                        ourFrenzy = true;
+                    }
+                    froggy.setSnap(true); // o cliente sem deslize desde já (a marca chega antes da corrida)
                     next(Stage.WAIT);
                     stare = 0;
                     stareNeed = STARE_MIN + froggy.getRandom().nextInt(STARE_MAX - STARE_MIN + 1);
@@ -240,7 +252,10 @@ final class NoEscape {
             case DASH -> {
                 // da curva até a cara dela, pelo caminho, rápido demais pra reagir
                 dashPos -= DASH_SPEED;
-                Vec3 face = faceSpot(p);
+                // o grito rouco: quando ele sai da curva (a curva fica a ~1 passo do esconderijo) e até o corte (o cliente corta
+                // todo som no preto)
+                if (!yelled) yell(p);
+                Vec3 face = faceSpot(p, 0.75D);
                 Vec3 at = dashPos <= 1.0D ? face : along(dashPos);
                 if (dashPos <= 1.0D) dashPos = 0D;
                 Vec3 dir = p.position().subtract(at).multiply(1, 0, 1);
@@ -251,17 +266,23 @@ final class NoEscape {
                 froggy.setYBodyRot(yaw);
                 froggy.setDeltaMovement(Vec3.ZERO);
                 if (dashPos <= 0D) {
+                    if (!yelled) yell(p);
                     froggy.setFroggyState(FroggyState.TAUNT);
-                    froggy.openMouth(FACE_TICKS + 20);
                     ModNetwork.sendShake(p, 2.6F, 6);
                     next(Stage.FACE);
                 }
             }
             case FACE -> {
-                Vec3 face = faceSpot(p);
+                // colado desde o 1º tick (a imagem do cliente vem uns ticks atrás e tem que chegar antes do corte); os dois
+                // corpos se sobrepõem, então nesse instante ele não empurra (isPushable: TAUNT em fúria); e ainda vindo um
+                // pouquinho (não congela). Referência: a cabeça cobre ~70-78% da altura da tela
+                Vec3 face = faceSpot(p, 0.46D - 0.06D * Math.min(1.0D, (t + 1) / (double) FACE_TICKS));
                 froggy.moveTo(face.x, face.y, face.z, froggy.getYRot(), 0.0F);
                 froggy.setDeltaMovement(Vec3.ZERO);
                 froggy.faceTarget(p);
+                debug(String.format(java.util.Locale.ROOT, "cara jogo=" + level.getGameTime() + " t=%d alvo=%.2f real=%.2f (froggy %.2f %.2f, jogador %.2f %.2f)",
+                        t, face.subtract(p.position()).horizontalDistance(), froggy.position().subtract(p.position()).horizontalDistance(),
+                        froggy.getX(), froggy.getZ(), p.getX(), p.getZ()));
                 if (t >= FACE_TICKS) kill(level, p);
             }
             default -> {
@@ -284,6 +305,8 @@ final class NoEscape {
             return false;
         }
         Result r = analyze(level, p, froggy);
+        // beco com ele ainda longe ("corredor longo"): ainda não é a hora, mas também não é lugar pro jumpscare raro
+        if (r.trapped() || r.why().startsWith("corredor longo")) corridorAt = froggy.tickCount;
         debug("análise: " + (r.trapped() ? "SEM SAÍDA" : r.why()) + " caminho=" + r.path().size() + " seguidas=" + sure);
         if (!r.trapped()) {
             if (sure > 0 || forced) froggy.brainLog("sem saída? não: " + r.why());
@@ -293,6 +316,7 @@ final class NoEscape {
         }
         if (++sure < SURE_CHECKS) return false;
         sure = 0;
+        if (forced) tense = true;
         forced = false;
         who = p.getUUID();
         path = r.path();
@@ -353,16 +377,36 @@ final class NoEscape {
         int i = nearestIdx();
         dashPos = Math.max(1.0D, i);
         froggy.setFroggyState(FroggyState.CHASE);
-        // (LM 24/11) sempre no modo fúria, mas sem a contorção da transformação: só corre com o grito rouco (o grito de
-        // correr da fase 2). Tocados no lugar (não presos nele): o "silencioso" da chegada ainda pode valer no cliente.
-        if (!froggy.isFrenzyActive()) froggy.startFrenzy(200);
+        // (LM 24/11) sempre no modo fúria, sem a contorção da transformação (já ligada na espera; aqui só se veio direto)
+        if (!froggy.isFrenzyActive()) froggy.startFrenzy(600);
         froggy.stopSpeaking();
-        froggy.level().playSound(null, froggy.getX(), froggy.getY() + 1.0D, froggy.getZ(), ModSounds.FRENZY_RUN.get(),
-                SoundSource.HOSTILE, 6.0F, 1.0F);
-        froggy.level().playSound(null, froggy.getX(), froggy.getY(), froggy.getZ(), ModSounds.LEAP.get(),
-                SoundSource.HOSTILE, 3.0F, 0.8F);
+        froggy.setSnap(true);
+        // já sai da curva de boca escancarada (a pele de grito): antes ela trocava só na cara e "piscava" na corrida
+        froggy.openMouth(80);
+        yelled = false;
         froggy.mute(60);
         next(Stage.DASH);
+    }
+
+    /**
+     * O grito rouco (o de correr da fase 2), no lugar (não preso nele: o "silencioso" da chegada ainda pode valer no
+     * cliente) e também colado no ouvido dela, pra sair alto como na referência.
+     */
+    private void yell(ServerPlayer p) {
+        yelled = true;
+        froggy.level().playSound(null, froggy.getX(), froggy.getY() + 1.0D, froggy.getZ(), ModSounds.FRENZY_RUN.get(),
+                SoundSource.HOSTILE, 6.0F, 1.0F);
+        // duas cópias iguais (mesma semente = o mesmo clipe, juntos) no ouvido dela: ~6 dB mais alto, estourado como a
+        // referência
+        long seed = froggy.getRandom().nextLong();
+        for (int k = 0; k < 2; k++) {
+            p.connection.send(new net.minecraft.network.protocol.game.ClientboundSoundPacket(
+                    net.minecraft.core.registries.BuiltInRegistries.SOUND_EVENT.wrapAsHolder(ModSounds.FRENZY_RUN.get()),
+                    SoundSource.HOSTILE, p.getX(), p.getEyeY(), p.getZ(), 1.0F, 1.0F, seed));
+        }
+        froggy.level().playSound(null, froggy.getX(), froggy.getY(), froggy.getZ(), ModSounds.LEAP.get(),
+                SoundSource.HOSTILE, 3.0F, 0.8F);
+        froggy.brainLog("sem saída: grito (apareceu)");
     }
 
     private int nearestIdx() {
@@ -386,13 +430,15 @@ final class NoEscape {
         return Vec3.atBottomCenterOf(path.get(i)).lerp(Vec3.atBottomCenterOf(path.get(j)), f);
     }
 
-    /** Colado na cara: 0,75 bloco na frente dos olhos dela, no chão dela. */
-    private Vec3 faceSpot(ServerPlayer p) {
+    /** Colado na cara: {@code dist} bloco na frente dos olhos dela, no chão dela. */
+    private Vec3 faceSpot(ServerPlayer p, double dist) {
         Vec3 look = p.getViewVector(1.0F).multiply(1, 0, 1);
         if (look.lengthSqr() < 1.0E-4D && path.size() > 1) look = Vec3.atBottomCenterOf(path.get(1)).subtract(p.position());
         look = look.multiply(1, 0, 1);
         look = look.lengthSqr() < 1.0E-4D ? new Vec3(0, 0, 1) : look.normalize();
-        Vec3 at = p.position().add(look.scale(0.75D));
+        // um pouco à esquerda dela (a referência: a cara a ~35-40% da largura da tela)
+        Vec3 left = new Vec3(look.z, 0, -look.x);
+        Vec3 at = p.position().add(look.scale(dist)).add(left.scale(0.12D));
         BlockPos feet = BlockPos.containing(at);
         if (!RealTactics.free(froggy.level(), feet) || !RealTactics.free(froggy.level(), feet.above())) {
             // parede na frente: o mais perto possível pelo caminho
@@ -404,11 +450,13 @@ final class NoEscape {
     /** O corte: tela preta e silêncio no cliente dela (NoEscapeClient) e a morte. */
     private void kill(ServerLevel level, ServerPlayer p) {
         froggy.brainLog("sem saída: corte seco, " + p.getScoreboardName() + " morreu");
+        froggy.setSnap(false);
         ModNetwork.sendNoEscapeCut(p);
         p.hurt(FroggyFinisherGoal.devoured(level, froggy), Float.MAX_VALUE);
         froggy.stopSpeaking();
         readyAt = froggy.tickCount + COOLDOWN;
         tense = false;
+        ourFrenzy = false;
         stage = Stage.NONE;
         who = null;
         froggy.setFroggyState(FroggyState.CHASE);
@@ -456,12 +504,17 @@ final class NoEscape {
         if (stage != Stage.NONE) {
             froggy.brainLog("sem saída cancelado: " + why);
             froggy.setSilent(false);
+            froggy.setSnap(false);
+            // a fúria que ele ligou escondido pro susto: se o susto não veio, ele volta a caçar normal (não em fase 2)
+            if (ourFrenzy && (stage == Stage.APPROACH || stage == Stage.WAIT)) froggy.quietEndFrenzy();
+            debug("cancelado: fúria agora=" + froggy.isFrenzyActive());
             readyAt = froggy.tickCount + 600; // tenta de novo daqui a 30 s, se ainda estiver preso
         }
         stage = Stage.NONE;
         who = null;
         sure = 0;
         tense = false;
+        ourFrenzy = false;
     }
 
     private static void debug(String msg) {

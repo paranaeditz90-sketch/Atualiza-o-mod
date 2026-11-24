@@ -73,6 +73,8 @@ final class Piece {
     int age;
     int life;
     boolean asleep;
+    /** (v0.7.61) Física desligada (config pedacos.fisica): só cai reto e para no primeiro toque. */
+    boolean simple;
     private int still;
     /** Encostou em outro caco desde o último passo (apoiado no monte também conta pra dormir). */
     private boolean touching;
@@ -153,6 +155,13 @@ final class Piece {
             prevPts[i * 3 + 2] = P.z;
         }
 
+        if (simple) {
+            // sem física: cai reto, sem girar nem sair voando
+            vel.x = 0F;
+            vel.z = 0F;
+            if (vel.y > 0F) vel.y = 0F;
+            ang.zero();
+        }
         vel.y -= GRAVITY * dt;
         // um tico de resistência do ar e da rotação
         vel.mul(0.998F);
@@ -172,6 +181,13 @@ final class Piece {
         if (count > 0) {
             solve(count);
             correct(count);
+            if (simple) {
+                // encostou: para ali mesmo (sem quicar nem rolar)
+                asleep = true;
+                vel.zero();
+                ang.zero();
+                return;
+            }
         }
         // parado encostado em algo (chão ou monte de cacos): dorme (não gasta mais conta)
         boolean supported = count > 0 || touching;

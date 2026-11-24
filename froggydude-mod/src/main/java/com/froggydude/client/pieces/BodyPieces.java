@@ -252,8 +252,13 @@ public final class BodyPieces {
         if (PIECES.isEmpty() || mc.isPaused()) return;
 
         long t0 = System.nanoTime();
-        jostle(level);
-        trample(level);
+        // (v0.7.61) física desligada (celular/PC fraco): só caem retos e param; sem chutes, sem bater um no outro
+        boolean simple = !FroggyClientConfig.piecesPhysics();
+        for (Piece p : PIECES) p.simple = simple;
+        if (!simple) {
+            jostle(level);
+            trample(level);
+        }
         for (Piece p : PIECES) {
             p.xo = p.x;
             p.yo = p.y;
@@ -262,6 +267,7 @@ public final class BodyPieces {
         }
         for (int s = 0; s < SUBSTEPS; s++) {
             for (Piece p : PIECES) p.step(level, DT);
+            if (simple) continue;
             for (int i = 0; i < PIECES.size(); i++) {
                 Piece a = PIECES.get(i);
                 for (int j = i + 1; j < PIECES.size(); j++) {

@@ -105,6 +105,13 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<Boolean> DATA_FRENZY =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
+    /**
+     * (v0.7.61) O cliente põe ele na posição nova na hora, sem deslizar 3 ticks (lerpTo). Só no susto do beco: a corrida de
+     * ~20 blocos/s e a cara colada; com o deslize o cliente mostrava ele ~1 bloco atrás e o corte vinha antes da cara encher
+     * a tela.
+     */
+    private static final EntityDataAccessor<Boolean> DATA_SNAP =
+            SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Boolean> DATA_TIRED =
             SynchedEntityData.defineId(FroggydudeEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Float> DATA_TONGUE_LEN =
@@ -403,6 +410,7 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.define(DATA_GORE_STAGE, (byte) 0);
         this.entityData.define(DATA_SKIN_VARIANT, (byte) SkinVariant.NORMAL.ordinal());
         this.entityData.define(DATA_FRENZY, false);
+        this.entityData.define(DATA_SNAP, false);
         this.entityData.define(DATA_TIRED, false);
         this.entityData.define(DATA_TONGUE_LEN, 0.0F);
         this.entityData.define(DATA_RUNNING, false);
@@ -1097,6 +1105,15 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     }
 
     /** Também pelo /froggydude emboscada (sem precisar de mata nem sorteio). */
+    public void setSnap(boolean snap) {
+        this.entityData.set(DATA_SNAP, snap);
+    }
+
+    @Override
+    public void lerpTo(double x, double y, double z, float yRot, float xRot, int steps, boolean teleport) {
+        super.lerpTo(x, y, z, yRot, xRot, this.entityData.get(DATA_SNAP) ? 1 : steps, teleport);
+    }
+
     /** (v0.7.58) Farejando: ela está num beco sem saída (e o susto pode acontecer agora)? */
     public boolean noEscapeSmell(ServerPlayer p) {
         return combatGoal.noEscapeSmell(p);
@@ -1992,7 +2009,10 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     /** Remontando: não empurra nem é empurrado, não dá pra mirar nele (os pedaços estão no chão). */
     @Override
     public boolean isPushable() {
-        return !isReviving() && getFroggyState() != FroggyState.RAGDOLL && super.isPushable();
+        // (v0.7.61) a cara colada do susto do beco (TAUNT em fúria): sem empurrão, senão o jogo afastava os dois e a cara
+        // não enchia a tela
+        return !isReviving() && getFroggyState() != FroggyState.RAGDOLL
+                && !(getFroggyState() == FroggyState.TAUNT && isFrenzyActive()) && super.isPushable();
     }
 
     @Override
@@ -4043,6 +4063,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         }
         if (moving != this.entityData.get(DATA_MOVING)) this.entityData.set(DATA_MOVING, moving);
         if (running != this.entityData.get(DATA_RUNNING)) this.entityData.set(DATA_RUNNING, running);
+    }
+
+    /** (v0.7.61) Desliga uma fúria que o susto do beco ligou e não usou (cancelado): sem cansaço nem intervalo. */
+    public void quietEndFrenzy() {
+        this.frenzyTicksLeft = 0;
+        this.entityData.set(DATA_FRENZY, false);
+        AttributeInstance speed = this.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speed != null) speed.removeModifier(FRENZY_SPEED_ID);
     }
 
     private void endFrenzy() {

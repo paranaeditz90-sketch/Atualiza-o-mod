@@ -1,4 +1,4 @@
-# Froggydude - v0.7.60: o beco sem falhas de pulo, tela preta até renascer (sobre a v0.7.59)
+# Froggydude - v0.7.61: o susto do beco revisado lado a lado + física dos pedaços desligável (sobre a v0.7.60)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,28 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.60):
+O que testar agora (v0.7.61):
+- **O susto do beco comparado lado a lado com o vídeo do Grox** (LM 24/11: "um agente para comparar lado a lado,
+  extremamente exigente"). Um agente mediu as duas gravações quadro a quadro, e o que era do mod foi consertado:
+  - **a cara agora enche a tela** (antes ele parava a ~1,3 bloco, ~8% da tela): o cliente mostrava ele ~3 ticks atrás
+    (ele manda a posição todo tick agora, e no susto o cliente não desliza a posição) e os dois corpos se empurravam
+    (no instante da cara ele não empurra);
+  - ele aparece e chega na tua cara em ~0,4 s (referência: 0,41 s);
+  - **sem o "pisca"**: a boca escancarada (a pele de grito) entrava só no fim; agora ele sai da curva já de boca aberta
+    gritando, e já em fúria (liga escondido, na espera);
+  - o grito rouco começa quando ele sai da curva e vai até o corte, mais alto (estourado como na referência);
+  - ~0,25 s de preto puro antes do "Você morreu!" (referência: ~0,21 s);
+  - o jumpscare raro do "I see you" não começa mais enquanto tu está num corredor sem saída (antes ele podia vir no
+    lugar do susto do beco).
+  - a fúria liga escondido pro susto; se o diretor cancelar (câmera calma), ela desliga e ele caça normal, não em fase 2
+    (testado).
+  - O que ficou diferente da referência de propósito: a pele e o grito da fase 2 (pedido teu), o corredor 1x2, e o
+    diretor (câmera nervosa). A luz do corredor e o HUD eram do meu teste.
+- **Física dos pedaços desligável** (fila #35, pra celular/PC fraco): `config/froggydude-client.toml`, `[pedacos]`,
+  `fisica = false`: os pedaços caem retos e param no chão (sem quicar, rolar, bater um no outro ou ser chutados).
+  Medido com 3 corpos (181 pedaços): 3,3 ms por tick com física, 0,3 ms sem (10 vezes mais leve).
+
+O que tinha pra testar na v0.7.60:
 - **No preto, só o som dos botões** (LM 24/11: "deve cortar qualquer som, apenas o som dos botões do Minecraft"): já era
   assim, agora testado clicando: depois do corte só tocam os cliques do Menu e do Renascer, nada mais, até renascer.
   E achei e consertei 2 furos: o "Tem certeza que quer sair?" do Menu abria com o mundo escurecido atrás (agora preto);

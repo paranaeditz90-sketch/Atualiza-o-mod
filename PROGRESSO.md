@@ -22,9 +22,11 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
    reto e muito rápido em cima de quem caçava (a tela enche), levanta na pose "()" da raiva e já parte pro próximo
    ("Who's next?"; a fala não entra); ~10 s; aviso tipo conquista "RUN FOR YOUR LIFE!!!! NOW!!"
    vermelho com sangue escorrendo; fôlego infinito pro jogador até acabar.
+   Decidido (LM 24/11): acontece **quando ele morre**; o mergulho **mata na hora**.
 8. ~~"Rage 2"~~ (feito na 0.7.47; na 0.7.48 trocas de 1,7 s e trava na pose da bancada) (vídeos 23/11 14:33): extremamente louco, se contorcendo em várias POSES diferentes trocadas de repente (sem
    animação entre elas, bem rápido) e termina na pose final da raiva. Medir pose por pose, quadro a quadro.
-7. Sistema de fuga (esperando o LM escolher: adrenalina, despistar o faro, isca, empurrão na hora certa).
+7. Sistema de fuga: o LM escolheu (24/11) **adrenalina, isca e empurrão na hora certa** (falta detalhar).
+- ~~#35 física dos pedaços desligável~~ (feito na 0.7.61): `pedacos.fisica = false`, caem retos e param.
 9. ~~Pilar de blocos~~ (feito na 0.7.52) (LM 23/11): o jogador sobe num pilar e quebra os de baixo, e ele não alcança. Decidido pelo LM: ele
    faz uma varredura pra achar onde o jogador está, recua, dá um pulão e derruba (sempre com o bote com ragdoll).
 10. ~~Raiva 2 v3~~ (feito na 0.7.49) (LM 23/11): poses quadro a quadro bem detalhadas, borrão durante as trocas, som original só do

@@ -29,6 +29,10 @@ public class ModEntityTypes {
                     // folha e ficava empurrando a porta aberta (LM, 10/11: "ele não consegue passar por portas")
                     .sized(0.6F, 1.95F)
                     .clientTrackingRange(16)
+                    // (v0.7.61) posição pro cliente todo tick (o padrão é a cada 3): nos movimentos rápidos (o susto do beco,
+                    // ~20 blocos/s) o cliente mostrava ele até 2 blocos atrás e o corte vinha antes da cara encher a tela.
+                    // Ele é um só no mundo: o custo de rede é desprezível
+                    .updateInterval(1)
                     .build("froggydude"));
 
     /** A câmera da cutscene (só no cliente de quem está nela; nunca entra no mundo). */
