@@ -1,4 +1,4 @@
-# Froggydude - v0.7.57: o fim da raiva 2 (perto: pulo absurdo e o braço; longe: disparada) (sobre a v0.7.56)
+# Froggydude - v0.7.58: o jumpscare sem saída (o beco) (sobre a v0.7.57)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,30 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.57):
+O que testar agora (v0.7.58):
+- **O jumpscare sem saída** (item 5 da fila; LM 23/11: o Grox no beco da fortaleza do Nether, "Meu Deus, um beco sem
+  saída, tô ferrado"). Quando o jogo tem **certeza** de que tu está num beco:
+  1. ele vem calado e para logo depois da curva, fora da tua vista. Tu só pode olhar pra curva e esperar;
+  2. depois de uns 4-6 s olhando pra ela (ou se tu chegar perto da curva, ou em no máximo 13 s), ele sai da curva
+     gritando, numa velocidade absurda (~10 blocos em 0,4 s, igual ao teu vídeo), até a tua cara, de boca aberta;
+  3. corte seco: tela preta, silêncio, e a tela de morte **preta, só com "Você morreu!", Renascer e Menu** (sem o
+     vermelho, sem a causa e sem a pontuação).
+  - **"Certeza"** (pente fino, na dúvida não acontece): beco = o pedaço onde tu chega antes dele (ele é mais rápido) é
+    pequeno e fechado, tipo o corredor de 1x2 da fortaleza ou um buraco de 1 bloco; **e** nenhum bloco em volta sai em até
+    1 s com a melhor ferramenta que tu tem no inventário (eficiência, pressa e cansaço contam); **e** sem pérola do End nem
+    fruta do coro; portal no beco ou água do lado = tem saída. Também funciona quando ele está te farejando (tu sumiu da
+    vista dele no beco).
+  - **Testado no jogo, 11 lugares** (com o `/froggydude semsaida`, que diz se o lugar conta e por quê):
+    tijolo do Nether de mão vazia = sem saída (cada bloco leva 10 s); com picareta de **diamante** = tem saída (0,4 s);
+    com picareta de **madeira** = sem saída (1,5 s); com **pérola** = tem saída; netherrack de mão = sem saída (2 s);
+    netherrack com picareta de madeira = tem saída; **desvio** no corredor pro lado contrário dele = tem saída; **terra**
+    de mão = tem saída (0,75 s); **campo aberto** = tem saída; **buraco** de 1x1 com 3 de fundo em pedra = sem saída;
+    corredor de **2 de largura** = sem saída. E 3 vezes a cena toda no beco (com vídeo), e uma com picareta de diamante
+    no inventário: ele não fez o susto e seguiu caçando normal.
+  - Uma vez a cada 10 min no máximo. Com o jumpscare raro do "I see you" não briga: no beco vale só esse.
+  - Comando de teste: `/froggydude semsaida` (diz se o lugar conta e por quê) e `/froggydude semsaida forcar`.
+
+O que tinha pra testar na v0.7.57:
 - **O fim da raiva 2** (LM 23/11: "se o jogador continuar perto, ele pula direto no jogador em velocidade absurda e já
   arranca o braço"). Quando acabam os 25 s parado na pose:
   - **tu ainda perto (até 12 blocos)**: ele se lança direto em ti, rápido (o dobro do bote normal), corrigindo a mira no

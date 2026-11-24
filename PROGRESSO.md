@@ -16,7 +16,8 @@ some quando ela fecha. Por isso tudo que importa está anotado aqui ou nos `NOTE
 3. ~~Bote com ragdoll~~ (feito na 0.7.48): câmera fixa no chão, ele pula em ti, tu voa mole ~1,5-2 s visto de fora e
    corta pra marreta (1 em cada 3 botes; sem "Hey, monkey man").
 4. ~~Ele se esconder do jogador em floresta fechada~~ (feito na 0.7.54: a emboscada, graveto/fala atrás, olhou = pulo).
-5. Jumpscare quando ele tem certeza que tu não tem saída (inventário sem picareta/meio de fugir; curvas de blocos).
+5. ~~Jumpscare sem saída~~ (feito na 0.7.58) (LM 23/11): beco (corredor 1x2 do Nether, buraco) onde nada que ele carrega cava a
+   tempo; ele espera atrás da curva, sai gritando na cara e corta pra tela de morte preta (só "Você morreu!" e os botões).
 6. Raiva/depois de morrer (2º vídeo, MediaFire 13:44, 33-45 s): sobe flutuando alto no céu (um pontinho), mergulha
    reto e muito rápido em cima de quem caçava (a tela enche), levanta na pose "()" da raiva e já parte pro próximo
    ("Who's next?"; a fala não entra); ~10 s; aviso tipo conquista "RUN FOR YOUR LIFE!!!! NOW!!"

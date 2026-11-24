@@ -13,7 +13,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
  */
 public final class ModNetwork {
 
-    private static final String PROTOCOL = "11";
+    private static final String PROTOCOL = "12";
 
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(ModEntityTypes.MOD_ID, "main"),
@@ -44,6 +44,13 @@ public final class ModNetwork {
         // (v0.7.42) o anti-trapaça: vai e volta (o vídeo começa no cliente; o "acabou" volta pro servidor)
         CHANNEL.registerMessage(7, AntiCheatPacket.class,
                 AntiCheatPacket::encode, AntiCheatPacket::decode, AntiCheatPacket::handle);
+        CHANNEL.registerMessage(8, NoEscapePacket.class,
+                NoEscapePacket::encode, NoEscapePacket::decode, NoEscapePacket::handle);
+    }
+
+    /** (v0.7.58) O corte do jumpscare sem saída: tela preta e silêncio na hora, tela de morte preta. */
+    public static void sendNoEscapeCut(ServerPlayer player) {
+        CHANNEL.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player), new NoEscapePacket());
     }
 
     /** (v0.7.33) A língua soltou essa entidade no arremesso: quem vê (e ela mesma) desenha o voo mole. */

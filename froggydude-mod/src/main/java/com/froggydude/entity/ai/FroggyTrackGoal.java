@@ -200,6 +200,11 @@ public class FroggyTrackGoal extends Goal {
             found(p, "vi");
             return;
         }
+        // (v0.7.58) ela se enfiou num beco sem saída: o cheiro acaba lá dentro e não tem pra onde ir (NoEscape)
+        if (d <= 40.0D && ticks % 20 == 0 && froggy.noEscapeSmell(p)) {
+            found(p, "beco sem saída");
+            return;
+        }
         // tão perto que o cheiro entrega onde está, mesmo atrás da parede
         if (d <= FOUND_RANGE) {
             found(p, "cheiro");

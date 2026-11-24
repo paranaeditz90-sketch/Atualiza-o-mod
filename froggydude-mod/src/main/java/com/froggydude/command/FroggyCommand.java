@@ -82,6 +82,9 @@ public final class FroggyCommand {
                 .then(Commands.literal("fase2").requires(FroggyCommand::admin).executes(c -> phase2(c.getSource())))
                 .then(Commands.literal("raiva2").requires(FroggyCommand::admin).executes(c -> rage2(c.getSource())))
                 .then(Commands.literal("emboscada").requires(FroggyCommand::admin).executes(c -> ambush(c.getSource())))
+                // (v0.7.58) o jumpscare sem saída: mostra se o lugar conta como beco; "forcar" = o próximo sem intervalo
+                .then(Commands.literal("semsaida").requires(FroggyCommand::admin).executes(c -> noEscape(c.getSource(), false))
+                        .then(Commands.literal("forcar").executes(c -> noEscape(c.getSource(), true))))
                 .then(Commands.literal("irritar").requires(FroggyCommand::admin).executes(c -> irk(c.getSource())))
                 .then(Commands.literal("susto").requires(FroggyCommand::admin).executes(c -> jumpscare(c.getSource())))
                 // (v0.7.35) o renascer com a língua agora (sem ter que matar ele e torcer pros 35%)
@@ -506,6 +509,19 @@ public final class FroggyCommand {
     }
 
     /** (v0.7.54) Teste: a emboscada da floresta agora (sem precisar de mata nem do sorteio). */
+    private static int noEscape(CommandSourceStack src, boolean force) throws CommandSyntaxException {
+        ServerPlayer p = src.getPlayerOrException();
+        FroggydudeEntity f = FroggyKeeper.find(src.getServer());
+        if (f == null || f.level() != p.level()) {
+            src.sendFailure(t("not_loaded"));
+            return 0;
+        }
+        String msg = f.noEscapeCheck(p, force);
+        if (Boolean.getBoolean("froggydude.debug")) System.out.println("[FROGGYDEBUG] semsaida: " + msg);
+        src.sendSuccess(() -> Component.literal(msg), false);
+        return 1;
+    }
+
     private static int ambush(CommandSourceStack src) throws CommandSyntaxException {
         ServerPlayer p = src.getPlayerOrException();
         FroggydudeEntity f = FroggyKeeper.find(src.getServer());

@@ -169,6 +169,8 @@ public class FroggyCombatGoal extends Goal {
     private final RealTactics real;
     private final FarScare farScare;
     private final JumpScare jumpScare;
+    /** (v0.7.58) O jumpscare sem saída (o beco). */
+    private final NoEscape noEscape;
     /** O esmagamento do jumpscare: no fim ele sai de cima (a luta segue) em vez de comer vivo. */
     private boolean jumpscareRelease;
     /** O pulo altíssimo calculado da IA Real: onde ele vai cair (null = o pulo comum). */
@@ -235,6 +237,7 @@ public class FroggyCombatGoal extends Goal {
         this.real = new RealTactics(froggy, this);
         this.farScare = new FarScare(froggy, real);
         this.jumpScare = new JumpScare(froggy, this, real);
+        this.noEscape = new NoEscape(froggy);
         this.capture = new TongueCapture(froggy);
         this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
     }
@@ -282,6 +285,7 @@ public class FroggyCombatGoal extends Goal {
         farScare.stop();
         farFor = null;
         jumpScare.stop();
+        noEscape.stop("parou a caçada");
         arcLand = null;
         if (froggy.getFroggyState() == FroggyState.BUILD || froggy.getFroggyState() == FroggyState.TAUNT) {
             froggy.setFroggyState(FroggyState.CHASE);
@@ -323,7 +327,9 @@ public class FroggyCombatGoal extends Goal {
             debug(String.format(java.util.Locale.ROOT, "disparada: estado=%s dist=%.2f espreita=%s irritado=%s ataqueCd=%d navFeita=%s",
                     state, dist, froggy.isStalking(), froggy.isIrked(), froggy.getAttackCooldown(), froggy.getNavigation().isDone()));
         }
-        if (!rush && jumpScare.tick(target, dist)) return;
+        // (v0.7.58) o beco sem saída vem antes do jumpscare raro (os dois não brigam: com ela no beco, só o do beco)
+        if (!rush && noEscape.tick(target)) return;
+        if (!rush && !noEscape.pending() && jumpScare.tick(target, dist)) return;
 
         switch (state) {
             case PIN_HOLD -> {
@@ -1163,7 +1169,7 @@ public class FroggyCombatGoal extends Goal {
 
     public boolean holdsTarget() {
         // no susto de longe e no jumpscare ele some de propósito: sabe onde ela está
-        if (farScare.active() || jumpScare.active()) return true;
+        if (farScare.active() || jumpScare.active() || noEscape.active()) return true;
         if (!real.active()) return false;
         if (real.planningReach()) return true;
         // ela subiu num lugar logo acima dele (plataforma, torre): ele sabe onde ela está,
@@ -1192,6 +1198,27 @@ public class FroggyCombatGoal extends Goal {
     /** (v0.7.57) A disparada do fim da raiva 2: nada de parar pra anunciar o "I see you" no meio. */
     public void skipAnnounce(int ticks) {
         real.skipAnnounce(ticks);
+    }
+
+    /** (v0.7.58) Pelo comando: a análise do beco agora (texto) e o próximo sem esperar o intervalo. */
+    public String noEscapeCheck(net.minecraft.server.level.ServerPlayer p, boolean force) {
+        if (force) noEscape.force();
+        if (!(froggy.level() instanceof net.minecraft.server.level.ServerLevel level)) return "?";
+        NoEscape.Result r = NoEscape.analyze(level, p, froggy);
+        return String.format(java.util.Locale.ROOT, "%s: %s (beco %d células, caminho %d, parede mais fácil %s)",
+                r.trapped() ? "SEM SAÍDA" : "tem saída", r.why(), r.region(), r.path().size(),
+                r.digTicks() < 0 ? "inquebrável" : r.digTicks() + " ticks"
+                        + (r.digAt() == null ? "" : " em " + r.digAt().toShortString()));
+    }
+
+    public boolean noEscapeActive() {
+        return noEscape.active();
+    }
+
+    /** (v0.7.58) Farejando: ela entrou num beco sem saída? (FroggyTrackGoal: aí ele "sabe" onde ela está). */
+    public boolean noEscapeSmell(net.minecraft.server.level.ServerPlayer p) {
+        if (!noEscape.ready() || !(froggy.level() instanceof net.minecraft.server.level.ServerLevel level)) return false;
+        return NoEscape.analyze(level, p, froggy).trapped();
     }
 
     public void ambushPounce(LivingEntity target) {

@@ -1097,6 +1097,16 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
     }
 
     /** Também pelo /froggydude emboscada (sem precisar de mata nem sorteio). */
+    /** (v0.7.58) Farejando: ela está num beco sem saída (e o susto pode acontecer agora)? */
+    public boolean noEscapeSmell(ServerPlayer p) {
+        return combatGoal.noEscapeSmell(p);
+    }
+
+    /** (v0.7.58) /froggydude semsaida: o beco conta? ({@code force}: o próximo sem esperar o intervalo). */
+    public String noEscapeCheck(ServerPlayer p, boolean force) {
+        return combatGoal.noEscapeCheck(p, force);
+    }
+
     public boolean beginAmbush(ServerPlayer p) {
         if (isReviving() || ragdollRun != null || rageRun != null || headGrabRun != null || getFroggyState() == FroggyState.INTRO
                 || getFroggyState() == FroggyState.RAGE2 || !(this.level() instanceof ServerLevel)) {
