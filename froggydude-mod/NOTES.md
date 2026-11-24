@@ -1,4 +1,4 @@
-# Froggydude - v0.7.63: a raiva do céu com a voz de profecia, o giro e o mergulho desviável (sobre a v0.7.62)
+# Froggydude - v0.7.64: a raiva do céu com o mergulho em onda (sobre a v0.7.63)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,24 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.63):
+O que testar agora (v0.7.64):
+- **O mergulho em onda, no lugar da sombra** (LM 24/11, o vídeo do deserto: "ao invés de ele cair direto no chão com
+  uma demarcação, ele deveria fazer que nem movimento de onda"):
+  - acabou a voz: ele dispara pro céu **em onda** (sobe, volta um pouco, sobe, como no deserto) e fica lá em cima
+    ~32 blocos acima e ~24 **na tua frente** (pra onde tu olhava quando apareceu o aviso), não mais bem em cima de ti,
+    pra dar pra ver ele vindo; lá em cima continua subindo e descendo;
+  - aos 10 s ele vem **em linha reta em ti, subindo e voltando uns 3,5 blocos** sem parar de vir (~2 s até chegar);
+  - **a 5 blocos ele trava a mira** (LM: "precisa desviar antes de 5 blocos"): se tu já estiver correndo pra fora do
+    caminho, ele passa reto e bate no chão atrás (cratera pequena e tonto ~4 s, apanhando, como na 0.7.63); parado ou
+    andando devagar, ele pega;
+  - pegou: **a cara dele enche a tela, a câmera treme cada vez mais e a tela vai ficando vermelha aos poucos** (~1,3 s);
+    quando fecha o vermelho, entra a **tela de morte do jogo, normal ("Você morreu!", botões, pontuação), só que com o
+    fundo vermelho forte** no lugar do vermelhinho transparente com o mundo atrás (LM 24/11), até renascer;
+  - sem a sombra no chão (saiu).
+  - O que eu decidi (fala se quiser diferente): errou = cratera + tonto (tu não disse o que acontece se ele errar);
+    altura e distância lá em cima; ~2 s de mergulho.
+
+O que tinha pra testar na v0.7.63:
 - **A raiva do céu, do jeito do teu 2º vídeo de referência** (LM 24/11):
   - **a voz de "profecia" dele** (o áudio do teu vídeo, ~17 s, no pacote de voz do jar) começa na hora que ele "morre"
     e segue presa em ti (não some se tu correr);

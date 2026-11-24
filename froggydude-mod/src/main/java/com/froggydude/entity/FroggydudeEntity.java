@@ -1151,6 +1151,14 @@ public class FroggydudeEntity extends Monster implements GeoEntity {
         this.entityData.set(DATA_RUNNING, running);
     }
 
+    /**
+     * (v0.7.64) E "se mexendo" também: parado colado na cara, o cliente trocava a corrida curvada pela pose parada da
+     * fúria (mais baixa) e a cara dele saía de baixo do olho.
+     */
+    void setMovingFlag(boolean moving) {
+        this.entityData.set(DATA_MOVING, moving);
+    }
+
     public boolean inSkyRage() {
         return skyRun != null;
     }
