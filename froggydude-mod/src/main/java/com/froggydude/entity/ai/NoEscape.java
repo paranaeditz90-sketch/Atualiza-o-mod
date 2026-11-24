@@ -54,12 +54,22 @@ final class NoEscape {
     /** Um bloco da parede que sai em até isso (ticks) com a melhor coisa que ele tem = dá pra cavar e fugir. */
     static final int DIG_TICKS = 20;
     /** O pedaço do jogador (onde ele chega antes do FroggyDude) maior que isso = tem saída. */
-    private static final int OPEN_SIZE = 48;
+    private static final int OPEN_SIZE = 32; // LM 24/11: sala fechada até 5x5 conta como beco; 6x6 já não
     private static final int OPEN_DEPTH = 12;
     /** Corredor de 1 (ou 2) de largura: a 5 passos dele cabem no máximo umas 30 células; mais que isso é aberto. */
     private static final int NEAR_MAX = 30;
     /** O FroggyDude é mais rápido: só conta como "chega antes" com folga. */
     private static final double FROGGY_EDGE = 1.5D;
+    /** A janela do diretor: 3 s de câmera. */
+    private static final int CAM_WINDOW = 60;
+    /** Mínimo de amostras pra julgar. */
+    private static final int CAM_MIN = 40;
+    /**
+     * Nervosa a partir daqui: giro médio (graus/tick) + meio ponto por "vai e volta" (giro trocando de lado, cada lado com
+     * mais de 3 graus). Olhando parado pro corredor: ~0. Virando pra trás uma vez: ~2. Olhando pra todo lado, tremendo: 5+.
+     */
+    private static final float CAM_NERVOUS = 4.0F;
+
     /** Quantas análises seguidas (de 10 em 10 ticks) dizendo "sem saída" antes de começar. */
     private static final int SURE_CHECKS = 3;
     /** Depois de um, quanto tempo até poder de novo (ticks): 10 min. */
@@ -108,6 +118,20 @@ final class NoEscape {
     private Vec3 corner;
     private int stare;
     private int stareNeed;
+    /**
+     * O diretor (LM 24/11: "o modo diretor decide se vira tensão ou não, avalia no comportamento da câmera, se treme
+     * demais"): o giro da câmera dela tick a tick nos últimos 3 s. Câmera nervosa (girando rápido, indo e voltando) = o
+     * susto vale a pena; calma = ele caça normal e tenta de novo mais tarde.
+     */
+    private final float[] camSpeed = new float[CAM_WINDOW];
+    private final byte[] camTurn = new byte[CAM_WINDOW];
+    private int camN;
+    private float lastYaw, lastPitch;
+    @Nullable
+    private UUID camWho;
+    /** Já viu a câmera dela nervosa nesse beco (vale até acabar). */
+    private boolean tense;
+    private float lastScore;
     private double dashPos;
 
     NoEscape(FroggydudeEntity froggy) {
@@ -139,6 +163,7 @@ final class NoEscape {
     /** Devolve true se cuidou do tick. */
     boolean tick(LivingEntity target) {
         if (!(froggy.level() instanceof ServerLevel level)) return false;
+        sampleCamera(target);
         if (stage == Stage.NONE) return maybeStart(level, target);
         if (!(target instanceof ServerPlayer p) || !p.getUUID().equals(who) || !p.isAlive() || p.isCreative()
                 || p.isSpectator() || p.level() != froggy.level()) {
@@ -198,7 +223,15 @@ final class NoEscape {
                 froggy.getLookControl().setLookAt(p, 30.0F, 30.0F);
                 if (corner != null && looking(p, corner)) stare++;
                 boolean close = corner != null && p.position().distanceTo(corner) < 1.6D;
-                if (stare >= stareNeed || close || t >= WAIT_MAX) {
+                if (!tense && t >= WAIT_MAX) {
+                    // o diretor: ela ficou calma o tempo todo, o susto não pega; caça normal, tenta mais tarde
+                    froggy.brainLog(String.format(java.util.Locale.ROOT,
+                            "sem saída: câmera calma (nervosismo %.1f < %.1f), sem susto: caça normal", lastScore, CAM_NERVOUS));
+                    stop("câmera calma");
+                    readyAt = froggy.tickCount + 1200;
+                    return false;
+                }
+                if (tense && (stare >= stareNeed || close || t >= WAIT_MAX)) {
                     froggy.brainLog(String.format(java.util.Locale.ROOT, "sem saída: sai da curva (olhou %d ticks%s)", stare,
                             close ? ", chegou na curva" : t >= WAIT_MAX ? ", cansou de esperar" : ""));
                     beginDash(p);
@@ -255,6 +288,7 @@ final class NoEscape {
         if (!r.trapped()) {
             if (sure > 0 || forced) froggy.brainLog("sem saída? não: " + r.why());
             sure = 0;
+            tense = false; // saiu do beco: o nervosismo de antes não vale pro próximo
             return false;
         }
         if (++sure < SURE_CHECKS) return false;
@@ -268,6 +302,12 @@ final class NoEscape {
                 p.getScoreboardName(), r.region(), r.digTicks() < 0 ? "nunca" : r.digTicks() + " ticks", path.size(),
                 hideIdx));
         if (hideIdx <= 0) {
+            if (!tense) {
+                // sem curva pra esperar e ela calma: ainda não (continua olhando a câmera dela)
+                stage = Stage.NONE;
+                who = null;
+                return false;
+            }
             beginDash(p);
         } else {
             next(Stage.APPROACH);
@@ -313,10 +353,12 @@ final class NoEscape {
         int i = nearestIdx();
         dashPos = Math.max(1.0D, i);
         froggy.setFroggyState(FroggyState.CHASE);
-        // tocados no lugar (não presos nele): o "silencioso" da chegada ainda pode estar valendo no cliente
+        // (LM 24/11) sempre no modo fúria, mas sem a contorção da transformação: só corre com o grito rouco (o grito de
+        // correr da fase 2). Tocados no lugar (não presos nele): o "silencioso" da chegada ainda pode valer no cliente.
+        if (!froggy.isFrenzyActive()) froggy.startFrenzy(200);
         froggy.stopSpeaking();
-        froggy.level().playSound(null, froggy.getX(), froggy.getY() + 1.0D, froggy.getZ(), ModSounds.SCREAM.get(),
-                SoundSource.HOSTILE, 8.0F, 1.0F);
+        froggy.level().playSound(null, froggy.getX(), froggy.getY() + 1.0D, froggy.getZ(), ModSounds.FRENZY_RUN.get(),
+                SoundSource.HOSTILE, 6.0F, 1.0F);
         froggy.level().playSound(null, froggy.getX(), froggy.getY(), froggy.getZ(), ModSounds.LEAP.get(),
                 SoundSource.HOSTILE, 3.0F, 0.8F);
         froggy.mute(60);
@@ -366,9 +408,48 @@ final class NoEscape {
         p.hurt(FroggyFinisherGoal.devoured(level, froggy), Float.MAX_VALUE);
         froggy.stopSpeaking();
         readyAt = froggy.tickCount + COOLDOWN;
+        tense = false;
         stage = Stage.NONE;
         who = null;
         froggy.setFroggyState(FroggyState.CHASE);
+    }
+
+    /** O diretor: guarda o giro da câmera dela e marca "tensa" quando passar do limite. */
+    private void sampleCamera(LivingEntity target) {
+        if (!(target instanceof ServerPlayer p)) return;
+        float yaw = p.getYRot(), pitch = p.getXRot();
+        if (!p.getUUID().equals(camWho)) {
+            camWho = p.getUUID();
+            camN = 0;
+            tense = false;
+        } else {
+            float dy = net.minecraft.util.Mth.wrapDegrees(yaw - lastYaw), dp = pitch - lastPitch;
+            int i = camN % CAM_WINDOW;
+            camSpeed[i] = (float) Math.sqrt(dy * dy + dp * dp);
+            camTurn[i] = (byte) (Math.abs(dy) > 3.0F ? Math.signum(dy) : 0);
+            camN++;
+        }
+        lastYaw = yaw;
+        lastPitch = pitch;
+        if (camN < CAM_MIN) return;
+        int n = Math.min(camN, CAM_WINDOW);
+        float sum = 0F;
+        int flips = 0, prev = 0;
+        for (int k = 0; k < n; k++) {
+            int idx = (camN - n + k) % CAM_WINDOW;
+            sum += camSpeed[idx];
+            if (camTurn[idx] != 0) {
+                if (prev != 0 && camTurn[idx] != prev) flips++;
+                prev = camTurn[idx];
+            }
+        }
+        lastScore = sum / n + flips * 0.5F;
+        if (lastScore >= CAM_NERVOUS && stage != Stage.DASH && stage != Stage.FACE && (sure > 0 || stage != Stage.NONE)) {
+            if (!tense) {
+                froggy.brainLog(String.format(java.util.Locale.ROOT, "sem saída: câmera nervosa (%.1f): o susto vale", lastScore));
+            }
+            tense = true;
+        }
     }
 
     void stop(String why) {
@@ -380,6 +461,7 @@ final class NoEscape {
         stage = Stage.NONE;
         who = null;
         sure = 0;
+        tense = false;
     }
 
     private static void debug(String msg) {
@@ -475,38 +557,62 @@ final class NoEscape {
                 q.add(n);
             }
         }
-        // portal, água
+        // portal, água, porta, escada/trepadeira (no beco ou na parede dele)
         for (long k : region) {
             BlockPos c = BlockPos.of(k);
-            for (BlockPos x : new BlockPos[]{c, c.above()}) {
+            for (BlockPos x : new BlockPos[]{c, c.above(), c.above(2), c.below()}) {
                 BlockState s = level.getBlockState(x);
                 if (s.is(Blocks.NETHER_PORTAL) || s.is(Blocks.END_PORTAL) || s.is(Blocks.END_GATEWAY)) {
                     return Result.no("portal no beco");
                 }
+                if (climbOut(level, x)) return Result.no("dá pra subir (" + name(s) + ")");
+                if (opens(s)) return Result.no("porta/alçapão (" + name(s) + ")");
+                if (x == c.below()) continue;
                 for (Direction dir : Direction.Plane.HORIZONTAL) {
-                    if (level.getFluidState(x.relative(dir)).is(net.minecraft.tags.FluidTags.WATER)) {
+                    BlockPos side = x.relative(dir);
+                    if (level.getFluidState(side).is(net.minecraft.tags.FluidTags.WATER)) {
                         return Result.no("água do lado");
                     }
+                    BlockState w = level.getBlockState(side);
+                    if (opens(w)) return Result.no("porta/alçapão (" + name(w) + ")");
+                    if (climbOut(level, side)) return Result.no("dá pra subir (" + name(w) + ")");
                 }
             }
         }
-        // 3. as paredes: a mais fácil de quebrar
+        // 3. cavar: parede e teto só contam se, quebrado o bloco, do outro lado tem espaço ou outro bloco que também
+        // sai rápido (vidro com tijolo atrás, escada de mão na parede do fundo: quebrar não leva a lugar nenhum). O chão
+        // conta sempre (LM 24/11: "cavar o chão conta como saída", na dúvida sem susto).
         int best = Integer.MAX_VALUE;
         BlockPos bestAt = null;
-        Set<Long> walls = new HashSet<>();
+        int bestAny = Integer.MAX_VALUE;
+        BlockPos bestAnyAt = null;
+        Map<Long, Direction> walls = new HashMap<>();
         for (long k : region) {
             BlockPos c = BlockPos.of(k);
             for (Direction dir : Direction.Plane.HORIZONTAL) {
-                walls.add(c.relative(dir).asLong());
-                walls.add(c.above().relative(dir).asLong());
+                walls.putIfAbsent(c.relative(dir).asLong(), dir);
+                walls.putIfAbsent(c.above().relative(dir).asLong(), dir);
             }
-            walls.add(c.above(2).asLong());
-            walls.add(c.below().asLong());
+            walls.putIfAbsent(c.above(2).asLong(), Direction.UP);
+            walls.put(c.below().asLong(), Direction.DOWN);
         }
-        for (long k : walls) {
-            BlockPos w = BlockPos.of(k);
-            if (RealTactics.free(level, w)) continue;
-            int ticks = breakTicks(level, p, w);
+        Map<Long, Integer> cost = new HashMap<>();
+        for (Map.Entry<Long, Direction> e : walls.entrySet()) {
+            BlockPos w = BlockPos.of(e.getKey());
+            if (RealTactics.free(level, w) || region.contains(e.getKey())) continue;
+            int ticks = cost.computeIfAbsent(e.getKey(), kk -> breakTicks(level, p, w));
+            if (ticks < bestAny) {
+                bestAny = ticks;
+                bestAnyAt = w;
+            }
+            if (ticks > DIG_TICKS) continue;
+            Direction dir = e.getValue();
+            if (dir != Direction.DOWN) {
+                BlockPos beyond = w.relative(dir);
+                boolean leads = RealTactics.free(level, beyond)
+                        || cost.computeIfAbsent(beyond.asLong(), kk -> breakTicks(level, p, beyond)) <= DIG_TICKS;
+                if (!leads) continue; // atrás dele é duro: quebrar esse não salva
+            }
             if (ticks < best) {
                 best = ticks;
                 bestAt = w;
@@ -514,9 +620,11 @@ final class NoEscape {
         }
         if (best <= DIG_TICKS) {
             BlockState s = level.getBlockState(bestAt);
-            return new Result(false, "dá pra cavar: " + s.getBlock().getName().getString() + " em " + best + " ticks", path,
+            return new Result(false, "dá pra cavar: " + name(s) + " em " + best + " ticks", path,
                     region.size(), best, bestAt);
         }
+        best = bestAny;
+        bestAt = bestAnyAt;
         return new Result(true, "sem saída", path, region.size(), best == Integer.MAX_VALUE ? -1 : best, bestAt);
     }
 
@@ -537,14 +645,41 @@ final class NoEscape {
         return seen.size();
     }
 
-    /** Onde o pé fica em pé a partir de {@code pos} (o próprio, ou até 2 abaixo se estiver no ar/meio bloco). */
+    /**
+     * Onde o pé fica em pé a partir de {@code pos}: o próprio; o de cima (em cima de areia das almas, meio-bloco, caminho
+     * de terra o pé fica DENTRO do bloco de baixo); ou até 2 abaixo (no ar).
+     */
     @Nullable
     private static BlockPos standing(Level level, BlockPos pos) {
-        for (int i = 0; i < 3; i++) {
-            BlockPos c = pos.below(i);
+        for (BlockPos c : new BlockPos[]{pos, pos.above(), pos.below(), pos.below(2)}) {
             if (walkable(level, c)) return c;
         }
         return null;
+    }
+
+    /**
+     * Escada de mão, trepadeira, cipó do Nether, andaime em {@code pos} que LEVA a algum lugar: subindo por ela, no topo
+     * tem espaço pra sair. Cipó pendurado num corredor de 2 de altura não leva a nada.
+     */
+    private static boolean climbOut(Level level, BlockPos pos) {
+        if (!level.getBlockState(pos).is(net.minecraft.tags.BlockTags.CLIMBABLE)) return false;
+        BlockPos top = pos;
+        for (int i = 0; i < 64 && level.getBlockState(top.above()).is(net.minecraft.tags.BlockTags.CLIMBABLE); i++) {
+            top = top.above();
+        }
+        // passou do teto do corredor (2 acima do chão dele) e em cima está livre
+        return top.getY() - pos.getY() >= 1 && RealTactics.free(level, top.above()) || RealTactics.free(level, top.above())
+                && RealTactics.free(level, top.above(2)) && !RealTactics.free(level, top.above().below());
+    }
+
+    /** Porta, alçapão, portãozinho: abre e foge. */
+    private static boolean opens(BlockState s) {
+        return s.is(net.minecraft.tags.BlockTags.DOORS) || s.is(net.minecraft.tags.BlockTags.TRAPDOORS)
+                || s.is(net.minecraft.tags.BlockTags.FENCE_GATES);
+    }
+
+    private static String name(BlockState s) {
+        return s.getBlock().getName().getString();
     }
 
     /** Cabe em pé (2 de altura livres, sem líquido) e tem chão. */

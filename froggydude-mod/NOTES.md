@@ -1,4 +1,4 @@
-# Froggydude - v0.7.58: o jumpscare sem saída (o beco) (sobre a v0.7.57)
+# Froggydude - v0.7.59: o beco com o diretor (câmera nervosa), a fúria e um pente fino de 32 lugares (sobre a v0.7.58)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,29 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.58):
+O que testar agora (v0.7.59):
+- **O beco agora passa pelo diretor** (LM 24/11: "o modo diretor decide se vira tensão ou não, avalia no comportamento
+  da câmera, se treme demais"): no beco, o jogo mede a tua câmera nos últimos 3 s (o quanto ela gira e quantas vezes vai
+  e volta). **Câmera nervosa** (olhando pra todo lado, tremendo) = ele faz o susto. **Câmera calma** (parado olhando o
+  corredor) = ele desiste do susto e caça normal; pode tentar de novo depois de 1 min. Depois de um susto, 10 min.
+  - Testado: com a câmera tremendo, nervosismo 20,9 (o limite é 4) e o susto; com a câmera parada, 0,0 e ele esperou
+    atrás da curva, desistiu e veio caçar normal. **No celular o jeito de mexer a câmera é outro (dedo)**: se ele der
+    susto demais ou de menos, me diz que eu ajusto o limite.
+- **Sempre no modo fúria** (LM): sai da curva já na fase 2, sem a contorção da transformação, só correndo com o grito
+  rouco (o grito de correr da fase 2). A cara continua uns 0,2 s na tela antes do preto.
+- **Sala fechada até 5x5 conta como beco** (LM); 6x6 já não. Cavar o chão continua contando como saída (LM).
+- **Pente fino: 32 lugares testados**, todos com a resposta certa. Os 11 de antes e mais 21 feitos pra enganar a IA:
+  porta de madeira e de ferro na parede, alçapão no teto = tem saída (abre e foge); escada de mão que sobe por um buraco =
+  tem saída, mas escada de mão na parede do fundo de um corredor fechado = sem saída (subir não leva a nada); cipó do
+  Nether pendurado no corredor = sem saída; chão de meia-laje = sem saída (antes ele achava que tu estava "sem chão" e
+  nunca dava o susto); chão de areia das almas = tem saída (cava o chão); vidro com tijolo atrás = sem saída (quebrar o
+  vidro não leva a lugar nenhum), vidro que dá pra fora = tem saída; netherrack fino dando pra fora com picareta de
+  madeira = tem saída; janela de cerca do Nether = sem saída; picareta de pedra = tem saída; picareta de madeira com
+  Eficiência V = tem saída; picareta de diamante com cansaço de mineração = sem saída; picareta de madeira com pressa II
+  = sem saída (1,1 s por bloco); água do lado = tem saída; ele preso numa caixa de vidro = não conta; sala 5x5 = sem
+  saída; sala 6x6 = aberto.
+
+O que tinha pra testar na v0.7.58:
 - **O jumpscare sem saída** (item 5 da fila; LM 23/11: o Grox no beco da fortaleza do Nether, "Meu Deus, um beco sem
   saída, tô ferrado"). Quando o jogo tem **certeza** de que tu está num beco:
   1. ele vem calado e para logo depois da curva, fora da tua vista. Tu só pode olhar pra curva e esperar;
