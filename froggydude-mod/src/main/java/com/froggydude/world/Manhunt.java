@@ -4,6 +4,7 @@ import com.froggydude.brain.Strategy;
 import com.froggydude.config.FroggyConfig;
 import com.froggydude.entity.FroggydudeEntity;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
@@ -87,6 +88,18 @@ public final class Manhunt {
         return FroggyWorldData.get(server).manhuntActive;
     }
 
+    /**
+     * (v0.7.66, LM 24/11) A cor da contagem nos últimos 5 s: 5 amarelo, 4 um tom levemente mais vermelho, 3 vermelho
+     * claro, 2 e 1 vermelho escuro. Antes disso, a cor normal (-1).
+     */
+    static int countdownColor(long left) {
+        if (left == 5) return 0xFFFF55;
+        if (left == 4) return 0xFFC93C;
+        if (left == 3) return 0xFF5555;
+        if (left >= 1 && left <= 2) return 0xAA0000;
+        return -1;
+    }
+
     /** A cada segundo: contagem, dias, e o FroggyDude sempre no teu rastro. */
     public static void tick(MinecraftServer server) {
         FroggyWorldData data = FroggyWorldData.get(server);
@@ -104,8 +117,11 @@ public final class Manhunt {
         if (!data.released) {
             long left = (data.releaseAt - now + 19) / 20;
             if (left > 0) {
+                Component msg = Component.translatable("froggydude.manhunt.countdown", left);
+                int color = countdownColor(left);
+                if (color >= 0) msg = msg.copy().withStyle(st -> st.withColor(TextColor.fromRgb(color)).withBold(left <= 2));
                 for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                    p.displayClientMessage(Component.translatable("froggydude.manhunt.countdown", left), true);
+                    p.displayClientMessage(msg, true);
                 }
                 return;
             }

@@ -30,8 +30,8 @@ public final class FroggyConfig {
                 .defineEnum("modo", ManhuntMode.SPEEDRUN);
         MANHUNT_DIAS = b.comment("Dias pra sobreviver no modo sobrevivencia.")
                 .defineInRange("dias", 5, 1, 100);
-        VANTAGEM_SEGUNDOS = b.comment("Vantagem (segundos) antes dele ser solto, igual ao manhunt do Dream.")
-                .defineInRange("vantagem_segundos", 30, 0, 300);
+        VANTAGEM_SEGUNDOS = b.comment("Vantagem (segundos) antes dele ser solto (LM 24/11: 45).")
+                .defineInRange("vantagem_segundos", 45, 0, 300);
         VOLTA_SEGUNDOS = b.comment("Se ele morrer no meio do manhunt, volta depois desse tempo (segundos).")
                 .defineInRange("volta_segundos", 60, 10, 1200);
         b.pop();

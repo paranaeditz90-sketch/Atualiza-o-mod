@@ -1,4 +1,4 @@
-# Froggydude - v0.7.65: a raiva do céu: sobe com a voz, grito novo no mergulho, desvio só nos 5 blocos (sobre a v0.7.64)
+# Froggydude - v0.7.66: contagem do manhunt de 45 s com cores (sobre a v0.7.65)
 
 Mod para Minecraft 1.20.1 / Forge + GeckoLib. O plano completo, por partes,
 está em `../PLANO.md`.
@@ -13,7 +13,15 @@ está em `../PLANO.md`.
   em todos os mobs, o golpe final da zebra, a língua chata, o pulo foguete, e
   o anti-trapaça (com a invasão do 911) foi REMOVIDO inteiro.
 
-O que testar agora (v0.7.65):
+O que testar agora (v0.7.66):
+- **A contagem do manhunt** (item 13 da fila, LM 24/11): a vantagem agora é de **45 s** (era 30); nos últimos 5 s a
+  mensagem muda de cor: **5 amarelo, 4 um tom levemente mais vermelho, 3 vermelho claro, 2 e 1 vermelho escuro** (em
+  negrito). Testado no jogo (`/froggydude manhunt iniciar`).
+  - **Atenção**: se o teu jogo já tem o arquivo `config/froggydude-common.toml`, ele guarda o 30 antigo (o Forge não
+    troca o que já está salvo). Muda lá `vantagem_segundos = 45` (ou na tela de config do mod, aba manhunt). Mundo/jogo
+    novo já vem com 45.
+
+O que tinha pra testar na v0.7.65:
 - **A raiva do céu na ordem certa** (LM 24/11, com o vídeo do grito):
   - ele **sobe durante a voz de profecia** (girando deitado e ondulando) e chega lá em cima, na tua frente, quando a voz
     acaba; fica **~1,2 s parado** lá; aí vem o **grito novo** (o "UHHH!!!" do teu vídeo, esticado pra ~2,4 s, só a parte
