@@ -1,0 +1,35 @@
+{
+  "extraKnownMarketplaces": {
+    "claude-video": {
+      "source": {
+        "source": "github",
+        "repo": "bradautomates/claude-video"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "watch@claude-video": true
+  },
+  "env": {
+    "WATCH_ENGINE": "local",
+    "WATCH_WHISPERX_MODEL": "small",
+    "WATCH_DETAIL": "balanced"
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "context7",
+    "playwright",
+    "serena"
+  ]
+}

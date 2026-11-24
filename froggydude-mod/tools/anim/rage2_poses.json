@@ -1,0 +1,2255 @@
+{
+ "fonte": "vídeo 9ed81736 (LM 23/11), quadros da gravação de 5,697 a 6,892 s; ângulos medidos por ajuste de cor (silhueta com pele, terno e coroa), câmera de frente calibrada no quadro parado",
+ "poses": [
+  {
+   "quadro": 2,
+   "t_video": 5.697,
+   "nota": 0.812,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -4.0,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      24.0,
+      -6.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      15.0,
+      3.0,
+      -6.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -15.0,
+      -48.0,
+      80
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -45.0,
+      -9.0,
+      -71
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      15.0,
+      0,
+      3
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -18.0,
+      0,
+      -9
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 3,
+   "t_video": 5.739,
+   "nota": 0.73,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -0.4,
+      0
+     ],
+     "rotation": [
+      -24,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      94.2,
+      -8.3,
+      43.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      136.8,
+      24.5,
+      -6.2
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      18.0,
+      12,
+      7.1
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -52.6,
+      -54,
+      -28.8
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      15.7,
+      0,
+      10.8
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -18.2,
+      0,
+      -5.1
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      45.2,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 4,
+   "t_video": 5.781,
+   "nota": 0.758,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -2.0,
+      0
+     ],
+     "rotation": [
+      0.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      -12.0,
+      -6.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      27.0,
+      3.0,
+      9.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -122,
+      96.0,
+      26
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -134,
+      -60.0,
+      -2
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      6.0,
+      0,
+      4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -24.0,
+      0,
+      -13
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      15,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      3,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 5,
+   "t_video": 5.822,
+   "nota": 0.803,
+   "pose": {
+    "root": {
+     "position": [
+      -4.0,
+      -4.0,
+      0
+     ],
+     "rotation": [
+      -48.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      42.0,
+      3.0,
+      -41
+     ]
+    },
+    "head": {
+     "rotation": [
+      3.0,
+      15.0,
+      -11
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      17,
+      -42.0,
+      15
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -10,
+      -12.0,
+      -15
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      0.0,
+      0,
+      -23
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -24.0,
+      0,
+      -49
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      -3,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      15,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 6,
+   "t_video": 5.862,
+   "nota": 0.667,
+   "pose": {
+    "root": {
+     "position": [
+      -5.0,
+      0.9,
+      0
+     ],
+     "rotation": [
+      -24,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      49.0,
+      12.8,
+      -34.4
+     ]
+    },
+    "head": {
+     "rotation": [
+      71.4,
+      5.0,
+      -22.2
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      42.2,
+      60,
+      31.8
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      5.6,
+      6,
+      -61.3
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      14.6,
+      0,
+      6.4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -47.1,
+      0,
+      -97.6
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      63.4,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 7,
+   "t_video": 5.903,
+   "nota": 0.718,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -3,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      -3.0,
+      6.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      -36.0,
+      18.0,
+      6.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -6.0,
+      36.0,
+      90
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      0.0,
+      -6.0,
+      -84
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -83,
+      0,
+      -86
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -9,
+      0,
+      -4
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      26,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      32,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 8,
+   "t_video": 5.944,
+   "nota": 0.78,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -2.0,
+      0
+     ],
+     "rotation": [
+      0.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      -12.0,
+      6.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      24.0,
+      0.0,
+      0.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -158,
+      36.0,
+      2
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -152,
+      -90.0,
+      -2
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      0.0,
+      0,
+      4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -21.0,
+      0,
+      -13
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      27,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      39,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 9,
+   "t_video": 5.986,
+   "nota": 0.766,
+   "pose": {
+    "root": {
+     "position": [
+      -4.0,
+      -2.0,
+      0
+     ],
+     "rotation": [
+      0.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      3.0,
+      19,
+      -15
+     ]
+    },
+    "head": {
+     "rotation": [
+      -3.0,
+      -18.0,
+      40
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -56,
+      0.0,
+      8
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      7,
+      -6.0,
+      10
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -7,
+      0,
+      42
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      14,
+      0,
+      15
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      109,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      40,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 10,
+   "t_video": 6.027,
+   "nota": 0.911,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      49.5,
+      0
+     ],
+     "rotation": [
+      180,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      87.0,
+      -45.0,
+      96.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -27.0,
+      15.0,
+      -26
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -45.0,
+      36.0,
+      -16
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      24.0,
+      0,
+      4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      24.0,
+      0,
+      -28
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 11,
+   "t_video": 6.07,
+   "nota": 0.743,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -8.5,
+      0
+     ],
+     "rotation": [
+      -15.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      19,
+      0.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      19,
+      0.0,
+      3.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -25,
+      -24.0,
+      12
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -7,
+      57.0,
+      -12
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -107,
+      0,
+      16
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -107,
+      0,
+      -4
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      147,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      150,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 12,
+   "t_video": 6.11,
+   "nota": 0.754,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      0.0,
+      0
+     ],
+     "rotation": [
+      -36.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      80,
+      0.0,
+      6.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      21,
+      -3.0,
+      0.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -44,
+      6.0,
+      11
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -26,
+      6.0,
+      -32
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      24.0,
+      0,
+      3
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      0.0,
+      0,
+      -6
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      12,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      27,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 13,
+   "t_video": 6.151,
+   "nota": 0.765,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -4.0,
+      0
+     ],
+     "rotation": [
+      24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      0.0,
+      0.0,
+      -8
+     ]
+    },
+    "head": {
+     "rotation": [
+      -9.0,
+      -6.0,
+      12.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -123,
+      3.0,
+      0
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -54,
+      -0.0,
+      -73
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      0.0,
+      0,
+      -4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      18.0,
+      0,
+      4
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      -3,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      3,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 14,
+   "t_video": 6.192,
+   "nota": 0.811,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -4.0,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      42.0,
+      -3.0,
+      -10
+     ]
+    },
+    "head": {
+     "rotation": [
+      -15.0,
+      6.0,
+      12.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -26,
+      -3.0,
+      8
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -14,
+      -33.0,
+      -8
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -24.0,
+      0,
+      -16
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -21.0,
+      0,
+      -45
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      -3,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 15,
+   "t_video": 6.234,
+   "nota": 0.711,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -0.2,
+      0
+     ],
+     "rotation": [
+      -3,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      72.8,
+      0.6,
+      1.8
+     ]
+    },
+    "head": {
+     "rotation": [
+      203.7,
+      0.0,
+      -0.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -111.3,
+      -21,
+      82.5
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -37.5,
+      -6,
+      -9.3
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      22.1,
+      0,
+      36.9
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      11.9,
+      0,
+      -1.0
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      24,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      42,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 16,
+   "t_video": 6.276,
+   "nota": 0.793,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      0.5,
+      0
+     ],
+     "rotation": [
+      -6.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      -6.0,
+      3.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      24.0,
+      0.0,
+      6.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -131,
+      78.0,
+      26
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -146,
+      -78.0,
+      -2
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      0.0,
+      0,
+      4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -18.0,
+      0,
+      -10
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      30,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      42,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 17,
+   "t_video": 6.317,
+   "nota": 0.791,
+   "pose": {
+    "root": {
+     "position": [
+      -4.5,
+      -0.5,
+      0
+     ],
+     "rotation": [
+      -27.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      21.0,
+      0.0,
+      -29
+     ]
+    },
+    "head": {
+     "rotation": [
+      18.0,
+      18.0,
+      -14
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      20,
+      -78.0,
+      15
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -22,
+      -57.0,
+      -18
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -18.0,
+      0,
+      -20
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -9.0,
+      0,
+      -46
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      39,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      12,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 18,
+   "t_video": 6.358,
+   "nota": 0.663,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -2.0,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      95,
+      0.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      20,
+      -9.0,
+      -6.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -57,
+      0.0,
+      7
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -57,
+      -6.0,
+      -4
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -76,
+      0,
+      14
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -79,
+      0,
+      -23
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      94,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      73,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 19,
+   "t_video": 6.399,
+   "nota": 0.776,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -1.0,
+      0
+     ],
+     "rotation": [
+      -3.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      -4,
+      0.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      43,
+      -3.0,
+      -3.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      36,
+      6.0,
+      22
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      39,
+      -0.0,
+      -22
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -17,
+      0,
+      -10
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      1,
+      0,
+      -2
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      96,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      54,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 20,
+   "t_video": 6.439,
+   "nota": 0.866,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      10.0,
+      0
+     ],
+     "rotation": [
+      0.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      18.0,
+      -6.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      0.0,
+      6.0,
+      0.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -207,
+      -15.0,
+      4
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -159,
+      6.0,
+      -4
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -30.0,
+      0,
+      5
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -15.0,
+      0,
+      -11
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      24,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 21,
+   "t_video": 6.481,
+   "nota": 0.72,
+   "pose": {
+    "root": {
+     "position": [
+      -4.0,
+      -4.3,
+      0
+     ],
+     "rotation": [
+      -47.3,
+      0,
+      -27.6
+     ]
+    },
+    "waist": {
+     "rotation": [
+      94.5,
+      -7.9,
+      25.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      35.2,
+      -34.4,
+      -7.2
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      20.3,
+      96,
+      40.6
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -61.0,
+      15,
+      -25.0
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -56.2,
+      0,
+      8.6
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -7.4,
+      0,
+      -10.3
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      18,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 22,
+   "t_video": 6.522,
+   "nota": 0.748,
+   "pose": {
+    "root": {
+     "position": [
+      -4.0,
+      3.7,
+      0
+     ],
+     "rotation": [
+      -48,
+      0,
+      -20.9
+     ]
+    },
+    "waist": {
+     "rotation": [
+      84.4,
+      4.4,
+      11.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      148.1,
+      -117.9,
+      -8.8
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -51.2,
+      -18,
+      38.6
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -21.5,
+      18,
+      -16.3
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      23.5,
+      0,
+      43.8
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      26.9,
+      0,
+      14.6
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      42,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      25.3,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 23,
+   "t_video": 6.562,
+   "nota": 0.722,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      0.0,
+      0
+     ],
+     "rotation": [
+      -6.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      -12.0,
+      6.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      36.0,
+      -6.0,
+      0.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -170,
+      24.0,
+      56
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -137,
+      -63.0,
+      -2
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      0.0,
+      0,
+      4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      12.0,
+      0,
+      -13
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      30,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 24,
+   "t_video": 6.604,
+   "nota": 0.775,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      0.0,
+      0
+     ],
+     "rotation": [
+      3.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      -15.0,
+      3.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      27.0,
+      -3.0,
+      3.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -146,
+      90.0,
+      2
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -146,
+      -81.0,
+      -2
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      3.0,
+      0,
+      4
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      12.0,
+      0,
+      -13
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      27,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      9,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 25,
+   "t_video": 6.644,
+   "nota": 0.783,
+   "pose": {
+    "root": {
+     "position": [
+      -4.0,
+      -2.0,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      0.0,
+      0.0,
+      -35
+     ]
+    },
+    "head": {
+     "rotation": [
+      18.0,
+      0.0,
+      4
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      2,
+      36.0,
+      39
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      32,
+      6.0,
+      -21
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -48.0,
+      0,
+      -8
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -48.0,
+      0,
+      -40
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      36,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      6,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 26,
+   "t_video": 6.685,
+   "nota": 0.696,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -2,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      16,
+      -20,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      21,
+      6.0,
+      0.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      43,
+      36.0,
+      36
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -5,
+      -24.0,
+      -24
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -50,
+      0,
+      12
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -32,
+      0,
+      -18
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      107,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      38,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 27,
+   "t_video": 6.726,
+   "nota": 0.704,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -3,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      20,
+      -24.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      -26,
+      -36.0,
+      36.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      66,
+      0.0,
+      22
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      57,
+      0.0,
+      2
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -50,
+      0,
+      -7
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -53,
+      0,
+      -2
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      84,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      114,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 28,
+   "t_video": 6.769,
+   "nota": 0.734,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -3.0,
+      0
+     ],
+     "rotation": [
+      0.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      6.0,
+      -24.0,
+      0.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      -84.0,
+      6.0,
+      -3.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      60.0,
+      0.0,
+      74
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      24.0,
+      9.0,
+      -80
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      78.0,
+      0,
+      -45
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -18,
+      0,
+      -3
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      0.0,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      110,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 29,
+   "t_video": 6.81,
+   "nota": 0.727,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -4.0,
+      0
+     ],
+     "rotation": [
+      -24.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      0,
+      6,
+      6.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      66,
+      6.0,
+      -12.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -8,
+      36.0,
+      16
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      22,
+      36.0,
+      -4
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -18.0,
+      0,
+      -7
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -30.0,
+      0,
+      -17
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      6,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      18,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 30,
+   "t_video": 6.85,
+   "nota": 0.694,
+   "pose": {
+    "root": {
+     "position": [
+      4.0,
+      -5.7,
+      0
+     ],
+     "rotation": [
+      -17.8,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      70.0,
+      -22.4,
+      47.6
+     ]
+    },
+    "head": {
+     "rotation": [
+      144.1,
+      13.6,
+      17.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -34.6,
+      -24,
+      -21.7
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      -122.0,
+      -24,
+      16.4
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      74.0,
+      0,
+      19.6
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      19.4,
+      0,
+      17.1
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      72.5,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      0,
+      0,
+      0
+     ]
+    }
+   }
+  },
+  {
+   "quadro": 31,
+   "t_video": 6.892,
+   "nota": 0.801,
+   "pose": {
+    "root": {
+     "position": [
+      0.0,
+      -2.0,
+      0
+     ],
+     "rotation": [
+      -36.0,
+      0,
+      0
+     ]
+    },
+    "waist": {
+     "rotation": [
+      64,
+      -17,
+      -3.0
+     ]
+    },
+    "head": {
+     "rotation": [
+      -24,
+      12.0,
+      -18.0
+     ]
+    },
+    "right_arm": {
+     "rotation": [
+      -5,
+      24.0,
+      9
+     ]
+    },
+    "left_arm": {
+     "rotation": [
+      16,
+      21.0,
+      -18
+     ]
+    },
+    "right_leg": {
+     "rotation": [
+      -32,
+      0,
+      18
+     ]
+    },
+    "left_leg": {
+     "rotation": [
+      -20,
+      0,
+      -30
+     ]
+    },
+    "right_shin": {
+     "rotation": [
+      95,
+      0,
+      0
+     ]
+    },
+    "left_shin": {
+     "rotation": [
+      62,
+      0,
+      0
+     ]
+    }
+   }
+  }
+ ]
+}

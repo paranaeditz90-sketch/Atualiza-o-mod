@@ -1,0 +1,147 @@
+package com.froggydude.client;
+
+import com.froggydude.entity.FroggyState;
+import com.froggydude.entity.FroggydudeEntity;
+import com.froggydude.init.ModEntityTypes;
+import com.froggydude.network.ClientShakeHandler;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.Input;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.MovementInputUpdateEvent;
+import net.minecraftforge.client.event.ViewportEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+/**
+ * Efeitos de tela quando o Froggy acerta o jogador:
+ * - tremor de câmera de verdade (sacode em vários eixos e some suave);
+ * - derrubado e preso: deitado no chão, controles travados e a câmera presa
+ *   no rosto do Froggy que está em cima. Não dá pra olhar pra outro lado. No esmagamento (v0.7.21) a câmera fica
+ *   parada olhando pra cima na direção dele, como no vídeo, e é a cabeça dele que desce até a tela.
+ */
+@Mod.EventBusSubscriber(modid = ModEntityTypes.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+public class ClientForgeEvents {
+
+    /** Quanto a câmera anda em direção ao rosto dele a cada quadro (0 a 1). */
+    private static final float LOOK_SNAP = 0.35F;
+    /**
+     * (v0.7.21, LM: "deixa com a mesma perspectiva que esse do vídeo") Esmagado, a câmera NÃO segue o rosto dele: fica
+     * parada olhando 31° pra cima na direção dele (no vídeo o chão aparece no pé da tela e ele inteiro de joelhos; os
+     * 31° saem do horizonte do vídeo, medido com o boneco encaixado por cima), e a cada pancada o topo da cabeça dele
+     * enche o alto da tela e os punhos descem nos cantos de baixo. Antes ela ia atrás do rosto e o golpe nunca "vinha".
+     */
+    private static final float SMASH_VIEW_PITCH = -31F;
+
+    private static boolean forcedPoseByUs = false;
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            ClientShakeHandler.clientTick();
+            ClientSight.clientTick();
+        }
+    }
+
+    /**
+     * Renasceu. O jogador novo tem o mesmo número de entidade do que morreu: tudo que
+     * estava preso nesse número (a cutscene, o jato do toco) seguia no corpo novo - ele
+     * aparecia invisível/deitado e com sangue na skin (LM, v0.4.9). Aqui volta limpo.
+     */
+    @SubscribeEvent
+    public static void onRespawn(ClientPlayerNetworkEvent.Clone event) {
+        com.froggydude.client.cutscene.ClientFinisher.forgetVictim(event.getNewPlayer().getId());
+        com.froggydude.client.gore.BloodStains.forget(event.getNewPlayer().getUUID());
+        com.froggydude.client.gore.ScreenBlood.clear();
+    }
+
+    /** Deitado no chão enquanto preso (o servidor faz o mesmo do lado dele). */
+    @SubscribeEvent
+    public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.START || !(event.player instanceof LocalPlayer player)) return;
+        if (ClientShakeHandler.isKnockedDown()) {
+            player.setForcedPose(Pose.SWIMMING);
+            forcedPoseByUs = true;
+            if (Boolean.getBoolean("froggydude.debug") && player.tickCount % 5 == 0) {
+                System.out.println("[FROGGYDEBUG] preso: pose=" + player.getPose() + " olho=" + player.getEyeHeight()
+                        + " pitch=" + player.getXRot());
+            }
+        } else if (forcedPoseByUs) {
+            player.setForcedPose(null);
+            forcedPoseByUs = false;
+        }
+    }
+
+    /** Preso: ignora andar, pular e agachar. */
+    @SubscribeEvent
+    public static void onMovementInput(MovementInputUpdateEvent event) {
+        // (preso, ou no jumpscare: a câmera virando à força e ele se jogando)
+        if (!ClientShakeHandler.isPinned() && !ClientShakeHandler.isCinematic()) return;
+        Input input = event.getInput();
+        input.up = false;
+        input.down = false;
+        input.left = false;
+        input.right = false;
+        input.jumping = false;
+        input.shiftKeyDown = false;
+        input.forwardImpulse = 0F;
+        input.leftImpulse = 0F;
+    }
+
+    /** Só pra gravar de lado (froggydude.freecam, -PfreeCam): a câmera não é puxada pra cara dele. */
+    private static final boolean FREE_CAM = Boolean.getBoolean("froggydude.freecam");
+
+    /** Preso: a cada quadro a câmera é puxada pro rosto dele (depois do mouse). */
+    @SubscribeEvent
+    public static void onRenderTick(TickEvent.RenderTickEvent event) {
+        if (event.phase != TickEvent.Phase.START || !ClientShakeHandler.isKnockedDown() || FREE_CAM) return;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null || mc.level == null) return;
+        Entity pinner = mc.level.getEntity(ClientShakeHandler.getPinnerId());
+        if (pinner == null) return;
+
+        Vec3 eye = player.getEyePosition(event.renderTickTime);
+        boolean smash = pinner instanceof FroggydudeEntity f && f.getFroggyState() == FroggyState.SMASH;
+        // (v0.7.41) a cutscene da cabeça: debruçado, a cara dele fica fora da caixa de acerto; a mira vai no meio do
+        // corpo (dentro da caixa), senão o tiro e o golpe pra se soltar passavam por fora dele
+        boolean grab = pinner instanceof FroggydudeEntity g && g.getFroggyState() == FroggyState.HEAD_GRAB;
+        Vec3 face = grab ? pinner.getPosition(event.renderTickTime).add(0D, pinner.getBbHeight() * 0.55D, 0D)
+                : smash ? pinner.getPosition(event.renderTickTime)
+                : pinner instanceof FroggydudeEntity froggy
+                ? froggy.getFacePosition(event.renderTickTime)
+                : pinner.getEyePosition(event.renderTickTime);
+        Vec3 d = face.subtract(eye);
+        double flat = Math.sqrt(d.x * d.x + d.z * d.z);
+        float wantYaw = (float) (Mth.atan2(d.z, d.x) * Mth.RAD_TO_DEG) - 90F;
+        float wantPitch = smash ? SMASH_VIEW_PITCH : (float) (-(Mth.atan2(d.y, flat) * Mth.RAD_TO_DEG));
+
+        float yaw = player.getYRot() + Mth.wrapDegrees(wantYaw - player.getYRot()) * LOOK_SNAP;
+        float pitch = Mth.clamp(player.getXRot() + (wantPitch - player.getXRot()) * LOOK_SNAP, -90F, 90F);
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.yRotO = yaw;
+        player.xRotO = pitch;
+        player.setYHeadRot(yaw);
+    }
+
+    @SubscribeEvent
+    public static void onCameraAngles(ViewportEvent.ComputeCameraAngles event) {
+        if (Minecraft.getInstance().player == null) return;
+        float partial = (float) event.getPartialTick();
+        float amount = ClientShakeHandler.getShakeAmount(partial);
+        if (amount <= 0F) return;
+
+        float time = (Minecraft.getInstance().player.tickCount + partial) * 1.6F;
+        event.setPitch(event.getPitch() + ClientShakeHandler.noise(0, time) * amount * 3.0F);
+        event.setYaw(event.getYaw() + ClientShakeHandler.noise(1, time) * amount * 3.0F);
+        // só um tiquinho de giro: o resto é sacudida
+        event.setRoll(event.getRoll() + ClientShakeHandler.noise(2, time) * amount * 1.2F);
+    }
+}

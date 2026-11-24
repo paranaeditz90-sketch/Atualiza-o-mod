@@ -1,0 +1,198 @@
+package com.becomelm.client;
+
+import com.becomelm.LmAttack;
+import com.becomelm.LmAttacks;
+import com.becomelm.LmFinish;
+import com.becomelm.LmMode;
+import com.becomelm.LmModes;
+import com.becomelm.LmMove;
+import com.becomelm.LmTransform;
+import com.becomelm.LmWallClimb;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.util.Mth;
+import software.bernie.geckolib.core.animation.RawAnimation;
+
+/** Qual animação do FroggyDude o jogador faz agora, e em que velocidade. */
+final class LmAnims {
+
+    static final RawAnimation IDLE = RawAnimation.begin().thenLoop("idle");
+    static final RawAnimation WALK = RawAnimation.begin().thenLoop("walk");
+    static final RawAnimation RUN = RawAnimation.begin().thenLoop("run");
+    static final RawAnimation CROUCH_IDLE = RawAnimation.begin().thenLoop("crouch_idle");
+    /** (v0.3.9) Nadando: o dardo do vídeo (a mesma animação do mod da IA). */
+    static final RawAnimation SWIM = RawAnimation.begin().thenLoop("swim");
+    static final RawAnimation CLIMB = RawAnimation.begin().thenLoop("climb");
+    static final RawAnimation HOP = RawAnimation.begin().thenLoop("pad_hop");
+    /** Cópias dos pulos do Froggydude que já começam no ar (tools/make_anims.py). */
+    static final RawAnimation LEAP = RawAnimation.begin().thenPlayAndHold("leap_air");
+    static final RawAnimation SKY = RawAnimation.begin().thenPlayAndHold("sky_air");
+    /** Transformação (as do Froggydude: a contorção acertada com o vídeo). */
+    static final RawAnimation CONTORT = RawAnimation.begin().thenPlayAndHold("contort");
+    static final RawAnimation CONTORT_HOLD = RawAnimation.begin().thenLoop("contort_hold");
+    static final RawAnimation ROAR = RawAnimation.begin().thenPlayAndHold("roar");
+    /** Montado socando (0,5 s = 2 socos: 1 a cada 0,25 s, como no vídeo) e as mordidas. */
+    static final RawAnimation SMASH = RawAnimation.begin().thenLoop("sky_smash");
+    /** (v0.3.5) a mordida montado é a velha (o feed_mob até a 0.7.16 do Froggydude): a flexão nova mordia o ar. */
+    static final RawAnimation BITES = RawAnimation.begin().thenLoop("smash_bite");
+    /** Na boca: o bote curto da mordida, segurando (parado / andando), a sacudida e o arremesso. */
+    static final RawAnimation GRAB_START = RawAnimation.begin().thenPlayAndHold("grab_start");
+    static final RawAnimation GRAB_HOLD = RawAnimation.begin().thenLoop("grab_hold");
+    static final RawAnimation GRAB_WALK = RawAnimation.begin().thenLoop("grab_walk");
+    static final RawAnimation GRAB_SHAKE = RawAnimation.begin().thenLoop("grab_shake");
+    static final RawAnimation GRAB_THROW = RawAnimation.begin().thenPlayAndHold("grab_throw");
+    private static final int GRAB_START_TICKS = 6;
+    /** No monte de pedaços: deitando, deitado (a cabeça esfrega, afunda e olha) e levantando. */
+    static final RawAnimation PILE_DROP = RawAnimation.begin().thenPlayAndHold("pile_drop");
+    static final RawAnimation PILE_LIE = RawAnimation.begin().thenLoop("pile_lie");
+    static final RawAnimation PILE_RISE = RawAnimation.begin().thenPlayAndHold("pile_rise");
+    /** As mordidas do vídeo: a cabeça mergulha a cada 0,24 s (o smash_bite tem 0,6 s). */
+    private static final double BITE_SPEED = 0.6D / 0.24D;
+    /** Finalização (LmFinish): monta, cava, abre, come e encara. */
+    static final RawAnimation FIN_MOUNT = RawAnimation.begin().thenPlayAndHold("fin_mount");
+    static final RawAnimation FIN_DIG = RawAnimation.begin().thenLoop("fin_dig");
+    static final RawAnimation FIN_OPEN = RawAnimation.begin().thenPlayAndHold("fin_open");
+    static final RawAnimation FIN_FEED = RawAnimation.begin().thenLoop("fin_feed");
+    static final RawAnimation FIN_STARE = RawAnimation.begin().thenLoop("fin_stare");
+    /** O mortal saindo do monte e os braços abertos quando pousa. */
+    static final RawAnimation FLIP = RawAnimation.begin().thenPlayAndHold("flip");
+    static final RawAnimation TADA = RawAnimation.begin().thenLoop("tada");
+    /** (roda) O estalo do pescoço e a raiva "()" parada (do mod da IA 0.7.40). */
+    static final RawAnimation RAGE_CRACK = RawAnimation.begin().thenPlayAndHold("rage_crack");
+    static final RawAnimation RAGE_IDLE = RawAnimation.begin().thenLoop("rage_idle");
+    static final RawAnimation TIRED = RawAnimation.begin().thenLoop("tired");
+    /** A explosão: voa de costas dando cambalhota, cai e levanta (o "flung" do mod da IA, 1,7 s). */
+    static final RawAnimation FLUNG = RawAnimation.begin().thenPlayAndHold("flung");
+    /** (roda) A cutscene da cabeça: olha, crava a boca e chacoalha (head_grab, 4,2 s). */
+    static final RawAnimation HEAD_GRAB = RawAnimation.begin().thenPlayAndHold("head_grab");
+    /** (roda, armado) Arranca o braço (2 s) e come (4,5 s), as do mod da IA. */
+    static final RawAnimation ARM_RIP = RawAnimation.begin().thenPlayAndHold("arm_rip");
+    static final RawAnimation ARM_EAT = RawAnimation.begin().thenPlayAndHold("arm_eat");
+    /** (roda) No teto, de cabeça pra baixo, e o mergulho de lá (os do mod da IA). */
+    static final RawAnimation CEILING_HANG = RawAnimation.begin().thenLoop("ceiling_hang");
+    /** (roda) Come a arma roubada sacudindo a cabeça (weapon_eat); o roubo é o bote curto da mordida (grab_start). */
+    static final RawAnimation WEAPON_EAT = RawAnimation.begin().thenPlayAndHold("weapon_eat");
+    static final RawAnimation CEILING_DIVE = RawAnimation.begin().thenPlayAndHold("ceiling_dive");
+    /** Fase 2: correndo em pé curvado, desesperado. */
+    static final RawAnimation FRENZY_RUN = RawAnimation.begin().thenLoop("run_frenzy");
+    static final RawAnimation FRENZY_IDLE = RawAnimation.begin().thenLoop("frenzy_idle");
+
+    /** Abaixo disso (blocos por tick) ele está parado. */
+    private static final double MOVING = 0.02D;
+    /** Na parede/escada, subindo menos que isso por tick = parado ou escorregando (a animação congela, agarrado). */
+    private static final double CLIMB_STILL = 0.01D;
+    /** O resto do embalo do mortal no pouso não conta como andar (andar de verdade passa disso). */
+    private static final double TADA_MOVING = 0.06D;
+
+    private LmAnims() {
+    }
+
+    static RawAnimation pick(AbstractClientPlayer p) {
+        LmActsClient.Act act = LmActsClient.get(p);
+        if (act != null) {
+            if (act.kind == LmAttack.SMASH) return act.age < LmAttacks.BITE_FROM ? SMASH : BITES;
+            // martelando em pé: os mesmos golpes com os dois punhos, enquanto segurar
+            if (act.kind == LmAttack.HAMMER) return SMASH;
+            if (act.kind == LmAttack.GRAB) {
+                if (act.shake >= 0) return GRAB_SHAKE;
+                if (act.age < GRAB_START_TICKS) return GRAB_START;
+                return groundSpeed(p) > MOVING ? GRAB_WALK : GRAB_HOLD;
+            }
+            if (act.kind == LmAttack.THROW) return GRAB_THROW;
+            if (act.kind == LmAttack.NECK_CRACK) return RAGE_CRACK;
+            // cansado: parado ofegando; andando, o andar de sempre (ele segue cansado quando para)
+            if (act.kind == LmAttack.TIRED) return groundSpeed(p) > MOVING ? WALK : TIRED;
+            if (act.kind == LmAttack.ARM_RIP) return ARM_RIP;
+            if (act.kind == LmAttack.CEILING) return CEILING_HANG;
+            if (act.kind == LmAttack.HEAD_GRAB) return HEAD_GRAB;
+            if (act.kind == LmAttack.FLUNG) return FLUNG;
+            if (act.kind == LmAttack.STEAL) return GRAB_START;
+            if (act.kind == LmAttack.WEAPON_EAT) return WEAPON_EAT;
+            if (act.kind == LmAttack.CEILING_DIVE) return CEILING_DIVE;
+            if (act.kind == LmAttack.ARM_EAT) return ARM_EAT;
+            if (act.kind == LmAttack.RAGE) {
+                // começa com o estalo; parado, o "()"; andando, avança agachado (a corrida da fase 2)
+                if (act.age < LmAttacks.NECK_CRACK_TICKS) return RAGE_CRACK;
+                return groundSpeed(p) > MOVING ? FRENZY_RUN : RAGE_IDLE;
+            }
+            if (act.kind == LmAttack.PILE) return act.age < LmActsClient.PILE_DROP ? PILE_DROP : PILE_LIE;
+            if (act.kind == LmAttack.RISE) return PILE_RISE;
+            if (act.kind == LmAttack.FINISH) {
+                return switch (LmFinish.phase(act.age)) {
+                    case MOUNT -> FIN_MOUNT;
+                    case DIG -> FIN_DIG;
+                    case OPEN -> FIN_OPEN;
+                    case FEED -> FIN_FEED;
+                    case STARE -> FIN_STARE;
+                };
+            }
+        }
+        // (v0.3.9) nadando vem antes do mortal e do "tada" do pouso: cair na água conta como pouso e o tada (braços
+        // abertos, até andar rápido no chão) ficava no lugar do nado
+        if (p.isVisuallySwimming()) return SWIM;
+        if (LmMoves.flipTurn(p, 0F) >= 0F || LmMoves.flipAir(p)) return FLIP;
+        // pousou: braços abertos, até sair andando
+        if (LmMoves.tada(p) && groundSpeed(p) <= TADA_MOVING) return TADA;
+        LmTransform.Phase tp = LmTransformClient.phase(p);
+        if (tp != null) {
+            return switch (tp) {
+                case CONTORT -> CONTORT;
+                case HOLD -> CONTORT_HOLD;
+                case ROAR -> ROAR;
+            };
+        }
+        LmMode mode = LmModes.get(p);
+        LmMove move = LmMoves.airborne(p);
+        boolean moving = groundSpeed(p) > MOVING;
+        if (p.onClimbable() && !p.onGround()) return CLIMB;
+        if (move == LmMove.SKY) return SKY;
+        if (move == LmMove.POUNCE) return LEAP;
+        if (mode == LmMode.GALLOP) {
+            if (move == LmMove.LEAP) return LEAP;
+            if (move == LmMove.HOP) return HOP;
+            // segurando o agachar (carregando o pulo alto) ele fica baixinho, parado
+            if (moving && !p.isShiftKeyDown()) return RUN;
+            return CROUCH_IDLE;
+        }
+        if (mode == LmMode.FRENZY) return moving ? FRENZY_RUN : FRENZY_IDLE;
+        return moving ? WALK : IDLE;
+    }
+
+    /**
+     * Galope: a cadência quase não muda, o que cresce é a passada (igual ao Froggydude:
+     * a ~0,7 b/t a velocidade fica em ~1, passada de ~3,7 blocos). Em pé: o passo
+     * acompanha a velocidade.
+     */
+    static double speed(AbstractClientPlayer p) {
+        LmActsClient.Act act = LmActsClient.get(p);
+        if (act != null) {
+            if (act.kind == LmAttack.SMASH && act.age >= LmAttacks.BITE_FROM) return BITE_SPEED;
+            // arrastando: o passo acompanha a velocidade
+            if (act.kind == LmAttack.GRAB && act.shake < 0) return Mth.clamp(groundSpeed(p) * 8.0D, 0.5D, 1.6D);
+            return 1D;
+        }
+        // (v0.3.5) na parede (e na escada) é o galope da parede do Froggydude: a passada acompanha a subida (a 10 b/s,
+        // uma passada de ~2,5 blocos a cada 0,25 s, como no vídeo; na escada, mais devagar, sem correr no lugar);
+        // parado ou escorregando, fica agarrado
+        if (pick(p) == CLIMB) {
+            double up = p.getY() - p.yo;
+            return up > CLIMB_STILL ? Mth.clamp(up / LmWallClimb.CLIMB_VY, 0.4D, 1D) : 0D;
+        }
+        LmMode mode = LmModes.get(p);
+        double v = groundSpeed(p);
+        if (v <= MOVING || !p.onGround()) return 1D;
+        if (mode == LmMode.GALLOP) return p.isShiftKeyDown() ? 1D : runSpeed(v);
+        if (mode == LmMode.FRENZY) return runSpeed(v);
+        return Mth.clamp(v * 7.0D, 0.5D, 2.0D);
+    }
+
+    static double runSpeed(double v) {
+        return Mth.clamp(0.3D + v * 0.95D, 0.45D, 1.3D);
+    }
+
+    /** Quanto andou no chão no último tick (serve pra todos os jogadores, até os de longe). */
+    static double groundSpeed(AbstractClientPlayer p) {
+        double dx = p.getX() - p.xo;
+        double dz = p.getZ() - p.zo;
+        return Math.sqrt(dx * dx + dz * dz);
+    }
+}
